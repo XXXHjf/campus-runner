@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.PaymentLogMapper">
+
+
+    <insert id="insert">
+        INSERT INTO tb_payment_log(
+            id,
+            order_number,
+            payment_type,
+            transaction_id,
+            trade_type,
+            trade_state,
+            bank_type,
+            success_time,
+            payer_openid,
+            total,
+            service_fee_rate,
+            service_fee,
+            content,
+            deleted
+        )
+        VALUES (
+                null,
+                #{orderNumber},
+                #{paymentType},
+                #{transactionId},
+                #{tradeType},
+                #{tradeState},
+                #{bankType},
+                #{successTime},
+                #{payerOpenid},
+                #{total},
+                #{serviceFeeRate},
+                #{serviceFee},
+                #{content},
+                #{deleted}
+               )
+
+    </insert>
+    <select id="getByOrderNumber" resultType="com.mikasa.campusrunner.pojo.entity.PaymentLog">
+        SELECT
+            *
+        FROM
+            tb_payment_log
+        WHERE
+            deleted = 0 AND
+            order_number = #{orderNumber}
+    </select>
+
+</mapper>

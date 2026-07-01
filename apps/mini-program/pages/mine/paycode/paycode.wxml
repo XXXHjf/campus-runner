@@ -1,0 +1,26 @@
+<!--pages/mine/paycode/paycode.wxml-->
+<view class="card">
+  <view class="payQRcode">
+    <!-- 上传过收款码 -->
+    <t-image wx:if="{{ifWxCode}}" class="imgCode" src="{{wxCodeSrc}}" mode="aspectFill" />
+    <!-- 暂无收款码的情况 -->
+    <view wx:else class="imgCode" style="background-color: #EEEEEE;" bind:tap="tgrdClkChangeQR">
+      <t-icon name="add" size="350rpx" color="#B0B0B0" bind:click="onIconTap" />
+    </view>
+
+  </view>
+  <!-- <view class="view_save_tip">请在 收付款-二维码收款 中保存</view> -->
+  <view style="margin: auto; width: 65%;">
+    <t-grid column="{{2}}" class="t-class-text">
+      <t-grid-item text="下载收款码" bindclick="tgrdClkSaveQR" />
+      <t-grid-item text="更换收款码" bindclick="tgrdClkChangeQR" />
+      <!-- #717194 -->
+    </t-grid>
+  </view>
+  <t-divider style="width: 90%;margin: auto;margin-top: 30rpx;" />
+  <t-cell class="t-class" bind:click="toLedger" title="收款小账本" hover arrow bordered="{{false}}" />
+</view>
+
+
+<!-- 提示 -->
+<t-toast id="t-toast" />

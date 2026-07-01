@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.WxTransferLogMapper">
+    <insert id="insert">
+        INSERT INTO tb_wx_transfer_log(
+            id,
+            order_number,
+            transfer_bill_no,
+            state,
+            mch_id,
+            transfer_amount,
+            openid,
+            content,
+            create_time,
+            update_time,
+            deleted
+        )
+        VALUES (
+            null,
+            #{orderNumber},
+            #{transferBillNo},
+            #{state},
+            #{mchId},
+            #{transferAmount},
+            #{openid},
+            #{content},
+            #{createTime},
+            #{updateTime},
+            0
+        )
+
+
+    </insert>
+
+
+    <update id="updateByOrderNumber">
+        UPDATE
+            tb_wx_transfer_log
+        <set>
+            <if test="state != null and state != ''">state = #{state}, </if>
+            <if test="mchId != null and mchId != ''">mch_id = #{mchId}, </if>
+            <if test="content != null and content != ''">content = #{content}, </if>
+            <if test="updateTime != null and updateTime != ''">update_time = #{updateTime}, </if>
+        </set>
+        where order_number = #{orderNumber}
+    </update>
+</mapper>

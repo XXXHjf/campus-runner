@@ -1,0 +1,55 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/mine/mine/mine",
+    "pages/mine/newUser/index",
+    "pages/logs/logs",
+    "pages/address/addressShow/show",
+    "pages/address/addressAdd/add",
+    "pages/address/addressInfo/info",
+    "pages/orders/myOrders/ordersShow/show",
+    "pages/orders/takeOrders/takesShow/show",
+    "pages/orders/myOrders/ordersAdd/add",
+    "pages/orders/takeOrders/takesInfo/info",
+    "pages/orders/myOrders/ordersInfo/info",
+    "pages/mine/identify/identify",
+    "pages/mine/reIdentify/reIdentify",
+    "pages/mine/userInfo/info",
+    "pages/mine/paycode/paycode",
+    "pages/help-info/help-info"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "校园跑腿",
+    "navigationBarBackgroundColor": "#ffffff",
+    "enablePullDownRefresh": false
+  },
+  "tabBar": {
+    "color": "#707070",
+    "selectedColor": "#0052d9",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "/images/tabBar/home.png",
+        "selectedIconPath": "/images/tabBar/home-selected.png"
+      },
+      {
+        "pagePath": "pages/orders/myOrders/ordersAdd/add",
+        "text": "发布跑腿",
+        "iconPath": "/images/tabBar/orderAdd.png",
+        "selectedIconPath": "/images/tabBar/orderAdd-selected.png"
+      },
+      {
+        "pagePath": "pages/mine/mine/mine",
+        "text": "我的",
+        "iconPath": "/images/tabBar/user.png",
+        "selectedIconPath": "/images/tabBar/user-selected.png"
+      }
+    ]
+  },
+  "componentFramework": "glass-easel",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

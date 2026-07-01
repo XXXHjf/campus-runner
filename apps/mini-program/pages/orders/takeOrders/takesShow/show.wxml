@@ -1,0 +1,53 @@
+<!-- 顶部tab栏 -->
+<view class="tab">
+  <t-cell class="tabs" title="{{tabTitles[tabValue]}}" hover arrow leftIcon="task" bordered="{{false}}" bind:tap="openDrawer" />
+</view>
+<t-drawer visible="{{visible}}" placement="left" items="{{sidebar}}" title="我接单的跑腿" bind:overlay-click="overlayClick" bind:item-click="itemClick" />
+
+
+<view class="show">
+  <!-- 订单展示 -->
+  <view class="cart" croll-y>
+    <block wx:for="{{takes}}" wx:key="id">
+      <view wx:if="{{tabValue=='all' || (tabValue=='processing' && (item.status==1||item.status==2||item.status==3)) || (tabValue=='settling' && item.status==5 && item.price!=null) || (tabValue=='completed' && ((item.status==5 && item.price==null) || item.status==6)) || (tabValue=='exception' && (item.status==4||item.status==7||item.status==-4||item.status==-3||item.status==-2))}}" class="show-cart" bindtap="gotoTakesInfo" data-item="{{item}}">
+        <view class="box1">
+          <image class="categoryImage" src="{{item.categoryImage}}" mode="widthFix" />
+          <view class="categoryName">{{item.categoryName}}</view>
+          <!-- 订单状态 -->
+          <t-tag class="status" variant="light" theme="{{item.statusTheme}}">{{item.statusDesc}}</t-tag>
+        </view>
+        <t-divider />
+        <!-- 订单内容 -->
+        <view class="box2">
+          <!-- 订单说明图片 -->
+          <view hidden="{{item.image==null}}">
+            <t-image class="image" src="{{item.image}}" id="loading-img" mode="aspectFill" shape="round" style="width: 125rpx;height: 125rpx;" />
+          </view>
+          <!-- 订单说明文字 -->
+          <view class="box2-1">
+            <view class="note">{{item.note||'暂无说明'}}</view>
+            <view class="pick">取：{{item.pickUpAddress}}</view>
+            <view class="recive">收：{{item.reciveAddress}}</view>
+          </view>
+
+        </view>
+        <t-divider />
+        <view class="box3">
+          <view class="date">接单时间: {{item.takeOrderCreateTime}}</view>
+          <view class="price" hidden="{{item.price==null}}">
+            <view style="font-size: small;color: #ed7b2f;font-weight: bold;">￥ {{item.price}} </view>
+          </view>
+        </view>
+
+        <!-- <view class="button"></view> -->
+      </view>
+    </block>
+  </view>
+
+</view>
+
+<!-- 空白填充 -->
+<view style="height: 100rpx;"></view>
+
+<!-- 刷新轻提示 -->
+<t-toast id="t-toast" />

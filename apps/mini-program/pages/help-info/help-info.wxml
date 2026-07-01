@@ -1,0 +1,10 @@
+<view class="page-container">
+  <view wx:if="{{tag=='default'}}">
+    <view>无说明</view>
+  </view>
+
+  <view wx:if="{{tag=='entranceGuard'}}">
+    <view>1、注意取件、收件地址、配送过程中是否有门禁，或限制限时进入。</view>
+    <view>2、如果遇到门禁情况无法配送到指定位置，请自行与发单人协商。</view>
+  </view>
+</view>

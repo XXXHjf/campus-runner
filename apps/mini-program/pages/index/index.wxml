@@ -1,0 +1,165 @@
+<!-- 首页展示 -->
+<view class="show">
+  <!-- 轮播图区域 -->
+  <view style="margin:15rpx;">
+    <t-swiper current="{{current}}" autoplay="{{autoplay}}" duration="{{duration}}" interval="{{interval}}" list="{{swiperList}}" navigation="{{ { type: 'dots-bar' } }}" />
+  </view>
+
+  <view>
+    <!-- 顶部tab栏 -->
+    <view class="tab">
+      <t-tabs class="tabs" defaultValue="{{tab}}" sticky="true" bind:click="onTabsClick" t-class="custom-tabs" arrow>
+        <!-- 综合排序 -->
+        <t-tab-panel label="综合排序" value="0" icon="filter-3" />
+        <!-- 价格排序 -->
+        <t-tab-panel label="{{tab==1?label1[orderStatus]:label1[2]}}" value="1" icon="{{tab==1?icon1[orderStatus]:icon1[2]}}" />
+        <!-- 快捷筛选 -->
+        <t-tab-panel label="{{tab==2?(orderStatus==2?'快捷筛选':'重置筛选'):'快捷筛选'}}" value="2" icon="{{tab==2?(orderStatus==2?'search':'refresh'):'search'}}" style="background: #F5F5F5;">
+          <!-- 筛选选择-折叠面板 -->
+          <view wx:if="{{orderStatus!=2}}">
+            <!-- 按照跑腿分类筛选 -->
+            <view hidden="{{orderStatus!=0}}" style="margin: 10rpx 0;">
+              <t-collapse theme="card" defaultValue="{{[0]}}" expandMutex expandIcon>
+                <t-collapse-panel header-left-icon="task-visible" header="按照{{showCategory ||'跑腿分类'}}筛选" value="{{1}}">
+                  <t-grid class="block" column="{{4}}" theme="card" hover="true">
+                    <t-grid-item wx:for="{{category}}" wx:key="index" text="{{item.categoryName}}" image="{{item.image}}" style="padding: 16rpx 0 !important;" bindclick="getTakeByCategory" data-item="{{item}}" />
+                  </t-grid>
+                </t-collapse-panel>
+              </t-collapse>
+            </view>
+            <!-- 按照地址类型筛选 -->
+            <view hidden="{{orderStatus!=1}}" style="margin: 10rpx 0;">
+              <t-collapse theme="card" defaultValue="{{[0]}}" expandMutex expandIcon>
+                <t-collapse-panel header-left-icon="map-search" header="按照{{upPickUp==null?(upRecive==null?'地址类型':'收件地址'):(upRecive==null?'取件地址':'取件和收件地址')}}筛选" value="{{1}}">
+                  <view>
+                    <!-- 取件 -->
+                    <view class="box1-2">
+                      <view class="box1-2" bind:tap="handleShowPicker" data-tag="pickup">
+                        <view class="text-address">取件</view>
+                        <view class="address">
+                          {{upPickUp.label[0] || '点击选择取件地址'}} {{upPickUp.label[1]}} {{upPickUp.label[2]}}
+                        </view>
+                      </view>
+                      <!-- 重置按钮 -->
+                      <view hidden="{{upPickUp==null}}" style="width: 100rpx;" bind:tap="clearUpPickUp">
+                        <t-icon name="rotate" size="38rpx" style="color:rgba(128, 128, 128, 0.5);" />
+                      </view>
+                    </view>
+                    <!-- 收件 -->
+                    <view class="box1-2">
+                      <view class="box1-2" bind:tap="handleShowPicker" data-tag="recive">
+                        <text class="text-address">收件</text>
+                        <view class="address" style="font-weight: 600;">
+                          {{upRecive.label[0] || '点击选择收件地址'}} {{upRecive.label[1]}} {{upRecive.label[2]}}
+                        </view>
+                      </view>
+                      <!-- 重置按钮 -->
+                      <view hidden="{{upRecive==null}}" style="width: 100rpx;" bind:tap="clearUpRecive">
+                        <t-icon name="rotate" size="38rpx" style="color:rgba(128, 128, 128, 0.5);" />
+                      </view>
+                    </view>
+                  </view>
+                </t-collapse-panel>
+              </t-collapse>
+            </view>
+          </view>
+        </t-tab-panel>
+      </t-tabs>
+    </view>
+    <!-- 订单展示 -->
+    <view class="cart" croll-y>
+      <block wx:for="{{takes}}" wx:key="id">
+        <view class="show-cart" bindtap="gotoTakesInfo" data-item="{{item}}">
+          <!-- 分类 -->
+          <view class="box1">
+            <t-image hidden="{{item.categoryImage!=null}}" class="categoryImage" src="{{item.categoryImage}}" loading="slot" error="slot" mode="widthFix" />
+            <view class="categoryName">{{item.categoryName}}</view>
+            <!-- 时间tag -->
+            <view>
+              <!-- <t-tag class="margin-16" size="small " variant="light" theme="primary"> 任务时间：{{item.gap<60?item.gap+'分钟':item.gap/60+'小时'}} </t-tag> -->
+              <t-tag class="margin-16" size="small " variant="light" theme="primary">预期{{item.expectTime}}</t-tag>
+            </view>
+            <!-- 门禁tag -->
+            <view hidden="{{item.doorAccess==0}}">
+              <t-tag class="margin-16" size="small" variant="light" theme="primary">门禁</t-tag>
+            </view>
+            <!-- 金额tag -->
+            <view hidden="{{item.price==null}}">
+              <t-tag class="margin-16" size="small" variant="light" theme="warning">￥{{item.price }} </t-tag>
+            </view>
+          </view>
+          <!-- 分割线 -->
+          <t-divider class="drvider" />
+          <!-- 订单内容 -->
+          <view class="box2" style="margin-bottom: 20rpx;">
+            <!-- 订单说明图片 -->
+            <view hidden="{{item.image==null}}">
+              <t-image class="image" src="{{item.image}}" id="loading-img" mode="aspectFill" shape="round" style="filter:blur(4rpx)" />
+            </view>
+            <!-- 订单说明文字 -->
+            <view class="box2-1">
+              <view class="note">{{item.note||'暂无说明'}}</view>
+              <view class="pick">取：{{item.pickUpAddress}}</view>
+              <view class="recive">收：{{item.reciveAddress}}</view>
+            </view>
+
+          </view>
+
+        </view>
+      </block>
+    </view>
+    <!-- 底部填充 -->
+    <view wx:if="{{userInfo.token!=null && !isLoginChecking}}">
+      <view wx:if="{{userInfo.authentication==1}}" style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">哇哦，已经到底了...QAQ</view>
+      <view wx:else style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">在"我的"认证后查看订单</view>
+    </view>
+    <view wx:else style="position: relative;" hidden="{{isLoginChecking}}">
+      <view style="position: absolute;  top: 50%;  left: 50%;  transform: translate(-50%, 150%);">
+        <t-icon name="look-around" size="96rpx" color="darkgray;" />
+        <view style="margin: 20rpx; width: 500rpx; text-align: center;font-weight: bold;color: darkgray;">未登录，我还不知道你是谁哦~</view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 首次使用（本地无缓存）提示弹出层 -->
+<t-popup visible="{{visible}}" bind:visible-change="onVisibleChange" placement='bottom'>
+  <view>
+
+    <view style="margin: 30rpx 50rpx;">
+      <view class="p">
+        <span class="text" style="margin-left: 50rpx;">我们将严格按照 </span>
+        <text class='privacy' bind:tap="openPrivacyContract">《帮帮校园送用户协议》</text>
+        <text class="text"> 向您提供服务。</text>
+      </view>
+      <view class="p">
+        <span class="text" style="margin-left: 50rpx;">如果您对 </span>
+        <text class='privacy' bind:tap="openPrivacyContract">《帮帮校园送用户协议》</text>
+        <text class="text"> 有任何疑问或建议，可以通过声明内联系方式向我们反馈。</text>
+      </view>
+    </view>
+
+    <view style="margin: 50rpx;">
+      <t-button theme="primary" bind:tap="know" block>我已知晓</t-button>
+    </view>
+  </view>
+</t-popup>
+
+<!-- 筛选选择 -->
+<t-action-sheet id="t-action-sheet" usingCustomNavbar bind:selected="handleSelected" />
+
+<!-- 地址筛选 -->
+<t-picker visible="{{areaVisible}}" value="{{areaValue}}" title="请选择地址" cancelBtn="取消" confirmBtn="确认" bindchange="onPickerChange" bindpick="onColumnChange" bindcancel="onPickerCancel">
+  <t-picker-item options="{{schools}}"></t-picker-item>
+  <t-picker-item options="{{compuses}}"></t-picker-item>
+  <t-picker-item options="{{buildings}}"></t-picker-item>
+</t-picker>
+
+<!-- 刷新轻提示 -->
+<t-toast id="t-toast" />
+
+<triple-address-pricker id="triplePicker" bind:confirmSelection="handleConfirmSelection" />
+
+<t-overlay visible="{{isLoginChecking}}" duration="{{200}}" backgroundColor="rgb(255,255,255,0.6)">
+  <t-loading theme="dots" size="80rpx" class="page-loading" />
+</t-overlay>

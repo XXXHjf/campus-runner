@@ -1,0 +1,50 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.sw?
+
+# Logs
+/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.npm-cache/
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+
+# Java / Maven
+target/
+build/
+*.class
+*.iml
+.classpath
+.project
+.settings/
+!.mvn/wrapper/maven-wrapper.jar
+
+# WeChat mini program
+miniprogram_npm/
+project.private.config.json
+
+# Local and sensitive config
+.env
+.env.local
+.env.*.local
+application-local.yaml
+application-local.yml
+apps/api/src/main/resources/application.yaml
+*.pem
+*.jks
+*.p12
+*.pfx
+apiclient_key*
+jks-password.txt
+
+# AI/tooling local state
+.claude/

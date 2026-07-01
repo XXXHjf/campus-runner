@@ -1,0 +1,24 @@
+{
+  "navigationBarTitleText": "发布跑腿",
+  "styleIsolation": "apply-shared",
+  "usingComponents": {
+    "t-tag": "tdesign-miniprogram/tag/tag",
+    "t-divider": "tdesign-miniprogram/divider/divider",
+    "t-cell": "tdesign-miniprogram/cell/cell",
+    "t-button": "tdesign-miniprogram/button/button",
+    "t-image": "tdesign-miniprogram/image/image",
+    "t-loading": "tdesign-miniprogram/loading/loading",
+    "t-popup": "tdesign-miniprogram/popup/popup",
+    "t-input": "tdesign-miniprogram/input/input",
+    "t-radio": "tdesign-miniprogram/radio/radio",
+    "t-switch": "tdesign-miniprogram/switch/switch",
+    "t-date-time-picker": "tdesign-miniprogram/date-time-picker/date-time-picker",
+    "t-textarea": "tdesign-miniprogram/textarea/textarea",
+    "t-upload": "tdesign-miniprogram/upload/upload",
+    "t-steps": "tdesign-miniprogram/steps/steps",
+    "t-step-item": "tdesign-miniprogram/step-item/step-item",
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "t-dialog": "tdesign-miniprogram/dialog/dialog",
+    "t-toast": "tdesign-miniprogram/toast/toast"
+  }
+}

@@ -1,0 +1,152 @@
+<!-- 我的 -->
+<view class="show">
+
+  <view class="box1">
+    <!-- 头像与昵称 -->
+    <view class="box1-1" bind:tap="loginTap">
+      <view>
+        <image class="avatar" src="{{userInfo.headImg || defaultAvatarUrl}}"></image>
+      </view>
+      <view>
+        <view class="info">
+          <view style="display: flex;align-items: center;">
+            <text class="nickname">{{userInfo.username || "未登录"}}</text>
+            <t-tag wx:if="{{userInfo}}" class="tag" variant="light" size="small" theme="{{userInfo.authentication==0?'default':'primary'}}" icon="{{userInfo.sex==null?'':userInfo.sex==0?'gender-female':'gender-male'}}">{{userInfo.authentication==1?' 已认证':' 未认证'}}</t-tag>
+          </view>
+          <view>
+            <text class="text">{{userInfo==null?'使用微信授权登录':(userInfo.phone!=null?'Tel：'+userInfo.phone:'请完善信息')}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <t-divider />
+    <!-- 菜单项 -->
+    <view class="box1-2">
+      <t-tab-bar t-class="t-tab-bar" value="{{value}}" bindchange="{{userInfo==null?'loginTap':'onChange'}}" theme="tag" shapebordered="{{false}}" split="{{false}}" fixed="{{false}}" safe-area-inset-bottom="{{false}}">
+        <t-tab-bar-item wx:for="{{list}}" wx:key="index" value="{{item.value}}" icon="{{item.icon}}">
+          {{item.label}}
+        </t-tab-bar-item>
+      </t-tab-bar>
+    </view>
+  </view>
+
+  <!-- 待支付提醒 -->
+  <view class="pending-unpaid-section" wx:if="{{unpaidOrderList.length > 0}}">
+    <view class="pending-unpaid-card" bindtap="tapToUnpaid">
+      <view class="payment-content">
+        <view class="payment-icon-wrapper">
+          <t-icon name="error-circle" size="48rpx" color="#e34d59" />
+          <view class="payment-badge">{{unpaidOrderList.length}}</view>
+        </view>
+        <view class="payment-info">
+          <view class="payment-title">
+            <text>待支付订单</text>
+            <t-tag theme="danger" variant="light" size="small" style="margin-left: 12rpx;">30分钟内支付</t-tag>
+          </view>
+          <view class="payment-desc unpaid-desc">
+            <text>{{unpaidOrderList.length}}个订单待支付，超时将自动删除</text>
+          </view>
+        </view>
+      </view>
+      <view class="payment-arrow">
+        <t-icon name="chevron-right" size="40rpx" color="#999" />
+      </view>
+    </view>
+  </view>
+
+  <!-- 待收款提醒 - 优化版 -->
+  <view class="pending-payment-section" wx:if="{{notReceiveOrderList.length > 0}}">
+    <view class="pending-payment-card" bindtap="tapToReceive">
+      <!-- 左侧图标和内容 -->
+      <view class="payment-content">
+        <view class="payment-icon-wrapper">
+          <t-icon name="money-circle" size="48rpx" color="#ed7b2f" />
+          <view class="payment-badge">{{notReceiveOrderList.length}}</view>
+        </view>
+        <view class="payment-info">
+          <view class="payment-title">
+            <text>待收款订单</text>
+            <t-tag theme="warning" variant="light" size="small" style="margin-left: 12rpx;">待处理</t-tag>
+          </view>
+          <view class="payment-desc">
+            <text>{{notReceiveOrderList.length}}个订单已完成，点击查看收款</text>
+          </view>
+        </view>
+      </view>
+      <!-- 右侧箭头 -->
+      <view class="payment-arrow">
+        <t-icon name="chevron-right" size="40rpx" color="#999" />
+      </view>
+    </view>
+  </view>
+
+  <!-- 邀请好友 -->
+  <view class="box2" style="position: relative;">
+    <t-cell-group theme="card">
+      <!-- <t-cell title="新手帮助" leftIcon="lightbulb-circle" hover arrow /> -->
+      <t-cell title="邀请好友" leftIcon="share-1" style="{{shareFlag?'background: none !important;':''}}" hover arrow />
+    </t-cell-group>
+    <view style="position: absolute; margin: 0 30rpx; width: calc(100% - 60rpx);bottom: 15rpx;">
+      <t-button class="ghostButton" open-type="share" bindtap="share" ghost block />
+    </view>
+  </view>
+
+  <!-- <view class="box2">
+    <t-cell-group theme="card">
+      <t-cell title="设置" leftIcon="setting" hover arrow />
+    </t-cell-group>
+  </view> -->
+
+  <!-- 意见反馈 -->
+  <view class="box2" style="position: relative;" hidden="{{userInfo==null}}">
+    <t-cell-group theme="card">
+      <!-- <t-cell title="关于我们" leftIcon="chat-bubble-smile" hover arrow /> -->
+      <t-cell title="意见反馈" leftIcon="chat-message" style="{{feedbackFlag?'background: none !important;':''}}" hover arrow />
+    </t-cell-group>
+    <view style="position: absolute; margin: 0 30rpx; width: calc(100% - 60rpx);bottom: 15rpx;">
+      <t-button class="ghostButton" open-type="feedback" bindtap="feedback" ghost block />
+    </view>
+  </view>
+
+  <view wx:if="{{userInfo}}" class="button">
+    <t-button size="large" theme="primary" variant="outline" bind:tap="logoutBtnClick" block>退出登录</t-button>
+  </view>
+</view>
+
+<!-- 微信授权登录弹窗 -->
+<t-dialog id="t-dialog" />
+
+<!-- 新用户信息完善引导弹窗 -->
+<t-dialog 
+  visible="{{showCompleteInfoDialog}}" 
+  title="完善个人信息" 
+  confirm-btn="去完善"
+  cancel-btn="稍后再说"
+  bind:confirm="handleCompleteInfo"
+  bind:cancel="handleCancelCompleteInfo"
+>
+  <view style="padding: 20rpx;">
+    <view style="margin-bottom: 20rpx; color: #666; font-size: 28rpx;">
+      <text>欢迎使用帮帮校园送！</text>
+    </view>
+    <view style="color: #999; font-size: 26rpx; line-height: 1.6;">
+      <text>为了更好地为您服务，请先完善以下信息：</text>
+    </view>
+    <view style="margin-top: 20rpx; padding-left: 20rpx;">
+      <view style="color: #666; font-size: 26rpx; margin-bottom: 10rpx;" wx:if="{{!userInfo.phone}}">
+        <text>• 手机号码（必填）</text>
+      </view>
+      <view style="color: #666; font-size: 26rpx;" wx:if="{{userInfo.authentication!=1}}">
+        <text>• 校园认证（必填）</text>
+      </view>
+    </view>
+  </view>
+</t-dialog>
+
+<!-- 登录加载动画 -->
+<t-overlay class="loadingBox" visible="{{loginLoadShow}}" duration="{{500}}" backgroundColor="rgb(255,255,255,0.5)">
+  <t-loading theme="dots" size="100rpx" class="loaging" />
+</t-overlay>
+
+<!-- 登陆失败的轻提示 -->
+<t-toast id="t-toast" />

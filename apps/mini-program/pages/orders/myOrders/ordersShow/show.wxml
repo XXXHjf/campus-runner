@@ -1,0 +1,53 @@
+<!-- 顶部tab栏 -->
+<view class="tab">
+  <t-cell class="tabs" title="{{tabTitles[tabValue]}}" hover arrow leftIcon="send" bordered="{{false}}" bind:tap="openDrawer" />
+</view>
+<t-drawer visible="{{visible}}" placement="left" items="{{sidebar}}" title="我发布的跑腿" bind:overlay-click="overlayClick" bind:item-click="itemClick" />
+<!-- 展示地址卡片的空间 -->
+<view class="show">
+  <view class="cart" croll-y>
+    <block wx:for="{{orders}}" wx:key="id">
+      <view wx:if="{{tabValue=='all' || (tabValue=='0' && item.status==0) || (tabValue=='processing' && (item.status==1||item.status==2||item.status==3)) || (tabValue=='5' && item.status==5) || (tabValue=='4' && item.status==4) || (tabValue=='refund' && (item.status==-4||item.status==-3||item.status==-2||item.status==-1))}}" class="show-cart" bindtap="gotoOrderInfo" data-item="{{item}}">
+
+        <view class="box1">
+          <!-- 订单类别图标 -->
+          <image class="categoryImage" src="{{item.categoryImage}}" mode="widthFix" />
+          <!-- 订单类别名字 -->
+          <view class="categoryName">{{item.categoryName}}</view>
+          <!-- 订单状态 -->
+          <t-tag class="status" variant="light" theme="{{item.statusTheme}}">{{item.statusDesc}}</t-tag>
+        </view>
+        <t-divider />
+
+        <view class="box2">
+          <!-- 订单说明图片 -->
+          <view hidden="{{item.image==null}}">
+            <t-image class="image" src="{{item.image}}" id="loading-img" mode="aspectFill" shape="round" style="width: 125rpx;height: 125rpx;" />
+          </view>
+          <!-- 订单说明文字 -->
+          <view class="box2-1">
+            <view class="note">{{item.note||'暂无说明'}}</view>
+            <view class="pick">取：{{item.pickUpAddress}}</view>
+            <view class="recive">收：{{item.reciveAddress}}</view>
+          </view>
+
+        </view>
+        <t-divider />
+
+        <view class="box3">
+          <view class="date">创建时间: {{item.createTime}}</view>
+          <view class="price" hidden="{{item.price==null}}">
+            <view class="price-text">实付 ￥ {{item.displayPayAmount}}</view>
+          </view>
+        </view>
+
+      </view>
+    </block>
+  </view>
+</view>
+
+<!-- 空白填充 -->
+<view style="height: 100rpx;"></view>
+
+<!-- 刷新轻提示 -->
+<t-toast id="t-toast" />

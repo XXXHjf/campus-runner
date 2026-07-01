@@ -1,0 +1,203 @@
+/* 总体布局 */
+.show {
+  position: relative; /* 使得内部元素可以相对于此定位 */
+  display: flex;
+  flex-direction: column;
+  /* height: 100vh; */
+  height: auto;
+  /* 填充整个视口高度 */
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+
+/* 展示卡片总体布局 */
+.cart {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* background: white; */
+}
+
+/* 详情卡片布局 */
+.show-cart {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* height: 500rpx; */
+  border-radius: 25rpx;
+  margin: 20rpx 25rpx;
+  background-color: white;
+  padding: 20rpx 25rpx 0 25rpx;
+  overflow: hidden;
+  /* padding-bottom: 50rpx; */
+  /* box-shadow: 4px 4px 3px rgba(0, 0, 0, 0.1); */
+  /* 水平偏移，垂直偏移，模糊半径，颜色 */
+}
+
+.box1 {
+  display: flex;
+  flex: 0.8;
+  align-items: center;
+  /* background: powderblue; */
+}
+
+.categoryImage {
+  width: 45rpx;
+  height: 45rpx;
+  /* border-radius: 25px; */
+  /* padding: 5rpx; */
+  /* background: brown; */
+}
+
+.categoryName {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight:unset;
+  padding-left: 10rpx;
+  /* background:rebeccapurple; */
+}
+
+.box2 {
+  position: relative;
+  display: flex;
+  flex: 3;
+  align-items: center;
+  /* background: palevioletred; */
+}
+
+.img {
+  /* border-radius: 25rpx; */
+  width: 125rpx;
+  height: 125rpx;
+  /* padding: 5rpx; */
+  /* box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); */
+  /* background: red; */
+}
+
+.box2-1 {
+  display: flex;
+  flex: 4;
+  width: 100rpx;
+  padding-left: 20rpx;
+  flex-direction: column;
+  /* background: khaki; */
+}
+
+.note {
+  display: inline-block;
+  /* 将元素设置为内联块级元素 */
+  width: 100%;
+  /* 设置宽度为 100% */
+  max-width: 100%;
+  /* 设置最大宽度为 100% */
+  white-space: nowrap;
+  /* 不允许换行 */
+  overflow: hidden;
+  /* 隐藏溢出部分 */
+  text-overflow: ellipsis;
+  /* 显示省略号 */
+  /* background: lawngreen; */
+  font-size: large;
+  font-weight: bold;
+  padding: 10rpx 0;
+}
+
+.pick {
+  flex: 1;
+  /* width: 80rpx; */
+  /* background: lightslategray; */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: small;
+  font-weight: 500;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: gray;
+}
+
+.recive {
+  flex: 1;
+  /* background: magenta; */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: small;
+  font-weight: 500;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: gray;
+}
+
+.box3 {
+  display: flex;
+  flex: 1.2;
+  align-items: center;
+  padding: 0 0 20rpx 0;
+  /* background: blue; */
+}
+
+.date {
+  flex: 6;
+  font-size:x-small;
+  font-weight: 500;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: gray;
+  /* padding-bottom: 10rpx; */
+  /* background: mediumaquamarine; */
+}
+
+.price {
+  flex: 1;
+  /* background: mediumslateblue; */
+}
+
+/* status */
+.block {
+  margin: 0 32rpx;
+}
+
+.block+.block {
+  margin-top: 48rpx;
+}
+
+.block .status:not(:last-child) {
+  margin-right: 32rpx;
+}
+
+/* 标签 */
+.demo {
+  padding: 0 32rpx 48rpx;
+}
+
+.demo:last-child {
+  padding-bottom: 0;
+}
+
+.demo-desc {
+  font-size: 14px;
+  color: var(--td-text-color-secondary);
+  margin-bottom: 32rpx;
+}
+
+.demo .margin-16:not(:last-child) {
+  margin-right: 32rpx;
+}
+
+/* tab */
+.tab {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.custom-tabs {
+  position: sticky;
+  z-index: 2;
+  margin-bottom: 20rpx;
+}
+.t-drawer{
+  --td-drawer-width:500rpx;
+}
+.t-drawer__title{
+  padding: 48rpx 32rpx !important;
+}

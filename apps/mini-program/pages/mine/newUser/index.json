@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "新用户注册",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
+  "usingComponents": {
+    "t-radio": "tdesign-miniprogram/radio/radio",
+    "t-toast": "tdesign-miniprogram/toast/toast"
+  }
+}

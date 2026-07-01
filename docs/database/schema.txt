@@ -1,0 +1,229 @@
+CREATE TABLE `tb_address_book` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `school_id` BIGINT NULL COMMENT '学校id' ,
+  `compus_id` BIGINT NULL COMMENT '校区id' ,
+  `build_category_id` BIGINT NULL COMMENT '楼宇类型' ,
+  `building_id` BIGINT NULL COMMENT '楼宇id' ,
+  `details` VARCHAR(255) NULL COMMENT '其他详细地址' ,
+  `label` VARCHAR(50) NULL COMMENT '地址标签(寝室 教学楼等)' ,
+  `user_id` BIGINT NULL COMMENT '关联的用户id' ,
+  `is_default` INT NULL COMMENT '是否为默认地址(0否 1时)' ,
+  `type` INT NULL COMMENT '地址种类(0取件地址 1收件地址)' ,
+  `deleted` INT NULL COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB
+COMMENT = '地址簿';
+CREATE TABLE `tb_admin` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `username` VARCHAR(255) NULL COMMENT '管理员的登录用户名' ,
+  `password_hash` VARCHAR(255) NULL COMMENT '登录密码(加密)' ,
+  `nickname` VARCHAR(255) NULL COMMENT '昵称' ,
+  `avatar` VARCHAR(255) NULL COMMENT '头像图片地址' ,
+  `status` INT NULL COMMENT '0是超级管理员 1不是' ,
+  `school` BIGINT NULL COMMENT '0是超级管理员 其他则是具体对应的学校id,对应为分别的管理员' ,
+  `last_login_ip` VARCHAR(255) NULL COMMENT '最后一次登录ip地址' ,
+  `last_login_time` DATETIME NULL COMMENT '最后一次登录时间' ,
+  `create_time` DATETIME NULL COMMENT '创建时间' ,
+  `update_time` DATETIME NULL COMMENT '更新时间' ,
+  `deleted` INT NULL DEFAULT 0  COMMENT '假删除(0未删除 1已删除)' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB;
+CREATE TABLE `tb_banner` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `img_url` VARCHAR(255) NULL COMMENT '轮播图图片地址' ,
+  `title` VARCHAR(255) NULL COMMENT '轮播图标题' ,
+  `school_id` BIGINT NULL COMMENT '轮播图对应的学校id(如果为0则代表所有学校，即通用的轮播图，否则为对应学校的轮播图)' ,
+  `school_name` VARCHAR(255) NULL COMMENT '轮播图对应的学校名字' ,
+  `jump_type` INT NULL DEFAULT 0  COMMENT '跳转类型(0无跳转 1网页链接 2站内网页 3小程序页面)' ,
+  `jump_target` VARCHAR(255) NULL COMMENT '跳转目标：URL或路由/页面标识' ,
+  `remark` TEXT NULL COMMENT '备注说明' ,
+  `create_by` BIGINT NULL COMMENT '创建人id' ,
+  `create_time` DATETIME NULL COMMENT '创建时间' ,
+  `deleted` INT NULL DEFAULT 0  COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB;
+CREATE TABLE `tb_build_category` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `school_id` BIGINT NULL COMMENT '学校id' ,
+  `compus_id` BIGINT NULL COMMENT '校区id' ,
+  `name` VARCHAR(255) NULL COMMENT '类型名字' ,
+  `number_id` VARCHAR(255) NULL COMMENT '校区类型的numberId' ,
+  `deleted` INT NULL DEFAULT 0  COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB;
+CREATE TABLE `tb_building` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `school_id` BIGINT NULL COMMENT '学校id' ,
+  `school_name` VARCHAR(255) NULL COMMENT '学校名字' ,
+  `compus_id` BIGINT NULL COMMENT '校区id' ,
+  `compus_name` VARCHAR(255) NULL COMMENT '校区名字' ,
+  `build_category_id` BIGINT NULL COMMENT '楼宇类型id' ,
+  `number_id` BIGINT NULL COMMENT '楼宇id' ,
+  `building_name` VARCHAR(255) NULL COMMENT '楼宇名称' ,
+  `deleted` INT NULL COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB
+COMMENT = '楼宇表
+';
+CREATE TABLE `tb_category` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `category_name` VARCHAR(50) NULL COMMENT '商品类别名称' ,
+  `image` VARCHAR(255) NULL COMMENT '图标' ,
+  `deleted` INT NULL COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB
+COMMENT = '商品类别表';
+CREATE TABLE `tb_compus` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `school_id` BIGINT NULL COMMENT '学校id' ,
+  `school_name` VARCHAR(255) NULL COMMENT '学校名称' ,
+  `number_id` BIGINT NULL COMMENT '校区id' ,
+  `compus_name` VARCHAR(255) NULL COMMENT '校区名称' ,
+  `deleted` INT NULL COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB
+COMMENT = '校区表';
+CREATE TABLE `tb_orders` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `pick_up_address` BIGINT NULL COMMENT '取件地址' ,
+  `recive_address` BIGINT NULL COMMENT '收件地址' ,
+  `order_number` VARCHAR(255) NULL COMMENT '订单号' ,
+  `price` DECIMAL(10,2) NULL COMMENT '订单基础金额(骑手实际收入)' ,
+  `service_fee_rate` DECIMAL(10,2) NULL COMMENT '付费费率快照' ,
+  `service_fee` DECIMAL(10,2) NULL COMMENT '服务费' ,
+  `pay_amount` DECIMAL(10,2) NULL COMMENT '用户支付总额' ,
+  `delivery_time` DATETIME NULL COMMENT '订单送达时间' ,
+  `cancel_time` DATETIME NULL COMMENT '订单取消时间' ,
+  `cancel_reson` TEXT NULL COMMENT '取消原因' ,
+  `exceed_time` DATETIME NULL COMMENT '超时时间' ,
+  `gap` INT NULL COMMENT '超时间隔' ,
+  `create_time` DATETIME NULL COMMENT '订单创建时间' ,
+  `door_access` INT NULL COMMENT '是否门禁(0 否 1 是)' ,
+  `user_id` BIGINT NULL COMMENT '发单人id' ,
+  `username` VARCHAR(50) NULL COMMENT '订单用的昵称' ,
+  `phone` VARCHAR(50) NULL COMMENT '订单用的电话字段' ,
+  `status` INT NULL COMMENT '订单状态(-4退款异常 -3退款成功 -2退款中 -1未支付 0待接单 1已接单 2派送中 3已送达 4已取消 5已完成 6提现成功 7提现失败)' ,
+  `note` TEXT NULL COMMENT '订单说明信息' ,
+  `image` VARCHAR(255) NULL COMMENT '图片路径' ,
+  `category_id` BIGINT NULL COMMENT '类别id' ,
+  `deleted` INT NULL DEFAULT 0  COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
+  `real_price` DECIMAL(10,2) NULL COMMENT '禁用 实际成交价格' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB
+COMMENT = '订单表';
+CREATE TABLE `tb_payment_log` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `order_number` VARCHAR(255) NULL COMMENT '订单编号' ,
+  `payment_type` VARCHAR(50) NULL COMMENT '支付方式 (微信支付)' ,
+  `transaction_id` VARCHAR(255) NULL COMMENT '微信支付订单号 微信支付侧订单的唯一标识' ,
+  `trade_type` VARCHAR(255) NULL COMMENT '交易类型 JSAPI：公众号支付、小程序支付; NATIVE：Native支付; APP：APP支付; MICROPAY：付款码支付; MWEB：H5支付; FACEPAY：刷脸支付' ,
+  `trade_state` VARCHAR(50) NULL COMMENT '交易状态 交易状态，详细业务流转状态处理请参考开发指引-订单状态流转图 SUCCESS：支付成功; REFUND：转入退款; NOTPAY：未支付; CLOSED：已关闭; REVOKED：已撤销（仅付款码支付会返回）; USERPAYING：用户支付中（仅付款码支付会返回）; PAYERROR：支付失败（仅付款码支付会返回）' ,
+  `bank_type` VARCHAR(255) NULL COMMENT '银行类型 用户支付方式说明，订单支付成功后返回，格式为：银行简码_具体类型(DEBIT借记卡/CREDIT信用卡/ECNY数字人民币)，例如ICBC_DEBIT代表工商银行借记卡，非银行卡支付类型(例如余额/零钱通等)统一为OTHERS，具体请参考《银行类型对照表》' ,
+  `success_time` VARCHAR(255) NULL COMMENT '支付完成时间' ,
+  `payer_openid` VARCHAR(255) NULL COMMENT '支付者信息-用户标识' ,
+  `total` BIGINT NULL COMMENT '总金额 单位为分' ,
+  `service_fee_rate` DECIMAL(10,2) NULL COMMENT '付费费率快照' ,
+  `service_fee` BIGINT NULL COMMENT '服务费 单位为分' ,
+  `content` TEXT NULL COMMENT '所有的支付信息' ,
+  `deleted` INT NULL DEFAULT 0  COMMENT '逻辑删除字段 (0 未删除, 1 已删除)' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB;
+CREATE TABLE `tb_refund_info` ( 
+  `id` BIGINT UNSIGNED AUTO_INCREMENT NOT NULL COMMENT '退款单id' ,
+  `order_number` VARCHAR(255) NULL COMMENT '商户订单编号' ,
+  `refund_number` VARCHAR(255) NULL COMMENT '商户退款单编号' ,
+  `refund_id` VARCHAR(255) NULL COMMENT '支付系统退款单号' ,
+  `total_fee` INT NULL COMMENT '原订单金额(分)' ,
+  `refund` INT NULL COMMENT '退款金额(分)' ,
+  `reason` TEXT NULL COMMENT '退款原因' ,
+  `refund_status` VARCHAR(50) NULL COMMENT '退款状态' ,
+  `content_return` TEXT NULL COMMENT '申请退款返回参数' ,
+  `content_notify` TEXT NULL COMMENT '退款结果通知参数' ,
+  `create_time` DATETIME NULL COMMENT '创建时间' ,
+  `update_time` DATETIME NULL COMMENT '更新时间' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB;
+CREATE TABLE `tb_school` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `school_name` VARCHAR(255) NULL COMMENT '学校名称' ,
+  `number_id` BIGINT NULL COMMENT '学校id' ,
+  `deleted` INT NULL COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB
+COMMENT = '学校表
+';
+CREATE TABLE `tb_system_config` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `config_key` VARCHAR(50) NULL COMMENT '配置键' ,
+  `config_value` VARCHAR(255) NULL COMMENT '配置值' ,
+  `description` VARCHAR(255) NULL COMMENT '说明' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB
+COMMENT = '系统配置表';
+CREATE TABLE `tb_take_orders` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `order_id` BIGINT NULL COMMENT '订单id' ,
+  `user_id` BIGINT NULL COMMENT '接单人id' ,
+  `create_time` DATETIME NULL COMMENT '接单时间' ,
+  `image` VARCHAR(255) NULL COMMENT '派送完成时的图片' ,
+  `deleted` INT NULL COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
+  `status` INT NULL COMMENT '接单状态(0已接单 1派送中 2已送达 3已取消)' ,
+  `delivery_time` DATETIME NULL COMMENT '送达时间' ,
+  `cancel_time` DATETIME NULL COMMENT '取消时间' ,
+  `cancel_reason` TEXT NULL COMMENT '取消原因' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB
+COMMENT = '接单表';
+CREATE TABLE `tb_user` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `username` VARCHAR(50) NULL COMMENT '用户名(昵称)' ,
+  `realname` VARCHAR(50) NULL COMMENT '真实姓名' ,
+  `openid` VARCHAR(255) NULL COMMENT '微信登录的id' ,
+  `head_img` VARCHAR(255) NULL COMMENT '头像' ,
+  `sex` TINYINT NULL COMMENT '性别' ,
+  `phone` VARCHAR(50) NULL COMMENT '手机号' ,
+  `authentication` INT NULL COMMENT '是否认证(0 未认证, 1 已认证)' ,
+  `school_id` BIGINT NULL COMMENT '学校id' ,
+  `stu_id` VARCHAR(50) NULL COMMENT '学号' ,
+  `student_id_card` VARCHAR(255) NULL COMMENT '学生证照片链接' ,
+  `student_id_card_review` INT NULL DEFAULT 0  COMMENT '学生证审核(0未审核 1审核中 2审核通过 3审核不通过)' ,
+  `score` INT NULL DEFAULT 100  COMMENT '信誉分(默认100)' ,
+  `money` DECIMAL(10,2) NULL COMMENT '钱包' ,
+  `alipay_payment_code` VARCHAR(255) NULL COMMENT '支付宝收款码' ,
+  `wechat_payment_code` VARCHAR(255) NULL COMMENT '微信收款码' ,
+  `is_manager` INT NULL DEFAULT 0  COMMENT '是否是管理员(0不是 1是)' ,
+  `deleted` INT NULL COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
+  `create_time` DATETIME NULL COMMENT '创建时间' ,
+  `update_time` DATETIME NULL COMMENT '最后操作时间' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB
+COMMENT = '用户表';
+CREATE TABLE `tb_wx_transfer_log` ( 
+  `id` BIGINT AUTO_INCREMENT NOT NULL,
+  `order_number` VARCHAR(255) NULL COMMENT '订单编号' ,
+  `transfer_bill_no` VARCHAR(255) NULL COMMENT '【微信转账单号】 微信转账单号，微信商家转账系统返回的唯一标识' ,
+  `state` VARCHAR(50) NULL COMMENT '【单据状态】 商家转账订单状态。 ACCEPTED: 转账已受理; PROCESSING: 转账锁定资金中。如果一直停留在该状态，建议检查账户余额是否足够，如余额不足，可充值后再原单重试。WAIT_USER_CONFIRM: 待收款用户确认，可拉起微信收款确认页面进行收款确认; TRANSFERING: 转账中，可拉起微信收款确认页面再次重试确认收款; SUCCESS: 转账成功; FAIL: 转账失败; CANCELING: 商户撤销请求受理成功，该笔转账正在撤销中; CANCELLED: 转账撤销完成' ,
+  `mch_id` VARCHAR(255) NULL COMMENT '商户号' ,
+  `transfer_amount` BIGINT NULL COMMENT '【转账金额】转账总金额，单位为“分”' ,
+  `openid` VARCHAR(255) NULL COMMENT '【收款用户OpenID】用户在商户appid下的唯一标识' ,
+  `content` TEXT NULL COMMENT '所有的转账信息' ,
+  `create_time` VARCHAR(255) NULL COMMENT '【单据创建时间】 单据受理成功时返回，按照使用rfc3339所定义的格式，格式为yyyy-MM-DDThh:mm:ss+TIMEZONE' ,
+  `update_time` VARCHAR(255) NULL COMMENT '【最后一次状态变更时间】遵循rfc3339标准格式，格式为yyyy-MM-DDTHH:mm:ss+TIMEZONE，yyyy-MM-DD表示年月日，T出现在字符串中，表示time元素的开头，HH:mm:ss.表示时分秒，TIMEZONE表示时区（+08:00表示东八区时间，领先UTC 8小时，即北京时间）。例如：2015-05-20T13:29:35+08:00表示北京时间2015年05月20日13点29分35秒。' ,
+  `deleted` INT NULL DEFAULT 0  COMMENT '逻辑删除字段 (0 未删除, 1 已删除)' ,
+   PRIMARY KEY (`id`)
+)
+ENGINE = InnoDB;

@@ -1,0 +1,60 @@
+<view class="addressAdd">
+  <view class="box">
+    <t-cell-group theme="card">
+      <view style="background-color: white; padding: 10rpx 0;display: flex; align-items: center;">
+        <t-icon class="icon" name="map-search" size="16" />
+        <view class="title">选择</view>
+      </view>
+      <view bindtap="handleShowPicker">
+        <!-- 选择地址后为黑色字体 -->
+        <t-cell class="tcellOnChose" wx:if="{{selectedCompus}}" title="地址" hover arrow note="{{selectedCompus}} {{selectedCategory}} {{selectedBuilding}}" />
+        <!-- 未选择地址时提示文本为蓝色 -->
+        <t-cell style="--td-cell-note-color: #0052D9;" wx:else title="地址" hover arrow note="选择地址" />
+      </view>
+      <view style="margin-right: 660rpx;background: white;">
+        <t-divider style="margin:0;" />
+      </view>
+      <t-input class="details1" label="详细地址" placeholder="如门牌号等(选填)" align="right" bind:change="tiptChangeDetail" bind:blur="tiptChangeDetailBlur" borderless clearable clear-trigger="focus"/>
+    </t-cell-group>
+  </view>
+
+  <view class="box">
+    <t-cell-group theme="card">
+      <view style="background-color: white; padding: 10rpx 0;display: flex; align-items: center;">
+        <t-icon class="icon" name="map-marked" size="16" />
+        <view class="title">属性</view>
+      </view>
+
+      <t-input label="地址标签" placeholder="如寝室、实验室 (选填)" align="right" bind:change="tiptChangeLabel" bind:blur="tiptChangeLabelBlur" borderless clearable clear-trigger="focus" />
+      <view style="margin-right: 660rpx;background: white;">
+        <t-divider style="margin:0;" />
+      </view>
+      <!-- <t-input label="地址类型" placeholder="{{type[uptype]}}" align="right" disabled borderless>
+        <t-button slot="suffix" theme="primary" size="extra-small" bind:tap="changeType"> 切换 </t-button>
+      </t-input> -->
+
+    </t-cell-group>
+  </view>
+
+  <!-- <view class="box">
+    <t-cell-group theme="card">
+      <view style="background-color: white; padding: 10rpx 0;display: flex; align-items: center;">
+        <t-icon class="icon" name="map-collection" size="16" />
+        <view class="title">收藏</view>
+      </view>
+      <t-radio value="radio" label="设置为默认地址" placement="right" bind:tap="changeDefault" checked="{{upDefault==1?true:false}}" borderless />
+    </t-cell-group>
+  </view> -->
+
+  <view class="button">
+    <!-- 选择了地址，可用 -->
+    <t-button wx:if="{{selectedCompus}}" shape="round" theme="primary" bindtap="save" block >保存地址</t-button>
+    <!-- 未选择地址 -->
+    <t-button wx:else shape="round" style="color: gray;" bindtap="saveOnRecord" block hover-class="none">保存地址</t-button>
+  </view>
+
+</view>
+
+<t-toast id="t-toast" />
+
+<triple-address-pricker id="triplePicker" bind:confirmSelection="handleConfirmSelection" />

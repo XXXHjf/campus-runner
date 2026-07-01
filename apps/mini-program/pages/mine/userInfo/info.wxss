@@ -1,0 +1,104 @@
+.box1 {
+  display: flex;
+  flex: 1.5;
+  align-items: center;
+}
+
+.text-address {
+  color: #0052d9;
+  background-color: #0052d920;
+  padding: 10rpx 15rpx;
+  margin: 10rpx 15rpx 10rpx 30rpx;
+  border-radius: 15rpx;
+  font-size: small;
+  font-weight: bold;
+  /* 将文本居中 */
+  text-align: center;
+  /* 防止文本换行 */
+  white-space: nowrap;
+  /* 如果内容过长，隐藏溢出的部分 */
+  /* overflow: hidden;  */
+  /* 显示省略号来表示被截断的文本 */
+  /* text-overflow: ellipsis;  */
+}
+
+.address {
+  flex: 1;
+  margin: 0 30rpx;
+  font-size: small;
+  font-weight: 500;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: gray;
+}
+
+.card {
+  margin: 30rpx;
+  padding: 20rpx 0;
+  border-radius: 20rpx;
+  background-color: white;
+}
+
+.title {
+  padding: 5rpx 5rpx;
+  /* font-size: 0.8rem; */
+  font-weight: bold;
+  color: #0052d9;
+}
+
+.box1-1 {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+.avatar-wrapper {
+  padding: 0;
+  width: 56px !important;
+  height: 56px !important;
+  /* border-radius: 8px; */
+  margin: 0 !important;
+}
+.avatar {
+  border-radius: 50%;
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin: 0 30rpx;
+  object-fit: cover;
+  object-position: center;
+}
+
+.info {
+  margin-left: 20rpx;
+}
+
+.tag{
+  margin-right: 30rpx;
+}
+.cardName {
+  padding: 0rpx 10rpx;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #0052d9;
+}
+
+.suffix {
+  display: flex;
+  align-items: center;
+}
+
+.suffix--line {
+  width: 1px;
+  height: 24px;
+  background-color: var(--td-component-stroke, #f3f3f3);
+  margin-right: 16px;
+}
+
+.verify {
+  color: var(--td-brand-color, #0052D9);
+  font-size: 32rpx;
+}
+
+.button {
+  margin: 40rpx 30rpx;
+  width: auto;
+}

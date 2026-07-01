@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.RefundInfoMapper">
+
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tb_refund_info(
+            id,
+            order_number,
+            refund_number,
+            refund_id,
+            total_fee,
+            refund,
+            reason,
+            refund_status,
+            content_return,
+            content_notify,
+            create_time,
+            update_time
+        ) VALUES (
+                  null,
+                  #{orderNumber},
+                  #{refundNumber},
+                  #{refundId},
+                  #{totalFee},
+                  #{refund},
+                  #{reason},
+                  #{refundStatus},
+                  #{contentReturn},
+                  #{contentNotify},
+                  #{createTime},
+                  #{updateTime}
+                         )
+    </insert>
+
+    <update id="update">
+        update tb_refund_info
+        <set>
+            <if test="refundId != null and refundId != ''">refund_id = #{refundId},</if>
+            <if test="totalFee != null">total_fee = #{totalFee},</if>
+            <if test="refund != null">refund = #{refund},</if>
+            <if test="reason != null and reason != ''">reason = #{reason},</if>
+            <if test="refundStatus != null and refundStatus != ''">refund_status = #{refundStatus},</if>
+            <if test="contentReturn != null and contentReturn != ''">content_return = #{contentReturn},</if>
+            <if test="contentNotify != null and contentNotify != ''">content_notify = #{contentNotify},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        where refund_number = #{refundNumber}
+    </update>
+
+    <select id="getRefundingOrderByTimeOut" resultType="com.mikasa.campusrunner.pojo.entity.RefundInfo">
+        select * from tb_refund_info
+        where refund_status = #{refundStatus} AND
+              create_time &lt; #{time}
+
+    </select>
+</mapper>

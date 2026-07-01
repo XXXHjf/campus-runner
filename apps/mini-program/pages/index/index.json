@@ -1,0 +1,26 @@
+{
+  "component": true,
+  "usingComponents": {
+    "t-tabs": "tdesign-miniprogram/tabs/tabs",
+    "t-tab-panel": "tdesign-miniprogram/tab-panel/tab-panel",
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "t-tag": "tdesign-miniprogram/tag/tag",
+    "t-divider": "tdesign-miniprogram/divider/divider",
+    "t-image": "tdesign-miniprogram/image/image",
+    "t-swiper": "tdesign-miniprogram/swiper/swiper",
+    "t-picker": "tdesign-miniprogram/picker/picker",
+    "t-picker-item": "tdesign-miniprogram/picker-item/picker-item",
+    "t-collapse": "tdesign-miniprogram/collapse/collapse",
+    "t-collapse-panel": "tdesign-miniprogram/collapse-panel/collapse-panel",
+    "t-action-sheet": "tdesign-miniprogram/action-sheet/action-sheet",
+    "t-grid": "tdesign-miniprogram/grid/grid",
+    "t-grid-item": "tdesign-miniprogram/grid-item/grid-item",
+    "t-popup": "tdesign-miniprogram/popup/popup",
+    "t-button": "tdesign-miniprogram/button/button",
+    "t-overlay": "tdesign-miniprogram/overlay/overlay",
+    "t-loading": "tdesign-miniprogram/loading/loading",
+    "t-toast": "tdesign-miniprogram/toast/toast",
+    "triple-address-pricker": "../../components/triple-address-pricker/triple-address-pricker"
+  },
+  "enablePullDownRefresh": true
+}

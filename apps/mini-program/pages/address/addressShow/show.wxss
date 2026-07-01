@@ -1,0 +1,124 @@
+/* 详情卡片布局 */
+.show-cart {
+  border-radius: 25rpx;
+  margin: 20rpx 40rpx;
+  background-color: white;
+  padding: 0 20rpx;
+  /* box-shadow: 4px 4px 3px rgba(0, 0, 0, 0.1); */
+  /* 水平偏移，垂直偏移，模糊半径，颜色 */
+}
+
+/* 总体布局 */
+.show {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.address-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 200rpx;
+  /* 留出底端按钮空间，与其高度一致 */
+}
+
+/* 展示卡片总体布局 */
+.cart {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 单元格 */
+/* .t-cell {
+  height: 50rpx !important;
+  padding: auto 50rpx !important;
+  position: static !important;
+} */
+
+.address .t-cell__title-text {
+  font-size: 28rpx !important;
+  font-weight: bold !important;
+}
+
+.info .t-cell__title-text {
+  font-size: 28rpx !important;
+  /* font-weight: bold !important; */
+  color: darkgray !important;
+  font-size: small !important;
+  /* padding: 30rpx 15rpx; */
+}
+
+.icon {
+  padding: 5rpx 10rpx 5rpx 10rpx;
+  color: #0052d9;
+}
+
+.title {
+  padding: 5rpx 5rpx;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #0052d9;
+}
+
+/* tab */
+.tab {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.custom-tabs {
+  position: sticky;
+  z-index: 2;
+  margin-bottom: 20rpx;
+}
+
+/* 添加按钮 */
+.add {
+  background-color: #0052d9;
+  border-radius: 50rpx;
+  position: fixed;
+  width: 80rpx;
+  height: 80rpx;
+  bottom: 150rpx;
+  right: 80rpx;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(0, 0, 0, 0.3);
+  /* 增加这条边框规则 */
+}
+
+.add-address-btn {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 150rpx;
+  line-height: 90rpx;
+  text-align: center;
+  background-color: white;
+  color: black;
+  box-shadow: 0 -5px 10px rgba(0, 0, 0, 0.2);
+}
+
+.address-cell {
+  --td-cell-border-right-space: 0rpx;
+  --td-cell-border-left-space: 60rpx;
+  --td-cell-border-width: 1px;
+  --td-cell-vertical-padding: 25rpx;
+  --td-cell-line-height: 50rpx;
+  --td-cell-border-color: #555;
+}
+
+.t-cell {
+  padding-left: 60rpx !important;
+  padding-right: 30rpx !important;
+}
+
+.t-cell__title-text {
+  font-weight: bold !important;
+} 

@@ -1,0 +1,49 @@
+<!--校园认证须知组件-->
+<view class="auth-notice-container" wx:if="{{show}}">
+  <!-- 遮罩层 -->
+  <view class="auth-notice-mask" bindtap="preventTap"></view>
+  
+  <!-- 内容区域 -->
+  <view class="auth-notice-content">
+    <!-- 顶部标题栏 -->
+    <view class="auth-notice-header">
+      <text class="auth-notice-title">校园认证</text>
+    </view>
+    
+    <!-- 须知内容区域 -->
+    <view class="auth-notice-body">
+      <view class="auth-notice-section-title">认证须知</view>
+      
+      <view class="auth-notice-text">
+        <text class="greeting">您好！</text>帮帮校园送作为服务于高校师生的校园代取服务平台，为保障交易双方的合法权益和服务质量，根据《中华人民共和国网络安全法》、《互联网用户账号信息管理规定》等相关法律法规的要求，我们需要对所有用户进行实名认证。您的个人信息仅用于身份核验和订单服务，并受到相关法律法规和<text class="link" bindtap="openPrivacyContract">《帮帮校园送隐私保护政策》</text>的保护，我们承诺不会泄露给任何第三方，不会用于营销推广或其他商业用途。
+      </view>
+      
+      <view class="auth-notice-text">
+        根据各大高校校园管理规定和安全要求，校园代取服务需确保用户为本校在读学生或教职工。因此，我们需要您提交学生证、校园卡、录取通知书等有效证明材料来验证您的校园身份。您提交的证件照片仅用于人工审核身份，审核通过后我们不会对其进行数字化采集或存储敏感信息，更不会泄露给任何第三方或用于其他用途。
+      </view>
+      
+      <view class="auth-notice-text">
+        根据《微信小程序平台运营规范》和《个人信息保护法》的要求，我们在收集您的个人信息前，必须明确告知信息的使用范围并征得您的同意。您提供的真实姓名、学号、学校等信息将用于：订单配送确认、纠纷处理、平台安全管理等必要场景。
+      </view>
+      
+      <view class="auth-notice-text notice-highlight">
+        请您仔细阅读以上内容，确认同意后方可继续认证流程。您提交的认证信息将严格保密，仅用于验证您的校园身份和提供代取服务，不会用于任何其他商业用途。通过认证后，您将能够发布代取订单或接取订单赚取佣金。
+      </view>
+      
+      <view class="auth-notice-text notice-tips">
+        <text class="tips-icon">ⓘ</text> 温馨提示：认证信息提交后将按流程审核，请确保信息真实有效。认证通过后如需修改信息，请在"我的-校园认证"页面申请变更或联系在线客服。
+      </view>
+    </view>
+    
+    <!-- 底部按钮区域 -->
+    <view class="auth-notice-footer">
+      <view class="auth-notice-btn auth-notice-btn-agree" bindtap="onAgree">
+        同意，下一步
+      </view>
+      <view class="auth-notice-btn auth-notice-btn-disagree" bindtap="onDisagree">
+        不同意，返回
+      </view>
+    </view>
+  </view>
+</view>
+

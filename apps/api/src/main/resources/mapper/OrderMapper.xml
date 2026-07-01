@@ -1,0 +1,1064 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.OrderMapper">
+
+
+
+    <select id="showByPrice" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+        -- 这里查找出来的字段为OrderShowVO字段，别名为了能够匹配上
+        SELECT orders.id,
+            address_pick_up.address AS pick_up_address, -- 取件地址，字符串，类似：浙大城市学院 南校区 寝室楼 弘毅楼 寝室楼下
+            address_recive.address AS recive_address, -- 收件地址，字符串，类似：浙大城市学院 南校区 寝室楼 弘毅楼 寝室楼下
+            orders.order_number,
+            orders.price,
+            orders.service_fee_rate,
+            orders.service_fee,
+            orders.pay_amount,
+            orders.real_price,
+            orders.delivery_time,
+            orders.cancel_time ,
+            orders.cancel_reson,
+            orders.exceed_time,
+            orders.gap,
+            orders.create_time,
+            orders.door_access,
+            orders.user_id,
+            orders.username,
+            orders.phone,
+            orders.status,
+            orders.note,
+            orders.image,
+            category.image AS category_image, -- 类别图片路径，从类别表里得到
+            category.category_name,
+            orders.deleted
+        FROM
+            tb_orders AS orders, -- 这是订单表 主表
+            tb_category AS category, -- 这是类别表 为了获得类别的图片, 即category_image
+
+            (SELECT
+                ad.id,
+                CONCAT(school.school_name, ' ',
+                compus.compus_name, ' ',
+                build_category.name, ' ',
+                building.building_name, ' ',
+                ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
+            FROM
+                tb_address_book AS ad,
+                tb_school AS school,
+                tb_compus AS compus,
+                tb_build_category AS build_category,
+                tb_building AS building
+            <where>
+                -- 这三张表保存这三个信息，需要读取
+                ad.school_id = #{schoolId} AND
+                ad.school_id = school.id AND
+                ad.compus_id = compus.id AND
+                ad.build_category_id = build_category.id AND
+                ad.building_id = building.id AND
+                ad.deleted = 0
+            </where>
+            ) AS address_pick_up, -- 这张表类似视图，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了取件地址的详细信息
+            -- 对于按照取件地址查询筛选来说，取件地址这张'表',即address_pick_up应该将地址id作为条件查询
+
+            (SELECT
+                ad.id,
+                CONCAT(school.school_name, ' ',
+                compus.compus_name, ' ',
+                build_category.name, ' ',
+                building.building_name, ' ',
+                ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
+            FROM
+                tb_address_book AS ad,
+                tb_school AS school,
+                tb_compus AS compus,
+                tb_build_category AS build_category,
+                tb_building AS building
+            <where>
+                ad.school_id = #{schoolId} AND
+                ad.school_id = school.id AND
+                ad.compus_id = compus.id AND
+                ad.build_category_id = build_category.id AND
+                ad.building_id = building.id AND
+                ad.deleted = 0
+            </where>
+            ) AS address_recive -- 这张表类似上面这张表，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了收件地址的详细信息
+            -- 不过对于按照取件地址查询来说，收件地址'表'，即address_recive应该不用约束地查
+
+        WHERE
+            orders.deleted = 0 AND
+            orders.status = 0 AND
+            orders.category_id = category.id AND
+            orders.pick_up_address = address_pick_up.id AND
+            orders.recive_address = address_recive.id
+
+        <if test="status == 0">
+            ORDER BY orders.price desc
+        </if>
+        <if test="status == 1">
+            ORDER BY orders.price
+        </if>
+
+    </select>
+
+    <select id="showByPickUpAdd" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+
+        -- 这里查找出来的字段为OrderShowVO字段，别名为了能够匹配上
+        SELECT orders.id,
+               address_pick_up.address AS pick_up_address, -- 取件地址，字符串，类似：浙大城市学院 南校区 寝室楼 弘毅楼 寝室楼下
+               address_recive.address AS recive_address, -- 收件地址，字符串，类似：浙大城市学院 南校区 寝室楼 弘毅楼 寝室楼下
+               orders.order_number,
+               orders.price,
+               orders.service_fee_rate,
+               orders.service_fee,
+               orders.pay_amount,
+               orders.real_price,
+               orders.delivery_time,
+               orders.cancel_time ,
+               orders.cancel_reson,
+               orders.exceed_time,
+               orders.gap,
+               orders.create_time,
+               orders.door_access,
+               orders.user_id,
+               orders.username,
+               orders.phone,
+               orders.status,
+               orders.note,
+               orders.image,
+               category.image AS category_image, -- 类别图片路径，从类别表里得到
+               category.category_name,
+               orders.deleted
+        FROM
+            tb_orders AS orders, -- 这是订单表 主表
+            tb_category AS category, -- 这是类别表 为了获得类别的图片, 即category_image
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                     compus.compus_name, ' ',
+                     build_category.name, ' ',
+                     building.building_name, ' ',
+                     ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
+             FROM
+                  tb_address_book AS ad,
+                  tb_school AS school,
+                  tb_compus AS compus,
+                  tb_build_category AS build_category,
+                  tb_building AS building
+             <where>
+                 -- 这三张表保存这三个信息，需要读取
+                 ad.school_id = school.id AND
+                 ad.compus_id = compus.id AND
+                 ad.build_category_id = build_category.id AND
+                 ad.building_id = building.id AND
+                 ad.deleted = 0
+                 -- 这里主要是为了防止没有ids导致报错
+                 <if test="ids != null and ids.size != 0">
+                     and ad.id in
+                     <foreach collection="ids" item="id" separator="," open="(" close=")">
+                         #{id}
+                     </foreach>
+                 </if>
+             </where>
+            ) AS address_pick_up, -- 这张表类似视图，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了取件地址的详细信息
+                                  -- 对于按照取件地址查询筛选来说，取件地址这张'表',即address_pick_up应该将地址id作为条件查询
+
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                     compus.compus_name, ' ',
+                     build_category.name, ' ',
+                     building.building_name, ' ',
+                     ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
+             FROM tb_address_book AS ad,
+                  tb_school AS school,
+                  tb_compus AS compus,
+                  tb_build_category AS build_category,
+                  tb_building AS building
+            <where>
+                ad.school_id = school.id AND
+                ad.compus_id = compus.id AND
+                ad.build_category_id = build_category.id AND
+                ad.building_id = building.id AND
+                ad.deleted = 0
+            </where>
+            ) AS address_recive -- 这张表类似上面这张表，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了收件地址的详细信息
+                                -- 不过对于按照取件地址查询来说，收件地址'表'，即address_recive应该不用约束地查
+
+        WHERE
+            orders.deleted = 0 AND
+            orders.status = 0 AND
+            orders.category_id = category.id AND
+            orders.pick_up_address = address_pick_up.id AND
+            orders.recive_address = address_recive.id
+            <if test="ids != null and ids.size != 0">
+                AND orders.pick_up_address in
+                <foreach collection="ids" item="id" separator="," open="(" close=")">
+                    #{id}
+                </foreach>
+            </if>
+
+        ORDER BY orders.create_time desc
+
+    </select>
+
+    <select id="showByReciveAdd" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+        -- 以下SQL语句类似上述按照取件地址查询筛选的SQL语句，只不过相反而已，这里收件地址'表'需要约束查询，而取件地址'表'不用约束查询
+        SELECT orders.id,
+                address_pick_up.address AS pick_up_address,
+                address_recive.address AS recive_address,
+                orders.order_number,
+                orders.price,
+                orders.service_fee_rate,
+                orders.service_fee,
+                orders.pay_amount,
+                orders.real_price,
+                orders.delivery_time,
+                orders.cancel_time ,
+                orders.cancel_reson,
+                orders.exceed_time,
+                orders.gap,
+                orders.create_time,
+                orders.door_access,
+                orders.user_id,
+                orders.username,
+                orders.phone,
+                orders.status,
+                orders.note,
+                orders.image,
+                category.image AS category_image,
+                category.category_name,
+                orders.deleted
+        FROM
+            tb_orders AS orders,
+            tb_category AS category,
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                     compus.compus_name, ' ',
+                     build_category.name, ' ',
+                     building.building_name, ' ',
+                     ad.details) AS address
+            FROM
+                tb_address_book AS ad,
+                tb_school AS school,
+                tb_compus AS compus,
+                tb_build_category AS build_category,
+                tb_building AS building
+            <where>
+                ad.school_id = school.id AND
+                ad.compus_id = compus.id AND
+                ad.build_category_id = build_category.id AND
+                ad.building_id = building.id AND
+                ad.deleted = 0
+            </where>
+            ) AS address_pick_up, -- 这是取件地址
+
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                     compus.compus_name, ' ',
+                     build_category.name, ' ',
+                     building.building_name, ' ',
+                     ad.details) AS address
+            FROM
+                tb_address_book AS ad,
+                tb_school AS school,
+                tb_compus AS compus,
+                tb_build_category AS build_category,
+                tb_building AS building
+            <where>
+                ad.school_id = school.id AND
+                ad.compus_id = compus.id AND
+                ad.build_category_id = build_category.id AND
+                ad.building_id = building.id AND
+                ad.deleted = 0
+                <if test="ids != null and ids.size != 0">
+                    and ad.id in
+                    <foreach collection="ids" item="id" separator="," open="(" close=")">
+                        #{id}
+                    </foreach>
+                </if>
+            </where>
+            ) AS address_recive -- 这是收件地址
+
+        WHERE
+            orders.deleted = 0 AND
+            orders.status = 0 AND
+            orders.category_id = category.id AND
+            orders.pick_up_address = address_pick_up.id AND
+            orders.recive_address = address_recive.id
+            <if test="ids != null and ids.size != 0">
+                AND orders.recive_address in
+                <foreach collection="ids" item="id" separator="," open="(" close=")">
+                    #{id}
+                </foreach>
+            </if>
+
+        ORDER BY orders.create_time desc
+    </select>
+
+    <select id="getMy" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+        SELECT
+            orders.id,
+            address_pick_up.address AS pick_up_address,
+            address_recive.address AS recive_address,
+            orders.order_number,
+            orders.price,
+            orders.service_fee_rate,
+            orders.service_fee,
+            orders.pay_amount,
+            orders.real_price,
+            orders.delivery_time,
+            orders.cancel_time,
+            orders.cancel_reson,
+            orders.exceed_time,
+            orders.gap,
+            orders.create_time,
+            orders.door_access,
+            orders.user_id,
+            orders.username,
+            orders.phone,
+            orders.status,
+            orders.note,
+            orders.image,
+            category.image AS category_image,
+            category.category_name,
+            orders.deleted
+        FROM
+            tb_orders AS orders,
+            tb_category AS category,
+
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                     compus.compus_name, ' ',
+                     build_category.name, ' ',
+                     building.building_name, ' ',
+                     ad.details) AS address
+             FROM
+                  tb_address_book AS ad,
+                  tb_school AS school,
+                  tb_compus AS compus,
+                  tb_build_category AS build_category,
+                  tb_building AS building
+             WHERE
+                 ad.school_id = school.id AND
+                 ad.compus_id = compus.id AND
+                 ad.build_category_id = build_category.id AND
+                 ad.building_id = building.id AND
+                 ad.deleted = 0
+            ) AS address_pick_up,
+
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                     compus.compus_name, ' ',
+                     build_category.name, ' ',
+                     building.building_name, ' ',
+                     ad.details) AS address
+             FROM
+                  tb_address_book AS ad,
+                  tb_school AS school,
+                  tb_compus AS compus,
+                  tb_build_category AS build_category,
+                  tb_building AS building
+             WHERE
+                 ad.school_id = school.id AND
+                 ad.compus_id = compus.id AND
+                 ad.build_category_id = build_category.id AND
+                 ad.building_id = building.id AND
+                 ad.deleted = 0
+            ) AS address_recive
+
+        WHERE
+            orders.deleted = 0 AND
+            orders.category_id = category.id AND
+            orders.pick_up_address = address_pick_up.id AND
+            orders.recive_address = address_recive.id AND
+            orders.user_id = #{id}
+        ORDER BY orders.create_time desc
+    </select>
+
+    <select id="showByTime" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+        SELECT
+            orders.id,
+            address_pick_up.address AS pick_up_address,
+            address_recive.address AS recive_address,
+            orders.order_number,
+            orders.price,
+            orders.service_fee_rate,
+            orders.service_fee,
+            orders.pay_amount,
+            orders.real_price,
+            orders.delivery_time,
+            orders.cancel_time,
+            orders.cancel_reson,
+            orders.exceed_time,
+            orders.gap,
+            orders.create_time,
+            orders.door_access,
+            orders.user_id,
+            orders.username,
+            orders.phone,
+            orders.status,
+            orders.note,
+            orders.image,
+            category.image AS category_image,
+            category.category_name,
+            orders.deleted
+        FROM
+            tb_orders AS orders,
+            tb_category AS category,
+
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                        compus.compus_name, ' ',
+                        build_category.name, ' ',
+                        building.building_name, ' ',
+                        ad.details) AS address
+             FROM
+                 tb_address_book AS ad,
+                 tb_school AS school,
+                 tb_compus AS compus,
+                 tb_build_category AS build_category,
+                 tb_building AS building
+             WHERE
+                 ad.school_id = school.id AND
+                 ad.compus_id = compus.id AND
+                 ad.build_category_id = build_category.id AND
+                 ad.building_id = building.id AND
+                 ad.school_id = #{schoolId} AND
+                 ad.deleted = 0
+            ) AS address_pick_up,
+
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                        compus.compus_name, ' ',
+                        build_category.name, ' ',
+                        building.building_name, ' ',
+                        ad.details) AS address
+             FROM
+                 tb_address_book AS ad,
+                 tb_school AS school,
+                 tb_compus AS compus,
+                 tb_build_category AS build_category,
+                 tb_building AS building
+             WHERE
+                 ad.school_id = school.id AND
+                 ad.compus_id = compus.id AND
+                 ad.build_category_id = build_category.id AND
+                 ad.building_id = building.id AND
+                 ad.school_id = #{schoolId} AND
+                 ad.deleted = 0
+            ) AS address_recive
+
+        WHERE
+            orders.deleted = 0 AND
+            orders.status = 0 AND
+            orders.category_id = category.id AND
+            orders.pick_up_address = address_pick_up.id AND
+            orders.recive_address = address_recive.id
+        <if test="status == 0">
+            ORDER BY orders.create_time desc
+        </if>
+        <if test="status == 1">
+            ORDER BY orders.create_time
+        </if>
+
+    </select>
+
+    <select id="detail" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+        SELECT
+                orders.id,
+                address_pick_up.address AS pick_up_address,
+                address_recive.address AS recive_address,
+                orders.order_number,
+                orders.price,
+                orders.service_fee_rate,
+                orders.service_fee,
+                orders.pay_amount,
+                orders.real_price,
+                orders.delivery_time,
+                orders.cancel_time,
+                orders.cancel_reson,
+                orders.exceed_time,
+                orders.gap,
+                orders.create_time,
+                orders.door_access,
+                orders.user_id,
+                orders.username,
+                orders.phone,
+                orders.status,
+                orders.note,
+                orders.image,
+                category.image AS category_image,
+                category.category_name,
+                orders.deleted,
+                user.realname
+--                 user.phone
+        FROM
+            tb_orders AS orders,
+            tb_category AS category,
+            tb_user as user,
+            (SELECT
+                ad.id,
+                CONCAT(school.school_name, ' ',
+                compus.compus_name, ' ',
+                build_category.name, ' ',
+                building.building_name, ' ',
+                ad.details) AS address
+            FROM
+                tb_address_book AS ad,
+                tb_school AS school,
+                tb_compus AS compus,
+                tb_build_category AS build_category,
+                tb_building AS building
+            WHERE
+                ad.school_id = school.id AND
+                ad.compus_id = compus.id AND
+                ad.build_category_id = build_category.id AND
+                ad.building_id = building.id AND
+                ad.deleted = 0
+                ) AS address_pick_up,
+
+            (SELECT
+                ad.id,
+                CONCAT(school.school_name, ' ',
+                compus.compus_name, ' ',
+                build_category.name, ' ',
+                building.building_name, ' ',
+                ad.details) AS address
+            FROM
+                tb_address_book AS ad,
+                tb_school AS school,
+                tb_compus AS compus,
+                tb_build_category AS build_category,
+                tb_building AS building
+            WHERE
+                ad.school_id = school.id AND
+                ad.compus_id = compus.id AND
+                ad.build_category_id = build_category.id AND
+                ad.building_id = building.id AND
+                ad.deleted = 0
+                ) AS address_recive
+
+        WHERE
+            orders.deleted = 0 AND
+--             orders.status = 0 AND
+            orders.category_id = category.id AND
+            orders.pick_up_address = address_pick_up.id AND
+            orders.recive_address = address_recive.id AND
+            orders.user_id = user.id AND
+            orders.id = #{id}
+
+--         ORDER BY orders.create_time
+    </select>
+    <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.Order">
+        select * from tb_orders where id = #{id} and deleted = 0
+    </select>
+
+    <select id="getByStatusAndCancelTimeLT" resultType="com.mikasa.campusrunner.pojo.entity.Order">
+        select * from tb_orders where status = #{status} and cancel_time &lt; #{cancelTime}
+    </select>
+
+    <select id="showByDoubleAdd" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+        -- 这里查找出来的字段为OrderShowVO字段，别名为了能够匹配上
+        SELECT
+            orders.id,
+            address_pick_up.address AS pick_up_address, -- 取件地址，字符串，类似：浙大城市学院 南校区 弘毅楼 寝室楼下
+            address_recive.address AS recive_address, -- 收件地址，字符串，类似：浙大城市学院 南校区 弘毅楼 寝室楼下
+            orders.order_number,
+            orders.price,
+            orders.service_fee_rate,
+            orders.service_fee,
+            orders.pay_amount,
+            orders.real_price,
+            orders.delivery_time,
+            orders.cancel_time ,
+            orders.cancel_reson,
+            orders.exceed_time,
+            orders.gap,
+            orders.create_time,
+            orders.door_access,
+            orders.user_id,
+            orders.username,
+            orders.phone,
+            orders.status,
+            orders.note,
+            orders.image,
+            category.image AS category_image, -- 类别图片路径，从类别表里得到
+            category.category_name,
+            orders.deleted
+        FROM
+            tb_orders AS orders, -- 这是订单表 主表
+            tb_category AS category, -- 这是类别表 为了获得类别的图片, 即category_image
+
+            (SELECT
+                ad.id,
+                CONCAT(school.school_name, ' ',
+                    compus.compus_name, ' ',
+                    build_category.name, ' ',
+                    building.building_name, ' ',
+                    ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
+            FROM
+                tb_address_book AS ad,
+                tb_school AS school,
+                tb_compus AS compus,
+                tb_build_category AS build_category,
+                tb_building AS building
+            <where>
+                -- 这三张表保存这三个信息，需要读取
+                ad.school_id = school.id AND
+                ad.compus_id = compus.id AND
+                ad.build_category_id = build_category.id AND
+                ad.building_id = building.id AND
+                ad.deleted = 0
+                -- 这里主要是为了防止没有ids导致报错
+                <if test="pickIds != null and pickIds.size != 0">
+                    and ad.id in
+                    <foreach collection="pickIds" item="id" separator="," open="(" close=")">
+                        #{id}
+                    </foreach>
+                </if>
+            </where>
+            ) AS address_pick_up, -- 这张表类似视图，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了取件地址的详细信息
+            -- 对于按照取件地址查询筛选来说，取件地址这张'表',即address_pick_up应该将地址id作为条件查询
+
+            (SELECT
+                ad.id,
+                CONCAT(school.school_name, ' ',
+                    compus.compus_name, ' ',
+                    build_category.name, ' ',
+                    building.building_name, ' ',
+                    ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
+            FROM
+                tb_address_book AS ad,
+                tb_school AS school,
+                tb_compus AS compus,
+                tb_build_category AS build_category,
+                tb_building AS building
+            <where>
+                ad.school_id = school.id AND
+                ad.compus_id = compus.id AND
+                ad.build_category_id = build_category.id AND
+                ad.building_id = building.id AND
+                ad.deleted = 0
+                <if test="reciveIds != null and reciveIds.size != 0">
+                    and ad.id in
+                    <foreach collection="reciveIds" item="id" separator="," open="(" close=")">
+                        #{id}
+                    </foreach>
+                </if>
+            </where>
+            ) AS address_recive -- 这张表类似上面这张表，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了收件地址的详细信息
+            -- 不过对于按照取件地址查询来说，收件地址'表'，即address_recive应该不用约束地查
+
+        WHERE
+            orders.deleted = 0 AND
+            orders.status = 0 AND
+            orders.category_id = category.id AND
+            orders.pick_up_address = address_pick_up.id AND
+            orders.recive_address = address_recive.id
+<!--            <if test="ids != null and ids.size != 0">-->
+<!--                AND orders.pick_up_address in-->
+<!--                <foreach collection="ids" item="id" separator="," open="(" close=")">-->
+<!--                    #{id}-->
+<!--                </foreach>-->
+<!--            </if>-->
+
+        ORDER BY orders.create_time desc
+    </select>
+
+    <select id="showByCategory" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+        -- 这里查找出来的字段为OrderShowVO字段，别名为了能够匹配上
+        SELECT
+            orders.id,
+            address_pick_up.address AS pick_up_address, -- 取件地址，字符串，类似：浙大城市学院 南校区 弘毅楼 寝室楼下
+            address_recive.address AS recive_address, -- 收件地址，字符串，类似：浙大城市学院 南校区 弘毅楼 寝室楼下
+            orders.order_number,
+            orders.price,
+            orders.service_fee_rate,
+            orders.service_fee,
+            orders.pay_amount,
+            orders.real_price,
+            orders.delivery_time,
+            orders.cancel_time ,
+            orders.cancel_reson,
+            orders.exceed_time,
+            orders.gap,
+            orders.create_time,
+            orders.door_access,
+            orders.user_id,
+            orders.username,
+            orders.phone,
+            orders.status,
+            orders.note,
+            orders.image,
+            category.image AS category_image, -- 类别图片路径，从类别表里得到
+            category.category_name,
+            orders.deleted
+        FROM
+            tb_orders AS orders, -- 这是订单表 主表
+            tb_category AS category, -- 这是类别表 为了获得类别的图片, 即category_image
+
+            (SELECT
+            ad.id,
+            CONCAT(school.school_name, ' ',
+            compus.compus_name, ' ',
+            build_category.name, ' ',
+            building.building_name, ' ',
+            ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
+            FROM
+            tb_address_book AS ad,
+            tb_school AS school,
+            tb_compus AS compus,
+            tb_build_category AS build_category,
+            tb_building AS building
+            <where>
+                -- 这三张表保存这三个信息，需要读取
+                ad.school_id = school.id AND
+                ad.compus_id = compus.id AND
+                ad.build_category_id = build_category.id AND
+                ad.building_id = building.id AND
+                ad.school_id = #{schoolId} AND
+                ad.deleted = 0
+            </where>
+            ) AS address_pick_up, -- 这张表类似视图，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了取件地址的详细信息
+            -- 对于按照取件地址查询筛选来说，取件地址这张'表',即address_pick_up应该将地址id作为条件查询
+
+            (SELECT
+            ad.id,
+            CONCAT(school.school_name, ' ',
+            compus.compus_name, ' ',
+            build_category.name, ' ',
+            building.building_name, ' ',
+            ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
+            FROM
+            tb_address_book AS ad,
+            tb_school AS school,
+            tb_compus AS compus,
+            tb_build_category AS build_category,
+            tb_building AS building
+            <where>
+                ad.school_id = school.id AND
+                ad.compus_id = compus.id AND
+                ad.build_category_id = build_category.id AND
+                ad.building_id = building.id AND
+                ad.school_id = #{schoolId} AND
+                ad.deleted = 0
+            </where>
+            ) AS address_recive -- 这张表类似上面这张表，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了收件地址的详细信息
+            -- 不过对于按照取件地址查询来说，收件地址'表'，即address_recive应该不用约束地查
+
+        WHERE
+            orders.deleted = 0 AND
+            orders.status = 0 AND
+            orders.category_id = category.id AND
+            orders.pick_up_address = address_pick_up.id AND
+            orders.recive_address = address_recive.id AND
+            orders.category_id = #{categoryId}
+
+        order by orders.create_time desc
+    </select>
+    <select id="getTimeOut" resultType="com.mikasa.campusrunner.pojo.vo.OrderTimeOutVO">
+        SELECT
+            orders.id,
+            orders.`exceed_time`,
+            orders.`price`,
+            orders.`real_price`,
+            orders.`gap`
+        FROM
+            tb_take_orders AS take_order,
+            tb_orders AS orders
+        WHERE
+            take_order.`order_id` = orders.`id` AND
+            (take_order.`status` = 0 OR take_order.`status` = 1) AND
+            orders.real_price &gt; 0 AND
+            orders.real_price IS NOT NULL AND
+            orders.`exceed_time` &lt; #{now}
+    </select>
+
+    <select id="getNoPayOrderByOrderId" resultType="com.mikasa.campusrunner.pojo.entity.Order">
+        select * from tb_orders
+        where deleted = 0 AND
+              status = -1 AND
+              id = #{id}
+    </select>
+
+    <select id="getStatusByOrderNumber" resultType="java.lang.Integer">
+        select status
+        from tb_orders
+        where deleted = 0 AND
+              order_number = #{orderNumber}
+    </select>
+
+    <select id="getStatusByOrderId" resultType="java.lang.Integer">
+        select status
+        from tb_orders
+        where deleted = 0 AND id = #{id}
+    </select>
+
+    <select id="getNoPayOrderByTimeOut" resultType="com.mikasa.campusrunner.pojo.entity.Order">
+        select * from tb_orders
+        where deleted = 0 AND
+              status = #{status} AND
+              create_time &lt; #{time}
+    </select>
+
+    <select id="getByOrderNumber" resultType="com.mikasa.campusrunner.pojo.entity.Order">
+        select * from tb_orders
+        where deleted = 0 AND
+              order_number = #{orderNumber}
+    </select>
+    <select id="getNoWithdrawal" resultType="com.mikasa.campusrunner.pojo.entity.Order">
+        select *
+        from tb_orders
+        where status = 5 and
+              deleted = 0
+    </select>
+    <select id="getAllOrdersNum" resultType="java.lang.Long">
+        SELECT
+            COUNT(*) AS num
+        FROM tb_orders
+        WHERE deleted = 0
+    </select>
+
+    <select id="getAllOrdersByStatus" resultType="java.lang.Long">
+        SELECT
+            COUNT(*) AS num
+        FROM tb_orders
+        WHERE deleted = 0 AND STATUS = #{status}
+    </select>
+
+    <select id="countOrdersByStatuses" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tb_orders WHERE deleted = 0 AND STATUS IN
+        <foreach collection="statuses" item="status" open="(" separator="," close=")">
+            #{status}
+        </foreach>
+    </select>
+
+    <select id="getAllordersAcceptedNum" resultType="java.lang.Long">
+        SELECT
+            COUNT(*) AS num
+        FROM tb_orders
+        WHERE deleted = 0 AND STATUS != 0
+    </select>
+
+    <select id="getAllOrdersToday" resultType="java.lang.Long">
+        SELECT
+            COUNT(*) AS num
+        FROM tb_orders
+        WHERE
+            deleted = 0 AND
+            create_time &gt;= #{startTime} AND
+            create_time &lt;= #{endTime}
+    </select>
+
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into tb_orders(id,
+                              pick_up_address,
+                              recive_address,
+                              order_number,
+                              price,
+                              service_fee_rate,
+                              service_fee,
+                              pay_amount,
+                              real_price,
+                              delivery_time,
+                              cancel_time,
+                              cancel_reson,
+                              exceed_time,
+                              gap,
+                              create_time,
+                              door_access,
+                              user_id,
+                              username,
+                              phone,
+                              status,
+                              note,
+                              image,
+                              category_id,
+                              deleted)
+        values(
+                                     null,
+                                     #{pickUpAddress},
+                                     #{reciveAddress},
+                                     #{orderNumber},
+                                     #{price},
+                                     #{serviceFeeRate},
+                                     #{serviceFee},
+                                     #{payAmount},
+                                     #{realPrice},
+                                     #{deliveryTime},
+                                     #{cancelTime},
+                                     #{cancelReson},
+                                     #{exceedTime},
+                                     #{gap},
+                                     #{createTime},
+                                     #{doorAccess},
+                                     #{userId},
+                                     #{username},
+                                     #{phone},
+                                     #{status},
+                                     #{note},
+                                     #{image},
+                                     #{categoryId},
+                                     #{deleted}
+                                    )
+    </insert>
+
+
+    <update id="deleteById">
+        update tb_orders set deleted = 1 where id = #{id}
+    </update>
+
+    <update id="update">
+        update tb_orders
+        <set>
+            <if test="pickUpAddress != null">pick_up_address = #{pickUpAddress}, </if>
+            <if test="reciveAddress != null">recive_address = #{reciveAddress}, </if>
+            <if test="orderNumber != null and orderNumber != ''">order_number = #{orderNumber}, </if>
+            <if test="price != null">price = #{price}, </if>
+            <if test="serviceFeeRate != null">service_fee_rate = #{serviceFeeRate}, </if>
+            <if test="serviceFeeRate != null">service_fee = #{serviceFeeRate}, </if>
+            <if test="payAmount != null">pay_amount = #{payAmount}, </if>
+            <if test="realPrice != null">real_price = #{realPrice}, </if>
+            <if test="deliveryTime != null">delivery_time = #{deliveryTime}, </if>
+            <if test="cancelTime != null">cancel_time = #{cancelTime}, </if>
+            <if test="cancelReson != null and cancelReson != ''">cancel_reson = #{cancelReson}, </if>
+            <if test="exceedTime != null">exceed_time = #{exceedTime}, </if>
+            <if test="gap != null">gap = #{gap}, </if>
+            <if test="createTime != null">create_time = #{createTime}, </if>
+            <if test="doorAccess != null">door_access = #{doorAccess}, </if>
+            <if test="userId != null">user_id = #{userId}, </if>
+            <if test="username != null and username != ''">username = #{username}, </if>
+            <if test="phone != null and phone != ''">phone = #{phone}, </if>
+            <if test="status != null">status = #{status}, </if>
+            <if test="note != null and note != ''">note = #{note}, </if>
+            <if test="image != null and image != ''">image = #{image}, </if>
+            <if test="categoryId != null">category_id = #{categoryId}, </if>
+            <if test="deleted != null">deleted = #{deleted}, </if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <update id="updateStatusByOrderNumber">
+        update tb_orders
+        set status = #{status}
+        where order_number = #{orderNumber}
+    </update>
+
+    <select id="listAllOrders" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminOrderListVO">
+        SELECT o.id, o.order_number, o.status, c.category_name,
+               o.price, o.service_fee, o.pay_amount,
+               o.username, o.phone, o.note, o.door_access, o.create_time,
+               ap.address AS pick_up_address, ar.address AS recive_address
+        FROM tb_orders o
+        LEFT JOIN tb_category c ON o.category_id = c.id
+        LEFT JOIN (
+            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
+            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
+            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
+              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
+        ) ap ON o.pick_up_address = ap.id
+        LEFT JOIN (
+            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
+            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
+            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
+              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
+        ) ar ON o.recive_address = ar.id
+        WHERE o.deleted = 0
+        ORDER BY o.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="listOrdersByStatus" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminOrderListVO">
+        SELECT o.id, o.order_number, o.status, c.category_name,
+               o.price, o.service_fee, o.pay_amount,
+               o.username, o.phone, o.note, o.door_access, o.create_time,
+               o.cancel_time, o.cancel_reson AS cancel_reason, o.delivery_time,
+               ap.address AS pick_up_address, ar.address AS recive_address,
+               tk_user.realname AS taker_name, tk_user.phone AS taker_phone,
+               tk.create_time AS take_order_time
+        FROM tb_orders o
+        LEFT JOIN tb_category c ON o.category_id = c.id
+        LEFT JOIN (
+            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
+            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
+            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
+              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
+        ) ap ON o.pick_up_address = ap.id
+        LEFT JOIN (
+            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
+            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
+            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
+              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
+        ) ar ON o.recive_address = ar.id
+        LEFT JOIN tb_take_orders tk ON o.id = tk.order_id AND tk.deleted = 0
+        LEFT JOIN tb_user tk_user ON tk.user_id = tk_user.id
+        WHERE o.deleted = 0
+          AND o.status IN
+          <foreach collection="statuses" item="s" open="(" separator="," close=")">
+              #{s}
+          </foreach>
+        ORDER BY o.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="getAdminOrderDetail" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminOrderDetailVO">
+        SELECT o.id, o.order_number, o.status, c.category_name,
+               o.price, o.service_fee_rate, o.service_fee, o.pay_amount,
+               o.username, o.phone, o.note, o.image, o.door_access,
+               o.gap, o.exceed_time, o.create_time, o.cancel_time, o.cancel_reson AS cancel_reason,
+               ap.address AS pick_up_address, ar.address AS recive_address,
+               tk.user_id AS taker_user_id, tk_user.realname AS taker_realname,
+               tk_user.phone AS taker_phone, tk.create_time AS taker_take_time,
+               tk.delivery_time AS taker_delivery_time, tk.image AS taker_image,
+               pl.transaction_id AS payment_transaction_id, pl.trade_state AS payment_trade_state,
+               pl.total AS payment_total, pl.service_fee AS payment_service_fee,
+               pl.payer_openid AS payment_payer_openid, pl.success_time AS payment_success_time,
+               ri.refund_number, ri.refund_id, ri.refund AS refund_amount,
+               ri.refund_status, ri.reason AS refund_reason, ri.create_time AS refund_create_time
+        FROM tb_orders o
+        LEFT JOIN tb_category c ON o.category_id = c.id
+        LEFT JOIN (
+            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
+            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
+            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
+              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
+        ) ap ON o.pick_up_address = ap.id
+        LEFT JOIN (
+            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
+            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
+            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
+              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
+        ) ar ON o.recive_address = ar.id
+        LEFT JOIN tb_take_orders tk ON o.id = tk.order_id AND tk.deleted = 0
+        LEFT JOIN tb_user tk_user ON tk.user_id = tk_user.id
+        LEFT JOIN tb_payment_log pl ON o.order_number = pl.order_number
+        LEFT JOIN tb_refund_info ri ON o.order_number = ri.order_number
+        WHERE o.id = #{id} AND o.deleted = 0
+    </select>
+
+    <select id="countTodayOrders" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tb_orders
+        WHERE deleted = 0 AND create_time &gt;= #{startTime} AND create_time &lt;= #{endTime}
+    </select>
+
+    <select id="sumTodayPayAmount" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(pay_amount), 0) FROM tb_orders
+        WHERE deleted = 0 AND pay_amount > 0
+          AND create_time &gt;= #{startTime} AND create_time &lt;= #{endTime}
+    </select>
+
+    <select id="sumTodayServiceFee" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(service_fee), 0) FROM tb_orders
+        WHERE deleted = 0 AND service_fee > 0
+          AND create_time &gt;= #{startTime} AND create_time &lt;= #{endTime}
+    </select>
+
+</mapper>

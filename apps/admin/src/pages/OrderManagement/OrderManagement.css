@@ -1,0 +1,7 @@
+/* Order-specific overrides */
+.order-detail .detail-descriptions {
+  margin-bottom: 24px;
+}
+.order-detail .detail-descriptions:last-child {
+  margin-bottom: 0;
+}

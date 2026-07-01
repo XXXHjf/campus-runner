@@ -1,0 +1,13 @@
+{
+  "navigationBarTitleText": "我发布的",
+  "usingComponents": {
+    "t-tag": "tdesign-miniprogram/tag/tag",
+    "t-divider": "tdesign-miniprogram/divider/divider",
+    "t-image": "tdesign-miniprogram/image/image",
+    "t-loading": "tdesign-miniprogram/loading/loading",
+    "t-cell": "tdesign-miniprogram/cell/cell",
+    "t-drawer": "tdesign-miniprogram/drawer/drawer",
+    "t-toast": "tdesign-miniprogram/toast/toast"
+  },
+  "enablePullDownRefresh": true
+}

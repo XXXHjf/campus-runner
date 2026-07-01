@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.SchoolMapper">
+
+
+
+    <select id="getAll" resultType="com.mikasa.campusrunner.pojo.entity.School">
+        select * from tb_school where deleted = 0
+    </select>
+
+    <select id="getNumberIdByName" resultType="java.lang.Long">
+        select number_id from tb_school where school_name = #{schoolName} and deleted = 0
+    </select>
+
+    <select id="getMaxNumberId" resultType="java.lang.Long">
+        select number_id from tb_school where deleted = 0 order by number_id desc limit 1
+    </select>
+
+    <select id="getBySchoolName" resultType="com.mikasa.campusrunner.pojo.entity.School">
+        select * from tb_school where school_name = #{schoolName} and deleted = 0
+    </select>
+
+    <select id="getIdByNumberId" resultType="java.lang.Long">
+        select id from tb_school where number_id = #{schoolNumberId} and deleted = 0
+    </select>
+
+    <select id="getThree" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookThreeVO$School">
+        SELECT school_name,number_id
+        FROM tb_school
+        WHERE deleted = 0 AND id = #{schoolId}
+    </select>
+
+    <select id="getNameById" resultType="java.lang.String">
+        select school_name from tb_school where id = #{id} and deleted = 0
+    </select>
+
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into tb_school values (null, #{schoolName}, #{numberId}, #{deleted})
+    </insert>
+
+</mapper>

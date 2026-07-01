@@ -1,0 +1,83 @@
+<!-- 认证须知组件 -->
+<auth-notice 
+  show="{{showAuthNotice}}" 
+  bind:agree="onAgreeNotice" 
+  bind:disagree="onDisagreeNotice">
+</auth-notice>
+
+<view class="card" style="margin-top: 50rpx;">
+  <!-- 认证信息标题 -->
+  <view style="display: flex; align-items: center;">
+    <t-icon class="cardIcon" name="user-checked" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
+    <view class="cardName">重新认证信息</view>
+  </view>
+  <view class="tips"> *请重新填写完整的认证信息 </view>
+
+  <!-- 认证状态提示 -->
+  <view class="auth-status-banner">
+    <view class="auth-status-row">
+      <t-icon name="{{authStatusIcon}}" size="18" color="#0052d9" />
+      <view class="auth-status-title">{{authStatusTitle}}</view>
+      <t-tag size="small" variant="light" theme="{{authStatusTheme}}">{{authStatusText}}</t-tag>
+    </view>
+    <view class="auth-status-desc">{{authStatusDesc}}</view>
+    <view class="auth-status-actions" wx:if="{{!canSubmit}}">
+      <view class="tips" style="margin: 0; text-align: right;">审核中暂不可修改</view>
+    </view>
+  </view>
+  
+  <!-- 学校 -->
+  <t-input class="{{onPickValue?'school-input':''}}" label="学校" placeholder="{{onPickValue||'请选择所在的学校'}}" bindtap="changeSchoolNew" align="right" borderless="true" disabled="true" />
+
+  <!-- 学号 -->
+  <t-input label="学号" placeholder="请输入学号" value="{{upSID}}" align="right" borderless="true" bind:change="handleStudentId" disabled="{{!canSubmit}}" />
+  <!-- 真实姓名 -->
+  <t-input label="真实姓名" placeholder="请输入真实姓名" value="{{upName}}" align="right" borderless="true" bind:change="handleName" disabled="{{!canSubmit}}" />
+  
+  <!-- 校园认证 -->
+  <view class="campus-auth-section">
+    <t-divider class="drvider" />
+    <view style="display: flex; align-items: center; margin-top: 20rpx;">
+      <t-icon class="cardIcon" name="secured" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
+      <view class="cardName">校园认证证件</view>
+    </view>
+    <view class="tips" style="margin-bottom: 20rpx;"> *请上传学生证、录取通知书或校园卡等证明材料 </view>
+    
+    <!-- 上传证件图片 -->
+    <view class="upload-container">
+      <view class="upload-item" wx:if="{{!studentIdCardUrl && !userInfo.studentIdCard}}">
+        <view class="upload-btn" bindtap="chooseStudentIdCard">
+          <t-icon name="add" size="48" color="#0052d9" />
+          <text class="upload-text">上传证件</text>
+        </view>
+      </view>
+      <view class="upload-item uploaded" wx:if="{{studentIdCardUrl}}">
+        <image class="uploaded-image" src="{{studentIdCardUrl}}" mode="aspectFill" />
+        <view class="delete-btn" bindtap="deleteStudentIdCard">
+          <t-icon name="close" size="20" color="#fff" />
+        </view>
+      </view>
+      <view class="upload-item uploaded" wx:if="{{!studentIdCardUrl && userInfo.studentIdCard}}">
+        <image class="uploaded-image" src="{{userInfo.studentIdCard}}" mode="aspectFill" bindtap="previewStudentIdCard" />
+      </view>
+    </view>
+
+    <view class="replace-hint" wx:if="{{userInfo.studentIdCard}}">
+      <text>可复用当前材料，也可以</text>
+      <text class="font-link" bind:tap="chooseStudentIdCard">重新上传</text>
+    </view>
+  </view>
+</view>
+
+<!-- 确认修改按钮 -->
+<view class="button">
+  <t-button block theme="primary" bind:tap="identify" disabled="{{!canSubmit}}">{{canSubmit?'确认修改':'审核中'}}</t-button>
+</view>
+
+<!-- 校园选择器 -->
+<t-picker visible="{{pickerVisible}}" value="{{onPickValue}}" title="请选择地址" cancelBtn="取消" confirmBtn="确认" bindchange="onPickerChange" bindcancel="onPickerCancel">
+  <t-picker-item options="{{schools}}"></t-picker-item>
+</t-picker>
+
+<!-- 轻提示 -->
+<t-toast id="t-toast" />

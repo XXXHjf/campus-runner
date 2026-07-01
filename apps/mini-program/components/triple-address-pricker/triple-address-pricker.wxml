@@ -1,0 +1,7 @@
+<t-picker visible="{{isVisible}}" value="{{areaValue}}" title="请选择地址" cancelBtn="取消" confirmBtn="确认" bindchange="onPickerChange" bindpick="onColumnChange" bindcancel="onPickerCancel">
+  <t-picker-item options="{{compuses}}"></t-picker-item>
+  <t-picker-item options="{{category}}"></t-picker-item>
+  <t-picker-item options="{{buildings}}"></t-picker-item>
+</t-picker>
+
+<t-toast id="t-toast" />

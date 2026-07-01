@@ -1,0 +1,764 @@
+.card {
+  margin: 30rpx;
+  padding: 20rpx 0;
+  border-radius: 20rpx;
+  background-color: white;
+}
+.cardIcon{
+  /* padding: 0 0 0 30rpx; */
+  color: #0052d9;
+}
+.cardName {
+  padding: 0rpx 20rpx;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #0052d9;
+}
+
+.drvider {
+  --td-divider-content-line-height: 20rpx;
+}
+/* 单选框样式优化 */
+.t-radio{
+  position: Static;
+}
+.t-radio--block {
+  padding: 0 20rpx;
+}
+
+/* 步骤条 */
+.step {
+  background-color: var(--bg-color-demo);
+  border-radius: 20rpx;
+  margin: 20rpx 30rpx 10rpx;
+  background-color: white;
+  padding: 20rpx 25rpx;
+}
+
+/* 弹出层 */
+.show-cart {
+  border-radius: 20rpx;
+  margin: 30rpx;
+  /* background-color: rgb(255, 255, 255, 0.5); */
+  padding: 20rpx 0rpx;
+  border: 1rpx solid rgba(0, 0, 0, 0.1);
+  /* 增加描边 */
+  /* box-shadow: 10rpx 10rpx 8rpx rgba(0, 0, 0, 0.15); */
+  /* 水平偏移，垂直偏移，模糊半径，颜色 */
+}
+
+.block {
+  width: 100vw;
+  /* height: 20rpx; */
+  background: var(--td-bg-color-container);
+  border-top-left-radius: 16rpx;
+  border-top-right-radius: 16rpx;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  height: 116rpx;
+}
+
+.title {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-size: 36rpx;
+  color: var(--td-text-color-primary);
+}
+
+.btn {
+  font-size: 32rpx;
+  padding: 32rpx;
+}
+
+.btn--cancel {
+  color: var(--td-text-color-secondary);
+}
+
+.btn--confirm {
+  color: #0052d9;
+}
+
+.button {
+  margin: 40rpx 30rpx;
+  width: auto;
+}
+.button-row {
+  display: flex;
+  gap: 20rpx;
+}
+.button-item {
+  flex: 1;
+}
+
+.popup-1 {
+  color: #0052d9;
+  background-color: #0052d920;
+  padding: 8rpx 20rpx;
+  margin: 0rpx 30rpx;
+  border-radius: 15rpx;
+  font-size: small;
+  font-weight: bold;
+  /* 将文本居中 */
+  text-align: center;
+  /* 防止文本换行 */
+  white-space: nowrap;
+}
+/* 弹出层底部填充 */
+.t-popup--bottom{
+  padding-bottom: 0;
+}
+/* 地址 */
+.box1 {
+  display: flex;
+  /* flex: 1.5; */
+  align-items: center;
+}
+
+.contact-contanier {
+  display: flex;
+  margin-top: 15rpx;
+}
+
+.contact-box {
+  margin-left: 30rpx;
+  font-size: small;
+  font-weight: 500;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: gray;
+}
+
+.edit-box {
+  margin-left: 20rpx;
+  font-weight: 500;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: gray;
+}
+
+
+.text-address {
+  color: #0052d9;
+  background-color: #0052d920;
+  padding: 10rpx 15rpx;
+  margin: 10rpx 15rpx 10rpx 30rpx;
+  border-radius: 15rpx;
+  font-size: small;
+  font-weight: bold;
+  /* 将文本居中 */
+  text-align: center;
+  /* 防止文本换行 */
+  white-space: nowrap;
+  /* 如果内容过长，隐藏溢出的部分 */
+  /* overflow: hidden;  */
+  /* 显示省略号来表示被截断的文本 */
+  /* text-overflow: ellipsis;  */
+}
+
+/* 门禁容器 - 改进布局 */
+.door-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10rpx 0;
+}
+
+.door-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+/* 醒目的帮助说明按钮 */
+.door-help-btn {
+  margin-right: 30rpx;
+  padding: 12rpx 20rpx;
+  background: linear-gradient(135deg, #FF6B00 0%, #FF8F3D 100%);
+  border-radius: 50rpx;
+  box-shadow: 0 4rpx 12rpx rgba(255, 107, 0, 0.3);
+  transition: all 0.3s ease;
+  animation: gentle-bounce 2s ease-in-out infinite;
+}
+
+.door-help-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2rpx 8rpx rgba(255, 107, 0, 0.4);
+}
+
+.help-btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-btn-text {
+  color: #FFFFFF;
+  font-size: 24rpx;
+  font-weight: 600;
+  margin-left: 8rpx;
+  white-space: nowrap;
+}
+
+/* 图标脉冲动画 */
+.help-icon-pulse {
+  animation: pulse-icon 1.5s ease-in-out infinite;
+}
+
+/* 轻微弹跳动画 - 吸引注意但不过度 */
+@keyframes gentle-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4rpx);
+  }
+}
+
+/* 图标脉冲效果 */
+@keyframes pulse-icon {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+.address {
+  flex: 1;
+  margin: 0 30rpx;
+  font-size: small;
+  font-weight: 500;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: gray;
+  text-align: left;
+}
+
+.address-black {
+  flex: 1;
+  margin: 0 30rpx;
+  font-size: small;
+  font-weight: 500;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: black;
+  text-align: left;
+}
+
+/* 类型 */
+.categoryImage {
+  width: 48rpx;
+  height: 48rpx;
+  /* border-radius: 25px; */
+  margin-right: 30rpx;
+  /* padding: 5rpx; */
+  /* background: brown; */
+}
+
+.categoryName {
+  flex: 1;
+  font-weight: normal;
+  font-size: 30rpx;
+  /* font-size: 0.9rem;
+  font-weight:normal; */
+  padding-left: 10rpx;
+  margin-left:15rpx;
+  /* background: rebeccapurple; */
+}
+/* 内容说明文本域样式 */
+.external-class {
+  margin: 20rpx 30rpx;
+}
+/* 任务时间输入框样式 */
+.input {
+  flex: 1.5;
+  font-size: 30rpx;
+  margin: 0rpx 30rpx;
+  padding: 0;
+  width: auto;
+  --td-input-vertical-padding: 0;
+}
+
+/* 输入框占位符样式 */
+.t-input__placeholder{
+  flex: 1;
+  padding: 0;
+  margin: 0;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: gray;
+}
+
+/* 输入框后缀样式 */
+.t-input__wrap--suffix{
+  flex: 1;
+  padding: 0;
+  margin: 0;
+  font-size: small;
+  font-weight: 600;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: gray;
+}
+
+/* 自定义输入框控件宽度 */
+.custom-input .t-input__control{
+  width: 100rpx;
+}
+
+.time-container {
+  display: flex;
+  height: 884rpx;
+}
+
+.reach-tabs {
+  display: flex;
+  flex-direction: column;
+  background-color: #F8F8F8;
+}
+
+.reach-tab {
+  text-align: center;
+  padding: 30rpx;
+  font-size: 28rpx ;
+  font-weight: bold;
+  color: #666666;
+  flex: 0;
+}
+
+.reach-tab.active {
+  color: #0052d9;
+  background-color: white;
+}
+
+.time-list {
+  flex: 1;
+  /* overflow-y: scroll; 
+  -webkit-overflow-scrolling: touch; */
+  padding: 0 0 0 20rpx;
+}
+
+/* 时间选择项 */
+.time-item {
+  padding: 25rpx;
+  border-bottom: 2rpx solid #eee;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+/* 选中的时间项 */
+.time-item.selected {
+  color: #0052d9;
+  background: rgba(0, 82, 217, 0.08);
+}
+
+/* 推荐时间项（带淡淡的背景色） */
+.time-item-recommended {
+  background: linear-gradient(90deg, rgba(255, 183, 77, 0.05) 0%, rgba(255, 183, 77, 0.02) 100%);
+}
+
+/* 时间项行布局（时间和标签水平排列） */
+.time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 时间文字 */
+.time-text {
+  text-align: left;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+/* 推荐标签样式 */
+.recommend-label {
+  display: inline-block;
+  padding: 4rpx 12rpx;
+  background: linear-gradient(135deg, #FFB74D 0%, #FFA726 100%);
+  color: #FFFFFF;
+  font-size: 20rpx;
+  font-weight: 600;
+  border-radius: 8rpx;
+  margin-left: 12rpx;
+  box-shadow: 0 2rpx 6rpx rgba(255, 183, 77, 0.3);
+}
+
+/* 用户信息修改弹出层样式 */
+.user-info-body {
+  padding: 0 30rpx 40rpx 30rpx;
+}
+
+.user-info-item {
+  margin-bottom: 40rpx;
+}
+
+.user-info-item:last-child {
+  margin-bottom: 0;
+}
+
+.user-info-label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15rpx;
+}
+
+/* TDesign图标样式 - 用户信息标签 */
+.label-icon-td {
+  margin-right: 10rpx;
+  display: flex;
+  align-items: center;
+}
+
+/* 保留旧的emoji样式（已废弃） */
+.label-icon {
+  font-size: 32rpx;
+  margin-right: 10rpx;
+}
+
+.label-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.user-info-input-wrapper {
+  background-color: #F5F5F5;
+  border-radius: 12rpx;
+  padding: 5rpx 20rpx;
+  border: 2rpx solid #E5E5E5;
+  transition: all 0.3s;
+}
+
+.user-info-input-wrapper:focus-within {
+  background-color: #fff;
+  border-color: #0052d9;
+  box-shadow: 0 0 0 4rpx rgba(0, 82, 217, 0.1);
+}
+
+/* 用户信息输入框字体大小 */
+.user-info-input {
+  font-size: 32rpx;
+}
+
+.user-info-tip {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #999;
+  padding-left: 5rpx;
+}
+
+/* 订单确认弹窗样式 - 紧凑版本 */
+.order-confirm-content-compact {
+  padding: 10rpx 0;
+}
+
+.confirm-card-compact {
+  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+  border-radius: 12rpx;
+  padding: 15rpx;
+  margin: 0 15rpx;
+  border: 2rpx solid #E8EAED;
+}
+
+.confirm-item-compact {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 10rpx;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+
+.confirm-item-compact:last-child {
+  border-bottom: none;
+}
+
+.confirm-highlight-bg {
+  background-color: rgba(0, 82, 217, 0.04);
+  border-radius: 8rpx;
+  padding: 12rpx 10rpx;
+  margin-bottom: 6rpx;
+  border-bottom: none;
+}
+
+/* TDesign图标样式 - 订单确认弹窗 */
+.confirm-icon-td {
+  margin-right: 10rpx;
+  flex-shrink: 0;
+}
+
+/* 保留旧的emoji样式（已废弃） */
+.confirm-icon-small {
+  font-size: 32rpx;
+  margin-right: 10rpx;
+  flex-shrink: 0;
+}
+
+.confirm-label-compact {
+  font-size: 28rpx;
+  color: #666;
+  width: 120rpx;
+  flex-shrink: 0;
+}
+
+.confirm-value-compact {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+  text-align: right;
+  word-break: break-all;
+}
+
+.highlight-text-compact {
+  color: #0052d9;
+  font-weight: 600;
+  font-size: 28rpx;
+}
+
+.price-text-compact {
+  color: #FF6B00;
+  font-weight: 600;
+  font-size: 32rpx;
+  flex: 1;
+  text-align: right;
+}
+
+.confirm-warning-item {
+  background-color: rgba(255, 107, 0, 0.05);
+  border-radius: 8rpx;
+  border-bottom: none;
+  padding: 10rpx 12rpx;
+}
+
+.warning-text-compact {
+  color: #FF6B00;
+  font-weight: 500;
+  font-size: 26rpx;
+  flex: 1;
+}
+
+/* 温馨提示 - 紧凑版本 */
+.confirm-tips-compact {
+  display: flex;
+  align-items: center;
+  margin: 10rpx 15rpx 0;
+  padding: 14rpx 18rpx;
+  background: linear-gradient(135deg, #FFF9E6 0%, #FFF4D9 100%);
+  border-radius: 8rpx;
+  border-left: 4rpx solid #FFB800;
+}
+
+/* TDesign图标样式 - 温馨提示 */
+.tips-icon-td {
+  margin-right: 10rpx;
+  flex-shrink: 0;
+}
+
+/* 保留旧的emoji样式（已废弃） */
+.tips-icon-small {
+  font-size: 28rpx;
+  margin-right: 10rpx;
+  flex-shrink: 0;
+}
+
+.tips-text-compact {
+  font-size: 24rpx;
+  color: #8B6914;
+  line-height: 1.5;
+  flex: 1;
+}
+
+/* 地址列表项容器 - 新布局 */
+.address-item-container {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  gap: 12rpx;
+  padding: 8rpx 0;
+}
+
+.address-item-radio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding-left: 10rpx;
+  padding-top: 6rpx;
+}
+
+.address-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  min-width: 0;
+  padding: 8rpx 0;
+  align-items: flex-start;
+}
+
+/* tag和地址在同一行 */
+.address-item-row {
+  display: block;
+  width: 100%;
+  line-height: 1.5;
+  word-wrap: break-word;
+  word-break: break-all;
+}
+
+/* 紧凑型标签样式 */
+.popup-tag-compact {
+  display: inline-block;
+  color: #0052d9;
+  background-color: #0052d920;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1.5;
+  margin-right: 8rpx;
+  vertical-align: top;
+}
+
+/* 地址文字（与tag同行） */
+.address-text-inline {
+  display: inline;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.5;
+  word-wrap: break-word;
+  word-break: break-all;
+}
+
+/* 详细地址行 */
+.address-detail-line {
+  width: 100%;
+  margin-top: 4rpx;
+  padding-left: 0;
+}
+
+/* 次要地址文字（详细地址） */
+.address-text-secondary {
+  font-size: 26rpx;
+  color: #999;
+  line-height: 1.5;
+  word-wrap: break-word;
+  word-break: break-all;
+}
+
+.address-item-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15rpx 20rpx;
+  padding-top: 18rpx;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  border-radius: 8rpx;
+}
+
+.address-item-edit:active {
+  opacity: 0.5;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* 保留旧版样式以防其他地方使用 */
+.order-confirm-content {
+  padding: 20rpx 0;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.confirm-card {
+  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+  border-radius: 16rpx;
+  padding: 20rpx;
+  margin: 0 20rpx;
+  border: 2rpx solid #E8EAED;
+}
+
+.confirm-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 15rpx;
+  border-bottom: 1rpx solid #F0F0F0;
+  transition: background-color 0.2s;
+}
+
+.confirm-item:last-child {
+  border-bottom: none;
+}
+
+.confirm-item-highlight {
+  background-color: rgba(0, 82, 217, 0.03);
+  border-radius: 12rpx;
+  border-bottom: none;
+  margin-bottom: 10rpx;
+}
+
+.confirm-icon {
+  font-size: 36rpx;
+  margin-right: 15rpx;
+  flex-shrink: 0;
+}
+
+.confirm-label {
+  font-size: 28rpx;
+  color: #666;
+  width: 140rpx;
+  flex-shrink: 0;
+}
+
+.confirm-value {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+  text-align: right;
+  word-break: break-all;
+}
+
+.highlight-text {
+  color: #0052d9;
+  font-weight: 600;
+  font-size: 30rpx;
+}
+
+.price-text {
+  color: #FF6B00;
+  font-weight: 600;
+  font-size: 32rpx;
+}
+
+.warning-text {
+  color: #FF6B00;
+  font-weight: 500;
+}
+
+/* 温馨提示 */
+.confirm-tips {
+  display: flex;
+  align-items: center;
+  margin: 20rpx 20rpx 10rpx;
+  padding: 20rpx;
+  background: linear-gradient(135deg, #FFF9E6 0%, #FFF4D9 100%);
+  border-radius: 12rpx;
+  border-left: 6rpx solid #FFB800;
+}
+
+.tips-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+
+.tips-text {
+  font-size: 24rpx;
+  color: #8B6914;
+  line-height: 1.6;
+  flex: 1;
+}
+
+

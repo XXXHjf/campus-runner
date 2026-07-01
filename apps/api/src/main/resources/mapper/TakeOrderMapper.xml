@@ -1,0 +1,499 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.TakeOrderMapper">
+
+
+    <insert id="save">
+        insert into tb_take_orders values(
+                                          null,
+                                          #{orderId},
+                                          #{userId},
+                                          #{createTime},
+                                          #{image},
+                                          #{deleted},
+                                          #{status},
+                                          #{deliveryTime},
+                                          #{cancelTime},
+                                          #{cancelReason}
+                                         )
+    </insert>
+
+    <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.TakeOrder">
+        select * from tb_take_orders where id = #{id} and deleted = 0
+    </select>
+
+    <select id="getMy" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
+        SELECT
+            take_order.id,
+            take_order.order_id,
+            address_pick_up.address AS pick_up_address,
+            address_recive.address AS recive_address,
+            orders.order_number,
+            orders.price,
+            orders.real_price,
+            orders.delivery_time,
+            orders.cancel_time,
+            orders.cancel_reson,
+            orders.exceed_time,
+            orders.gap,
+            orders.create_time,
+            orders.door_access,
+            orders.user_id,
+            orders.username,
+            orders.phone,
+            users.realname,
+            orders.status,
+            orders.note,
+            orders.image,
+            orders.category_id,
+            category.image AS category_image,
+            category.category_name,
+            take_order.take_order_create_time,
+            take_order.take_order_image,
+            take_order.take_order_delivery_time,
+            take_order.take_order_cancel_time,
+            take_order.take_order_cancel_reason
+
+        FROM
+            tb_orders AS orders,
+
+            tb_user AS users,
+
+            tb_category AS category,
+
+            (SELECT
+                 take_order.id,
+                 take_order.order_id,
+                 take_order.create_time AS take_order_create_time,
+                 take_order.image AS take_order_image,
+                 take_order.delivery_time AS take_order_delivery_time,
+                 take_order.cancel_time AS take_order_cancel_time,
+                 take_order.cancel_reason AS take_order_cancel_reason
+
+             FROM
+                 tb_take_orders AS take_order
+             WHERE take_order.user_id = #{id}
+               AND take_order.deleted = 0
+            ) AS take_order,
+
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                     compus.compus_name, ' ',
+                     build_category.name, ' ',
+                     building.building_name, ' ',
+                     ad.details) AS address
+             FROM tb_address_book AS ad,
+                  tb_school AS school,
+                  tb_compus AS compus,
+                  tb_build_category AS build_category,
+                  tb_building AS building
+             WHERE
+                 ad.school_id = school.id AND
+                 ad.compus_id = compus.id AND
+                 ad.build_category_id = build_category.id AND
+                 ad.building_id = building.id AND
+                 ad.deleted = 0
+            ) AS address_pick_up,
+
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                     compus.compus_name, ' ',
+                     build_category.name, ' ',
+                     building.building_name, ' ',
+                     ad.details) AS address
+             FROM tb_address_book AS ad,
+                  tb_school AS school,
+                  tb_compus AS compus,
+                  tb_build_category AS build_category,
+                  tb_building AS building
+             WHERE
+                 ad.school_id = school.id AND
+                 ad.compus_id = compus.id AND
+                 ad.build_category_id = build_category.id AND
+                 ad.building_id = building.id AND
+                 ad.deleted = 0
+            ) AS address_recive
+
+        WHERE
+            orders.pick_up_address = address_pick_up.id AND
+            orders.recive_address = address_recive.id AND
+            orders.id = take_order.order_id AND
+            orders.user_id = users.id AND
+            orders.deleted = 0 AND
+            orders.category_id = category.id
+        ORDER BY take_order.take_order_create_time desc
+    </select>
+
+    <select id="query" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
+        SELECT
+            take_order.id,
+            take_order.order_id,
+            address_pick_up.address AS pick_up_address,
+            address_recive.address AS recive_address,
+            orders.order_number,
+            orders.price,
+            orders.real_price,
+            orders.delivery_time,
+            orders.cancel_time,
+            orders.cancel_reson,
+            orders.exceed_time,
+            orders.gap,
+            orders.create_time,
+            orders.door_access,
+            orders.user_id,
+            orders.username,
+            orders.phone,
+            users.realname,
+            orders.status,
+            orders.note,
+            orders.image,
+            orders.category_id,
+            category.image AS category_image,
+            category.category_name,
+            take_order.take_order_create_time,
+            take_order.take_order_image,
+            take_order.take_order_delivery_time,
+            take_order.take_order_cancel_time,
+            take_order.take_order_cancel_reason
+
+        FROM
+            tb_orders AS orders,
+
+            tb_user AS users,
+
+            tb_category AS category,
+
+            (SELECT
+                 take_order.id,
+                 take_order.order_id,
+                 take_order.create_time AS take_order_create_time,
+                 take_order.image AS take_order_image,
+                 take_order.delivery_time AS take_order_delivery_time,
+                 take_order.cancel_time AS take_order_cancel_time,
+                 take_order.cancel_reason AS take_order_cancel_reason
+
+             FROM
+                 tb_take_orders AS take_order
+             <where>
+                 <if test="id != null">and id = #{id}</if>
+                 <if test="orderId != null">and order_id = #{orderId}</if>
+                 <if test="userId != null">and user_id = #{userId}</if>
+<!--                 <if test="createTime != null">create_time ?? #{createTime} and</if>-->
+
+                 <if test="deleted != null">and deleted = #{deleted}</if>
+                 <if test="status != null">and status = #{status}</if>
+<!--                 <if test="deliveryTime != null">delivery_time ?? #{deliveryTime} and</if>-->
+<!--               <if test="cancelTime != null">cancel_time ?? #{cancelTime} and</if>-->
+<!--                 <if test="cancelReason != null and cancelReason != ''">cancel_reason like concat('%',#{cancelReason},'%') and</if>-->
+             </where>
+            ) AS take_order,
+
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                        compus.compus_name, ' ',
+                        build_category.name, ' ',
+                        building.building_name, ' ',
+                        ad.details) AS address
+             FROM tb_address_book AS ad,
+                  tb_school AS school,
+                  tb_compus AS compus,
+                  tb_build_category AS build_category,
+                  tb_building AS building
+             WHERE
+                 ad.school_id = school.id AND
+                 ad.compus_id = compus.id AND
+                 ad.build_category_id = build_category.id AND
+                 ad.building_id = building.id AND
+                 ad.deleted = 0
+            ) AS address_pick_up,
+
+            (SELECT
+                 ad.id,
+                 CONCAT(school.school_name, ' ',
+                        compus.compus_name, ' ',
+                        build_category.name, ' ',
+                        building.building_name, ' ',
+                        ad.details) AS address
+             FROM tb_address_book AS ad,
+                  tb_school AS school,
+                  tb_compus AS compus,
+                  tb_build_category AS build_category,
+                  tb_building AS building
+             WHERE
+                 ad.school_id = school.id AND
+                 ad.compus_id = compus.id AND
+                 ad.build_category_id = build_category.id AND
+                 ad.building_id = building.id AND
+                 ad.deleted = 0
+            ) AS address_recive
+
+        WHERE
+            orders.pick_up_address = address_pick_up.id AND
+            orders.recive_address = address_recive.id AND
+            orders.id = take_order.order_id AND
+            orders.user_id = users.id AND
+            orders.category_id = category.id
+        ORDER BY take_order.take_order_create_time desc
+    </select>
+
+    <select id="getUserInfoByOrderId" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderUserInfoVO">
+        SELECT
+            user.username,
+            user.realname,
+            user.`phone`,
+            take_order.create_time as take_order_time,
+            take_order.id
+        FROM
+            tb_take_orders AS take_order,
+            tb_user AS user,
+            tb_orders AS orders
+        WHERE
+            take_order.order_id = #{orderId} AND
+            take_order.user_id = user.id AND
+            take_order.order_id = orders.id AND
+            take_order.`deleted` = 0
+    </select>
+
+    <select id="getByOrderId" resultType="com.mikasa.campusrunner.pojo.entity.TakeOrder">
+        select * from tb_take_orders where order_id = #{orderId} and deleted = 0
+    </select>
+
+    <select id="getImageByOrderId" resultType="java.lang.String">
+        select image from tb_take_orders where deleted = 0 and order_id = #{orderId}
+    </select>
+
+    <select id="getByOrderIdAndUserId" resultType="com.mikasa.campusrunner.pojo.entity.TakeOrder">
+        select * from tb_take_orders where order_id = #{orderId} and user_id = #{userId} and deleted = 0
+    </select>
+
+    <select id="getNoWithdrawn" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
+        SELECT
+            tk.id,
+            tk.order_id,
+            address_pick_up.address AS pick_up_address,
+            address_recive.address AS recive_address,
+            tb_orders.`order_number`,
+            tb_orders.`price`,
+            tb_orders.`real_price`,
+            tb_orders.`delivery_time`,
+            tb_orders.`cancel_time`,
+            tb_orders.`cancel_reson`,
+            tb_orders.`exceed_time`,
+            tb_orders.`gap`,
+            tb_orders.`create_time`,
+            tb_orders.`door_access`,
+            tb_orders.`user_id`,
+            tb_orders.`username`,
+            tb_orders.`phone`,
+            tb_user.`realname`,
+            tb_orders.`status`,
+            tb_orders.`note`,
+            tb_orders.image,
+            tb_orders.`category_id`,
+            tb_category.`image` AS category_image,
+            tb_category.`category_name` AS category_name,
+            tk.create_time AS take_order_create_time,
+            tk.image AS take_order_image,
+            tk.delivery_time AS take_order_delivery_time,
+            tk.cancel_time AS take_order_cancel_time,
+            tk.cancel_reason AS take_order_cancel_reason
+
+        FROM
+            tb_orders,
+            tb_user,
+            tb_category,
+            (
+                SELECT
+                    id,
+                    image,
+                    create_time,
+                    delivery_time,
+                    cancel_time,
+                    cancel_reason,
+                    order_id
+                FROM
+                    tb_take_orders
+                WHERE
+                    deleted = 0 AND
+                    user_id = #{userId} AND
+                    STATUS = 2
+            ) AS tk,
+
+            (
+                SELECT
+                    ad.id,
+                    CONCAT(school.school_name, ' ',
+                           compus.compus_name, ' ',
+                           build_category.name, ' ',
+                           building.building_name, ' ',
+                           ad.details) AS address
+                FROM
+                    tb_address_book AS ad,
+                    tb_school AS school,
+                    tb_compus AS compus,
+                    tb_build_category AS build_category,
+                    tb_building AS building
+                WHERE
+                    ad.school_id = school.id AND
+                    ad.compus_id = compus.id AND
+                    ad.build_category_id = build_category.id AND
+                    ad.building_id = building.id AND
+                    ad.school_id = #{schoolId} AND
+                    ad.deleted = 0
+            ) AS address_pick_up,
+
+            (
+                SELECT
+                    ad.id,
+                    CONCAT(school.school_name, ' ',
+                           compus.compus_name, ' ',
+                           build_category.name, ' ',
+                           building.building_name, ' ',
+                           ad.details) AS address
+                FROM
+                    tb_address_book AS ad,
+                    tb_school AS school,
+                    tb_compus AS compus,
+                    tb_build_category AS build_category,
+                    tb_building AS building
+                WHERE
+                    ad.school_id = school.id AND
+                    ad.compus_id = compus.id AND
+                    ad.build_category_id = build_category.id AND
+                    ad.building_id = building.id AND
+                    ad.school_id = #{schoolId} AND
+                    ad.deleted = 0
+            ) AS address_recive
+
+        WHERE
+            tb_orders.deleted = 0 AND
+            tb_orders.id = tk.order_id  AND
+            tb_orders.status = #{orderStatus} AND
+            tb_orders.`pick_up_address` = address_pick_up.id AND
+            tb_orders.`recive_address` = address_recive.id AND
+            tb_user.id = tb_orders.`user_id` AND
+            tb_orders.`category_id` = tb_category.id AND
+            tb_orders.`price` IS NOT NULL AND
+            tb_orders.`price` != 0
+    </select>
+
+
+    <select id="listAllTakeOrders" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminTakeOrderListVO">
+        SELECT tk.id, tk.order_id, o.order_number, o.status AS order_status,
+               tk.status AS take_order_status, c.category_name, o.price,
+               o.service_fee, o.pay_amount, o.note AS order_note,
+               ap.address AS pick_up_address, ar.address AS recive_address,
+               pub_user.realname AS publisher_name, o.phone AS publisher_phone,
+               tk_user.realname AS taker_name, tk_user.phone AS taker_phone,
+               tk.create_time AS take_order_time, tk.delivery_time,
+               tk.image AS take_order_image
+        FROM tb_take_orders tk
+        INNER JOIN tb_orders o ON tk.order_id = o.id AND o.deleted = 0
+        LEFT JOIN tb_category c ON o.category_id = c.id
+        LEFT JOIN tb_user tk_user ON tk.user_id = tk_user.id
+        LEFT JOIN tb_user pub_user ON o.user_id = pub_user.id
+        LEFT JOIN (
+            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
+            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
+            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
+              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
+        ) ap ON o.pick_up_address = ap.id
+        LEFT JOIN (
+            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
+            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
+            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
+              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
+        ) ar ON o.recive_address = ar.id
+        WHERE tk.deleted = 0
+        ORDER BY tk.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="listUnpaidTakeOrders" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminTakeOrderListVO">
+        SELECT tk.id, tk.order_id, o.order_number, o.status AS order_status,
+               tk.status AS take_order_status, c.category_name, o.price,
+               o.service_fee, o.pay_amount, o.note AS order_note,
+               ap.address AS pick_up_address, ar.address AS recive_address,
+               pub_user.realname AS publisher_name, o.phone AS publisher_phone,
+               tk_user.realname AS taker_name, tk_user.phone AS taker_phone,
+               tk.create_time AS take_order_time, tk.delivery_time,
+               tk.image AS take_order_image
+        FROM tb_take_orders tk
+        INNER JOIN tb_orders o ON tk.order_id = o.id AND o.deleted = 0
+        LEFT JOIN tb_category c ON o.category_id = c.id
+        LEFT JOIN tb_user tk_user ON tk.user_id = tk_user.id
+        LEFT JOIN tb_user pub_user ON o.user_id = pub_user.id
+        LEFT JOIN (
+            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
+            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
+            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
+              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
+        ) ap ON o.pick_up_address = ap.id
+        LEFT JOIN (
+            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
+            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
+            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
+              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
+        ) ar ON o.recive_address = ar.id
+        WHERE tk.deleted = 0 AND o.status IN (5, 7)
+        ORDER BY tk.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countTodayNew" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tb_take_orders
+        WHERE deleted = 0 AND create_time &gt;= #{startTime} AND create_time &lt;= #{endTime}
+    </select>
+
+    <select id="sumUnpaidAmount" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(o.price), 0)
+        FROM tb_take_orders tk
+        INNER JOIN tb_orders o ON tk.order_id = o.id AND o.deleted = 0 AND o.status IN (5, 7)
+        WHERE tk.deleted = 0
+    </select>
+
+    <select id="countTodayCompleted" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tb_take_orders
+        WHERE deleted = 0 AND status = 2
+          AND delivery_time &gt;= #{startTime} AND delivery_time &lt;= #{endTime}
+    </select>
+
+    <select id="sumTodayCompletedAmount" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(o.price), 0)
+        FROM tb_take_orders tk
+        INNER JOIN tb_orders o ON tk.order_id = o.id AND o.deleted = 0
+        WHERE tk.deleted = 0 AND tk.status = 2
+          AND tk.delivery_time &gt;= #{startTime} AND tk.delivery_time &lt;= #{endTime}
+    </select>
+
+    <select id="countAll" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tb_take_orders WHERE deleted = 0
+    </select>
+
+    <select id="countUnpaid" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tb_take_orders tk
+        INNER JOIN tb_orders o ON tk.order_id = o.id AND o.deleted = 0
+        WHERE tk.deleted = 0 AND o.status IN (5, 7)
+    </select>
+
+    <update id="update">
+        update tb_take_orders
+        <set>
+            <if test="orderId != null">order_id = #{orderId}, </if>
+            <if test="userId != null">user_id = #{userId}, </if>
+            <if test="createTime != null">create_time = #{createTime}, </if>
+            <if test="image != null and image != ''">image = #{image}, </if>
+            <if test="deleted != null">deleted = #{deleted}, </if>
+            <if test="status != null">status = #{status}, </if>
+            <if test="deliveryTime != null">delivery_time = #{deliveryTime}, </if>
+            <if test="cancelTime != null">cancel_time = #{cancelTime}, </if>
+            <if test="cancelReason != null and cancelReason != ''">cancel_reason = #{cancelReason}, </if>
+        </set>
+        where id = #{id}
+    </update>
+
+</mapper>

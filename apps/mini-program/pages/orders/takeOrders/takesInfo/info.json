@@ -1,0 +1,23 @@
+{
+  "navigationBarTitleText": "接单详情",
+  "usingComponents": {
+    "t-tag": "tdesign-miniprogram/tag/tag",
+    "t-divider": "tdesign-miniprogram/divider/divider",
+    "t-cell": "tdesign-miniprogram/cell/cell",
+    "t-button": "tdesign-miniprogram/button/button",
+    "t-image": "tdesign-miniprogram/image/image",
+    "t-loading": "tdesign-miniprogram/loading/loading",
+    "t-popup": "tdesign-miniprogram/popup/popup",
+    "t-input": "tdesign-miniprogram/input/input",
+    "t-radio-group": "tdesign-miniprogram/radio-group/radio-group",
+    "t-radio": "tdesign-miniprogram/radio/radio",
+    "t-count-down": "tdesign-miniprogram/count-down/count-down",
+    "t-steps": "tdesign-miniprogram/steps/steps",
+    "t-step-item": "tdesign-miniprogram/step-item/step-item",
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "t-upload": "tdesign-miniprogram/upload/upload",
+    "t-dialog": "tdesign-miniprogram/dialog/dialog",
+    "t-toast": "tdesign-miniprogram/toast/toast"
+  },
+  "enablePullDownRefresh": true
+}

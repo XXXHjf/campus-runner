@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.BuildingMapper">
+
+    <update id="updateBuildNameByID">
+        UPDATE tb_building
+        SET
+            building_name = #{buildingName}
+        WHERE
+            id = #{buildingID} AND
+            deleted = 0
+    </update>
+
+    <update id="deletedById">
+        UPDATE tb_building
+        SET
+            deleted = 1
+        WHERE
+            id = #{buildingId} AND
+            deleted = 0
+    </update>
+
+
+    <select id="getNumberIdByBuildingNameAndSchoolIdAndCompusIdAndBuildCategoryId" resultType="java.lang.Long">
+        select number_id
+        from tb_building
+        where deleted = 0 and
+              school_id = #{schoolId} and
+              compus_id = #{compusId} and
+              build_category_id = #{buildCategoryId} and
+              building_name = #{buildingName}
+
+    </select>
+
+    <select id="getMaxNumberId" resultType="java.lang.Long">
+        select number_id
+        from tb_building
+        where school_id = #{schoolId} and
+              compus_id = #{compusId} and
+              build_category_id = #{buildCategoryId} and deleted = 0
+        order by number_id desc limit 1
+    </select>
+
+    <select id="getIdByNumberId" resultType="java.lang.Long">
+        select id from tb_building where number_id = #{buildingNumberId}
+    </select>
+
+
+    <select id="getThree" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookThreeVO$Building">
+        SELECT building_name,number_id
+        FROM tb_building
+        WHERE deleted = 0 AND school_id = #{schoolId}
+    </select>
+
+    <select id="getBySchoolId" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminAdressBuildingVO">
+        SELECT
+            tb_building.`id`,
+            tb_building.`school_id`,
+            tb_building.`school_name`,
+            tb_building.`compus_id`,
+            tb_building.`compus_name`,
+            tb_building.`build_category_id`,
+            tb_build_category.`name` AS build_category_name,
+            tb_building.`number_id`,
+            tb_building.`building_name`
+        FROM
+            tb_building,
+            tb_build_category
+        WHERE
+            tb_building.`school_id` = #{schoolId} AND
+            tb_building.`build_category_id` = tb_build_category.`id` AND
+            tb_building.`deleted` = 0
+    </select>
+    <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.Building">
+        select * from tb_building where id = #{id} and deleted = 0
+    </select>
+
+    <select id="getList" resultType="com.mikasa.campusrunner.pojo.entity.Building">
+        select
+            *
+        from
+            tb_building
+        <where>
+                deleted = 0
+            <if test="id != null">and id = #{id}</if>
+            <if test="schoolId != null">and school_id = #{schoolId}</if>
+            <if test="schoolName != null and schoolName != ''">and school_name = #{schoolName}</if>
+            <if test="compusId != null">and compus_id = #{compusId}</if>
+            <if test="compusName != null and compusName != ''">and compus_name = #{compusName}</if>
+            <if test="buildCategoryId != null">and build_category_id = #{buildCategoryId}</if>
+            <if test="numberId != null">and number_id = #{numberId}</if>
+            <if test="buildingName != null and buildingName != ''">and building_name = #{buildingName}</if>
+        </where>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into tb_building values(
+                                       null,
+                                       #{schoolId},
+                                       #{schoolName},
+                                       #{compusId},
+                                       #{compusName},
+                                       #{buildCategoryId},
+                                       #{numberId},
+                                       #{buildingName},
+                                       #{deleted}
+                                      )
+    </insert>
+</mapper>

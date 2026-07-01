@@ -1,0 +1,16 @@
+{
+  "navigationBarTitleText": "我的接单",
+  "usingComponents": {
+    "t-tabs": "tdesign-miniprogram/tabs/tabs",
+    "t-tab-panel": "tdesign-miniprogram/tab-panel/tab-panel",
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "t-tag": "tdesign-miniprogram/tag/tag",
+    "t-divider": "tdesign-miniprogram/divider/divider",
+    "t-image": "tdesign-miniprogram/image/image",
+    "t-loading": "tdesign-miniprogram/loading/loading",
+    "t-cell": "tdesign-miniprogram/cell/cell",
+    "t-drawer": "tdesign-miniprogram/drawer/drawer",
+    "t-toast": "tdesign-miniprogram/toast/toast"
+  },
+  "enablePullDownRefresh": true
+}

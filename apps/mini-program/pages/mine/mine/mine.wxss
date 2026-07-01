@@ -1,0 +1,205 @@
+/* 总体布局 */
+.show {
+  position: relative;
+  /* 使得内部元素可以相对于此定位 */
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  /* 填充整个视口高度 */
+  /* justify-content: space-between; */
+  box-sizing: border-box;
+}
+
+.box1 {
+  border-radius: 20rpx;
+  margin: 20rpx 30rpx 10rpx;
+  background-color: white;
+  padding: 20rpx 25rpx;
+}
+
+.box1-1 {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.avatar {
+  border-radius: 30px;
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin: 0 30rpx;
+}
+
+.info {
+  margin-left: 20rpx;
+}
+
+.nickname {
+  font-weight: bold;
+}
+
+.tag {
+  margin-left: 30rpx;
+}
+
+.text {
+  margin: 5rpx 0;
+  font-size: small;
+  color: gray;
+}
+
+.t-tab-bar {
+  --td-tab-bar-height: 100rpx;
+  --td-tab-bar-border-color: white;
+}
+
+.t-tab-bar-item {
+  margin: 0 0 !important;
+}
+
+.t-tab-bar-item__content {
+  /* 修改边框半径 */
+  border-radius: 40rpx !important;
+}
+.t-tab-bar-item__text--small {
+  font-size: 24rpx !important;
+  line-height: 48rpx !important;
+}
+.box2 {
+  margin: 10rpx 0;
+}
+
+.button {
+  margin: 40rpx 30rpx;
+  border-radius: 10rpx;
+  background-color: white;
+}
+
+.t-button {
+  border: none !important;
+}
+
+.t-button--ghost::after {
+  border-color: rgba(255, 255, 255, 0) !important;
+}
+
+.loadingBox {
+  /* 加载动画居中 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 待收款提醒样式 - 优化版 */
+.pending-payment-section {
+  margin: 20rpx 30rpx;
+}
+
+.pending-unpaid-section {
+  margin: 20rpx 30rpx;
+}
+
+.pending-unpaid-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #fff1f0 0%, #ffe6e4 100%);
+  border-radius: 20rpx;
+  padding: 24rpx 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(227, 77, 89, 0.1);
+  border: 2rpx solid #fecaca;
+  position: relative;
+  overflow: hidden;
+}
+
+.pending-unpaid-card::before {
+  content: '';
+  position: absolute;
+  right: -20rpx;
+  top: -20rpx;
+  width: 120rpx;
+  height: 120rpx;
+  background: radial-gradient(circle, rgba(227, 77, 89, 0.08) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.pending-payment-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #fff5e6 0%, #ffe8cc 100%);
+  border-radius: 20rpx;
+  padding: 24rpx 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(237, 123, 47, 0.1);
+  border: 2rpx solid #fed7aa;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 添加微妙的背景装饰 */
+.pending-payment-card::before {
+  content: '';
+  position: absolute;
+  right: -20rpx;
+  top: -20rpx;
+  width: 120rpx;
+  height: 120rpx;
+  background: radial-gradient(circle, rgba(237, 123, 47, 0.08) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.payment-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.payment-icon-wrapper {
+  position: relative;
+  margin-right: 24rpx;
+}
+
+.payment-badge {
+  position: absolute;
+  top: -8rpx;
+  right: -8rpx;
+  background: #e34d59;
+  color: white;
+  font-size: 20rpx;
+  font-weight: bold;
+  padding: 2rpx 8rpx;
+  border-radius: 20rpx;
+  min-width: 32rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 8rpx rgba(227, 77, 89, 0.3);
+}
+
+.payment-info {
+  flex: 1;
+}
+
+.payment-title {
+  display: flex;
+  align-items: center;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.payment-desc {
+  font-size: 24rpx;
+  color: #ed7b2f;
+  font-weight: 500;
+}
+
+.unpaid-desc {
+  color: #e34d59;
+}
+
+.payment-arrow {
+  margin-left: 20rpx;
+  display: flex;
+  align-items: center;
+}

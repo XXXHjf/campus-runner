@@ -1,0 +1,47 @@
+/* pages/mine/paycode/paycode.wxss */
+page {
+  background-color: #E6B840;
+}
+
+.card {
+  display: block;
+  /* height: 500rpx; */
+  margin: 30rpx 20rpx 0;
+  padding: 20rpx 0;
+  border-radius: 15rpx;
+  background-color: white;
+}
+
+.payQRcode {
+  display: block;
+  margin-top: 50rpx;
+  width: 100%;
+}
+
+/* .view_save_tip {
+  display: flex;
+  font-size: 25rpx;
+  line-height: 50rpx;
+  justify-content: center;
+  align-items: center;
+} */
+
+.imgCode {
+  margin: auto;
+  width: 400rpx;
+  height: 400rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.t-class-text {
+  --td-grid-item-text-color: #5D6782;
+  --td-grid-item-text-font-size: 25rpx;
+}
+
+.t-class {
+  margin-top: 15rpx;
+  --td-cell-vertical-padding: 15rpx;--td-cell-title-font-size: 30rpx;
+  --td-cell-title-color: #000000
+}

@@ -1,0 +1,178 @@
+/* 校园认证须知组件样式 */
+
+/* 最外层容器 - 固定定位覆盖全屏 */
+.auth-notice-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 遮罩层 */
+.auth-notice-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* 内容区域 */
+.auth-notice-content {
+  position: relative;
+  width: 90%;
+  max-width: 650rpx;
+  max-height: 85vh;
+  background-color: #ffffff;
+  border-radius: 24rpx;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.15);
+}
+
+/* 顶部标题栏 */
+.auth-notice-header {
+  background: linear-gradient(135deg, #4e7cff 0%, #0052d9 100%);
+  padding: 40rpx 30rpx;
+  text-align: center;
+}
+
+.auth-notice-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #ffffff;
+  letter-spacing: 2rpx;
+}
+
+/* 须知内容区域 */
+.auth-notice-body {
+  flex: 1;
+  padding: 40rpx 40rpx 30rpx;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.auth-notice-section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 30rpx;
+  text-align: center;
+  letter-spacing: 1rpx;
+}
+
+.auth-notice-text {
+  font-size: 28rpx;
+  line-height: 48rpx;
+  color: #666666;
+  text-align: justify;
+  margin-bottom: 30rpx;
+  text-indent: 2em;
+}
+
+.auth-notice-text .greeting {
+  font-weight: bold;
+  color: #333333;
+}
+
+.auth-notice-text .link {
+  color: #0052d9;
+  text-decoration: underline;
+}
+
+/* 高亮提示 */
+.notice-highlight {
+  background-color: #f0f6ff;
+  padding: 24rpx;
+  border-radius: 12rpx;
+  border-left: 6rpx solid #0052d9;
+  color: #333333;
+  font-weight: 500;
+  text-indent: 0;
+}
+
+/* 温馨提示 */
+.notice-tips {
+  background-color: #fff8e6;
+  padding: 24rpx;
+  border-radius: 12rpx;
+  border-left: 6rpx solid #ff9800;
+  color: #666666;
+  font-size: 26rpx;
+  line-height: 42rpx;
+  text-indent: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.tips-icon {
+  color: #ff9800;
+  font-size: 32rpx;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+
+/* 底部按钮区域 */
+.auth-notice-footer {
+  padding: 30rpx 40rpx 40rpx;
+  background-color: #ffffff;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.auth-notice-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 500;
+  border-radius: 44rpx;
+  margin-bottom: 20rpx;
+  transition: all 0.3s ease;
+}
+
+/* 同意按钮 */
+.auth-notice-btn-agree {
+  background: linear-gradient(135deg, #4e7cff 0%, #0052d9 100%);
+  color: #ffffff;
+  box-shadow: 0 4rpx 16rpx rgba(0, 82, 217, 0.3);
+}
+
+.auth-notice-btn-agree:active {
+  opacity: 0.8;
+  transform: scale(0.98);
+}
+
+/* 不同意按钮 */
+.auth-notice-btn-disagree {
+  background-color: #ffffff;
+  color: #999999;
+  border: 2rpx solid #e0e0e0;
+  margin-bottom: 0;
+}
+
+.auth-notice-btn-disagree:active {
+  background-color: #f5f5f5;
+}
+
+/* 滚动条样式优化（仅部分浏览器支持） */
+.auth-notice-body::-webkit-scrollbar {
+  width: 6rpx;
+}
+
+.auth-notice-body::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 3rpx;
+}
+
+.auth-notice-body::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+

@@ -1,0 +1,57 @@
+/* 联级卡片box布局 */
+.box {
+  /* border-radius: 25rpx; */
+  /* margin: 20rpx 30rpx; */
+  margin: 20rpx 0;
+  /* background-color: white; */
+  /* padding: 15rpx 20rpx 0 20rpx; */
+  /* padding-bottom: 50rpx; */
+  /* box-shadow: 4px 4px 3px rgba(0, 0, 0, 0.1); */
+  /* 水平偏移，垂直偏移，模糊半径，颜色 */
+}
+
+/* 总体布局 */
+.addressAdd {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  /* 填充整个视口高度 */
+  /* justify-content: space-between; */
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.icon {
+  padding: 5rpx 10rpx 5rpx 30rpx;
+  color: #0052d9;
+}
+
+.title {
+  padding: 5rpx 5rpx;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #0052d9;
+}
+
+.t-divider--horizontal::after {
+  margin-left: 200rpx !important;
+  border-top-width: 0 !important;
+}
+
+.t-cell__note {
+  --td-cell-note-font-size: 28rpx;
+}
+
+.tcellOnChose {
+  --td-cell-note-color: #000;
+}
+
+.t-input__placeholder {
+  --td-font-size-m: 28rpx;
+}
+
+.button {
+  margin: 40rpx 30rpx;
+  border-radius: 30rpx;
+  background-color: white ;
+}

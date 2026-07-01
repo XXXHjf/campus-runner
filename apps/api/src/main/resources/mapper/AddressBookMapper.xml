@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.AddressBookMapper">
+
+
+
+    <select id="getIds" resultType="java.lang.Long">
+        select id from tb_address_book 
+        <where>
+            <if test="schoolId != null">and school_id = #{schoolId}</if>
+            <if test="compusId != null">and compus_id = #{compusId}</if>
+            <if test="buildCategoryId != null">and build_category_id = #{buildCategoryId}</if>
+            <if test="buildingId != null">and building_id = #{buildingId}</if>
+            <if test="details != null and details != ''">and details like concat("%", #{details}, "%") </if>
+            <if test="label != null and label != ''">and label = #{label}</if>
+            <if test="userId != null">and user_id = #{userId}</if>
+            <if test="isDefault != null">and is_default = #{isDefault}</if>
+            <if test="type != null">and type = #{type}</if>
+            <if test="deleted != null">and deleted = #{deleted}</if>
+        </where>
+    </select>
+
+    <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.AddressBook">
+        select * from tb_address_book where id = #{id} and deleted = 0
+    </select>
+
+    <select id="show" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookShowVO">
+        SELECT
+            address_book.id,
+            school.school_name,
+            compus.compus_name,
+            build_category.name AS build_category_name,
+            building.building_name,
+            address_book.details,
+            address_book.label,
+            address_book.user_id,
+            address_book.is_default,
+            address_book.type,
+            address_book.deleted
+
+        FROM
+            tb_address_book AS address_book,
+            tb_school AS school,
+            tb_compus AS compus,
+            tb_build_category AS build_category,
+            tb_building AS building
+        WHERE
+            address_book.school_id = school.id AND
+            address_book.compus_id = compus.id AND
+            address_book.build_category_id = build_category.id AND
+            address_book.building_id = building.id AND
+            address_book.user_id = #{id} and
+            address_book.deleted = 0
+    </select>
+
+    <select id="query" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookShowVO">
+        SELECT
+            address_book.id,
+            school.school_name,
+            compus.compus_name,
+            build_category.name AS build_category_name,
+            building.building_name,
+            address_book.details,
+            address_book.label,
+            address_book.user_id,
+            address_book.is_default,
+            address_book.type,
+            address_book.deleted
+
+        FROM
+            tb_address_book AS address_book,
+            tb_school AS school,
+            tb_compus AS compus,
+            tb_build_category AS build_category,
+            tb_building AS building
+        <where>
+            address_book.school_id = school.id AND
+            address_book.compus_id = compus.id AND
+            address_book.build_category_id = build_category.id AND
+            address_book.building_id = building.id AND
+            address_book.deleted = 0
+            <if test="id != null">And address_book.id = #{id}</if>
+            <if test="schoolId != null">And address_book.school_id = #{schoolId}</if>
+            <if test="compusId != null">And address_book.compus_id = #{compusId}</if>
+            <if test="buildingId != null">And address_book.building_id = #{buildingId}</if>
+            <if test="details != null and details != ''">And address_book.details like concat('%',#{details},'%') </if>
+            <if test="label != null and label != ''">And address_book.label like concat('%',#{label},'%') </if>
+            <if test="userId != null">And address_book.user_id = #{userId}</if>
+            <if test="isDefault != null">And address_book.is_default = #{isDefault}</if>
+            <if test="type != null">And address_book.type = #{type}</if>
+        </where>
+        order by address_book.is_default desc
+
+    </select>
+
+
+    <insert id="insert">
+        insert into tb_address_book values(
+                                           null,
+                                           #{schoolId},
+                                           #{compusId},
+                                           #{buildCategoryId},
+                                           #{buildingId},
+                                           #{details},
+                                           #{label},
+                                           #{userId},
+                                           #{isDefault},
+                                           #{type},
+                                           #{deleted}
+                                          )
+    </insert>
+
+
+    <update id="update">
+        update tb_address_book
+        <set>
+            <if test="schoolId != null">school_id = #{schoolId}, </if>
+            <if test="compusId != null">compus_id = #{compusId}, </if>
+            <if test="buildCategoryId != null">build_category_id = #{buildCategoryId}, </if>
+            <if test="buildingId != null">building_id = #{buildingId}, </if>
+            <if test="details != null and details != ''">details = #{details}, </if>
+            <if test="label != null and label != ''">label = #{label}, </if>
+            <if test="userId != null">user_id = #{userId}, </if>
+            <if test="isDefault != null">is_default = #{isDefault}, </if>
+            <if test="type != null">type = #{type}, </if>
+            <if test="deleted != null">deleted = #{deleted}, </if>
+        </set>
+        where id = #{id} and deleted = 0
+    </update>
+    <update id="clearDefault">
+        update tb_address_book
+        set is_default = 0
+        where user_id = #{userId} and
+              deleted = 0
+    </update>
+
+</mapper>

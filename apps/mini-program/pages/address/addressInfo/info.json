@@ -1,0 +1,16 @@
+{
+  "navigationBarTitleText": "地址详情",
+  "usingComponents": {
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "t-button": "tdesign-miniprogram/button/button",
+    "t-input": "tdesign-miniprogram/input/input",
+    "t-radio": "tdesign-miniprogram/radio/radio",
+    "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
+    "t-cell": "tdesign-miniprogram/cell/cell",
+    "t-picker": "tdesign-miniprogram/picker/picker",
+    "t-picker-item": "tdesign-miniprogram/picker-item/picker-item",
+    "t-toast": "tdesign-miniprogram/toast/toast",
+    "triple-address-pricker": "/components/triple-address-pricker/triple-address-pricker"
+  },
+  "enablePullDownRefresh": true
+}

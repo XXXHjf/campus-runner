@@ -1,0 +1,304 @@
+<!-- 步骤栏 -->
+<view class="step">
+  <t-steps theme="dot" readonly current="{{orderInfo.status}}" bind:change="onCascader">
+    <t-step-item wx:for="{{5}}" wx:key="index" title="{{title[index]}}" />
+  </t-steps>
+  <!-- 任务倒计时 - 优化样式 -->
+  <view class="countdown-container" hidden="{{!(orderInfo.status==1 || orderInfo.status==2)}}">
+    <view class="countdown-box">
+      <t-icon name="time" size="32rpx" color="#0052d9" style="margin-right: 10rpx;" />
+      <view class="countdown-label">距离预期送达</view>
+      <view wx:if="{{time<0}}" class="countdown-overtime">
+        <t-icon name="error-circle" size="32rpx" color="#e34d59" style="margin-right: 10rpx;" />
+        <text style="color: #e34d59; font-weight: 600;">已超时，请尽快送达</text>
+      </view>
+      <view wx:else class="countdown-time">
+        <t-count-down time="{{ time }}" format="HH:mm:ss" theme="round" size="small" />
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 有偿跑腿 -->
+<view class="card" hidden="{{orderInfo.price==null}}">
+  <!-- 卡片名 -->
+  <view style="display: flex; align-items: center;">
+    <t-icon class="cardIcon" name="money-circle" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
+    <view class="cardName">有偿跑腿</view>
+  </view>
+  <!-- 分割线 -->
+  <t-divider class="drvider" />
+  <!-- 内容说明  -->
+  <view>
+    <view class="price-container">
+      <view class="price-label">
+        <t-icon name="wallet" size="32rpx" color="#ed7b2f" style="margin-right: 10rpx;" />
+        <text>有偿金额</text>
+      </view>
+      <view class="price-amount">
+        <text class="price-symbol">¥</text>
+        <text class="price-value">{{orderInfo.price || 0}}</text>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 地址 -->
+<view class="card">
+  <!-- 卡片名 -->
+  <view style="display: flex; align-items: center;">
+    <t-icon class="cardIcon" name="location" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
+    <view class="cardName">取件与收件地址</view>
+  </view>
+  <!-- 分割线 -->
+  <t-divider class="drvider" />
+  
+  <!-- 取件地址 -->
+  <view class="address-item">
+    <view class="address-header">
+      <t-icon name="location-setting" size="32rpx" color="#2ba471" />
+      <text class="address-type-label">取件地址</text>
+    </view>
+    <view class="address-detail">
+      <view class="address-main">
+        {{pickUpAddress[0]}} {{pickUpAddress[1]}} {{pickUpAddress[2]}}
+      </view>
+      <view class="address-extra" wx:if="{{pickUpAddress[3]}}">{{pickUpAddress[3]}}</view>
+    </view>
+  </view>
+  
+  <!-- 收件地址 -->
+  <view class="address-item">
+    <view class="address-header">
+      <t-icon name="location-setting" size="32rpx" color="#0052d9" />
+      <text class="address-type-label">收件地址</text>
+    </view>
+    <view class="address-detail">
+      <view class="address-main">
+        {{reciveAddress[0]}} {{reciveAddress[1]}} {{reciveAddress[2]}}
+      </view>
+      <view class="address-extra" wx:if="{{reciveAddress[3]}}">{{reciveAddress[3]}}</view>
+    </view>
+  </view>
+  
+  <!-- 门禁情况 -->
+  <view class="door-access-box">
+    <t-icon name="{{orderInfo.doorAccess==1?'lock-on':'lock-off'}}" size="32rpx" color="{{orderInfo.doorAccess==1?'#e34d59':'#2ba471'}}" />
+    <text class="door-access-text">{{door[orderInfo.doorAccess]}}</text>
+  </view>
+</view>
+
+<!-- 联系方式 -->
+<view class="card">
+  <!-- 卡片名 -->
+  <view style="display: flex; align-items: center;">
+    <t-icon class="cardIcon" name="usergroup" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
+    <view class="cardName">联系方式</view>
+  </view>
+  <!-- 分割线 -->
+  <t-divider class="drvider" />
+  <!-- 具体联系方式 -->
+  <view class="{{orderInfo.status==0?'mask':''}}">
+    <!-- 发布用户 -->
+    <view class="contact-item">
+      <view class="contact-header">
+        <t-icon name="user" size="32rpx" color="#0052d9" />
+        <text class="contact-type">发布用户</text>
+      </view>
+      <view class="contact-info">
+        <view class="info-row">
+          <t-icon name="user-avatar" size="28rpx" color="#666" style="margin-right: 10rpx;" />
+          <text class="info-label">昵称：</text>
+          <text class="info-value">{{orderInfo.username || '微信用户'}}</text>
+        </view>
+        <view class="info-row" bind:tap="tapOnPhoneToDo" data-phone="{{'orderInfo'}}">
+          <t-icon name="call" size="28rpx" color="#666" style="margin-right: 10rpx;" />
+          <text class="info-label">联系：</text>
+          <text class="info-value phone-number">{{orderInfo.phone || '暂无'}}</text>
+          <t-icon name="chevron-right" size="32rpx" color="#ccc" style="margin-left: auto;" />
+        </view>
+      </view>
+    </view>
+    
+    <!-- 接单用户 -->
+    <view class="contact-item" hidden="{{orderInfo.status==0}}">
+      <view class="contact-header">
+        <t-icon name="user-checked" size="32rpx" color="#0052d9" />
+        <text class="contact-type">接单用户</text>
+      </view>
+      <view class="contact-info">
+        <view class="info-row">
+          <t-icon name="user-avatar" size="28rpx" color="#666" style="margin-right: 10rpx;" />
+          <text class="info-label">昵称：</text>
+          <text class="info-value">{{taker.username || '微信用户'}}</text>
+        </view>
+        <view class="info-row" bind:tap="tapOnPhoneToDo" data-phone="{{'taker'}}">
+          <t-icon name="call" size="28rpx" color="#666" style="margin-right: 10rpx;" />
+          <text class="info-label">联系：</text>
+          <text class="info-value phone-number">{{taker.phone || '暂无'}}</text>
+          <t-icon name="chevron-right" size="32rpx" color="#ccc" style="margin-left: auto;" />
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 跑腿内容说明 -->
+<view class="card">
+  <!-- 卡片名 -->
+  <view style="display: flex; align-items: center;">
+    <t-icon class="cardIcon" name="order" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
+    <view class="cardName">{{orderInfo.categoryName}}</view>
+    <view class="order-number">
+      <t-icon name="file-paste" size="24rpx" color="#999" style="margin-right: 6rpx;" />
+      <text>{{orderInfo.orderNumber}}</text>
+    </view>
+  </view>
+  <!-- 分割线 -->
+  <t-divider class="drvider" />
+  
+  <!-- 时间信息 -->
+  <view class="order-time-info">
+    <view class="time-info-item">
+      <t-icon name="time" size="28rpx" color="#0052d9" style="margin-right: 8rpx;" />
+      <text class="time-label">发布时间</text>
+      <text class="time-value">{{orderInfo.createTime}}</text>
+    </view>
+    <view class="time-info-item" hidden="{{!orderInfo.status==0}}">
+      <t-icon name="close-circle" size="28rpx" color="#e34d59" style="margin-right: 8rpx;" />
+      <text class="time-label">自动取消</text>
+      <text class="time-value">{{orderInfo.cancelTime}}</text>
+    </view>
+    <view class="time-info-item">
+      <t-icon name="calendar" size="28rpx" color="#2ba471" style="margin-right: 8rpx;" />
+      <text class="time-label">预期送达</text>
+      <text class="time-value">{{orderInfo.expectTime}}</text>
+    </view>
+  </view>
+  
+  <!-- 跑腿内容 -->
+  <view class="order-content-section">
+    <view class="content-header">
+      <t-icon name="edit" size="28rpx" color="#0052d9" style="margin-right: 8rpx;" />
+      <text class="content-title">跑腿内容</text>
+    </view>
+    <view class="content-text">{{orderInfo.note}}</view>
+    
+    <!-- 内容图片 -->
+    <view hidden="{{orderInfo.image==null}}" class="content-image-container">
+      <t-image 
+        src="{{orderInfo.image}}" 
+        bind:tap="tapOnImageToPreview" 
+        data-src="{{orderInfo.image}}" 
+        data-flag="{{orderInfo.status}}" 
+        mode="aspectFit" 
+        shape="round" 
+        class="img" 
+        style="{{orderInfo.status==0?'filter:blur(10rpx)':''}}" 
+      />
+    </view>
+  </view>
+</view>
+
+<!-- 服务信息（加了底端margin预留出按钮可能挡住的信息） -->
+<view class="card" style="margin-bottom: 100rpx;" hidden="{{orderInfo.status==0}}">
+  <!-- 卡片名 -->
+  <view style="display: flex; align-items: center;">
+    <t-icon class="cardIcon" name="service" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
+    <view class="cardName">服务信息</view>
+  </view>
+  <!-- 分割线 -->
+  <t-divider class="drvider" />
+  
+  <!-- 时间轴显示 -->
+  <view class="service-timeline">
+    <!-- 接单时间 -->
+    <view class="timeline-item">
+      <view class="timeline-dot"></view>
+      <view class="timeline-content">
+        <view class="timeline-label">
+          <t-icon name="clock" size="28rpx" color="#0052d9" style="margin-right: 8rpx;" />
+          接单时间
+        </view>
+        <view class="timeline-value">{{taker.takeOrderTime}}</view>
+      </view>
+    </view>
+    
+    <!-- 预期送达 -->
+    <view class="timeline-item">
+      <view class="timeline-dot"></view>
+      <view class="timeline-content">
+        <view class="timeline-label">
+          <t-icon name="time" size="28rpx" color="#0052d9" style="margin-right: 8rpx;" />
+          预期送达
+        </view>
+        <view class="timeline-value">{{orderInfo.expectTime}}</view>
+      </view>
+    </view>
+    
+    <!-- 送达时间 -->
+    <view class="timeline-item" hidden="{{orderInfo.deliveryTime==null}}">
+      <view class="timeline-dot timeline-dot-success"></view>
+      <view class="timeline-content">
+        <view class="timeline-label">
+          <t-icon name="check-circle" size="28rpx" color="#2ba471" style="margin-right: 8rpx;" />
+          实际送达
+        </view>
+        <view class="timeline-value" style="color: #2ba471; font-weight: 600;">{{orderInfo.deliveryTime}}</view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 送达图片 -->
+  <view hidden="{{image==null}}" style="margin-top: 20rpx;">
+    <view class="box1" style="margin-bottom: 16rpx;">
+      <t-icon name="image" size="28rpx" color="#0052d9" style="margin-right: 8rpx; margin-left: 30rpx;" />
+      <view class="text-address" style="margin-left: 0;">送达图片</view>
+    </view>
+    <t-image src="{{image}}" bind:tap="tapOnImageToPreview" data-src="{{image}}" data-flag="{{image!=null}}" mode="aspectFit" shape="round" class="img" />
+  </view>
+</view>
+
+<!-- 按钮 -->
+<view hidden="{{orderInfo.status>=5}}" class="button">
+  <t-button block bind:tap="button" theme="primary">{{titleB[orderInfo.status]}}</t-button>
+</view>
+
+<!-- 确定收款的按钮 -->
+<view wx:if="{{orderInfo.status==5&&orderInfo.price!=null}}" class="button">
+  <t-button block bind:tap="_requestMerchantTransfer" theme="primary">确定收款</t-button>
+</view>
+
+<!-- 接单提示 -->
+<t-dialog visible="{{showConfirm}}" title="接单提示" confirm-btn="确定" cancel-btn="取消" bind:confirm="closeConfirm" bind:cancel="closeDialog">
+  <!-- 适配skyline，增加type="list" -->
+  <scroll-view slot="content" type="list" scroll-y class="long-content">
+    <view class="content-container">
+      <view>
+        <span>为确保服务质量，接单后不可取消订单。平台仅提供交易渠道，服务细节请与发单方确认清楚。</span>
+      </view>
+    </view>
+  </scroll-view>
+</t-dialog>
+
+<!-- 派送提示 -->
+<t-popup visible="{{showWithImage}}" bind:visible-change="closeWithImage" placement="bottom">
+  <view class="block">
+    <view class="header">
+      <view class="btn btn--cancel" bind:tap="closeWithImage">取消</view>
+      <view class="title">送达图片</view>
+      <view class="btn btn--confirm" bind:tap="closeConfirmWithImage">确定</view>
+    </view>
+  </view>
+  <view style="margin-bottom: 30rpx;">
+    <view class="address" style="font-size: medium;text-align: center;margin:20rpx 30rpx;"> 请选择送达图片上传（一张） </view>
+    <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{1}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="text-align: center;" />
+  </view>
+</t-popup>
+
+<!-- 空白填充 -->
+<view style="height: 100rpx;"></view>
+
+<!-- 刷新轻提示 -->
+<t-toast id="t-toast" />
+

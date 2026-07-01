@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.BannerMapper">
+
+
+    <insert id="insert">
+        insert into tb_banner(
+                              id,
+                              img_url,
+                              title,
+                              school_id,
+                              school_name,
+                              jump_type,
+                              jump_target,
+                              remark,
+                              create_by,
+                              create_time,
+                              deleted
+        ) values (
+                  null,
+                  #{imgUrl},
+                  #{title},
+                  #{schoolId},
+                  #{schoolName},
+                  #{jumpType},
+                  #{jumpTarget},
+                  #{remark},
+                  #{createBy},
+                  #{createTime},
+                  #{deleted}
+                  )
+    </insert>
+
+    <update id="deleted">
+        UPDATE tb_banner
+        SET deleted = 1
+        WHERE id = #{id}
+    </update>
+
+    <select id="getListBySchoolId" resultType="com.mikasa.campusrunner.pojo.entity.Banner">
+        SELECT * FROM tb_banner
+        WHERE school_id = #{schoolId} AND deleted = 0
+    </select>
+
+
+
+</mapper>

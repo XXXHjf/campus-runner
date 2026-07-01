@@ -1,0 +1,464 @@
+.card {
+  margin: 30rpx;
+  padding: 20rpx 0;
+  border-radius: 20rpx;
+  background-color: white;
+}
+
+.cardName {
+  padding: 0rpx 20rpx;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #0052d9;
+}
+
+.drvider {
+  --td-divider-content-line-height: 20rpx;
+}
+
+/* 步骤条 */
+.step {
+  background-color: var(--bg-color-demo);
+  border-radius: 20rpx;
+  margin: 20rpx 30rpx 10rpx;
+  background-color: white;
+  padding: 20rpx 25rpx;
+}
+
+/* 倒计时容器 */
+.countdown-container {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1px solid #f0f0f0;
+}
+
+.countdown-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8f0fe 100%);
+  border-radius: 16rpx;
+  margin: 0 10rpx;
+}
+
+.countdown-label {
+  font-size: 28rpx;
+  color: #0052d9;
+  font-weight: 600;
+  margin-right: 20rpx;
+}
+
+.countdown-time {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.countdown-overtime {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* 地址 */
+.box1 {
+  display: flex;
+  flex: 1.5;
+  align-items: center;
+}
+
+.text-address {
+  color: #0052d9;
+  background-color: #0052d920;
+  padding: 10rpx 15rpx;
+  margin: 10rpx 15rpx 10rpx 30rpx;
+  border-radius: 15rpx;
+  font-size: small;
+  font-weight: bold;
+  /* 将文本居中 */
+  text-align: center;
+  /* 防止文本换行 */
+  white-space: nowrap;
+  /* 如果内容过长，隐藏溢出的部分 */
+  /* overflow: hidden;  */
+  /* 显示省略号来表示被截断的文本 */
+  /* text-overflow: ellipsis;  */
+}
+
+.address {
+  flex: 1;
+  margin: 0 30rpx;
+  font-size: small;
+  font-weight: 500;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: gray;
+}
+
+/* 类型 */
+.categoryImage {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 25px;
+  margin-right: 30rpx;
+  /* padding: 5rpx; */
+  /* background: brown; */
+}
+
+.categoryName {
+  flex: 1;
+  font-weight: normal;
+  font-size: 30rpx;
+  /* font-size: 0.9rem;
+  font-weight:normal; */
+  padding-left: 10rpx;
+  margin-left: 15rpx;
+  /* background: rebeccapurple; */
+}
+
+/* 内容说明 */
+.img {
+  margin: 20rpx auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.text {
+  font-size: 0.8rem;
+}
+
+.button {
+  position: fixed;
+  bottom: 80rpx;
+  width: 90%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* 图片上传确认 */
+.block {
+  /* width: 600rpx; */
+  background: var(--td-bg-color-container);
+  border-top-left-radius: 16rpx;
+  border-top-right-radius: 16rpx;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  height: 116rpx;
+}
+
+.title {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-size: 36rpx;
+  color: var(--td-text-color-primary);
+}
+
+.btn {
+  font-size: 32rpx;
+  padding: 32rpx;
+}
+
+.btn--cancel {
+  color: var(--td-text-color-secondary);
+}
+
+.btn--confirm {
+  color: #0052d9;
+}
+
+.mask {
+  position: relative;
+  filter: blur(2px);
+  user-select: none;
+}
+
+.mask::after {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  content: '';
+  display: block;
+  background: rgba(255, 253, 253, 0.3);
+}
+
+/* 联系方式样式 */
+.contact-item {
+  padding: 10rpx 30rpx;
+  margin-bottom: 8rpx;
+}
+
+.contact-item:last-child {
+  margin-bottom: 0;
+}
+
+.contact-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+  padding-bottom: 6rpx;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.contact-type {
+  margin-left: 12rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.contact-info {
+  padding-left: 44rpx;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  padding: 6rpx 0;
+  min-height: 44rpx;
+}
+
+.info-label {
+  font-size: 26rpx;
+  color: #666;
+  margin-right: 8rpx;
+}
+
+.info-value {
+  font-size: 26rpx;
+  color: #333;
+  flex: 1;
+}
+
+.phone-number {
+  color: #0052d9;
+  font-weight: 500;
+}
+
+/* 服务时间轴样式 */
+.service-timeline {
+  padding: 20rpx 30rpx;
+}
+
+.timeline-item {
+  display: flex;
+  padding: 16rpx 0;
+  position: relative;
+}
+
+.timeline-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 10rpx;
+  top: 50rpx;
+  bottom: -16rpx;
+  width: 2rpx;
+  background-color: #e0e0e0;
+}
+
+.timeline-dot {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 50%;
+  background-color: #0052d9;
+  margin-right: 24rpx;
+  margin-top: 8rpx;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 6rpx rgba(0, 82, 217, 0.1);
+}
+
+.timeline-dot-success {
+  background-color: #2ba471;
+  box-shadow: 0 0 0 6rpx rgba(43, 164, 113, 0.1);
+}
+
+.timeline-content {
+  flex: 1;
+}
+
+.timeline-label {
+  display: flex;
+  align-items: center;
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+  font-weight: 600;
+}
+
+.timeline-value {
+  font-size: 28rpx;
+  color: #333;
+  padding-left: 36rpx;
+}
+
+/* 有偿跑腿样式 */
+.price-container {
+  padding: 30rpx;
+  background: linear-gradient(135deg, #fff5e6 0%, #ffe8cc 100%);
+  border-radius: 16rpx;
+  margin: 0 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.price-label {
+  display: flex;
+  align-items: center;
+  font-size: 28rpx;
+  color: #ed7b2f;
+  font-weight: 600;
+}
+
+.price-amount {
+  display: flex;
+  align-items: baseline;
+}
+
+.price-symbol {
+  font-size: 32rpx;
+  color: #ed7b2f;
+  font-weight: 600;
+  margin-right: 4rpx;
+}
+
+.price-value {
+  font-size: 48rpx;
+  color: #ed7b2f;
+  font-weight: bold;
+  font-family: 'DIN Alternate', 'Arial', sans-serif;
+}
+
+/* 地址样式 */
+.address-item {
+  padding: 12rpx 30rpx;
+  margin-bottom: 8rpx;
+}
+
+.address-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.address-type-label {
+  margin-left: 12rpx;
+  font-size: 26rpx;
+  color: #666;
+  font-weight: 600;
+}
+
+.address-detail {
+  padding-left: 44rpx;
+}
+
+.address-main {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: 4rpx;
+}
+
+.address-extra {
+  font-size: 24rpx;
+  color: #999;
+  line-height: 1.4;
+}
+
+/* 门禁提示 */
+.door-access-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 30rpx;
+  margin: 10rpx 30rpx;
+  background-color: #f5f5f5;
+  border-radius: 12rpx;
+}
+
+.door-access-text {
+  margin-left: 12rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #666;
+}
+
+/* 订单编号 */
+.order-number {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  margin-right: 30rpx;
+  font-size: 22rpx;
+  color: #999;
+}
+
+/* 订单时间信息 */
+.order-time-info {
+  padding: 10rpx 30rpx;
+}
+
+.time-info-item {
+  display: flex;
+  align-items: center;
+  padding: 14rpx 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.time-info-item:last-child {
+  border-bottom: none;
+}
+
+.time-label {
+  font-size: 26rpx;
+  color: #666;
+  margin-right: 16rpx;
+  min-width: 140rpx;
+}
+
+.time-value {
+  font-size: 26rpx;
+  color: #333;
+  flex: 1;
+}
+
+/* 订单内容 */
+.order-content-section {
+  padding: 20rpx 30rpx;
+  margin-top: 10rpx;
+}
+
+.content-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+  padding-bottom: 10rpx;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.content-title {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 600;
+}
+
+.content-text {
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.8;
+  padding: 10rpx 0;
+  word-break: break-all;
+}
+
+.content-image-container {
+  margin-top: 20rpx;
+}

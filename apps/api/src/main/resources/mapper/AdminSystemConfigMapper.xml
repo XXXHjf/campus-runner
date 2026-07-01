@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.AdminSystemConfigMapper">
+
+
+
+    <!--    <select id="getServiceFeeRate" resultType="com.mikasa.campusrunner.pojo.entity.SystemConfig">-->
+<!--        SELECT-->
+<!--            id,-->
+<!--            config_key,-->
+<!--            config_value,-->
+<!--            description-->
+<!--        FROM-->
+<!--            tb_system_config-->
+<!--        WHERE-->
+<!--            config_key = 'service_fee_rate'-->
+<!--    </select>-->
+    <select id="getByConfigKey" resultType="com.mikasa.campusrunner.pojo.entity.SystemConfig">
+        SELECT
+            id,
+            config_key,
+            config_value,
+            description
+        FROM
+            tb_system_config
+        WHERE
+            config_key = #{serviceFeeRate}
+    </select>
+
+
+    <update id="updateByConfigKey">
+        UPDATE tb_system_config
+        SET config_value = #{configValue}
+        WHERE config_key = #{configKey}
+    </update>
+
+
+</mapper>
