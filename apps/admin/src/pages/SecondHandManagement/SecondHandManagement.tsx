@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Card,
@@ -18,15 +18,23 @@ import {
   Table,
   Tabs,
   Tag,
+  Upload,
   message,
 } from 'antd'
+import type { UploadFile, UploadProps } from 'antd'
 import { del, get, post, put } from '../../services/request'
+import {
+  releaseTemporaryImage,
+  uploadImage,
+  type MediaUploadResult,
+} from '../../services/media.service'
 import './SecondHandManagement.css'
 
 type Category = {
   id: number
   name: string
   image?: string
+  imageAssetId?: number
   sort?: number
 }
 
@@ -208,6 +216,10 @@ export default function SecondHandManagement() {
   const [actionLoading, setActionLoading] = useState(false)
   const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [categoryFileList, setCategoryFileList] = useState<UploadFile[]>([])
+  const [categoryUploading, setCategoryUploading] = useState(false)
+  const [categoryPreviewUrl, setCategoryPreviewUrl] = useState<string | null>(null)
+  const [categoryImageError, setCategoryImageError] = useState<string | null>(null)
   const [detail, setDetail] = useState<DetailState>({ open: false, type: null, data: null, loading: false })
   const [orderModal, setOrderModal] = useState<{ open: boolean; order: Order | null }>({ open: false, order: null })
   const [productFilter, setProductFilter] = useState<{ keyword?: string; categoryId?: number; status?: number }>({})
@@ -215,6 +227,9 @@ export default function SecondHandManagement() {
   const [messageProductId, setMessageProductId] = useState<string>('')
   const [categoryForm] = Form.useForm()
   const [orderForm] = Form.useForm()
+  const categoryUploadPromiseRef = useRef<Promise<MediaUploadResult> | null>(null)
+  const categoryTemporaryMediaIdRef = useRef<number | null>(null)
+  const categoryModalSessionRef = useRef(0)
 
   const stats = useMemo(() => {
     const activeProducts = products.filter((item) => item.status === 0).length
@@ -255,15 +270,142 @@ export default function SecondHandManagement() {
   }, [])
 
   const openCategoryModal = (record?: Category) => {
+    categoryModalSessionRef.current += 1
+    categoryUploadPromiseRef.current = null
+    categoryTemporaryMediaIdRef.current = null
+    setCategoryUploading(false)
+    setCategoryPreviewUrl(null)
+    setCategoryImageError(null)
     setEditingCategory(record || null)
-    categoryForm.setFieldsValue(record || { sort: 0 })
+    categoryForm.resetFields()
+    categoryForm.setFieldsValue({
+      name: record?.name,
+      imageAssetId: record?.imageAssetId,
+      sort: record?.sort ?? 0,
+    })
+    setCategoryFileList(
+      record?.image
+        ? [
+            {
+              uid: `existing-${record.id}`,
+              name: `${record.name}-图标`,
+              status: 'done',
+              url: record.image,
+            },
+          ]
+        : [],
+    )
     setCategoryModalOpen(true)
   }
 
+  const resetCategoryModal = () => {
+    categoryUploadPromiseRef.current = null
+    categoryTemporaryMediaIdRef.current = null
+    setCategoryUploading(false)
+    setCategoryPreviewUrl(null)
+    setCategoryImageError(null)
+    setCategoryFileList([])
+    setEditingCategory(null)
+    categoryForm.resetFields()
+    setCategoryModalOpen(false)
+  }
+
+  const cancelCategoryModal = () => {
+    categoryModalSessionRef.current += 1
+    const temporaryMediaId = categoryTemporaryMediaIdRef.current
+    resetCategoryModal()
+
+    if (temporaryMediaId) {
+      void releaseTemporaryImage(temporaryMediaId).catch(() => undefined)
+    }
+  }
+
+  const uploadCategoryImage: UploadProps['customRequest'] = async (options) => {
+    const file = options.file as File
+    const session = categoryModalSessionRef.current
+    setCategoryUploading(true)
+    const task = uploadImage(file, 'SECOND_HAND_CATEGORY_ICON', (progress) => {
+      options.onProgress?.({ percent: progress })
+    })
+    categoryUploadPromiseRef.current = task
+
+    try {
+      const result = await task
+      if (session !== categoryModalSessionRef.current) {
+        void releaseTemporaryImage(result.mediaId).catch(() => undefined)
+        return
+      }
+      categoryTemporaryMediaIdRef.current = result.mediaId
+      categoryForm.setFieldValue('imageAssetId', result.mediaId)
+      setCategoryImageError(null)
+      options.onSuccess?.(result)
+    } catch (error) {
+      if (session === categoryModalSessionRef.current) {
+        options.onError?.(error instanceof Error ? error : new Error('图片上传失败'))
+        message.error(getErrorText(error, '图片上传失败，请重试'))
+      }
+    } finally {
+      if (session === categoryModalSessionRef.current) {
+        categoryUploadPromiseRef.current = null
+        setCategoryUploading(false)
+      }
+    }
+  }
+
+  const beforeCategoryUpload: UploadProps['beforeUpload'] = (file) => {
+    const supported = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+    if (!supported) {
+      message.error('仅支持 JPEG、PNG 或 WebP 图片')
+      return Upload.LIST_IGNORE
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      message.error('图片不能超过 2MB')
+      return Upload.LIST_IGNORE
+    }
+    return true
+  }
+
+  const removeCategoryImage: UploadProps['onRemove'] = () => {
+    categoryModalSessionRef.current += 1
+    const temporaryMediaId = categoryTemporaryMediaIdRef.current
+    categoryUploadPromiseRef.current = null
+    categoryTemporaryMediaIdRef.current = null
+    setCategoryUploading(false)
+    setCategoryFileList([])
+    categoryForm.setFieldValue('imageAssetId', undefined)
+    setCategoryImageError('请选择分类图标')
+    if (temporaryMediaId) {
+      void releaseTemporaryImage(temporaryMediaId).catch(() => undefined)
+    }
+    return true
+  }
+
+  const changeCategoryUpload: UploadProps['onChange'] = ({ fileList }) => {
+    const normalized = fileList.map((file) => {
+      const response = file.response as MediaUploadResult | undefined
+      return response?.previewUrl ? { ...file, url: response.previewUrl } : file
+    })
+    setCategoryFileList(normalized)
+  }
+
   const saveCategory = async () => {
-    const values = await categoryForm.validateFields()
     setActionLoading(true)
     try {
+      const pendingUpload = categoryUploadPromiseRef.current
+      if (pendingUpload) {
+        await pendingUpload
+      }
+      const selectedMediaId = categoryForm.getFieldValue('imageAssetId')
+      const keepsLegacyImage =
+        Boolean(editingCategory?.image) &&
+        categoryFileList.some((file) => file.uid.startsWith('existing-'))
+      const validatedValues = categoryForm.validateFields()
+      if (!selectedMediaId && !keepsLegacyImage) {
+        setCategoryImageError('请选择分类图标')
+        await validatedValues.catch(() => undefined)
+        return
+      }
+      const values = await validatedValues
       if (editingCategory) {
         await put(`/admin/api/second-hand/categories/${editingCategory.id}`, values)
         message.success('分类已更新')
@@ -271,8 +413,9 @@ export default function SecondHandManagement() {
         await post('/admin/api/second-hand/categories', values)
         message.success('分类已新增')
       }
-      setCategoryModalOpen(false)
-      loadAll()
+      categoryModalSessionRef.current += 1
+      resetCategoryModal()
+      await loadAll()
     } catch (error) {
       message.error(getErrorText(error, '保存分类失败'))
     } finally {
@@ -648,7 +791,21 @@ export default function SecondHandManagement() {
                   columns={[
                     { title: 'ID', dataIndex: 'id', width: 80 },
                     { title: '名称', dataIndex: 'name' },
-                    { title: '图标链接', dataIndex: 'image', render: compactText },
+                    {
+                      title: '图标',
+                      dataIndex: 'image',
+                      width: 100,
+                      render: (value: string | undefined, record: Category) =>
+                        value ? (
+                          <img
+                            className="category-icon-thumbnail"
+                            src={value}
+                            alt={`${record.name}图标`}
+                          />
+                        ) : (
+                          '-'
+                        ),
+                    },
                     { title: '排序', dataIndex: 'sort', width: 120 },
                     {
                       title: '操作',
@@ -751,15 +908,44 @@ export default function SecondHandManagement() {
         open={categoryModalOpen}
         onOk={saveCategory}
         confirmLoading={actionLoading}
-        onCancel={() => setCategoryModalOpen(false)}
-        destroyOnClose
+        okText={editingCategory ? '保存' : '新增'}
+        cancelText="取消"
+        forceRender
+        mask={{ closable: !actionLoading && !categoryUploading }}
+        onCancel={cancelCategoryModal}
       >
         <Form form={categoryForm} layout="vertical">
+          <Form.Item name="imageAssetId" hidden>
+            <Input />
+          </Form.Item>
           <Form.Item name="name" label="分类名称" rules={[{ required: true, message: '请输入分类名称' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="image" label="图标链接">
-            <Input />
+          <Form.Item
+            label="分类图标"
+            extra="支持 JPEG、PNG、WebP，最大 2MB，建议使用正方形图片"
+            required
+            validateStatus={categoryImageError ? 'error' : undefined}
+            help={categoryImageError || undefined}
+          >
+            <Upload
+              accept="image/jpeg,image/png,image/webp"
+              beforeUpload={beforeCategoryUpload}
+              customRequest={uploadCategoryImage}
+              disabled={actionLoading}
+              fileList={categoryFileList}
+              listType="picture-card"
+              maxCount={1}
+              onChange={changeCategoryUpload}
+              onPreview={(file) => setCategoryPreviewUrl(file.url || file.thumbUrl || null)}
+              onRemove={removeCategoryImage}
+            >
+              {categoryFileList.length === 0 && (
+                <div className="category-upload-trigger">
+                  <span>选择图片</span>
+                </div>
+              )}
+            </Upload>
           </Form.Item>
           <Form.Item name="sort" label="排序">
             <InputNumber min={0} />
@@ -768,12 +954,24 @@ export default function SecondHandManagement() {
       </Modal>
 
       <Modal
+        title="分类图标预览"
+        open={Boolean(categoryPreviewUrl)}
+        footer={null}
+        onCancel={() => setCategoryPreviewUrl(null)}
+        destroyOnHidden
+      >
+        {categoryPreviewUrl && (
+          <img className="category-icon-preview" src={categoryPreviewUrl} alt="分类图标预览" />
+        )}
+      </Modal>
+
+      <Modal
         title="处理二手订单"
         open={orderModal.open}
         onOk={saveOrderStatus}
         confirmLoading={actionLoading}
         onCancel={() => setOrderModal({ open: false, order: null })}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={orderForm} layout="vertical">
           <Form.Item name="status" label="订单状态" rules={[{ required: true, message: '请选择订单状态' }]}>
@@ -788,7 +986,7 @@ export default function SecondHandManagement() {
       <Drawer
         title={detail.type === 'product' ? '商品详情' : '订单详情'}
         open={detail.open}
-        width={560}
+        size={560}
         onClose={() => setDetail({ open: false, type: null, data: null, loading: false })}
       >
         {detail.loading ? (

@@ -18,7 +18,9 @@ public class AliOSSConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public AliOSSUtil aliOSSUtils(AliOSSProperties aliOSSProperties){
-        log.info("Creating AliOSSUtil bean, {}", aliOSSProperties);
+        log.info("Creating AliOSSUtil bean, endpoint configured: {}, bucket configured: {}",
+                aliOSSProperties.getEndpoint() != null && !aliOSSProperties.getEndpoint().isBlank(),
+                aliOSSProperties.getBucketName() != null && !aliOSSProperties.getBucketName().isBlank());
         AliOSSUtil aliOSSUtil = new AliOSSUtil(
                 aliOSSProperties.getEndpoint(),
                 aliOSSProperties.getBucketName(),

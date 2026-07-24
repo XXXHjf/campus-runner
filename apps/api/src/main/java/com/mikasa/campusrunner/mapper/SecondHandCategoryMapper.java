@@ -10,6 +10,8 @@ import java.util.List;
 public interface SecondHandCategoryMapper {
     List<SecondHandCategory> list();
 
+    SecondHandCategory getByIdForUpdate(@Param("id") Long id);
+
     void insert(SecondHandCategory category);
 
     void update(SecondHandCategory category);

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mikasa.campusrunner.mapper.MediaAssetMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into tb_media_asset(
+            object_key, purpose, visibility, owner_type, owner_id, status,
+            mime_type, file_size, width, height, expires_at, delete_after,
+            delete_retry_count, create_time, update_time
+        ) values(
+            #{objectKey}, #{purpose}, #{visibility}, #{ownerType}, #{ownerId}, #{status},
+            #{mimeType}, #{fileSize}, #{width}, #{height}, #{expiresAt}, #{deleteAfter},
+            #{deleteRetryCount}, #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.MediaAsset">
+        select *
+        from tb_media_asset
+        where id = #{id}
+    </select>
+
+    <select id="getByIdForUpdate" resultType="com.mikasa.campusrunner.pojo.entity.MediaAsset">
+        select *
+        from tb_media_asset
+        where id = #{id}
+        for update
+    </select>
+
+    <select id="countActiveTemporary" resultType="int">
+        select count(*)
+        from tb_media_asset
+        where owner_type = #{ownerType}
+          and owner_id = #{ownerId}
+          and status in ('UPLOADING', 'TEMP')
+    </select>
+
+    <update id="markTemporary">
+        update tb_media_asset
+        set status = 'TEMP',
+            expires_at = #{expiresAt},
+            delete_after = null,
+            update_time = #{updateTime},
+            last_error = null
+        where id = #{id}
+          and status = 'UPLOADING'
+    </update>
+
+    <update id="markUploadFailed">
+        update tb_media_asset
+        set status = 'FAILED',
+            last_error = #{lastError},
+            delete_after = #{deleteAfter},
+            update_time = #{updateTime}
+        where id = #{id}
+          and status = 'UPLOADING'
+    </update>
+
+    <update id="bind">
+        update tb_media_asset
+        set status = 'BOUND',
+            bound_type = #{boundType},
+            bound_id = #{boundId},
+            bound_at = #{boundAt},
+            expires_at = null,
+            delete_after = null,
+            update_time = #{boundAt}
+        where id = #{id}
+          and status = 'TEMP'
+    </update>
+
+    <update id="scheduleTemporaryDeletion">
+        update tb_media_asset
+        set status = 'PENDING_DELETE',
+            delete_after = #{deleteAfter},
+            update_time = #{updateTime}
+        where id = #{id}
+          and owner_type = #{ownerType}
+          and owner_id = #{ownerId}
+          and status in ('UPLOADING', 'TEMP', 'FAILED')
+    </update>
+
+    <update id="scheduleBoundDeletion">
+        update tb_media_asset
+        set status = 'PENDING_DELETE',
+            delete_after = #{deleteAfter},
+            update_time = #{updateTime}
+        where id = #{id}
+          and status = 'BOUND'
+    </update>
+
+    <select id="findDeletionCandidates" resultType="long">
+        select id
+        from tb_media_asset
+        where (status = 'TEMP' and expires_at &lt;= #{now})
+           or (status in ('UPLOADING', 'PENDING_DELETE', 'FAILED') and delete_after &lt;= #{now})
+        order by id
+        limit #{limit}
+    </select>
+
+    <update id="claimForDeletion">
+        update tb_media_asset
+        set status = 'PENDING_DELETE',
+            delete_after = #{now},
+            update_time = #{now}
+        where id = #{id}
+          and (
+              (status = 'TEMP' and expires_at &lt;= #{now})
+              or (status in ('UPLOADING', 'PENDING_DELETE', 'FAILED') and delete_after &lt;= #{now})
+          )
+    </update>
+
+    <update id="markDeleted">
+        update tb_media_asset
+        set status = 'DELETED',
+            delete_after = null,
+            last_error = null,
+            update_time = #{updateTime}
+        where id = #{id}
+          and status = 'PENDING_DELETE'
+    </update>
+
+    <update id="postponeDeletion">
+        update tb_media_asset
+        set last_error = #{lastError},
+            delete_retry_count = delete_retry_count + 1,
+            delete_after = #{deleteAfter},
+            update_time = #{updateTime}
+        where id = #{id}
+          and status = 'PENDING_DELETE'
+    </update>
+</mapper>

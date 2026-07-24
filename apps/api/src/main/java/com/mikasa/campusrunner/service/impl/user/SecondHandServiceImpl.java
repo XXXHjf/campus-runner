@@ -2,6 +2,8 @@ package com.mikasa.campusrunner.service.impl.user;
 
 import com.alibaba.fastjson.JSONObject;
 import com.mikasa.campusrunner.common.constant.DeleteConstant;
+import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
+import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.common.constant.MessageConstant;
 import com.mikasa.campusrunner.common.constant.SecondHandConstant;
 import com.mikasa.campusrunner.common.constant.WeChatPayConstant;
@@ -14,9 +16,11 @@ import com.mikasa.campusrunner.common.properties.WeChatProperties;
 import com.mikasa.campusrunner.common.utils.WeChatPayUtil;
 import com.mikasa.campusrunner.mapper.*;
 import com.mikasa.campusrunner.pojo.dto.*;
+import com.mikasa.campusrunner.pojo.dto.admin.AdminSecondHandCategoryDTO;
 import com.mikasa.campusrunner.pojo.entity.*;
 import com.mikasa.campusrunner.pojo.vo.*;
 import com.mikasa.campusrunner.service.user.SecondHandService;
+import com.mikasa.campusrunner.service.MediaAssetService;
 import com.wechat.pay.contrib.apache.httpclient.util.AesUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -70,6 +74,8 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Autowired
     private WeChatPayUtil weChatPayUtil;
     @Autowired
+    private MediaAssetService mediaAssetService;
+    @Autowired
     private CloseableHttpClient wxPayClient;
     @Value("${com.mikasa.campus-runner.dev.mock-payment-enabled:false}")
     private Boolean mockPaymentEnabled;
@@ -80,28 +86,80 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     @Override
     public List<SecondHandCategory> listCategories() {
-        return categoryMapper.list();
+        List<SecondHandCategory> categories = categoryMapper.list();
+        categories.forEach(this::resolveCategoryImage);
+        return categories;
     }
 
     @Override
-    public SecondHandCategory saveCategory(SecondHandCategory category) {
-        if (category.getSort() == null) {
-            category.setSort(0);
-        }
+    @Transactional
+    public SecondHandCategory saveCategory(AdminSecondHandCategoryDTO dto) {
+        validateCategory(dto, true);
+        SecondHandCategory category = new SecondHandCategory();
+        category.setName(dto.getName().trim());
+        category.setImageAssetId(dto.getImageAssetId());
+        category.setImage(blankToNull(dto.getImage()));
+        category.setSort(dto.getSort() == null ? 0 : dto.getSort());
         category.setDeleted(DeleteConstant.UN_DELETED);
         categoryMapper.insert(category);
+        if (category.getImageAssetId() != null) {
+            mediaAssetService.bind(
+                    category.getImageAssetId(),
+                    MediaPurpose.SECOND_HAND_CATEGORY_ICON.name(),
+                    MediaAssetConstant.OWNER_ADMIN,
+                    BaseContext.getCurrentId(),
+                    "SECOND_HAND_CATEGORY",
+                    category.getId());
+        }
+        resolveCategoryImage(category);
         return category;
     }
 
     @Override
-    public void updateCategory(Long id, SecondHandCategory category) {
-        category.setId(id);
-        categoryMapper.update(category);
+    @Transactional
+    public void updateCategory(Long id, AdminSecondHandCategoryDTO dto) {
+        validateCategory(dto, false);
+        SecondHandCategory existing = categoryMapper.getByIdForUpdate(id);
+        if (existing == null) {
+            throw new SecondHandException("分类不存在");
+        }
+
+        SecondHandCategory update = new SecondHandCategory();
+        update.setId(id);
+        update.setName(dto.getName() == null ? null : dto.getName().trim());
+        update.setSort(dto.getSort());
+
+        Long newMediaId = dto.getImageAssetId();
+        Long oldMediaId = existing.getImageAssetId();
+        if (newMediaId != null) {
+            update.setImageAssetId(newMediaId);
+            if (!newMediaId.equals(oldMediaId)) {
+                mediaAssetService.bind(
+                        newMediaId,
+                        MediaPurpose.SECOND_HAND_CATEGORY_ICON.name(),
+                        MediaAssetConstant.OWNER_ADMIN,
+                        BaseContext.getCurrentId(),
+                        "SECOND_HAND_CATEGORY",
+                        id);
+            }
+        } else if (dto.getImage() != null && !dto.getImage().isBlank()) {
+            update.setImage(dto.getImage().trim());
+        }
+        categoryMapper.update(update);
+        if (oldMediaId != null && newMediaId != null && !oldMediaId.equals(newMediaId)) {
+            mediaAssetService.scheduleBoundDeletion(oldMediaId, Duration.ofDays(7));
+        }
     }
 
     @Override
+    @Transactional
     public void deleteCategory(Long id) {
+        SecondHandCategory existing = categoryMapper.getByIdForUpdate(id);
+        if (existing == null) {
+            throw new SecondHandException("分类不存在");
+        }
         categoryMapper.deleteById(id);
+        mediaAssetService.scheduleBoundDeletion(existing.getImageAssetId(), Duration.ofDays(7));
     }
 
     @Override
@@ -1139,6 +1197,42 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (!ownerId.equals(BaseContext.getCurrentId())) {
             throw new SecondHandException("无权操作该资源");
         }
+    }
+
+    private void validateCategory(AdminSecondHandCategoryDTO dto, boolean requireImage) {
+        if (dto == null || trimToNull(dto.getName()) == null) {
+            throw new ParamException("请输入分类名称");
+        }
+        if (dto.getName().trim().length() > 50) {
+            throw new ParamException("分类名称不能超过 50 个字");
+        }
+        if (dto.getSort() != null && dto.getSort() < 0) {
+            throw new ParamException("排序不能小于 0");
+        }
+        if (requireImage
+                && dto.getImageAssetId() == null
+                && trimToNull(dto.getImage()) == null) {
+            throw new ParamException("请选择分类图标");
+        }
+    }
+
+    private void resolveCategoryImage(SecondHandCategory category) {
+        if (category == null || category.getImageAssetId() == null) {
+            return;
+        }
+        try {
+            String resolved = mediaAssetService.resolveUrl(category.getImageAssetId());
+            if (resolved != null) {
+                category.setImage(resolved);
+            }
+        } catch (RuntimeException e) {
+            log.warn("Unable to resolve category image, categoryId: {}, mediaId: {}",
+                    category.getId(), category.getImageAssetId());
+        }
+    }
+
+    private String blankToNull(String value) {
+        return trimToNull(value);
     }
 
     private void validateProduct(SecondHandProductDTO dto) {

@@ -25,9 +25,11 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_category` (
   `id` BIGINT AUTO_INCREMENT NOT NULL COMMENT '分类主键id',
   `name` VARCHAR(50) NOT NULL COMMENT '二手分类名称，如数码电子、文具教材',
   `image` VARCHAR(255) NULL COMMENT '分类图标图片地址，可为空',
+  `image_asset_id` BIGINT NULL COMMENT '新媒体资源id，为空时兼容读取旧 image',
   `sort` INT NULL DEFAULT 0 COMMENT '排序值，越小越靠前',
   `deleted` INT NULL DEFAULT 0 COMMENT '逻辑删除字段：0未删除，1已删除',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_second_hand_category_image_asset` (`image_asset_id`)
 ) ENGINE=InnoDB COMMENT='二手交易分类表';
 
 -- ============================================================

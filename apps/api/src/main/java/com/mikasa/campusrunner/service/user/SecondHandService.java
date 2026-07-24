@@ -1,6 +1,7 @@
 package com.mikasa.campusrunner.service.user;
 
 import com.mikasa.campusrunner.pojo.dto.*;
+import com.mikasa.campusrunner.pojo.dto.admin.AdminSecondHandCategoryDTO;
 import com.mikasa.campusrunner.pojo.entity.SecondHandCategory;
 import com.mikasa.campusrunner.pojo.entity.SecondHandOrder;
 import com.mikasa.campusrunner.pojo.vo.*;
@@ -12,9 +13,9 @@ import java.util.Map;
 public interface SecondHandService {
     List<SecondHandCategory> listCategories();
 
-    SecondHandCategory saveCategory(SecondHandCategory category);
+    SecondHandCategory saveCategory(AdminSecondHandCategoryDTO category);
 
-    void updateCategory(Long id, SecondHandCategory category);
+    void updateCategory(Long id, AdminSecondHandCategoryDTO category);
 
     void deleteCategory(Long id);
 

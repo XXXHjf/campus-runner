@@ -8,20 +8,35 @@
         order by sort asc, id asc
     </select>
 
+    <select id="getByIdForUpdate" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandCategory">
+        select *
+        from tb_second_hand_category
+        where id = #{id}
+          and deleted = 0
+        for update
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into tb_second_hand_category(id, name, image, sort, deleted)
-        values(null, #{name}, #{image}, #{sort}, 0)
+        insert into tb_second_hand_category(id, name, image, image_asset_id, sort, deleted)
+        values(null, #{name}, #{image}, #{imageAssetId}, #{sort}, 0)
     </insert>
 
     <update id="update">
         update tb_second_hand_category
         <set>
             <if test="name != null and name != ''">name = #{name},</if>
-            <if test="image != null and image != ''">image = #{image},</if>
+            <if test="imageAssetId != null">
+                image_asset_id = #{imageAssetId},
+                image = null,
+            </if>
+            <if test="imageAssetId == null and image != null and image != ''">
+                image = #{image},
+            </if>
             <if test="sort != null">sort = #{sort},</if>
             <if test="deleted != null">deleted = #{deleted},</if>
         </set>
         where id = #{id}
+          and deleted = 0
     </update>
 
     <update id="deleteById">

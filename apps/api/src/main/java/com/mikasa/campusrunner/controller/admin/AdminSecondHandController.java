@@ -3,6 +3,7 @@ package com.mikasa.campusrunner.controller.admin;
 import com.mikasa.campusrunner.common.result.Result;
 import com.mikasa.campusrunner.pojo.dto.SecondHandProductQueryDTO;
 import com.mikasa.campusrunner.pojo.dto.SecondHandStatusDTO;
+import com.mikasa.campusrunner.pojo.dto.admin.AdminSecondHandCategoryDTO;
 import com.mikasa.campusrunner.pojo.entity.SecondHandCategory;
 import com.mikasa.campusrunner.pojo.vo.*;
 import com.mikasa.campusrunner.service.user.SecondHandService;
@@ -28,13 +29,15 @@ public class AdminSecondHandController {
 
     @PostMapping("/categories")
     @Operation(summary = "新增二手分类")
-    public Result<SecondHandCategory> addCategory(@RequestBody SecondHandCategory category) {
+    public Result<SecondHandCategory> addCategory(@RequestBody AdminSecondHandCategoryDTO category) {
         return Result.success(secondHandService.saveCategory(category));
     }
 
     @PutMapping("/categories/{id}")
     @Operation(summary = "更新二手分类")
-    public Result<Void> updateCategory(@PathVariable Long id, @RequestBody SecondHandCategory category) {
+    public Result<Void> updateCategory(
+            @PathVariable Long id,
+            @RequestBody AdminSecondHandCategoryDTO category) {
         secondHandService.updateCategory(id, category);
         return Result.success();
     }
