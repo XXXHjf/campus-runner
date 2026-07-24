@@ -41,7 +41,7 @@ public class UserController {
     @PostMapping("/login")
     @Operation(summary = "用户登录")
     public Result<UserLoginVO> login(@RequestBody UserLoginDTO userLoginDTO){
-        log.info("WeChat login, {}", userLoginDTO);
+        log.info("WeChat login attempt");
         User user = userService.wxLogin(userLoginDTO);
 
         //构造jwt

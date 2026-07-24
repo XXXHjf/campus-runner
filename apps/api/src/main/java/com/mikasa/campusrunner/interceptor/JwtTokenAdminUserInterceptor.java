@@ -45,7 +45,7 @@ public class JwtTokenAdminUserInterceptor implements HandlerInterceptor {
         String systemConfigJudge = (String) request.getAttribute("systemConfigJudge");
 
         try {
-            log.info("JWT token validation, {}", token);
+            log.debug("Validating admin JWT");
             Claims claims = JWTUtil.parseJWT(jwtProperties.getUserSecretKey(), token);
 
             if (systemConfigJudge != null && systemConfigJudge.length() > 0) {

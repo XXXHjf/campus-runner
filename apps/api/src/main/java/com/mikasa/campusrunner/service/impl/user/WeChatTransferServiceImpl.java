@@ -372,6 +372,16 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
         log.info("Checking if order has been withdrawn, order number ===> {}", order.getOrderNumber());
         LocalDateTime now = LocalDateTime.now();
         String orderNumber = order.getOrderNumber();
+
+        // A status-5 order can predate the merchant-transfer flow. Querying WeChat
+        // without a locally recorded transfer only produces a permanent NOT_FOUND
+        // response and leaks signed request metadata into the error log.
+        WxTransferLog transferLog = wxTransferLogMapper.getByOrderNumber(orderNumber);
+        if (transferLog == null) {
+            log.debug("Skipping withdrawal status check: no transfer record for order {}", orderNumber);
+            return;
+        }
+
         //查询订单当前状态
         String result = this.queryOrder(orderNumber);
 

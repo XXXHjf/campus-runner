@@ -43,7 +43,7 @@ public class AdminController {
     @PostMapping("/login")
     @Operation(summary = "管理员用户登录")
     public Result<AdminLoginVO> adminLogin(@RequestBody AdminLoginDTO adminLoginDTO) {
-        log.info("Admin login, {}", adminLoginDTO);
+        log.info("Admin login attempt, username: {}", adminLoginDTO.getUsername());
         Admin admin = adminService.login(adminLoginDTO);
 
         if (admin == null) {

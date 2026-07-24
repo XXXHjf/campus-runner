@@ -27,6 +27,7 @@
 ## 数据库和部署
 
 - [数据库表结构](database/schema.txt)
+- [生产服务器部署与更新](deployment/server-operations.md)
 - [Nginx 部署](deployment/nginx-deployment.md)
 
 ## 归档
