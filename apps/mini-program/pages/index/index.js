@@ -114,6 +114,11 @@ Page({
       url: `/pages/orders/takeOrders/takesInfo/info?id=${id}`,
     })
   },
+  gotoPublishRunner() {
+    wx.navigateTo({
+      url: '/pages/orders/myOrders/ordersAdd/add',
+    });
+  },
   //tabs值更新
   onTabsClick(event) {
     this.setData({

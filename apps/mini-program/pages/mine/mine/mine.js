@@ -22,26 +22,52 @@ Page({
     feedbackFlag: false,
     showCompleteInfoDialog: false, // 控制信息完善弹窗
 
-    value: null,
-    list: [{
-        value: 'label_1',
-        label: '我发布的',
-        icon: 'send'
+    menuSections: [{
+        title: '跑腿服务',
+        items: [{
+            value: 'label_1',
+            label: '我发布的',
+            icon: 'send',
+          },
+          {
+            value: 'label_2',
+            label: '我的接单',
+            icon: 'task',
+          },
+        ],
       },
       {
-        value: 'label_2',
-        label: '我的接单',
-        icon: 'task'
+        title: '二手交易',
+        items: [{
+            value: 'label_7',
+            label: '我的闲置',
+            icon: 'shop',
+          },
+          {
+            value: 'label_8',
+            label: '二手订单',
+            icon: 'order-ascending',
+          },
+          {
+            value: 'label_9',
+            label: '议价记录',
+            icon: 'chat-message',
+          },
+        ],
       },
       {
-        value: 'label_3',
-        label: '地址管理',
-        icon: 'location'
-      },
-      {
-        value: 'label_4',
-        label: '个人信息',
-        icon: 'user-list'
+        title: '账户资料',
+        items: [{
+            value: 'label_3',
+            label: '地址管理',
+            icon: 'location',
+          },
+          {
+            value: 'label_4',
+            label: '个人信息',
+            icon: 'user-list',
+          },
+        ],
       },
     ],
     notReceiveOrderList: [],
@@ -49,18 +75,15 @@ Page({
     hasShownCompleteInfoDialog: false, // 标记是否已显示过弹窗（本次会话）
   },
 
-  // 切换tabBer
-  onChange(e) {
-    this.setData({
-      value: e.detail.value,
-    });
-    // 动态调用对应的方法
-    this[e.detail.value]();
-    setTimeout(() => {
-      this.setData({
-        value: null
-      });
-    }, 100);
+  onMenuTap(e) {
+    if (this.data.userInfo == null) {
+      this.loginTap();
+      return;
+    }
+    const action = e.currentTarget.dataset.value;
+    if (this[action]) {
+      this[action]();
+    }
   },
   // 跳转tabBar对应界面
   label_1() {
@@ -81,6 +104,21 @@ Page({
   label_4() {
     wx.navigateTo({
       url: '/pages/mine/userInfo/info',
+    })
+  },
+  label_7() {
+    wx.navigateTo({
+      url: '/pages/second-hand/my-products/my-products',
+    })
+  },
+  label_8() {
+    wx.navigateTo({
+      url: '/pages/second-hand/orders/orders',
+    })
+  },
+  label_9() {
+    wx.navigateTo({
+      url: '/pages/second-hand/bargains/bargains',
     })
   },
   // 点击头像登陆，读取缓存里的用户信息

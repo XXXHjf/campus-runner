@@ -3,6 +3,7 @@ package com.mikasa.campusrunner.handler;
 import com.mikasa.campusrunner.common.exception.BaseException;
 import com.mikasa.campusrunner.common.result.Result;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -26,8 +27,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler
     public Result exceptionHandler(Exception e){
-        log.error("Unknown exception: {}", e);
-        return Result.error(e.toString());
+        log.error("Unknown exception", e);
+        if (e instanceof DataAccessException) {
+            return Result.error("数据库表结构或数据异常，请检查本地数据库脚本是否已执行");
+        }
+        return Result.error("服务异常，请稍后重试");
     }
 
 }

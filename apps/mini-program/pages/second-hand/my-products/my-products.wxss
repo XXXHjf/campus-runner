@@ -1,0 +1,116 @@
+page {
+  background: #f6f8f7;
+}
+
+.my-products-page {
+  min-height: 100vh;
+  padding: 28rpx 24rpx 48rpx;
+  box-sizing: border-box;
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 16rpx 4rpx 22rpx;
+}
+
+.page-title {
+  color: #17231d;
+  font-size: 44rpx;
+  font-weight: 800;
+}
+
+.page-subtitle {
+  margin-top: 10rpx;
+  color: #7a867f;
+  font-size: 24rpx;
+}
+
+.product-card,
+.empty {
+  background: #ffffff;
+  border-radius: 16rpx;
+  box-shadow: 0 10rpx 28rpx rgba(24, 57, 42, 0.06);
+}
+
+.product-card {
+  margin-bottom: 18rpx;
+  padding: 18rpx;
+}
+
+.product-main {
+  display: flex;
+  gap: 18rpx;
+}
+
+.cover {
+  width: 154rpx;
+  height: 154rpx;
+  flex: 0 0 154rpx;
+  background: #edf2ee;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  color: #17231d;
+  font-size: 28rpx;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.meta {
+  margin-top: 12rpx;
+  color: #7a867f;
+  font-size: 24rpx;
+}
+
+.price {
+  margin-top: 14rpx;
+  color: #ff6a3d;
+  font-size: 32rpx;
+  font-weight: 800;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14rpx;
+  margin-top: 18rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid #eef2ef;
+}
+
+.empty {
+  margin-top: 28rpx;
+  padding: 64rpx 24rpx;
+  text-align: center;
+}
+
+.empty-title {
+  color: #17231d;
+  font-size: 30rpx;
+  font-weight: 800;
+}
+
+.empty-desc {
+  margin: 12rpx 0 24rpx;
+  color: #7a867f;
+  font-size: 24rpx;
+}

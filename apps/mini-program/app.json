@@ -1,7 +1,14 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/second-hand/index/index",
     "pages/mine/mine/mine",
+    "pages/second-hand/detail/detail",
+    "pages/second-hand/publish/publish",
+    "pages/second-hand/orders/orders",
+    "pages/second-hand/bargains/bargains",
+    "pages/second-hand/order-detail/order-detail",
+    "pages/second-hand/my-products/my-products",
     "pages/mine/newUser/index",
     "pages/logs/logs",
     "pages/address/addressShow/show",
@@ -31,21 +38,21 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "首页",
-        "iconPath": "/images/tabBar/home.png",
-        "selectedIconPath": "/images/tabBar/home-selected.png"
+        "text": "跑腿",
+        "iconPath": "/images/tabBar/tab-runner.png",
+        "selectedIconPath": "/images/tabBar/tab-runner-selected.png"
       },
       {
-        "pagePath": "pages/orders/myOrders/ordersAdd/add",
-        "text": "发布跑腿",
-        "iconPath": "/images/tabBar/orderAdd.png",
-        "selectedIconPath": "/images/tabBar/orderAdd-selected.png"
+        "pagePath": "pages/second-hand/index/index",
+        "text": "二手",
+        "iconPath": "/images/tabBar/tab-second-hand.png",
+        "selectedIconPath": "/images/tabBar/tab-second-hand-selected.png"
       },
       {
         "pagePath": "pages/mine/mine/mine",
         "text": "我的",
-        "iconPath": "/images/tabBar/user.png",
-        "selectedIconPath": "/images/tabBar/user-selected.png"
+        "iconPath": "/images/tabBar/tab-mine.png",
+        "selectedIconPath": "/images/tabBar/tab-mine-selected.png"
       }
     ]
   },

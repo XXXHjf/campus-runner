@@ -10,6 +10,13 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface WxTransferLogMapper {
     /**
+     * 根据业务订单号查询转账日志
+     * @param orderNumber
+     * @return
+     */
+    WxTransferLog getByOrderNumber(String orderNumber);
+
+    /**
      * 更新日志
      * @param wxTransferLog
      */

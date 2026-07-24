@@ -131,10 +131,14 @@
 
 .button {
   position: fixed;
-  bottom: 80rpx;
+  bottom: calc(80rpx + env(safe-area-inset-bottom));
   width: 90%;
   left: 50%;
   transform: translateX(-50%);
+}
+
+.bottom-spacer {
+  height: calc(210rpx + env(safe-area-inset-bottom));
 }
 
 /* 图片上传确认 */

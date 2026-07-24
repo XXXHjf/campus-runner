@@ -55,6 +55,7 @@ App({
             method: 'POST',
             data: { code: loginRes.code },
             header: { 'Content-Type': 'application/json' },
+            timeout: 10000,
             success: (res) => {
               const token = res.data?.data?.token;
               if (res.statusCode === 200 && token) {
@@ -83,6 +84,8 @@ App({
   globalData: {
     userInfo: null,
     silentLoginPromise: null,
+    // Local development only. Turn on together with backend mock-payment-enabled when testing without real WeChat Pay.
+    MOCK_PAYMENT: false,
     //后端访问地址
     // API_URL: 'http://localhost:8080',
     // API_URL : 'http://47.99.105.120:8080',

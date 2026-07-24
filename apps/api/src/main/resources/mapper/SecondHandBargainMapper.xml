@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.SecondHandBargainMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into tb_second_hand_bargain(
+            id, product_id, buyer_id, seller_id, offer_price, message,
+            status, attempt_no, deleted, create_time, update_time
+        ) values(
+            null, #{productId}, #{buyerId}, #{sellerId}, #{offerPrice}, #{message},
+            #{status}, #{attemptNo}, #{deleted}, #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="update">
+        update tb_second_hand_bargain
+        <set>
+            <if test="productId != null">product_id = #{productId},</if>
+            <if test="buyerId != null">buyer_id = #{buyerId},</if>
+            <if test="sellerId != null">seller_id = #{sellerId},</if>
+            <if test="offerPrice != null">offer_price = #{offerPrice},</if>
+            <if test="message != null">message = #{message},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="attemptNo != null">attempt_no = #{attemptNo},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandBargain">
+        select * from tb_second_hand_bargain
+        where id = #{id} and deleted = 0
+    </select>
+
+    <select id="countByBuyerAndProduct" resultType="int">
+        select count(1)
+        from tb_second_hand_bargain
+        where buyer_id = #{buyerId}
+          and product_id = #{productId}
+          and deleted = 0
+    </select>
+
+    <update id="expirePendingByProduct">
+        update tb_second_hand_bargain
+        set status = 3, update_time = now()
+        where product_id = #{productId}
+          and deleted = 0
+          and status = 0
+    </update>
+
+    <sql id="bargainVoSelect">
+        b.id, b.product_id, o.id as order_id, p.title as product_title,
+        b.buyer_id, buyer.username as buyer_name,
+        b.seller_id, seller.username as seller_name,
+        b.offer_price, b.message, b.status, b.attempt_no,
+        b.create_time, b.update_time
+    </sql>
+
+    <select id="listByProduct" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandBargainVO">
+        select <include refid="bargainVoSelect"/>
+        from tb_second_hand_bargain b
+        left join tb_second_hand_product p on b.product_id = p.id
+        left join tb_second_hand_order o on o.bargain_id = b.id and o.deleted = 0
+        left join tb_user buyer on b.buyer_id = buyer.id
+        left join tb_user seller on b.seller_id = seller.id
+        where b.product_id = #{productId} and b.deleted = 0
+        order by b.create_time desc
+    </select>
+
+    <select id="listMine" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandBargainVO">
+        select <include refid="bargainVoSelect"/>
+        from tb_second_hand_bargain b
+        left join tb_second_hand_product p on b.product_id = p.id
+        left join tb_second_hand_order o on o.bargain_id = b.id and o.deleted = 0
+        left join tb_user buyer on b.buyer_id = buyer.id
+        left join tb_user seller on b.seller_id = seller.id
+        where b.deleted = 0
+          and (b.buyer_id = #{userId} or b.seller_id = #{userId})
+        order by b.create_time desc
+    </select>
+
+    <select id="listAdmin" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandBargainVO">
+        select <include refid="bargainVoSelect"/>
+        from tb_second_hand_bargain b
+        left join tb_second_hand_product p on b.product_id = p.id
+        left join tb_second_hand_order o on o.bargain_id = b.id and o.deleted = 0
+        left join tb_user buyer on b.buyer_id = buyer.id
+        left join tb_user seller on b.seller_id = seller.id
+        where b.deleted = 0
+        order by b.create_time desc
+    </select>
+</mapper>

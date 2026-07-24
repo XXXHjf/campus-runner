@@ -1,12 +1,10 @@
 /* 总体布局 */
 .show {
   position: relative;
-  /* 使得内部元素可以相对于此定位 */
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  /* 填充整个视口高度 */
-  /* justify-content: space-between; */
+  min-height: 100vh;
+  background: #f5f6f8;
   box-sizing: border-box;
 }
 
@@ -197,6 +195,13 @@
 }
 
 /* 轮播图 */
+.banner-wrap {
+  margin: 20rpx 24rpx 0;
+  overflow: hidden;
+  border-radius: 18rpx;
+  background: #ffffff;
+}
+
 .img {
   width: 100%;
   height: 100%;
@@ -284,4 +289,60 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+}
+/* 跑腿页主操作 */
+.runner-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22rpx;
+  margin: 18rpx 24rpx 16rpx;
+  padding: 26rpx;
+  background: #ffffff;
+  border-radius: 18rpx;
+  box-shadow: 0 8rpx 24rpx rgba(15, 35, 80, 0.06);
+}
+
+.runner-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.runner-eyebrow {
+  color: #0052d9;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.runner-title {
+  margin-top: 8rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.35;
+}
+
+.runner-subtitle {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+  line-height: 1.45;
+}
+
+.runner-cta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  min-width: 178rpx;
+  height: 76rpx;
+  padding: 0 22rpx;
+  color: #ffffff;
+  background: #0052d9;
+  border-radius: 38rpx;
+  font-size: 27rpx;
+  font-weight: 700;
+  box-shadow: 0 10rpx 20rpx rgba(0, 82, 217, 0.22);
+  box-sizing: border-box;
 }

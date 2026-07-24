@@ -297,7 +297,7 @@
 </t-popup>
 
 <!-- 空白填充 -->
-<view style="height: 100rpx;"></view>
+<view class="bottom-spacer"></view>
 
 <!-- 刷新轻提示 -->
 <t-toast id="t-toast" />

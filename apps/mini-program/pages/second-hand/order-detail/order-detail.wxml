@@ -1,0 +1,79 @@
+<view class="order-detail-page {{canCancel || canPay || canDeliver || canConfirm ? 'has-bottom-bar' : ''}}">
+  <view class="status-panel">
+    <view class="status-title">{{order.statusText || '订单状态'}}</view>
+    <view class="status-desc">{{order.statusDesc}}</view>
+    <view wx:if="{{order.status==0}}" class="pay-countdown">剩余支付时间 {{payRemainText}}</view>
+  </view>
+
+  <view class="product-row" bindtap="gotoProduct">
+    <t-image class="cover" src="{{order.coverImage}}" mode="aspectFill" />
+    <view class="product-info">
+      <view class="product-title">{{order.productTitle}}</view>
+      <view class="product-meta">{{counterpartyLabel}}：{{counterpartyName}}</view>
+      <view class="product-price">¥{{order.payAmount}}</view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">交易进度</view>
+    <view class="step-list">
+      <view wx:for="{{steps}}" wx:key="title" class="step {{item.active?'active':''}} {{item.danger?'danger':''}}">
+        <view class="dot"></view>
+        <view class="step-content">
+          <view class="step-title">{{item.title}}</view>
+          <view class="step-desc">{{item.desc}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">金额明细</view>
+    <view class="amount-row">
+      <text>成交价</text>
+      <text>¥{{order.productAmount || order.payAmount}}</text>
+    </view>
+    <view class="amount-row">
+      <text>平台服务费</text>
+      <text>卖家承担 ¥{{order.serviceFee || 0}}</text>
+    </view>
+    <view class="amount-row strong">
+      <text>卖家实收</text>
+      <text>¥{{order.sellerIncome || 0}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">交付信息</view>
+    <view class="info-line">{{order.deliveryText}}</view>
+    <view class="delivery-card">
+      <view class="delivery-label">{{order.deliveryAddressTitle}}</view>
+      <view class="delivery-address">{{order.deliveryAddressText || '请双方通过留言确认具体时间和地点'}}</view>
+    </view>
+    <view wx:if="{{order.deliveryMode==1 && order.pickupAddressText}}" class="info-muted">取货参考：{{order.pickupAddressText}}</view>
+    <view wx:if="{{order.deliveryRemark && order.deliveryRemark!=order.deliveryAddressText}}" class="info-muted">备注：{{order.deliveryRemark}}</view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view class="section-title">私密留言</view>
+      <view class="message-count">{{messages.length}} 条</view>
+    </view>
+    <view wx:for="{{messages}}" wx:key="id" class="message-row">
+      <view class="message-name">{{item.senderName || '同学'}}</view>
+      <view class="message-content">{{item.content}}</view>
+    </view>
+    <view wx:if="{{messages.length==0}}" class="info-muted">暂无留言，交付细节可以在这里确认。</view>
+    <view class="message-input">
+      <t-textarea value="{{messageContent}}" placeholder="补充交付时间、地点或商品问题" maxlength="200" bind:change="setMessage" />
+      <t-button theme="primary" size="small" loading="{{actionLoading=='message'}}" disabled="{{actionLoading=='message'}}" bind:tap="sendMessage">发送</t-button>
+    </view>
+  </view>
+
+  <view wx:if="{{canCancel || canPay || canDeliver || canConfirm}}" class="bottom-bar">
+    <t-button wx:if="{{canCancel}}" variant="outline" theme="danger" loading="{{actionLoading=='cancel'}}" disabled="{{actionLoading!=''}}" bind:tap="cancelOrder">取消订单</t-button>
+    <t-button wx:if="{{canPay}}" theme="primary" loading="{{actionLoading=='pay'}}" disabled="{{actionLoading!='' || payRemainSeconds<=0}}" bind:tap="pay">去支付</t-button>
+    <t-button wx:if="{{canDeliver}}" theme="primary" loading="{{actionLoading=='deliver'}}" disabled="{{actionLoading!=''}}" bind:tap="markDelivered">标记交付</t-button>
+    <t-button wx:if="{{canConfirm}}" theme="primary" loading="{{actionLoading=='confirm'}}" disabled="{{actionLoading!=''}}" bind:tap="confirmReceipt">确认收货</t-button>
+  </view>
+</view>

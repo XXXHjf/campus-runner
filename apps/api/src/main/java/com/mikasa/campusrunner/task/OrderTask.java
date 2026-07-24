@@ -10,6 +10,7 @@ import com.mikasa.campusrunner.pojo.entity.RefundInfo;
 import com.mikasa.campusrunner.pojo.vo.OrderTimeOutVO;
 import com.mikasa.campusrunner.service.user.OrderService;
 import com.mikasa.campusrunner.service.user.RefundInfoService;
+import com.mikasa.campusrunner.service.user.SecondHandService;
 import com.mikasa.campusrunner.service.user.WeChatPayService;
 import com.mikasa.campusrunner.service.user.WeChatTransferService;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,9 @@ public class OrderTask {
 
     @Autowired
     private WeChatTransferService weChatTransferService;
+
+    @Autowired
+    private SecondHandService secondHandService;
 
 
 
@@ -139,6 +143,14 @@ public class OrderTask {
             //核实订单状态，分别处理订单
             weChatPayService.checkOrderStatus(order);
         }
+    }
+
+    @Scheduled(cron = "0 0/1 * * * ?")
+    public void processSecondHandTimeouts() {
+        LocalDateTime now = LocalDateTime.now();
+        log.info("Processing second-hand timeout jobs, current time: {}", now);
+        secondHandService.processUnpaidTimeouts();
+        secondHandService.processAutoConfirm();
     }
 
 

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.SecondHandOrderMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into tb_second_hand_order(
+            id, order_number, product_id, bargain_id, buyer_id, seller_id,
+            product_amount, pay_amount, service_fee_rate, service_fee, seller_income,
+            delivery_mode, pickup_address_snapshot, buyer_delivery_address_id,
+            buyer_delivery_address_snapshot, delivery_remark, status, pay_time, cancel_time, cancel_reason,
+            delivered_time, confirm_deadline, finish_time, transfer_time, transfer_fail_reason,
+            deleted, create_time, update_time
+        ) values(
+            null, #{orderNumber}, #{productId}, #{bargainId}, #{buyerId}, #{sellerId},
+            #{productAmount}, #{payAmount}, #{serviceFeeRate}, #{serviceFee}, #{sellerIncome},
+            #{deliveryMode}, #{pickupAddressSnapshot}, #{buyerDeliveryAddressId},
+            #{buyerDeliveryAddressSnapshot}, #{deliveryRemark}, #{status}, #{payTime}, #{cancelTime}, #{cancelReason},
+            #{deliveredTime}, #{confirmDeadline}, #{finishTime}, #{transferTime}, #{transferFailReason},
+            #{deleted}, #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="update">
+        update tb_second_hand_order
+        <set>
+            <if test="orderNumber != null and orderNumber != ''">order_number = #{orderNumber},</if>
+            <if test="bargainId != null">bargain_id = #{bargainId},</if>
+            <if test="productAmount != null">product_amount = #{productAmount},</if>
+            <if test="payAmount != null">pay_amount = #{payAmount},</if>
+            <if test="serviceFeeRate != null">service_fee_rate = #{serviceFeeRate},</if>
+            <if test="serviceFee != null">service_fee = #{serviceFee},</if>
+            <if test="sellerIncome != null">seller_income = #{sellerIncome},</if>
+            <if test="deliveryMode != null">delivery_mode = #{deliveryMode},</if>
+            <if test="pickupAddressSnapshot != null">pickup_address_snapshot = #{pickupAddressSnapshot},</if>
+            <if test="buyerDeliveryAddressId != null">buyer_delivery_address_id = #{buyerDeliveryAddressId},</if>
+            <if test="buyerDeliveryAddressSnapshot != null">buyer_delivery_address_snapshot = #{buyerDeliveryAddressSnapshot},</if>
+            <if test="deliveryRemark != null">delivery_remark = #{deliveryRemark},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="payTime != null">pay_time = #{payTime},</if>
+            <if test="cancelTime != null">cancel_time = #{cancelTime},</if>
+            <if test="cancelReason != null and cancelReason != ''">cancel_reason = #{cancelReason},</if>
+            <if test="deliveredTime != null">delivered_time = #{deliveredTime},</if>
+            <if test="confirmDeadline != null">confirm_deadline = #{confirmDeadline},</if>
+            <if test="finishTime != null">finish_time = #{finishTime},</if>
+            <if test="transferTime != null">transfer_time = #{transferTime},</if>
+            <if test="transferFailReason != null">transfer_fail_reason = #{transferFailReason},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
+        select * from tb_second_hand_order where id = #{id} and deleted = 0
+    </select>
+
+    <select id="getByOrderNumber" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
+        select * from tb_second_hand_order where order_number = #{orderNumber} and deleted = 0
+    </select>
+
+    <select id="getActiveByProductId" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
+        select * from tb_second_hand_order
+        where product_id = #{productId}
+          and deleted = 0
+          and status in (0, 1, 2, 5, 8)
+        order by create_time desc
+        limit 1
+    </select>
+
+    <sql id="orderVoSelect">
+        o.id, o.order_number, o.product_id, o.bargain_id, o.buyer_id,
+        buyer.username as buyer_name, o.seller_id, seller.username as seller_name,
+        p.title as product_title, p.images as product_images,
+        o.product_amount, o.pay_amount, o.service_fee_rate, o.service_fee, o.seller_income,
+        o.delivery_mode, o.pickup_address_snapshot, o.buyer_delivery_address_id,
+        o.buyer_delivery_address_snapshot, o.delivery_remark, o.status, o.pay_time, o.cancel_time,
+        o.cancel_reason, o.delivered_time, o.confirm_deadline, o.finish_time,
+        o.transfer_time, o.transfer_fail_reason, o.create_time, o.update_time
+    </sql>
+
+    <select id="detail" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandOrderVO">
+        select <include refid="orderVoSelect"/>
+        from tb_second_hand_order o
+        left join tb_second_hand_product p on o.product_id = p.id
+        left join tb_user buyer on o.buyer_id = buyer.id
+        left join tb_user seller on o.seller_id = seller.id
+        where o.id = #{id} and o.deleted = 0
+    </select>
+
+    <select id="listByBuyer" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandOrderVO">
+        select <include refid="orderVoSelect"/>
+        from tb_second_hand_order o
+        left join tb_second_hand_product p on o.product_id = p.id
+        left join tb_user buyer on o.buyer_id = buyer.id
+        left join tb_user seller on o.seller_id = seller.id
+        where o.buyer_id = #{buyerId} and o.deleted = 0
+        order by o.create_time desc
+    </select>
+
+    <select id="listBySeller" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandOrderVO">
+        select <include refid="orderVoSelect"/>
+        from tb_second_hand_order o
+        left join tb_second_hand_product p on o.product_id = p.id
+        left join tb_user buyer on o.buyer_id = buyer.id
+        left join tb_user seller on o.seller_id = seller.id
+        where o.seller_id = #{sellerId} and o.deleted = 0
+        order by o.create_time desc
+    </select>
+
+    <select id="listAdmin" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandOrderVO">
+        select <include refid="orderVoSelect"/>
+        from tb_second_hand_order o
+        left join tb_second_hand_product p on o.product_id = p.id
+        left join tb_user buyer on o.buyer_id = buyer.id
+        left join tb_user seller on o.seller_id = seller.id
+        <where>
+            o.deleted = 0
+            <if test="status != null">and o.status = #{status}</if>
+        </where>
+        order by o.create_time desc
+    </select>
+
+    <select id="listUnpaidTimeout" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
+        select * from tb_second_hand_order
+        where deleted = 0 and status = 0 and create_time &lt; #{time}
+    </select>
+
+    <select id="listAutoConfirm" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
+        select * from tb_second_hand_order
+        where deleted = 0 and status = 2 and confirm_deadline &lt;= #{now}
+    </select>
+</mapper>

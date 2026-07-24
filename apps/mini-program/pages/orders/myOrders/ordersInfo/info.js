@@ -236,17 +236,58 @@ Page({
   async payOrder() {
     try {
       showLoading('发起支付');
+      if (getApp().globalData.MOCK_PAYMENT) {
+        await userOrderService.mockPaySuccess(this.data.id);
+        showSuccessToast(this, "模拟支付成功");
+        await this._loadOrderInfo();
+        return;
+      }
       const paymentParams = await this._apiPostTransaction(this.data.id);
       await this._requestRegister(paymentParams);
+      let synced = true;
+      try {
+        await this._syncPayStatus();
+      } catch (syncError) {
+        synced = false;
+        console.error('支付状态同步失败:', syncError);
+      }
       showSuccessToast(this, "支付成功");
       await this._loadOrderInfo();
+      if (!synced) {
+        showErrorToast(this, "支付成功，状态同步稍后刷新");
+      }
     } catch (error) {
       console.error('订单支付失败:', error);
+      if (error && error.message && error.message.includes('ORDERPAID')) {
+        try {
+          await this._syncPayStatus();
+          await this._loadOrderInfo();
+          showSuccessToast(this, "支付已完成，状态已同步");
+          return;
+        } catch (syncError) {
+          console.error('支付状态同步失败:', syncError);
+        }
+      }
       const message = error && error.message ? error.message : '支付失败';
       showErrorToast(this, message);
     } finally {
       hideLoading();
     }
+  },
+
+  async _syncPayStatus(retryTimes = 3) {
+    let lastError = null;
+    for (let index = 0; index < retryTimes; index += 1) {
+      try {
+        return await userOrderService.syncPayStatus(this.data.id);
+      } catch (error) {
+        lastError = error;
+        if (index < retryTimes - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+    }
+    throw lastError;
   },
 
   // 获取支付参数

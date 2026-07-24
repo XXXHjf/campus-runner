@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.SecondHandCategoryMapper">
+    <select id="list" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandCategory">
+        select * from tb_second_hand_category
+        where deleted = 0
+        order by sort asc, id asc
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into tb_second_hand_category(id, name, image, sort, deleted)
+        values(null, #{name}, #{image}, #{sort}, 0)
+    </insert>
+
+    <update id="update">
+        update tb_second_hand_category
+        <set>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="image != null and image != ''">image = #{image},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <update id="deleteById">
+        update tb_second_hand_category set deleted = 1 where id = #{id}
+    </update>
+</mapper>

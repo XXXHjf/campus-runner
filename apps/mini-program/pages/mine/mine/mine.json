@@ -7,8 +7,6 @@
     "t-tag": "tdesign-miniprogram/tag/tag",
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-divider": "tdesign-miniprogram/divider/divider",
-    "t-tab-bar": "tdesign-miniprogram/tab-bar/tab-bar",
-    "t-tab-bar-item": "tdesign-miniprogram/tab-bar-item/tab-bar-item",
     "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
     "t-cell": "tdesign-miniprogram/cell/cell",
     "t-badge": "tdesign-miniprogram/badge/badge",

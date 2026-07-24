@@ -183,6 +183,20 @@ function getNotWithdrawnOrders() {
   });
 }
 
+/**
+ * 开发模式：模拟跑腿订单收款成功
+ * @param {string|number} orderId - 订单ID
+ * @returns {Promise<Object>} 模拟收款结果
+ */
+function mockReceiveSuccess(orderId) {
+  return request({
+    url: `${url}/api/dev/orders/${orderId}/mock-receive-success`,
+    method: 'POST'
+  }).then(res => {
+    return res.data;
+  });
+}
+
 module.exports = {
   getMyTakeOrders,
   getTakeOrdersByStatus,
@@ -195,6 +209,7 @@ module.exports = {
   sendTakeOrderMessage,
   sendPickupMessage,
   sendDeliveredMessage,
-  getNotWithdrawnOrders
+  getNotWithdrawnOrders,
+  mockReceiveSuccess
 };
 

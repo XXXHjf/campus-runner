@@ -1,0 +1,98 @@
+.second-hand-management {
+  padding: 24px;
+}
+
+.second-hand-management .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.second-hand-management .page-header h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #1f2937;
+}
+
+.second-hand-management .page-header p {
+  margin: 8px 0 0;
+  color: #6b7280;
+}
+
+.second-hand-management .stat-row {
+  margin-bottom: 18px;
+}
+
+.second-hand-management .stat-row .ant-card {
+  border-radius: 8px;
+}
+
+.second-hand-management .management-tabs {
+  padding: 18px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.second-hand-management .toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.second-hand-management .toolbar-right {
+  justify-content: flex-end;
+}
+
+.second-hand-management .filter-select {
+  min-width: 150px;
+}
+
+.second-hand-management .ant-table-wrapper {
+  overflow: hidden;
+}
+
+.second-hand-management .ant-table-cell {
+  vertical-align: middle;
+}
+
+.detail-stack {
+  width: 100%;
+}
+
+.image-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.image-list img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.drawer-loading {
+  padding: 48px 0;
+  text-align: center;
+  color: #6b7280;
+}
+
+@media (max-width: 768px) {
+  .second-hand-management {
+    padding: 16px;
+  }
+
+  .second-hand-management .page-header {
+    flex-direction: column;
+  }
+
+  .second-hand-management .management-tabs {
+    padding: 12px;
+  }
+}

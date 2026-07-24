@@ -45,6 +45,14 @@ public class WeChatPayController {
         return Result.success(weChatPrePayVO);
     }
 
+    @PostMapping("/sync/{orderId}")
+    @Operation(summary = "主动同步跑腿订单微信支付状态")
+    public Result<Void> syncPayStatus(@PathVariable Long orderId) throws Exception {
+        log.info("Sync WeChat Pay status, order id: {}", orderId);
+        weChatPayService.syncPaidOrder(orderId);
+        return Result.success();
+    }
+
 
     @PostMapping("/jsapi/notify")
     @Operation(summary = "微信支付成功回调通知")

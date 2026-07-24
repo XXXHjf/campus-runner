@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.SecondHandMessageMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into tb_second_hand_message(
+            id, product_id, order_id, sender_id, receiver_id, content, deleted, create_time
+        ) values(
+            null, #{productId}, #{orderId}, #{senderId}, #{receiverId}, #{content}, #{deleted}, #{createTime}
+        )
+    </insert>
+
+    <sql id="messageVoSelect">
+        m.id, m.product_id, m.order_id, m.sender_id, sender.username as sender_name,
+        m.receiver_id, receiver.username as receiver_name, m.content, m.create_time
+    </sql>
+
+    <select id="listByProductForUser" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandMessageVO">
+        select <include refid="messageVoSelect"/>
+        from tb_second_hand_message m
+        left join tb_user sender on m.sender_id = sender.id
+        left join tb_user receiver on m.receiver_id = receiver.id
+        where m.deleted = 0
+          and m.product_id = #{productId}
+          and (m.sender_id = #{userId} or m.receiver_id = #{userId})
+        order by m.create_time asc
+    </select>
+
+    <select id="countProductParticipant" resultType="int">
+        select count(1)
+        from (
+            select buyer_id as user_id
+            from tb_second_hand_bargain
+            where deleted = 0
+              and product_id = #{productId}
+              and seller_id = #{sellerId}
+              and buyer_id = #{userId}
+            union
+            select buyer_id as user_id
+            from tb_second_hand_order
+            where deleted = 0
+              and product_id = #{productId}
+              and seller_id = #{sellerId}
+              and buyer_id = #{userId}
+            union
+            select case when sender_id = #{sellerId} then receiver_id else sender_id end as user_id
+            from tb_second_hand_message
+            where deleted = 0
+              and product_id = #{productId}
+              and (
+                (sender_id = #{sellerId} and receiver_id = #{userId})
+                or (sender_id = #{userId} and receiver_id = #{sellerId})
+              )
+        ) participant
+    </select>
+
+    <select id="listAdmin" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandMessageVO">
+        select <include refid="messageVoSelect"/>
+        from tb_second_hand_message m
+        left join tb_user sender on m.sender_id = sender.id
+        left join tb_user receiver on m.receiver_id = receiver.id
+        <where>
+            m.deleted = 0
+            <if test="productId != null">and m.product_id = #{productId}</if>
+        </where>
+        order by m.create_time desc
+    </select>
+</mapper>

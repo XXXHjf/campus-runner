@@ -327,7 +327,7 @@
 </t-popup> -->
 
 <!-- 空白填充 -->
-<view style="height: 180rpx;"></view>
+<view class="bottom-spacer"></view>
 
 <!-- 取消订单按钮弹出层，用于选择取消原因 -->
 <t-popup visible="{{visible}}" bind:visible-change="onVisibleChange" placement="bottom">

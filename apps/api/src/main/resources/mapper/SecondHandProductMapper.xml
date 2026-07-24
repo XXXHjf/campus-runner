@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.mikasa.campusrunner.mapper.SecondHandProductMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into tb_second_hand_product(
+            id, seller_id, school_id, compus_id, category_id, title, description,
+            images, condition_level, price, pickup_address_id, pickup_address_snapshot,
+            pickup_location, pickup_only, support_delivery,
+            negotiable, status, view_count, favorite_count, deleted, create_time, update_time
+        ) values(
+            null, #{sellerId}, #{schoolId}, #{compusId}, #{categoryId}, #{title}, #{description},
+            #{images}, #{conditionLevel}, #{price}, #{pickupAddressId}, #{pickupAddressSnapshot},
+            #{pickupLocation}, #{pickupOnly}, #{supportDelivery},
+            #{negotiable}, #{status}, #{viewCount}, #{favoriteCount}, #{deleted}, #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="update">
+        update tb_second_hand_product
+        <set>
+            <if test="compusId != null">compus_id = #{compusId},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="title != null and title != ''">title = #{title},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="images != null">images = #{images},</if>
+            <if test="conditionLevel != null and conditionLevel != ''">condition_level = #{conditionLevel},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="pickupAddressId != null">pickup_address_id = #{pickupAddressId},</if>
+            <if test="pickupAddressSnapshot != null and pickupAddressSnapshot != ''">pickup_address_snapshot = #{pickupAddressSnapshot},</if>
+            <if test="pickupLocation != null and pickupLocation != ''">pickup_location = #{pickupLocation},</if>
+            <if test="pickupOnly != null">pickup_only = #{pickupOnly},</if>
+            <if test="supportDelivery != null">support_delivery = #{supportDelivery},</if>
+            <if test="negotiable != null">negotiable = #{negotiable},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="viewCount != null">view_count = #{viewCount},</if>
+            <if test="favoriteCount != null">favorite_count = #{favoriteCount},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandProduct">
+        select * from tb_second_hand_product where id = #{id} and deleted = 0
+    </select>
+
+    <sql id="productVoSelect">
+        p.id, p.seller_id, u.username as seller_name, p.school_id, s.school_name,
+        p.compus_id, cp.compus_name, p.category_id, c.name as category_name,
+        p.title, p.description, p.images, p.condition_level, p.price,
+        p.pickup_address_id, p.pickup_address_snapshot, p.pickup_location,
+        p.pickup_only, p.support_delivery, p.negotiable, p.status,
+        p.view_count, p.favorite_count, p.create_time, p.update_time
+    </sql>
+
+    <select id="detail" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandProductVO">
+        select <include refid="productVoSelect"/>
+        from tb_second_hand_product p
+        left join tb_user u on p.seller_id = u.id
+        left join tb_school s on p.school_id = s.id
+        left join tb_compus cp on p.compus_id = cp.id
+        left join tb_second_hand_category c on p.category_id = c.id
+        where p.id = #{id} and p.deleted = 0
+    </select>
+
+    <select id="list" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandProductVO">
+        select <include refid="productVoSelect"/>
+        from tb_second_hand_product p
+        left join tb_user u on p.seller_id = u.id
+        left join tb_school s on p.school_id = s.id
+        left join tb_compus cp on p.compus_id = cp.id
+        left join tb_second_hand_category c on p.category_id = c.id
+        <where>
+            p.deleted = 0
+            <if test="schoolId != null">and p.school_id = #{schoolId}</if>
+            <if test="query.status != null">and p.status = #{query.status}</if>
+            <if test="query.status == null and schoolId != null">and p.status = 0</if>
+            <if test="query.categoryId != null">and p.category_id = #{query.categoryId}</if>
+            <if test="query.compusId != null">and p.compus_id = #{query.compusId}</if>
+            <if test="query.conditionLevel != null and query.conditionLevel != ''">and p.condition_level = #{query.conditionLevel}</if>
+            <if test="query.minPrice != null">and p.price &gt;= #{query.minPrice}</if>
+            <if test="query.maxPrice != null">and p.price &lt;= #{query.maxPrice}</if>
+            <if test="query.keyword != null and query.keyword != ''">
+                and (p.title like concat('%', #{query.keyword}, '%') or p.description like concat('%', #{query.keyword}, '%'))
+            </if>
+        </where>
+        order by p.create_time desc
+    </select>
+
+    <select id="listBySeller" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandProductVO">
+        select <include refid="productVoSelect"/>
+        from tb_second_hand_product p
+        left join tb_user u on p.seller_id = u.id
+        left join tb_school s on p.school_id = s.id
+        left join tb_compus cp on p.compus_id = cp.id
+        left join tb_second_hand_category c on p.category_id = c.id
+        where p.deleted = 0 and p.seller_id = #{sellerId}
+        order by p.create_time desc
+    </select>
+
+    <update id="lockOnSaleProduct">
+        update tb_second_hand_product
+        set status = 1, update_time = now()
+        where id = #{id} and deleted = 0 and status = 0
+    </update>
+
+    <update id="markTrading">
+        update tb_second_hand_product
+        set status = 2, update_time = now()
+        where id = #{id} and deleted = 0
+    </update>
+
+    <update id="releaseLockedProduct">
+        update tb_second_hand_product
+        set status = 0, update_time = now()
+        where id = #{id} and deleted = 0 and status = 1
+    </update>
+
+    <update id="releaseRefundedProduct">
+        update tb_second_hand_product
+        set status = 0, update_time = now()
+        where id = #{id} and deleted = 0 and status in (1, 2)
+    </update>
+
+    <update id="markSold">
+        update tb_second_hand_product
+        set status = 3, update_time = now()
+        where id = #{id} and deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        update tb_second_hand_product
+        set status = #{status}, update_time = now()
+        where id = #{id} and deleted = 0
+    </update>
+
+    <update id="increaseViewCount">
+        update tb_second_hand_product
+        set view_count = view_count + 1
+        where id = #{id} and deleted = 0
+    </update>
+</mapper>

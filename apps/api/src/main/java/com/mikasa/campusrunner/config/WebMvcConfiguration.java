@@ -94,6 +94,9 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
                         "/api/user/login",
                         "/api/wx-pay/jsapi/notify",
                         "/api/wx-pay/refunds/notify",
+                        "/api/second-hand/pay/notify",
+                        "/api/second-hand/refunds/notify",
+                        "/api/second-hand/transfer/notify",
                         "/api/wx-transfer/notify",
                         "/api/upload");
 

@@ -92,6 +92,12 @@ const menuItems: MenuItem[] = [
     path: '/category',
   },
   {
+    key: 'second-hand',
+    label: '二手交易',
+    icon: '♻️',
+    path: '/second-hand',
+  },
+  {
     key: 'finance',
     label: '财务管理',
     icon: '💰',

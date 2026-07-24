@@ -1,0 +1,68 @@
+<view class="bargains-page">
+  <view class="page-head">
+    <view class="page-title">议价工作台</view>
+    <view class="page-subtitle">报价不会公开，只有买卖双方可见</view>
+  </view>
+
+  <view class="summary">
+    <view class="summary-item">
+      <text class="summary-value">{{summary.pending}}</text>
+      <text class="summary-label">待回复</text>
+    </view>
+    <view class="summary-item">
+      <text class="summary-value">{{summary.accepted}}</text>
+      <text class="summary-label">已接受</text>
+    </view>
+    <view class="summary-item">
+      <text class="summary-value">{{summary.rejected}}</text>
+      <text class="summary-label">已拒绝</text>
+    </view>
+  </view>
+
+  <t-tabs value="{{tab}}" bind:click="onTabsClick">
+    <t-tab-panel label="我收到的" value="received" />
+    <t-tab-panel label="我发出的" value="issued" />
+  </t-tabs>
+
+  <view wx:if="{{tab=='received'}}" class="bargain-list">
+    <view wx:for="{{received}}" wx:key="id" class="bargain-card">
+      <view class="row-top" data-product-id="{{item.productId}}" bindtap="gotoProduct">
+        <view class="title">{{item.productTitle}}</view>
+        <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
+      </view>
+      <view class="price-line">
+        <text class="price">买家报价 ¥{{item.offerPrice}}</text>
+        <text class="attempt">第 {{item.attemptNo}} 次</text>
+      </view>
+      <view class="meta">买家：{{item.buyerName || '同学'}}</view>
+      <view class="message">{{item.message || '买家没有留言'}}</view>
+      <view class="actions">
+        <t-button wx:if="{{item.status==0}}" size="small" theme="primary" loading="{{actionLoadingId==item.id}}" disabled="{{actionLoadingId!=null}}" data-id="{{item.id}}" bind:tap="accept">接受</t-button>
+        <t-button wx:if="{{item.status==0}}" size="small" variant="outline" theme="danger" disabled="{{actionLoadingId!=null}}" data-id="{{item.id}}" bind:tap="reject">拒绝</t-button>
+        <t-button wx:if="{{item.status==1}}" size="small" variant="outline" data-order-id="{{item.orderId}}" bind:tap="gotoOrder">查看订单</t-button>
+      </view>
+    </view>
+    <view wx:if="{{received.length==0}}" class="empty">暂无收到的议价</view>
+  </view>
+
+  <view wx:if="{{tab=='issued'}}" class="bargain-list">
+    <view wx:for="{{issued}}" wx:key="id" class="bargain-card">
+      <view class="row-top" data-product-id="{{item.productId}}" bindtap="gotoProduct">
+        <view class="title">{{item.productTitle}}</view>
+        <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
+      </view>
+      <view class="price-line">
+        <text class="price">我的报价 ¥{{item.offerPrice}}</text>
+        <text class="attempt">第 {{item.attemptNo}} 次</text>
+      </view>
+      <view class="meta">卖家：{{item.sellerName || '同学'}}</view>
+      <view class="message">{{item.message || '未填写留言'}}</view>
+      <view class="actions">
+        <t-button wx:if="{{item.status==1}}" size="small" theme="primary" data-order-id="{{item.orderId}}" bind:tap="gotoOrder">去支付</t-button>
+        <t-button wx:if="{{item.status==2}}" size="small" variant="outline" data-product-id="{{item.productId}}" bind:tap="gotoProduct">继续议价</t-button>
+        <t-button wx:if="{{item.status==0 || item.status==3}}" size="small" variant="outline" data-product-id="{{item.productId}}" bind:tap="gotoProduct">查看商品</t-button>
+      </view>
+    </view>
+    <view wx:if="{{issued.length==0}}" class="empty">暂无发出的议价</view>
+  </view>
+</view>

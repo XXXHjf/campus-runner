@@ -339,6 +339,18 @@ Page({
   // 拉起微信确定收款（保留原逻辑，使用 tokenManager）
   async _requestMerchantTransfer() {
     try {
+      if (getApp().globalData.MOCK_PAYMENT) {
+        showLoading('模拟收款中');
+        await takeOrderService.mockReceiveSuccess(this.data.id);
+        hideLoading();
+        wx.showToast({
+          title: '模拟收款成功',
+          icon: 'success'
+        });
+        await this._loadOrderInfo();
+        return;
+      }
+
       const result = await this._apiTransfer(this.data.id);
       const accountInfo = wx.getAccountInfoSync();
       wx.requestMerchantTransfer({
@@ -356,6 +368,7 @@ Page({
         }
       });
     } catch (err) {
+      hideLoading();
       errorCilcleToast(this, err.message);
     }
     

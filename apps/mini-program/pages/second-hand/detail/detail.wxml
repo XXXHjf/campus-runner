@@ -1,0 +1,120 @@
+<view class="detail-page">
+  <view class="gallery">
+    <swiper wx:if="{{images.length>0}}" indicator-dots circular class="swiper">
+      <swiper-item wx:for="{{images}}" wx:key="*this">
+        <image class="gallery-image" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewImage" />
+      </swiper-item>
+    </swiper>
+    <view wx:if="{{images.length==0}}" class="gallery-empty">暂无图片</view>
+  </view>
+
+  <view class="main-card">
+    <view class="price">¥{{product.price}}</view>
+    <view class="title">{{product.title}}</view>
+    <view class="tag-row">
+      <t-tag size="small" variant="light">{{product.statusText}}</t-tag>
+      <t-tag size="small" theme="success" variant="light">{{product.conditionLevel || '成色良好'}}</t-tag>
+      <t-tag wx:if="{{product.negotiable==1}}" size="small" theme="warning" variant="light">可议价</t-tag>
+    </view>
+    <view class="guarantee">平台保障交易，确认收货后卖家收款</view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">交付方式</view>
+    <view class="info-line">{{product.deliveryText}}</view>
+    <view class="info-muted">自提点：{{product.pickupAddressText || '卖家暂未填写具体地点，购买前可留言确认'}}</view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">商品描述</view>
+    <view class="description">{{product.description || '卖家暂未填写描述'}}</view>
+  </view>
+
+  <view class="section seller">
+    <view>
+      <view class="section-title">卖家</view>
+      <view class="info-line">{{product.sellerName || '同学'}}</view>
+      <view class="info-muted">{{product.compusName || '同校'}} · {{product.categoryName || '闲置好物'}}</view>
+    </view>
+    <t-button size="small" variant="outline" bind:tap="openMessage">私密留言</t-button>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view class="section-title">私密留言</view>
+      <view class="message-count">{{messages.length}} 条</view>
+    </view>
+    <view wx:for="{{messages}}" wx:key="id" class="message-row">
+      <view class="message-name">{{item.senderName || '同学'}}</view>
+      <view class="message-content">{{item.content}}</view>
+    </view>
+    <view wx:if="{{messages.length==0}}" class="info-muted">购买前可以先确认成色、时间和地点。</view>
+  </view>
+
+  <view wx:if="{{showBargain}}" class="sheet-mask" bindtap="closeBargain">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-title">向卖家议价</view>
+      <t-input label="报价" type="digit" value="{{bargainPrice}}" placeholder="请输入你的心理价" bind:change="setBargainPrice" />
+      <t-textarea value="{{bargainMessage}}" placeholder="补充你的理由或交付偏好" maxlength="120" bind:change="setBargainMessage" />
+      <view class="sheet-actions">
+        <t-button variant="outline" bind:tap="closeBargain">取消</t-button>
+        <t-button theme="primary" loading="{{bargainSubmitting}}" disabled="{{bargainSubmitting}}" bind:tap="submitBargain">发送议价</t-button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{showMessage}}" class="sheet-mask" bindtap="closeMessage">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-title">私密留言</view>
+      <t-textarea value="{{messageContent}}" placeholder="比如：今晚图书馆门口方便自提吗？" maxlength="200" bind:change="setMessage" />
+      <view class="sheet-actions">
+        <t-button variant="outline" bind:tap="closeMessage">取消</t-button>
+        <t-button theme="primary" loading="{{messageSubmitting}}" disabled="{{messageSubmitting}}" bind:tap="submitMessage">发送</t-button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{showBuySheet}}" class="sheet-mask" bindtap="closeBuySheet">
+    <view class="sheet buy-sheet" catchtap="noop">
+      <view class="sheet-title">确认交付方式</view>
+      <view class="buy-price">¥{{product.price}}</view>
+      <view class="mode-grid">
+        <view class="mode-card {{selectedDeliveryMode==0?'active':''}}" data-mode="0" bindtap="chooseDeliveryMode">
+          <view class="mode-title">买家自提</view>
+          <view class="mode-desc">{{product.pickupAddressText}}</view>
+        </view>
+        <view class="mode-card {{selectedDeliveryMode==1?'active':''}} {{product.pickupOnly==1?'disabled':''}}" data-mode="1" bindtap="chooseDeliveryMode">
+          <view class="mode-title">卖家配送</view>
+          <view class="mode-desc">{{product.pickupOnly==1?'卖家未开启配送':'选择你的收货地址'}}</view>
+        </view>
+      </view>
+
+      <view wx:if="{{selectedDeliveryMode==1}}" class="address-picker-block">
+        <view class="sheet-row-title">配送地址</view>
+        <scroll-view scroll-y class="address-list">
+          <view wx:for="{{addressBook}}" wx:key="id" class="address-option {{selectedBuyerAddressId==item.id?'active':''}}" data-id="{{item.id}}" bindtap="selectBuyerAddress">
+            <view class="address-main">{{item.addressText}}</view>
+            <view class="address-meta">{{item.typeText}}地址{{item.isDefault==1?' · 默认':''}}{{item.label?' · '+item.label:''}}</view>
+          </view>
+          <view wx:if="{{addressBook.length==0}}" class="empty-address">
+            <view class="empty-title">还没有配送地址</view>
+            <view class="info-muted">新增一个收件地址后再下单。</view>
+          </view>
+        </scroll-view>
+        <t-button size="small" variant="outline" bind:tap="gotoAddDeliveryAddress">新增地址</t-button>
+      </view>
+
+      <view class="sheet-actions">
+        <t-button variant="outline" bind:tap="closeBuySheet">取消</t-button>
+        <t-button theme="primary" loading="{{buySubmitting}}" disabled="{{buySubmitting}}" bind:tap="confirmBuy">创建订单</t-button>
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-bar">
+    <t-button variant="outline" bind:tap="openMessage">留言</t-button>
+    <t-button wx:if="{{product.canBargain}}" variant="outline" theme="warning" disabled="{{buySubmitting}}" bind:tap="openBargain">议价</t-button>
+    <t-button wx:if="{{product.canBuy}}" theme="primary" loading="{{buySubmitting}}" disabled="{{buySubmitting}}" bind:tap="buyNow">立即购买</t-button>
+    <t-button wx:if="{{!product.canBuy}}" disabled>商品不可购买</t-button>
+  </view>
+</view>

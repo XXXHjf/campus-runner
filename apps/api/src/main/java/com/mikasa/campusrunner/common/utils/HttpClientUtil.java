@@ -89,6 +89,7 @@ public class HttpClientUtil {
 
             //创建GET请求
             HttpGet httpGet = new HttpGet(uri);
+            httpGet.setConfig(builderRequestConfig());
 
             //发送请求
             response = httpClient.execute(httpGet);
@@ -101,7 +102,9 @@ public class HttpClientUtil {
             e.printStackTrace();
         }finally {
             try {
-                response.close();
+                if (response != null) {
+                    response.close();
+                }
                 httpClient.close();
             } catch (IOException e) {
                 e.printStackTrace();

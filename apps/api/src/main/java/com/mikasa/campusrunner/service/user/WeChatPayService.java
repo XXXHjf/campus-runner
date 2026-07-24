@@ -23,6 +23,12 @@ public interface WeChatPayService {
     WeChatPrePayVO jsapiPay(Long orderId) throws Exception;
 
     /**
+     * 主动向微信查询订单支付状态，并在已支付时同步本地订单状态
+     * @param orderId
+     */
+    void syncPaidOrder(Long orderId) throws Exception;
+
+    /**
      * 回调通知处理订单
      * @param bodyMap
      */

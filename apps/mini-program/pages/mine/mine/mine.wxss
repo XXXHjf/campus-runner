@@ -1,12 +1,11 @@
 /* 总体布局 */
 .show {
   position: relative;
-  /* 使得内部元素可以相对于此定位 */
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  /* 填充整个视口高度 */
-  /* justify-content: space-between; */
+  min-height: 100vh;
+  padding-bottom: 40rpx;
+  background: #f5f6f8;
   box-sizing: border-box;
 }
 
@@ -49,22 +48,64 @@
   color: gray;
 }
 
-.t-tab-bar {
-  --td-tab-bar-height: 100rpx;
-  --td-tab-bar-border-color: white;
+.menu-section {
+  margin: 18rpx 30rpx 0;
+  padding: 24rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(15, 35, 80, 0.05);
 }
 
-.t-tab-bar-item {
-  margin: 0 0 !important;
+.menu-section-title {
+  margin-bottom: 18rpx;
+  color: #111827;
+  font-size: 30rpx;
+  font-weight: 700;
 }
 
-.t-tab-bar-item__content {
-  /* 修改边框半径 */
-  border-radius: 40rpx !important;
+.menu-grid {
+  display: grid;
+  gap: 16rpx;
 }
-.t-tab-bar-item__text--small {
-  font-size: 24rpx !important;
-  line-height: 48rpx !important;
+
+.menu-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.menu-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.menu-card {
+  min-height: 126rpx;
+  padding: 20rpx 18rpx;
+  background: #f7f9fc;
+  border: 1rpx solid #eef2f7;
+  border-radius: 16rpx;
+  box-sizing: border-box;
+}
+
+.menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58rpx;
+  height: 58rpx;
+  background: #eaf2ff;
+  border-radius: 18rpx;
+}
+
+.menu-copy {
+  margin-top: 14rpx;
+  min-width: 0;
+}
+
+.menu-label {
+  color: #1f2937;
+  font-size: 27rpx;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 .box2 {
   margin: 10rpx 0;

@@ -117,6 +117,34 @@ function refundOrder(orderNumber, reason) {
 }
 
 /**
+ * 主动同步微信支付状态
+ * @param {string|number} orderId - 订单ID
+ * @returns {Promise<Object>} 同步结果
+ */
+function syncPayStatus(orderId) {
+  return request({
+    url: `${url}/api/wx-pay/sync/${orderId}`,
+    method: 'POST'
+  }).then(res => {
+    return res.data;
+  });
+}
+
+/**
+ * 开发模式：模拟跑腿订单支付成功
+ * @param {string|number} orderId - 订单ID
+ * @returns {Promise<Object>} 模拟支付结果
+ */
+function mockPaySuccess(orderId) {
+  return request({
+    url: `${url}/api/dev/orders/${orderId}/mock-pay-success`,
+    method: 'POST'
+  }).then(res => {
+    return res.data;
+  });
+}
+
+/**
  * 确认订单
  * @param {string|number} orderId - 订单ID
  * @returns {Promise<Object>} 确认结果
@@ -152,6 +180,8 @@ module.exports = {
   deleteOrder,
   cancelOrder,
   refundOrder,
+  syncPayStatus,
+  mockPaySuccess,
   confirmOrder,
   getTakerPaymentCode
 };

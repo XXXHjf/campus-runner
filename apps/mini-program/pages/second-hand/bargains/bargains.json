@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "议价记录",
+  "usingComponents": {
+    "t-button": "tdesign-miniprogram/button/button",
+    "t-tabs": "tdesign-miniprogram/tabs/tabs",
+    "t-tab-panel": "tdesign-miniprogram/tab-panel/tab-panel",
+    "t-tag": "tdesign-miniprogram/tag/tag"
+  },
+  "enablePullDownRefresh": true
+}

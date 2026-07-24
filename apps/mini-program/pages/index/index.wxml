@@ -1,8 +1,20 @@
 <!-- 首页展示 -->
 <view class="show">
   <!-- 轮播图区域 -->
-  <view style="margin:15rpx;">
+  <view class="banner-wrap">
     <t-swiper current="{{current}}" autoplay="{{autoplay}}" duration="{{duration}}" interval="{{interval}}" list="{{swiperList}}" navigation="{{ { type: 'dots-bar' } }}" />
+  </view>
+
+  <view class="runner-panel">
+    <view class="runner-copy">
+      <view class="runner-eyebrow">跑腿大厅</view>
+      <!-- <view class="runner-title">发布需求，等同校同学接单</view> -->
+      <view class="runner-subtitle">取送、代买、临时帮忙从这里开始</view>
+    </view>
+    <view class="runner-cta" bindtap="gotoPublishRunner">
+      <t-icon name="add-circle" size="38rpx" color="#ffffff" />
+      <text>发布跑腿</text>
+    </view>
   </view>
 
   <view>
@@ -122,7 +134,7 @@
   </view>
 </view>
 
-<!-- 首次使用（本地无缓存）提示弹出层 -->
+<!-- 首次使用提示弹出层 -->
 <t-popup visible="{{visible}}" bind:visible-change="onVisibleChange" placement='bottom'>
   <view>
 

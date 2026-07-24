@@ -2,6 +2,10 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.mikasa.campusrunner.mapper.WxTransferLogMapper">
+    <select id="getByOrderNumber" resultType="com.mikasa.campusrunner.pojo.entity.WxTransferLog">
+        select * from tb_wx_transfer_log where order_number = #{orderNumber} and deleted = 0 limit 1
+    </select>
+
     <insert id="insert">
         INSERT INTO tb_wx_transfer_log(
             id,
@@ -38,9 +42,13 @@
         UPDATE
             tb_wx_transfer_log
         <set>
+            <if test="transferBillNo != null and transferBillNo != ''">transfer_bill_no = #{transferBillNo}, </if>
             <if test="state != null and state != ''">state = #{state}, </if>
             <if test="mchId != null and mchId != ''">mch_id = #{mchId}, </if>
+            <if test="transferAmount != null">transfer_amount = #{transferAmount}, </if>
+            <if test="openid != null and openid != ''">openid = #{openid}, </if>
             <if test="content != null and content != ''">content = #{content}, </if>
+            <if test="createTime != null and createTime != ''">create_time = #{createTime}, </if>
             <if test="updateTime != null and updateTime != ''">update_time = #{updateTime}, </if>
         </set>
         where order_number = #{orderNumber}

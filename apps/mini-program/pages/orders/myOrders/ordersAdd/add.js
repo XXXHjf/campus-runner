@@ -1123,11 +1123,28 @@ Page({
   async _handlePayment(orderID) {
     try {
       showLoading('发起支付');
+      if (getApp().globalData.MOCK_PAYMENT) {
+        await userOrderService.mockPaySuccess(orderID);
+        hideLoading();
+        checkCilcleToast(this, '模拟支付成功');
+        this._redirectToHome();
+        return;
+      }
       const transactionRes = await this._apiPostTransaction(orderID);
       await this._requestRegister(transactionRes);
+      let synced = true;
+      try {
+        await this._syncPayStatus(orderID);
+      } catch (syncError) {
+        synced = false;
+        console.error('[订单支付] 支付状态同步失败:', syncError);
+      }
       
       hideLoading();
       checkCilcleToast(this, '发布成功');
+      if (!synced) {
+        showWarningToast(this, '支付成功，状态同步稍后刷新');
+      }
       this._redirectToHome();
     } catch (error) {
       hideLoading();
@@ -1138,6 +1155,21 @@ Page({
         wx.reLaunch({ url: '/pages/orders/myOrders/ordersShow/show' });
       }, 2000);
     }
+  },
+
+  async _syncPayStatus(orderID, retryTimes = 3) {
+    let lastError = null;
+    for (let index = 0; index < retryTimes; index += 1) {
+      try {
+        return await userOrderService.syncPayStatus(orderID);
+      } catch (error) {
+        lastError = error;
+        if (index < retryTimes - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+    }
+    throw lastError;
   },
   
   // 跳转到首页

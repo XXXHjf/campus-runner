@@ -12,6 +12,9 @@ const url = getApp().globalData.API_URL;
  * @returns {Array} 安全的数据数组
  */
 function safeList(res) {
+  if (res && res.data && res.data.code !== undefined && res.data.code !== 1) {
+    throw new Error(res.data.msg || '接口返回异常');
+  }
   if (res && res.data && Array.isArray(res.data.data)) {
     return res.data.data;
   }
@@ -32,9 +35,10 @@ function request(options) {
   return new Promise((resolve, reject) => {
     // *** 改进：使用 tokenManager 统一获取 token ***
     const token = tokenManager.getToken();
+    const requestUrl = options.url;
     
     wx.request({
-      url: options.url,
+      url: requestUrl,
       method: options.method || 'GET',
       data: options.data,
       header: {
@@ -42,6 +46,7 @@ function request(options) {
         'token': token,
         ...options.header
       },
+      timeout: options.timeout || 10000,
       success: (res) => {
         if (res.statusCode === 200) {
           resolve(res);
@@ -56,7 +61,7 @@ function request(options) {
         }
       },
       fail: (error) => {
-        console.error('网络请求失败:', error);
+        console.error('网络请求失败:', requestUrl, error);
         reject(error);
       }
     });
@@ -78,6 +83,7 @@ function refreshTokenAndRetry(originalOptions) {
           method: 'POST',
           data: { code: loginRes.code },
           header: { 'Content-Type': 'application/json' },
+          timeout: 10000,
           success: (res) => {
             if (res.statusCode === 200 && res.data.data) {
               console.log('获取新token', res.data.data.token);
@@ -96,6 +102,7 @@ function refreshTokenAndRetry(originalOptions) {
               
               wx.request({
                 ...retryOptions,
+                timeout: retryOptions.timeout || 10000,
                 success: resolve,
                 fail: reject
               });

@@ -17,6 +17,7 @@ import SchoolManagement from '../pages/SchoolManagement/SchoolManagement'
 import AuthManagement from '../pages/AuthManagement/AuthManagement'
 import BannerManagement from '../pages/BannerManagement/BannerManagement'
 import SystemConfigManagement from '../pages/SystemConfigManagement/SystemConfigManagement'
+import SecondHandManagement from '../pages/SecondHandManagement/SecondHandManagement'
 import { tokenManager } from '../utils/token'
 
 // 路由守卫：需要登录才能访问
@@ -132,6 +133,12 @@ export const router = createBrowserRouter([
       {
         path: 'category',
         element: <CategoryManagement />,
+      },
+
+      // 二手交易
+      {
+        path: 'second-hand',
+        element: <SecondHandManagement />,
       },
 
       // 财务管理

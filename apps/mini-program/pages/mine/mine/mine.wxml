@@ -19,14 +19,20 @@
         </view>
       </view>
     </view>
-    <t-divider />
-    <!-- 菜单项 -->
-    <view class="box1-2">
-      <t-tab-bar t-class="t-tab-bar" value="{{value}}" bindchange="{{userInfo==null?'loginTap':'onChange'}}" theme="tag" shapebordered="{{false}}" split="{{false}}" fixed="{{false}}" safe-area-inset-bottom="{{false}}">
-        <t-tab-bar-item wx:for="{{list}}" wx:key="index" value="{{item.value}}" icon="{{item.icon}}">
-          {{item.label}}
-        </t-tab-bar-item>
-      </t-tab-bar>
+  </view>
+
+  <!-- 快捷入口 -->
+  <view class="menu-section" wx:for="{{menuSections}}" wx:key="title">
+    <view class="menu-section-title">{{item.title}}</view>
+    <view class="menu-grid {{item.items.length==3?'three':'two'}}">
+      <view wx:for="{{item.items}}" wx:for-item="menu" wx:key="value" class="menu-card" data-value="{{menu.value}}" bindtap="onMenuTap">
+        <view class="menu-icon">
+          <t-icon name="{{menu.icon}}" size="42rpx" color="#0052d9" />
+        </view>
+        <view class="menu-copy">
+          <view class="menu-label">{{menu.label}}</view>
+        </view>
+      </view>
     </view>
   </view>
 
@@ -44,7 +50,7 @@
             <t-tag theme="danger" variant="light" size="small" style="margin-left: 12rpx;">30分钟内支付</t-tag>
           </view>
           <view class="payment-desc unpaid-desc">
-            <text>{{unpaidOrderList.length}}个订单待支付，超时将自动删除</text>
+            <text>{{unpaidOrderList.length}}个订单待支付，请尽快完成支付</text>
           </view>
         </view>
       </view>

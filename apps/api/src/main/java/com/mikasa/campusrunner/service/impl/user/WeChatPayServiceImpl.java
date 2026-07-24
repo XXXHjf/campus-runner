@@ -197,6 +197,39 @@ public class WeChatPayServiceImpl implements WeChatPayService {
 
     }
 
+    @Override
+    @Transactional
+    public void syncPaidOrder(Long orderId) throws Exception {
+        Order order = orderMapper.getById(orderId);
+        if (order == null) {
+            throw new OrderException(MessageConstant.NOT_FOUND_ORDER);
+        }
+        if (!order.getUserId().equals(BaseContext.getCurrentId())) {
+            throw new OrderException(MessageConstant.NOT_YOUR_ORDER);
+        }
+        if (!OrderStatusConstant.NO_PAY.equals(order.getStatus())) {
+            return;
+        }
+
+        String result = weChatQueryOrder(order.getOrderNumber());
+        if (result.startsWith("ERROR")) {
+            throw new IOException("微信查单失败: " + result);
+        }
+
+        Map resultMap = JSONObject.parseObject(result, HashMap.class);
+        String tradeState = (String) resultMap.get(WeChatPayConstant.TRADE_STATE);
+        if (WeChatPayConstant.TRADE_SUCCESS.equals(tradeState)) {
+            log.info("Active payment sync successful, orderNumber: {}", order.getOrderNumber());
+            orderService.updateStatusByOrderNumber(order.getOrderNumber(), OrderStatusConstant.WAIT_TO_TAKE_ORDER);
+            paymentLogService.savePaymentInfoLog(result);
+            return;
+        }
+        if (WeChatPayConstant.TRADE_NOTPAY.equals(tradeState)) {
+            throw new OrderException("订单尚未支付");
+        }
+        throw new OrderException("微信支付状态：" + tradeState);
+    }
+
 
     /**
      * 回调通知处理订单
