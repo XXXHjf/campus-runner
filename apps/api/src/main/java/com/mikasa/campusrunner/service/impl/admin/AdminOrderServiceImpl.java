@@ -1,6 +1,8 @@
 package com.mikasa.campusrunner.service.impl.admin;
 
 import com.mikasa.campusrunner.common.constant.MessageConstant;
+import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
+import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.common.constant.OrderStatusConstant;
 import com.mikasa.campusrunner.common.exception.OrderException;
 import com.mikasa.campusrunner.mapper.OrderMapper;
@@ -10,6 +12,7 @@ import com.mikasa.campusrunner.pojo.entity.Order;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderDetailVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderListVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderStatisticsVO;
+import com.mikasa.campusrunner.service.MediaAssetService;
 import com.mikasa.campusrunner.service.admin.AdminOrderService;
 import com.mikasa.campusrunner.service.user.WeChatPayService;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +31,9 @@ public class AdminOrderServiceImpl implements AdminOrderService {
 
     @Autowired
     private OrderMapper orderMapper;
+
+    @Autowired
+    private MediaAssetService mediaAssetService;
 
     @Autowired(required = false)
     private WeChatPayService weChatPayService;
@@ -104,7 +110,29 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     @Override
     public AdminOrderDetailVO detail(Long id) {
         log.info("Getting order detail, id={}", id);
-        return orderMapper.getAdminOrderDetail(id);
+        AdminOrderDetailVO order = orderMapper.getAdminOrderDetail(id);
+        if (order == null) {
+            return null;
+        }
+        var contentImages = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_ORDER,
+                order.getId(),
+                MediaPurpose.ORDER_IMAGE.name());
+        if (!contentImages.isEmpty()) {
+            order.setImageAssetId(contentImages.get(0).getMediaId());
+            order.setImage(contentImages.get(0).getUrl());
+        }
+        if (order.getTakeOrderId() != null) {
+            var proofImages = mediaAssetService.resolveAuthorizedBinding(
+                    MediaAssetConstant.BOUND_TAKE_ORDER,
+                    order.getTakeOrderId(),
+                    MediaPurpose.DELIVERY_PROOF.name());
+            if (!proofImages.isEmpty()) {
+                order.setTakerImageAssetId(proofImages.get(0).getMediaId());
+                order.setTakerImage(proofImages.get(0).getUrl());
+            }
+        }
+        return order;
     }
 
     @Override
@@ -146,7 +174,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         Integer status = order.getStatus();
         if (!status.equals(OrderStatusConstant.WAIT_TO_TAKE_ORDER) &&
             !status.equals(OrderStatusConstant.NO_PAY)) {
-            throw new OrderException("Order status does not allow cancellation");
+            throw new OrderException("当前订单状态不能取消");
         }
         order.setStatus(OrderStatusConstant.CANCELED);
         order.setCancelReson(reason);
@@ -163,11 +191,11 @@ public class AdminOrderServiceImpl implements AdminOrderService {
             throw new OrderException(MessageConstant.NOT_FOUND_ORDER);
         }
         if (order.getPayAmount() == null || order.getPayAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new OrderException("Order has no paid amount to refund");
+            throw new OrderException("该订单没有可退款金额");
         }
         if (order.getStatus().equals(OrderStatusConstant.WITHDRAWAL_SUCCEEDED) ||
             order.getStatus().equals(OrderStatusConstant.WITHDRAWAL_FAILED)) {
-            throw new OrderException("Order has already been withdrawn, cannot refund");
+            throw new OrderException("该订单已完成收款，不能退款");
         }
 
         order.setStatus(OrderStatusConstant.REFUND_PROCESSING);

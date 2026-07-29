@@ -5,6 +5,12 @@ import com.mikasa.campusrunner.common.exception.UploadException;
 import java.util.Set;
 
 public enum MediaPurpose {
+    ORDER_CATEGORY_ICON(
+            "order/category",
+            MediaAssetConstant.VISIBILITY_PUBLIC,
+            2L * 1024 * 1024,
+            4096,
+            Set.of("image/jpeg", "image/png", "image/webp")),
     SECOND_HAND_CATEGORY_ICON(
             "second-hand/category",
             MediaAssetConstant.VISIBILITY_PUBLIC,
@@ -106,10 +112,10 @@ public enum MediaPurpose {
 
     public boolean allowsOwnerType(String ownerType) {
         if (MediaAssetConstant.OWNER_ADMIN.equals(ownerType)) {
-            return this == SECOND_HAND_CATEGORY_ICON || this == BANNER;
+            return this == ORDER_CATEGORY_ICON || this == SECOND_HAND_CATEGORY_ICON || this == BANNER;
         }
         if (MediaAssetConstant.OWNER_USER.equals(ownerType)) {
-            return this != SECOND_HAND_CATEGORY_ICON && this != BANNER;
+            return this != ORDER_CATEGORY_ICON && this != SECOND_HAND_CATEGORY_ICON && this != BANNER;
         }
         return false;
     }

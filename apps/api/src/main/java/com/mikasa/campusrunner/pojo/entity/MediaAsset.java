@@ -25,6 +25,7 @@ public class MediaAsset {
     private Integer height;
     private String boundType;
     private Long boundId;
+    private Integer sortOrder;
     private LocalDateTime boundAt;
     private LocalDateTime expiresAt;
     private LocalDateTime deleteAfter;

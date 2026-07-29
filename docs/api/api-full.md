@@ -1,3 +1,5 @@
+> 本文件包含历史生成内容。图片上传与关联的新接口以
+> [统一图片资源接口](media-assets.md) 为准；旧 `/api/upload` 仅用于滚动升级兼容。
 
  <h1 class="curproject-name"> 跑腿 </h1> 
 
@@ -965,4 +967,3 @@
   </thead><tbody className="ant-table-tbody"><tr key=0-0><td key=0><span style="padding-left: 0px"><span style="color: #8c8a8a"></span> code</span></td><td key=1><span>number</span></td><td key=2>必须</td><td key=3></td><td key=4><span style="white-space: pre-wrap"></span></td><td key=5></td></tr><tr key=0-1><td key=0><span style="padding-left: 0px"><span style="color: #8c8a8a"></span> message</span></td><td key=1><span>string</span></td><td key=2>必须</td><td key=3></td><td key=4><span style="white-space: pre-wrap"></span></td><td key=5></td></tr><tr key=0-2><td key=0><span style="padding-left: 0px"><span style="color: #8c8a8a"></span> data</span></td><td key=1><span>string</span></td><td key=2>必须</td><td key=3></td><td key=4><span style="white-space: pre-wrap"></span></td><td key=5></td></tr>
                </tbody>
               </table>
-​            

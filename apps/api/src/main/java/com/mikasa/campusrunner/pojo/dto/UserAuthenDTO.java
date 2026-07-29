@@ -12,4 +12,5 @@ public class UserAuthenDTO {
     private String realname;
     private String stuId;
     private String studentIdCard;//学生证照片链接
+    private Long studentIdCardAssetId;
 }

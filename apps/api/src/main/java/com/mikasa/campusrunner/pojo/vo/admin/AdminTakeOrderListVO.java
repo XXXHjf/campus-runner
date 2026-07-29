@@ -24,6 +24,7 @@ public class AdminTakeOrderListVO {
     private String takeOrderTime;
     private String deliveryTime;
     private String takeOrderImage;
+    private Long takeOrderImageAssetId;
     private String completeTime;
     private Integer withdrawalStatus;
 }

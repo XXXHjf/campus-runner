@@ -1,6 +1,7 @@
 import { del, request } from './request'
 
 export type MediaPurpose =
+  | 'ORDER_CATEGORY_ICON'
   | 'SECOND_HAND_CATEGORY_ICON'
   | 'SECOND_HAND_PRODUCT_IMAGE'
   | 'ORDER_IMAGE'

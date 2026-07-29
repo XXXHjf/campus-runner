@@ -3,6 +3,7 @@ package com.mikasa.campusrunner.pojo.dto;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 public class SecondHandProductDTO {
@@ -12,6 +13,7 @@ public class SecondHandProductDTO {
     private String title;
     private String description;
     private String images;
+    private List<Long> imageAssetIds;
     private String conditionLevel;
     private BigDecimal price;
     private Long pickupAddressId;

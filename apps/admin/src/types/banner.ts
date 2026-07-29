@@ -12,6 +12,7 @@ export enum BannerJumpType {
 export interface Banner {
   id: number
   imgUrl: string
+  imageAssetId?: number
   title: string
   schoolId: number
   schoolName?: string | null
@@ -24,7 +25,8 @@ export interface Banner {
 }
 
 export interface BannerCreateRequest {
-  imgUrl: string
+  imgUrl?: string
+  imageAssetId?: number
   title: string
   schoolId: number
   jumpType: BannerJumpType

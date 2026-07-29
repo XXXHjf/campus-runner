@@ -45,6 +45,7 @@ public class Order {
     private Integer status;
     private String note;
     private String image;
+    private Long imageAssetId;
     private Long categoryId;
     private Integer deleted;
 }

@@ -23,6 +23,9 @@ generator: "@tarslib/widdershins v4.0.30"
 
 campusRunner接口文档
 
+> 图片上传与业务关联已迁移到统一媒体资源接口。本文中旧 `/api/upload` 和直接提交图片 URL
+> 的内容仅用于历史兼容；新开发以 [统一图片资源接口](media-assets.md) 为准。
+
 Base URLs:
 
 License: <a href="http://springdoc.org">Apache 2.0</a>

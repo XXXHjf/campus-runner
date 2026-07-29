@@ -2,6 +2,7 @@ import Toast from 'tdesign-miniprogram/toast/index';
 
 // 引入服务和工具
 const userService = require('../../../services/userService');
+const mediaService = require('../../../services/mediaService');
 const tokenManager = require('../../../utils/tokenManager');
 const { showLoading, hideLoading, showError } = require('../../../utils/transformers');
 const {
@@ -14,8 +15,6 @@ const {
   compressImageSmart
 } = require('../../../utils/commonJs');
 
-const url = getApp().globalData.API_URL;
-
 Page({
   data: {
     userInfo: null,
@@ -24,6 +23,7 @@ Page({
     phoneNumber: null,
 
     newAvatar: null,
+    newAvatarAssetId: null,
     newNickName: null,
   },
   // 头像
@@ -90,14 +90,15 @@ Page({
       
       // 如果用户更换了头像，需要先上传到服务器
       if (this.data.newAvatar) {
-        const uploadedAvatarUrl = await this.uploadAvatar(this.data.newAvatar);
+        const uploaded = await mediaService.uploadImage(this.data.newAvatar, 'AVATAR');
         this.setData({
-          newAvatar: uploadedAvatarUrl,
+          newAvatarAssetId: uploaded.mediaId,
         });
       }
       
       // 更新用户信息到后端
       await this.updateUser();
+      this.setData({ newAvatarAssetId: null });
       
       hideLoading();
       checkCilcleToast(this, "保存成功");
@@ -106,6 +107,10 @@ Page({
         wx.navigateBack();
       }, 1500);
     } catch (error) {
+      if (this.data.newAvatarAssetId) {
+        mediaService.releaseTemporaryImage(this.data.newAvatarAssetId).catch(() => {});
+        this.setData({ newAvatarAssetId: null });
+      }
       hideLoading();
       console.error('[保存失败]:', error);
       errorCilcleToast(this, error.message || "保存失败，请重试");
@@ -145,42 +150,6 @@ Page({
     return true;
   },
   
-  // 上传头像到服务器
-  uploadAvatar(filePath) {
-    return new Promise((resolve, reject) => {
-      wx.uploadFile({
-        url: `${url}/api/upload`,
-        filePath: filePath,
-        name: 'img',
-        header: {
-          'token': tokenManager.getToken(),
-          'Content-Type': 'multipart/form-data'
-        },
-        formData: {
-          'dirName': 'avatar',
-        },
-        success: (res) => {
-          try {
-            const data = JSON.parse(res.data);
-            if (data.code === 1) {
-              console.log('[上传头像] 成功:', data.data);
-              resolve(data.data);
-            } else {
-              console.error('[上传头像] 失败:', data);
-              reject(new Error(data.msg || '上传头像失败'));
-            }
-          } catch (e) {
-            console.error('[上传头像] 解析响应失败:', e);
-            reject(new Error('上传头像失败'));
-          }
-        },
-        fail: (err) => {
-          console.error('[上传头像] 请求失败:', err);
-          reject(new Error('上传头像失败'));
-        }
-      });
-    });
-  },
   // 更新用户数据（使用封装的 service）
   async updateUser() {
     if (this.data.phoneError == true) {
@@ -190,7 +159,8 @@ Page({
     // 准备更新数据
     const updatedUserInfo = {
       username: this.data.newNickName || this.data.userInfo.username,
-      headImg: this.data.newAvatar || this.data.userInfo.headImg,
+      headImg: this.data.newAvatarAssetId ? null : (this.data.newAvatar || this.data.userInfo.headImg),
+      headImgAssetId: this.data.newAvatarAssetId,
       phone: this.data.phoneNumber || this.data.userInfo.phone,
     };
 

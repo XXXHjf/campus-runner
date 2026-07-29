@@ -66,7 +66,7 @@ export default function Login() {
       console.log('登录响应', data)
       const token = getTokenFromLoginResponse(data)
       if (!token) {
-        throw new Error('登录失败：后端未返回 token，请检查账号或接口')
+        throw new Error('登录失败，请确认账号信息后重试')
       }
 
       // 保存 token

@@ -2,6 +2,7 @@ import Toast from 'tdesign-miniprogram/toast/index';
 
 // 引入服务和工具
 const userService = require('../../../services/userService');
+const mediaService = require('../../../services/mediaService');
 const tokenManager = require('../../../utils/tokenManager');
 const { showLoading, hideLoading, showError } = require('../../../utils/transformers');
 const {
@@ -12,8 +13,6 @@ const {
   showSuccessToast,
   compressImageSmart
 } = require('../../../utils/commonJs');
-
-const url = getApp().globalData.API_URL;
 
 // pages/mine/paycode/paycode.js
 Page({
@@ -67,11 +66,14 @@ Page({
       }
       
       // 等待上传完成  
-      const uploadResult = await this._uploadQRCode(localPath);
-      const codeUrl = JSON.parse(uploadResult.data).data;
-      console.log(codeUrl);
-      // 等待更新完毕
-      const updateResult = await this._updateCode(codeUrl, '');
+      const uploaded = await mediaService.uploadImage(localPath, 'PAYMENT_QR');
+      let updateResult;
+      try {
+        updateResult = await this._updateCode(uploaded.mediaId);
+      } catch (error) {
+        await mediaService.releaseTemporaryImage(uploaded.mediaId).catch(() => {});
+        throw error;
+      }
       showSuccessToast(this, updateResult)
       this.setData({
         wxCodeSrc: localPath,
@@ -96,35 +98,9 @@ Page({
     }
   },
 
-  // 上传二维码到oss，res里有返回的路径
-  _uploadQRCode(localPath) {
-    return new Promise((resolve, reject) => {
-      wx.uploadFile({
-        url: `${url}/api/upload`,
-        filePath: localPath,
-        name: 'img',
-        dirName: 'QRcode/wxQRCode',
-        header: {
-          'token': tokenManager.getToken(),
-          "Content-Type": "multipart/form-data"
-        },
-        formData: {
-          'dirName': 'QRcode/wxQRCode',
-        },
-        success: (res) => {
-          resolve(res);
-        },
-        fail: (err) => {
-          reject(new Error("上传失败请稍后重试"));
-        }
-      });
-    })
-  },
-
-  // 根据上传文件得到的url更新数据库（使用封装的 service）
-  async _updateCode(wxUrl, aliUrl) {
+  async _updateCode(weChatPaymentCodeAssetId) {
     try {
-      await userService.updatePaymentCode(wxUrl, aliUrl);
+      await userService.updatePaymentCode({ weChatPaymentCodeAssetId });
       return "成功更换二维码";
     } catch (error) {
       console.error('更新支付码失败:', error);

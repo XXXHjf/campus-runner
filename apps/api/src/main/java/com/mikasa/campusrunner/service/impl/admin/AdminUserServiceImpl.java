@@ -1,10 +1,13 @@
 package com.mikasa.campusrunner.service.impl.admin;
 
+import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
+import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.mapper.UserMapper;
 import com.mikasa.campusrunner.pojo.dto.PageResult;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminUserDetailVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminUserListVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminUserStatisticsVO;
+import com.mikasa.campusrunner.service.MediaAssetService;
 import com.mikasa.campusrunner.service.admin.AdminUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,11 +23,15 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private MediaAssetService mediaAssetService;
+
     @Override
     public PageResult<AdminUserListVO> listAll(int page, int pageSize) {
         log.info("Listing all users, page={}, pageSize={}", page, pageSize);
         int offset = (page - 1) * pageSize;
         List<AdminUserListVO> list = userMapper.getAllUsers(offset, pageSize);
+        list.forEach(this::resolveListAvatar);
         long total = userMapper.getAllUsersNum();
         return new PageResult<>(total, page, pageSize, list);
     }
@@ -34,6 +41,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         log.info("Listing authenticated users, page={}, pageSize={}", page, pageSize);
         int offset = (page - 1) * pageSize;
         List<AdminUserListVO> list = userMapper.getAuthenticatedUsers(offset, pageSize);
+        list.forEach(this::resolveListAvatar);
         long total = userMapper.countByAuthStatus(1);
         return new PageResult<>(total, page, pageSize, list);
     }
@@ -43,6 +51,17 @@ public class AdminUserServiceImpl implements AdminUserService {
         log.info("Listing pending review users, page={}, pageSize={}", page, pageSize);
         int offset = (page - 1) * pageSize;
         List<AdminUserListVO> list = userMapper.getPendingReviewUsers(offset, pageSize);
+        list.forEach(user -> {
+            resolveListAvatar(user);
+            var studentCards = mediaAssetService.resolveAuthorizedBinding(
+                    MediaAssetConstant.BOUND_USER_STUDENT_CARD,
+                    user.getId(),
+                    MediaPurpose.STUDENT_CARD.name());
+            if (!studentCards.isEmpty()) {
+                user.setStudentIdCardAssetId(studentCards.get(0).getMediaId());
+                user.setStudentIdCard(studentCards.get(0).getUrl());
+            }
+        });
         long total = userMapper.countByReviewStatus(1);
         return new PageResult<>(total, page, pageSize, list);
     }
@@ -50,7 +69,9 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public AdminUserDetailVO detail(Long id) {
         log.info("Getting user detail, id={}", id);
-        return userMapper.getAdminUserDetail(id);
+        AdminUserDetailVO user = userMapper.getAdminUserDetail(id);
+        resolveDetailMedia(user);
+        return user;
     }
 
     @Override
@@ -69,5 +90,54 @@ public class AdminUserServiceImpl implements AdminUserService {
         vo.setTodayNewCount(userMapper.countTodayNew(startTime, endTime).intValue());
 
         return vo;
+    }
+
+    private void resolveListAvatar(AdminUserListVO user) {
+        var avatars = mediaAssetService.resolvePublicBinding(
+                MediaAssetConstant.BOUND_USER_AVATAR,
+                user.getId(),
+                MediaPurpose.AVATAR.name());
+        if (!avatars.isEmpty()) {
+            user.setHeadImgAssetId(avatars.get(0).getMediaId());
+            user.setHeadImg(avatars.get(0).getUrl());
+        }
+    }
+
+    private void resolveDetailMedia(AdminUserDetailVO user) {
+        if (user == null) {
+            return;
+        }
+        var avatars = mediaAssetService.resolvePublicBinding(
+                MediaAssetConstant.BOUND_USER_AVATAR,
+                user.getId(),
+                MediaPurpose.AVATAR.name());
+        if (!avatars.isEmpty()) {
+            user.setHeadImgAssetId(avatars.get(0).getMediaId());
+            user.setHeadImg(avatars.get(0).getUrl());
+        }
+        var studentCards = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_USER_STUDENT_CARD,
+                user.getId(),
+                MediaPurpose.STUDENT_CARD.name());
+        if (!studentCards.isEmpty()) {
+            user.setStudentIdCardAssetId(studentCards.get(0).getMediaId());
+            user.setStudentIdCard(studentCards.get(0).getUrl());
+        }
+        var alipayCodes = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_USER_ALIPAY_PAYMENT,
+                user.getId(),
+                MediaPurpose.PAYMENT_QR.name());
+        if (!alipayCodes.isEmpty()) {
+            user.setAlipayPaymentCodeAssetId(alipayCodes.get(0).getMediaId());
+            user.setAlipayPaymentCode(alipayCodes.get(0).getUrl());
+        }
+        var wechatCodes = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_USER_WECHAT_PAYMENT,
+                user.getId(),
+                MediaPurpose.PAYMENT_QR.name());
+        if (!wechatCodes.isEmpty()) {
+            user.setWeChatPaymentCodeAssetId(wechatCodes.get(0).getMediaId());
+            user.setWeChatPaymentCode(wechatCodes.get(0).getUrl());
+        }
     }
 }

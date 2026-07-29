@@ -1,8 +1,6 @@
 const secondHandService = require('../../../services/secondHandService');
 const deliveryAddressService = require('../../../services/deliveryAddressService');
-const tokenManager = require('../../../utils/tokenManager');
-
-const url = getApp().globalData.API_URL;
+const mediaService = require('../../../services/mediaService');
 const CONDITION_OPTIONS = ['全新', '几乎全新', '轻微使用', '明显使用'];
 
 Page({
@@ -24,6 +22,7 @@ Page({
       title: '',
       description: '',
       images: '',
+      imageAssetIds: [],
       categoryId: null,
       conditionLevel: '轻微使用',
       price: '',
@@ -83,8 +82,11 @@ Page({
   async loadProduct(id) {
     try {
       const product = await secondHandService.getProduct(id);
-      const imageList = this.parseImages(product.images).map((image) => ({
+      const assetIds = product.imageAssetIds || [];
+      const imageList = this.parseImages(product.images).map((image, index) => ({
         url: image,
+        mediaId: assetIds[index],
+        temporary: false,
         name: image.split('/').pop(),
         status: 'done',
       }));
@@ -97,6 +99,7 @@ Page({
           title: product.title || '',
           description: product.description || '',
           images: product.images || '',
+          imageAssetIds: assetIds,
           categoryId: product.categoryId || null,
           conditionLevel: product.conditionLevel || '轻微使用',
           price: product.price || '',
@@ -195,9 +198,11 @@ Page({
     });
   },
 
-  handleAdd(e) {
+  async handleAdd(e) {
     const files = e.detail.files || [];
-    files.forEach((file) => this.uploadImage(file));
+    for (const file of files) {
+      await this.uploadImage(file);
+    }
   },
 
   async uploadImage(file) {
@@ -207,9 +212,14 @@ Page({
       fileList: [...this.data.fileList, { ...file, status: 'loading' }],
     });
     try {
-      const imageUrl = await this.uploadFile(file.url);
+      const uploaded = await mediaService.uploadImage(
+        file.url,
+        'SECOND_HAND_PRODUCT_IMAGE',
+      );
       this.setData({
-        [`fileList[${index}].url`]: imageUrl,
+        [`fileList[${index}].url`]: uploaded.previewUrl,
+        [`fileList[${index}].mediaId`]: uploaded.mediaId,
+        [`fileList[${index}].temporary`]: true,
         [`fileList[${index}].status`]: 'done',
       });
       this.syncImages();
@@ -221,38 +231,12 @@ Page({
     }
   },
 
-  uploadFile(filePath) {
-    return new Promise((resolve, reject) => {
-      wx.uploadFile({
-        url: `${url}/api/upload`,
-        filePath,
-        name: 'img',
-        header: {
-          token: tokenManager.getToken(),
-          'Content-Type': 'multipart/form-data',
-        },
-        formData: {
-          dirName: 'second-hand',
-        },
-        success: (res) => {
-          try {
-            const data = JSON.parse(res.data);
-            if (data.code === 1) {
-              resolve(data.data);
-            } else {
-              reject(new Error(data.msg || '上传失败'));
-            }
-          } catch (error) {
-            reject(new Error('上传响应解析失败'));
-          }
-        },
-        fail: () => reject(new Error('上传请求失败')),
-      });
-    });
-  },
-
   handleRemove(e) {
     const index = e.detail.index;
+    const removed = this.data.fileList[index];
+    if (removed && removed.temporary && removed.mediaId) {
+      mediaService.releaseTemporaryImage(removed.mediaId).catch(() => {});
+    }
     const fileList = this.data.fileList.filter((_, idx) => idx !== index);
     this.setData({ fileList });
     this.syncImages();
@@ -261,11 +245,18 @@ Page({
   noop() {},
 
   syncImages() {
-    const images = this.data.fileList
-      .filter((file) => file.status === 'done' && file.url)
+    const completed = this.data.fileList.filter((file) => file.status === 'done');
+    const images = completed
+      .filter((file) => file.url && !file.mediaId)
       .map((file) => file.url)
       .join(',');
-    this.setData({ 'form.images': images });
+    const imageAssetIds = completed
+      .filter((file) => file.mediaId)
+      .map((file) => file.mediaId);
+    this.setData({
+      'form.images': images,
+      'form.imageAssetIds': imageAssetIds,
+    });
   },
 
   parseImages(images) {
@@ -291,7 +282,7 @@ Page({
     if (!form.categoryId) return '请选择商品分类';
     if (!price || price <= 0) return '请输入有效价格';
     if (price > 99999) return '价格不能超过 99999';
-    if (!form.images) return '请至少上传 1 张图片';
+    if (!this.data.fileList.some((file) => file.status === 'done')) return '请至少上传 1 张图片';
     if (description.length < 4) return '描述至少 4 个字';
     if (!form.pickupAddressSnapshot) return '请选择自提点';
     return '';
@@ -334,6 +325,7 @@ Page({
       } else {
         await secondHandService.publishProduct(payload);
       }
+      this.submitted = true;
       wx.showToast({ title: this.data.isEdit ? '已保存' : '已发布', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 600);
     } catch (error) {
@@ -341,6 +333,13 @@ Page({
     } finally {
       this.setData({ submitting: false });
     }
+  },
+
+  onUnload() {
+    if (this.submitted) return;
+    this.data.fileList
+      .filter((file) => file.temporary && file.mediaId)
+      .forEach((file) => mediaService.releaseTemporaryImage(file.mediaId).catch(() => {}));
   },
 
   errorText(error, fallback) {

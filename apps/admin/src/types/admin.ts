@@ -192,7 +192,8 @@ export interface AdminTakeOrderStatistics {
 // ----- Category -----
 
 export interface AdminCategory {
-  id: number
-  categoryName: string
-  image?: string
-}
+    id: number
+    categoryName: string
+    image?: string
+    imageAssetId?: number
+  }

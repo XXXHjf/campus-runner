@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Table, Button, Modal, Form, Input, Popconfirm, message, Space, Image } from 'antd'
 import type { AdminCategory } from '../../types/admin'
+import { mediaService } from '../../services'
 import { get, post, put, del } from '../../services/request'
 import './CategoryManagement.css'
 
@@ -19,6 +20,9 @@ export default function CategoryManagement() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<AdminCategory | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [temporaryMediaId, setTemporaryMediaId] = useState<number | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [form] = Form.useForm()
 
   const loadList = async () => {
@@ -51,13 +55,46 @@ export default function CategoryManagement() {
   const openAddModal = () => {
     setEditingCategory(null)
     form.resetFields()
+    setTemporaryMediaId(null)
+    setImagePreview(null)
     setModalOpen(true)
   }
 
   const openEditModal = (record: AdminCategory) => {
     setEditingCategory(record)
-    form.setFieldsValue(record)
+    form.setFieldsValue({ categoryName: record.categoryName })
+    setTemporaryMediaId(null)
+    setImagePreview(record.image || null)
     setModalOpen(true)
+  }
+
+  const closeModal = () => {
+    if (temporaryMediaId) {
+      void mediaService.releaseTemporaryImage(temporaryMediaId).catch((err) => {
+        console.warn('释放临时分类图标失败，将由服务端定时清理', err)
+      })
+    }
+    setTemporaryMediaId(null)
+    setModalOpen(false)
+  }
+
+  const handleImageChange = async (file: File | null) => {
+    if (!file) return
+    setUploading(true)
+    try {
+      const uploaded = await mediaService.uploadImage(file, 'ORDER_CATEGORY_ICON')
+      if (temporaryMediaId) {
+        await mediaService.releaseTemporaryImage(temporaryMediaId).catch(() => {})
+      }
+      setTemporaryMediaId(uploaded.mediaId)
+      setImagePreview(uploaded.previewUrl)
+      form.setFieldValue('imageAssetId', uploaded.mediaId)
+    } catch (err) {
+      console.error('上传分类图标失败', err)
+      message.error('上传分类图标失败')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleSubmit = async () => {
@@ -71,6 +108,7 @@ export default function CategoryManagement() {
         await post('/admin/api/categories', values)
         message.success('新增成功')
       }
+      setTemporaryMediaId(null)
       setModalOpen(false)
       await loadList()
     } catch (err: unknown) {
@@ -192,7 +230,7 @@ export default function CategoryManagement() {
         title={editingCategory ? '编辑分类' : '新增分类'}
         open={modalOpen}
         onOk={handleSubmit}
-        onCancel={() => setModalOpen(false)}
+        onCancel={closeModal}
         confirmLoading={submitting}
         destroyOnClose
       >
@@ -204,8 +242,27 @@ export default function CategoryManagement() {
           >
             <Input placeholder="请输入分类名称" />
           </Form.Item>
-          <Form.Item name="image" label="图标链接">
-            <Input placeholder="可选，输入图片URL" />
+          <Form.Item name="imageAssetId" hidden>
+            <Input />
+          </Form.Item>
+          <Form.Item label="分类图标">
+            <Space direction="vertical">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={uploading}
+                onChange={(event) => void handleImageChange(event.target.files?.[0] || null)}
+              />
+              {uploading && <span>上传中...</span>}
+              {imagePreview && (
+                <Image
+                  src={imagePreview}
+                  width={80}
+                  height={80}
+                  style={{ objectFit: 'cover', borderRadius: 8 }}
+                />
+              )}
+            </Space>
           </Form.Item>
         </Form>
       </Modal>

@@ -16,6 +16,7 @@ import com.mikasa.campusrunner.pojo.dto.OrderSubmitDTO;
 import com.mikasa.campusrunner.pojo.entity.AddressBook;
 import com.mikasa.campusrunner.pojo.entity.Order;
 import com.mikasa.campusrunner.pojo.vo.OrderShowVO;
+import com.mikasa.campusrunner.service.MediaAssetService;
 import com.mikasa.campusrunner.service.user.OrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,6 +62,9 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private WeChatPayUtil weChatPayUtil;
 
+    @Autowired
+    private MediaAssetService mediaAssetService;
+
 
 
 
@@ -73,7 +78,7 @@ public class OrderServiceImpl implements OrderService {
     public List<OrderShowVO> showByPrice(Integer status) {
         Long schoolId = userMapper.getSchoolId(BaseContext.getCurrentId());
         List<OrderShowVO> list = orderMapper.showByPrice(status, schoolId);
-        return list;
+        return resolveOrderImages(list);
     }
 
 
@@ -88,6 +93,9 @@ public class OrderServiceImpl implements OrderService {
     public Order submit(OrderSubmitDTO orderSubmitDTO) {
         Order order = new Order();
         BeanUtils.copyProperties(orderSubmitDTO, order);
+        if (orderSubmitDTO.getImageAssetId() != null) {
+            order.setImage(null);
+        }
         LocalDateTime now = LocalDateTime.now();
         if (orderSubmitDTO.getCancelTime() == null) {
             order.setCancelTime(now.plusHours(TimeConstant.DEFAULT_AUTO_CANCEL_GAP)); //如果没有传取消时间，就默认是24小时
@@ -114,6 +122,18 @@ public class OrderServiceImpl implements OrderService {
         order.setDeleted(DeleteConstant.UN_DELETED);
 
         int row = orderMapper.insert(order);
+        if (orderSubmitDTO.getImageAssetId() != null) {
+            mediaAssetService.replaceBinding(
+                    List.of(orderSubmitDTO.getImageAssetId()),
+                    MediaPurpose.ORDER_IMAGE.name(),
+                    MediaAssetConstant.OWNER_USER,
+                    BaseContext.getCurrentId(),
+                    MediaAssetConstant.BOUND_ORDER,
+                    order.getId(),
+                    1,
+                    Duration.ofDays(7));
+            order.setImageAssetId(orderSubmitDTO.getImageAssetId());
+        }
         return order;
     }
 
@@ -126,6 +146,15 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void deleteByid(Long id) {
         int row = orderMapper.deleteById(id);
+        mediaAssetService.replaceBinding(
+                List.of(),
+                MediaPurpose.ORDER_IMAGE.name(),
+                MediaAssetConstant.OWNER_USER,
+                BaseContext.getCurrentId(),
+                MediaAssetConstant.BOUND_ORDER,
+                id,
+                1,
+                Duration.ofDays(7));
     }
 
     /**
@@ -146,7 +175,7 @@ public class OrderServiceImpl implements OrderService {
 
         List<OrderShowVO> list = orderMapper.showByPickUpAdd(ids);
 
-        return list;
+        return resolveOrderImages(list);
     }
 
     /**
@@ -167,7 +196,7 @@ public class OrderServiceImpl implements OrderService {
 
         List<OrderShowVO> list = orderMapper.showByReciveAdd(ids);
 
-        return list;
+        return resolveOrderImages(list);
     }
 
     /**
@@ -178,7 +207,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public List<OrderShowVO> showMy() {
         List<OrderShowVO> list = orderMapper.getMy(BaseContext.getCurrentId());
-        return list;
+        return resolveOrderImages(list);
     }
 
 
@@ -201,7 +230,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         List<OrderShowVO> list = orderMapper.showByTime(status, schoolId);
-        return list;
+        return resolveOrderImages(list);
     }
 
 
@@ -224,7 +253,7 @@ public class OrderServiceImpl implements OrderService {
 //            throw new OrderException(MessageConstant.STATUS_NOT_WAIT_TO_TAKE_ORDER);
 //        }
         OrderShowVO list = orderMapper.detail(id);
-        return list;
+        return resolveOrderImage(list);
     }
 
     /**
@@ -381,7 +410,7 @@ public class OrderServiceImpl implements OrderService {
             return new ArrayList<>();
         }
         List<OrderShowVO> list = orderMapper.showByDoubleAdd(pickIds, reciveIds);
-        return list;
+        return resolveOrderImages(list);
     }
 
     /**
@@ -399,7 +428,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         List<OrderShowVO> list = orderMapper.showByCategory(id, schoolId);
-        return list;
+        return resolveOrderImages(list);
     }
 
     /**
@@ -513,5 +542,32 @@ public class OrderServiceImpl implements OrderService {
         log.info("Querying withdrawable orders not yet withdrawn...");
         List<Order> list = orderMapper.getNoWithdrawal();
         return list;
+    }
+
+    private List<OrderShowVO> resolveOrderImages(List<OrderShowVO> orders) {
+        orders.forEach(this::resolveOrderImage);
+        return orders;
+    }
+
+    private OrderShowVO resolveOrderImage(OrderShowVO order) {
+        if (order == null) {
+            return null;
+        }
+        var images = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_ORDER,
+                order.getId(),
+                MediaPurpose.ORDER_IMAGE.name());
+        if (!images.isEmpty()) {
+            order.setImageAssetId(images.get(0).getMediaId());
+            order.setImage(images.get(0).getUrl());
+        }
+        var categoryImages = mediaAssetService.resolvePublicBinding(
+                MediaAssetConstant.BOUND_ORDER_CATEGORY,
+                order.getCategoryId(),
+                MediaPurpose.ORDER_CATEGORY_ICON.name());
+        if (!categoryImages.isEmpty()) {
+            order.setCategoryImage(categoryImages.get(0).getUrl());
+        }
+        return order;
     }
 }

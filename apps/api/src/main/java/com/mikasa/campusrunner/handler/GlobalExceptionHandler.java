@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
     public Result exceptionHandler(Exception e){
         log.error("Unknown exception", e);
         if (e instanceof DataAccessException) {
-            return Result.error("数据库表结构或数据异常，请检查本地数据库脚本是否已执行");
+            return Result.error("系统数据异常，请稍后重试或联系管理员");
         }
         return Result.error("服务异常，请稍后重试");
     }

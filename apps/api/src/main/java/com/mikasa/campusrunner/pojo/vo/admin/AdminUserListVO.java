@@ -8,10 +8,13 @@ public class AdminUserListVO {
     private String username;
     private String realname;
     private String headImg;
+    private Long headImgAssetId;
     private Integer sex;
     private String phone;
     private String schoolName;
     private String stuId;
+    private String studentIdCard;
+    private Long studentIdCardAssetId;
     private Integer authentication;
     private Integer studentIdCardReview;
     private Integer score;

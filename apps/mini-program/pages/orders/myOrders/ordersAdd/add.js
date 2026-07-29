@@ -5,6 +5,7 @@ const userOrderService = require('../../../../services/userOrderService');
 const addressService = require('../../../../services/addressService');
 const userService = require('../../../../services/userService');
 const configService = require('../../../../services/configService');
+const mediaService = require('../../../../services/mediaService');
 const tokenManager = require('../../../../utils/tokenManager');
 const { showLoading, hideLoading, showError } = require('../../../../utils/transformers');
 const {
@@ -76,6 +77,7 @@ Page({
     // 图片说明
     fileList: [],
     image: null,
+    imageAssetId: null,
     // 自动取消
     showCancel: '',
     value: '12:00:00',
@@ -209,6 +211,7 @@ Page({
       note: this.data.note,
       fileList: this.data.fileList,
       image: this.data.image,
+      imageAssetId: this.data.imageAssetId,
       price: this.data.price,
       priceAccess: this.data.priceAccess,
       count: this.data.count
@@ -239,6 +242,9 @@ Page({
           });
           checkCilcleToast(this, '已恢复草稿');
         } else {
+          if (draft.imageAssetId) {
+            mediaService.releaseTemporaryImage(draft.imageAssetId).catch(() => {});
+          }
           clearDraft();
           this.setData({ hasLoadedDraft: true });
         }
@@ -793,12 +799,21 @@ Page({
       }
       
       // 上传图片
-      const uploadResult = await this._uploadFileToServer(filePath, fileIndex);
+      const uploadResult = await mediaService.uploadImage(
+        filePath,
+        'ORDER_IMAGE',
+        (progress) => {
+          this.setData({ [`fileList[${fileIndex}].percent`]: progress });
+        },
+      );
       
       // 更新状态为完成
       this.setData({
         [`fileList[${fileIndex}].status`]: 'done',
-        image: uploadResult
+        [`fileList[${fileIndex}].url`]: uploadResult.previewUrl,
+        [`fileList[${fileIndex}].mediaId`]: uploadResult.mediaId,
+        image: null,
+        imageAssetId: uploadResult.mediaId
       });
       
       console.log('[图片上传] 上传成功');
@@ -812,46 +827,6 @@ Page({
     }
   },
   
-  // 上传文件到服务器（提取为独立函数）
-  _uploadFileToServer(filePath, fileIndex) {
-    return new Promise((resolve, reject) => {
-      const task = wx.uploadFile({
-        url: `${url}/api/upload`,
-        filePath: filePath,
-        name: 'img',
-        dirName: 'orders',
-        header: {
-          'token': tokenManager.getToken(),
-          'Content-Type': 'multipart/form-data'
-        },
-        formData: {
-          'dirName': 'orders'
-        },
-        success: (res) => {
-          try {
-            const data = JSON.parse(res.data);
-            if (data.code === 1) {
-              resolve(data.data);
-            } else {
-              reject(new Error(`服务器返回错误: ${data.msg || '未知错误'}`));
-            }
-          } catch (e) {
-            reject(new Error('解析响应失败'));
-          }
-        },
-        fail: (err) => {
-          reject(new Error(`上传请求失败: ${err.errMsg || '未知错误'}`));
-        }
-      });
-      
-      // 监听上传进度
-      task.onProgressUpdate((res) => {
-        this.setData({
-          [`fileList[${fileIndex}].percent`]: res.progress
-        });
-      });
-    });
-  },
   handleRemove(e) {
     const {
       index
@@ -859,9 +834,15 @@ Page({
     const {
       fileList
     } = this.data;
+    const removed = fileList[index];
+    if (removed && removed.mediaId) {
+      mediaService.releaseTemporaryImage(removed.mediaId).catch(() => {});
+    }
     fileList.splice(index, 1);
     this.setData({
       fileList,
+      image: null,
+      imageAssetId: null,
     });
   },
   // 自动取消时间
@@ -1081,6 +1062,7 @@ Page({
         doorAccess: this.data.doorAccess,
         note: this.data.note,
         image: this.data.image,
+        imageAssetId: this.data.imageAssetId,
         cancelTime: this.data.cancelTime,
         gap: this.data.gapReach,
         price: isPaidOrder ? Number(this.data.price) : null,

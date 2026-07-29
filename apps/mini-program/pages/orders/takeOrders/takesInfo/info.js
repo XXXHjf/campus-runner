@@ -2,6 +2,7 @@
 const userOrderService = require('../../../../services/userOrderService');
 const takeOrderService = require('../../../../services/takeOrderService');
 const userService = require('../../../../services/userService');
+const mediaService = require('../../../../services/mediaService');
 const tokenManager = require('../../../../utils/tokenManager');
 const { showLoading, hideLoading, showError } = require('../../../../utils/transformers');
 const { 
@@ -39,6 +40,7 @@ Page({
     showWithImage: false,
     fileList: [],
     image: null,
+    imageAssetId: null,
   },
 
   // 按钮根据状态跳转方法
@@ -170,7 +172,14 @@ Page({
   },
 
   closeWithImage() {
-    this.setData({ showWithImage: false });
+    if (this.data.imageAssetId) {
+      mediaService.releaseTemporaryImage(this.data.imageAssetId).catch(() => {});
+    }
+    this.setData({
+      showWithImage: false,
+      imageAssetId: null,
+      fileList: [],
+    });
     wx.showToast({
       title: '取消上传',
       icon: 'none',
@@ -183,105 +192,62 @@ Page({
   // 图片上传
   handleAdd(e) {
     const { files } = e.detail;
-    files.forEach(file => this.onUpload(file));
+    if (files.length) {
+      this.onUpload(files[files.length - 1]);
+    }
   },
 
-  onUpload(file) {
-    const { fileList } = this.data;
+  async onUpload(file) {
+    const index = 0;
     this.setData({
-      fileList: [...fileList, { ...file, status: 'loading' }],
+      fileList: [{ ...file, status: 'loading' }],
     });
-    const { length } = fileList;
 
-    // 压缩图片后再上传
-    const { compressImageSmart } = require('../../../../utils/commonJs');
-    compressImageSmart(file.url).then(compressedPath => {
-      const task = wx.uploadFile({
-        url: `${url}/api/upload`,
-        filePath: compressedPath,
-        name: 'img',
-        dirName: 'ordersConfirm',
-        header: {
-          'token': tokenManager.getToken(),
-          "Content-Type": "multipart/form-data"
+    try {
+      let filePath = file.url;
+      try {
+        const { compressImageSmart } = require('../../../../utils/commonJs');
+        filePath = await compressImageSmart(file.url);
+      } catch (error) {
+        console.warn('图片压缩失败，使用原图', error);
+      }
+      const uploaded = await mediaService.uploadImage(
+        filePath,
+        'DELIVERY_PROOF',
+        (progress) => {
+          this.setData({ [`fileList[${index}].percent`]: progress });
         },
-        formData: {
-          'dirName': 'ordersConfirm',
-        },
-        success: (res) => {
-          try {
-            const data = JSON.parse(res.data);
-            if (data.code === 1) {
-              this.setData({
-                [`fileList[${length}].status`]: 'done',
-                image: data.data,
-              });
-              console.log('上传成功', res);
-            } else {
-              console.log('上传失败', res);
-            }
-          } catch (e) {
-            console.log('解析响应失败', e);
-          }
-        },
-        fail: (err) => {
-          console.log('上传失败', err);
-        }
-      });
-    }).catch(err => {
-      console.error('图片压缩失败:', err);
-      // 压缩失败，使用原图
-      const task = wx.uploadFile({
-        url: `${url}/api/upload`,
-        filePath: file.url,
-        name: 'img',
-        dirName: 'ordersConfirm',
-        header: {
-          'token': tokenManager.getToken(),
-          "Content-Type": "multipart/form-data"
-        },
-        formData: {
-          'dirName': 'ordersConfirm',
-        },
-        success: (res) => {
-          try {
-            const data = JSON.parse(res.data);
-            if (data.code === 1) {
-              this.setData({
-                [`fileList[${length}].status`]: 'done',
-                image: data.data,
-              });
-              console.log('上传成功', res);
-            } else {
-              console.log('上传失败', res);
-            }
-          } catch (e) {
-            console.log('解析响应失败', e);
-          }
-        },
-        fail: (err) => {
-          console.log('上传失败', err);
-        }
-      });
-    });
-    
-    task.onProgressUpdate((res) => {
+      );
+      if (this.data.imageAssetId) {
+        await mediaService.releaseTemporaryImage(this.data.imageAssetId).catch(() => {});
+      }
       this.setData({
-        [`fileList[${length}].percent`]: res.progress,
+        [`fileList[${index}].status`]: 'done',
+        [`fileList[${index}].url`]: uploaded.previewUrl,
+        [`fileList[${index}].mediaId`]: uploaded.mediaId,
+        image: uploaded.previewUrl,
+        imageAssetId: uploaded.mediaId,
       });
-    });
+    } catch (error) {
+      this.setData({ [`fileList[${index}].status`]: 'failed' });
+      errorCilcleToast(this, '图片上传失败');
+    }
   },
 
   handleRemove(e) {
     const { index } = e.detail;
     const { fileList } = this.data;
+    const removed = fileList[index];
+    if (removed && removed.mediaId) {
+      mediaService.releaseTemporaryImage(removed.mediaId).catch(() => {});
+    }
     fileList.splice(index, 1);
-    this.setData({ fileList });
+    this.setData({ fileList, image: null, imageAssetId: null });
   },
 
   // 已取件2->已派送3（使用封装的 service）
   async statusTo3() {
-    if (!this.data.image) {
+    if (!this.data.imageAssetId && !this.data.image) {
       errorCilcleToast(this, "未上传图片");
       this._loadOrderInfo();
       return;
@@ -292,8 +258,10 @@ Page({
       await takeOrderService.updateTakeOrderStatus({
         id: this.data.taker.id,
         status: 2,
-        image: this.data.image
+        image: this.data.imageAssetId ? null : this.data.image,
+        imageAssetId: this.data.imageAssetId
       });
+      this.setData({ imageAssetId: null, fileList: [] });
       checkCilcleToast(this, "派送成功");
       
       // 发送订阅消息

@@ -4,7 +4,7 @@
 <mapper namespace="com.mikasa.campusrunner.mapper.BannerMapper">
 
 
-    <insert id="insert">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into tb_banner(
                               id,
                               img_url,
@@ -31,6 +31,14 @@
                   #{deleted}
                   )
     </insert>
+
+    <select id="getByIdForUpdate" resultType="com.mikasa.campusrunner.pojo.entity.Banner">
+        select *
+        from tb_banner
+        where id = #{id}
+          and deleted = 0
+        for update
+    </select>
 
     <update id="deleted">
         UPDATE tb_banner

@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class SecondHandOrderVO {
@@ -17,6 +18,7 @@ public class SecondHandOrderVO {
     private String sellerName;
     private String productTitle;
     private String productImages;
+    private List<Long> productImageAssetIds;
     private BigDecimal productAmount;
     private BigDecimal payAmount;
     private BigDecimal serviceFeeRate;

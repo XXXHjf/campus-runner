@@ -14,6 +14,7 @@ import com.mikasa.campusrunner.pojo.dto.UserSaveDTO;
 import com.mikasa.campusrunner.pojo.entity.User;
 import com.mikasa.campusrunner.common.properties.WeChatProperties;
 import com.mikasa.campusrunner.pojo.vo.UserVO;
+import com.mikasa.campusrunner.service.MediaAssetService;
 import com.mikasa.campusrunner.service.user.UserService;
 import com.mikasa.campusrunner.common.utils.HttpClientUtil;
 import org.apache.commons.lang3.StringUtils;
@@ -22,8 +23,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,6 +42,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private MediaAssetService mediaAssetService;
 
     /**
      * 用户微信登录
@@ -106,9 +112,24 @@ public class UserServiceImpl implements UserService {
         //TODO 考虑用户的update_time是否需要在用户每次进行不论什么操作时都要更新？还是就更新修改操作？
         User user = new User();
         BeanUtils.copyProperties(userSaveDTO, user);
-        user.setId(BaseContext.getCurrentId());
+        if (userSaveDTO.getHeadImgAssetId() != null) {
+            user.setHeadImg(null);
+        }
+        Long userId = BaseContext.getCurrentId();
+        user.setId(userId);
 
-        Integer row = userMapper.update(user);
+        userMapper.update(user);
+        if (userSaveDTO.getHeadImgAssetId() != null) {
+            mediaAssetService.replaceBinding(
+                    List.of(userSaveDTO.getHeadImgAssetId()),
+                    MediaPurpose.AVATAR.name(),
+                    MediaAssetConstant.OWNER_USER,
+                    userId,
+                    MediaAssetConstant.BOUND_USER_AVATAR,
+                    userId,
+                    1,
+                    Duration.ofDays(7));
+        }
     }
 
     /**
@@ -121,9 +142,14 @@ public class UserServiceImpl implements UserService {
 
         User user = new User();
         BeanUtils.copyProperties(userAuthenDTO, user);
-        user.setId(BaseContext.getCurrentId());
+        if (userAuthenDTO.getStudentIdCardAssetId() != null) {
+            user.setStudentIdCard(null);
+        }
+        Long userId = BaseContext.getCurrentId();
+        user.setId(userId);
 
-        if(user.getStudentIdCard().isEmpty()) {
+        if (userAuthenDTO.getStudentIdCardAssetId() == null
+                && StringUtils.isBlank(userAuthenDTO.getStudentIdCard())) {
             //说明没传学生证
             throw new UserException(MessageConstant.NO_STUDENT_ID_CARD);
         }
@@ -138,6 +164,17 @@ public class UserServiceImpl implements UserService {
 
         //更新
         userMapper.update(user);
+        if (userAuthenDTO.getStudentIdCardAssetId() != null) {
+            mediaAssetService.replaceBinding(
+                    List.of(userAuthenDTO.getStudentIdCardAssetId()),
+                    MediaPurpose.STUDENT_CARD.name(),
+                    MediaAssetConstant.OWNER_USER,
+                    userId,
+                    MediaAssetConstant.BOUND_USER_STUDENT_CARD,
+                    userId,
+                    1,
+                    Duration.ofDays(7));
+        }
     }
 
 
@@ -148,6 +185,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserVO getCurrentUser() {
         UserVO user = userMapper.getById(BaseContext.getCurrentId());
+        resolveUserMedia(user);
         return user;
     }
 
@@ -156,18 +194,83 @@ public class UserServiceImpl implements UserService {
      * @param userPaymentDTO
      */
     @Override
+    @Transactional
     public void updatePaymentCode(UserPaymentDTO userPaymentDTO) {
         User user = new User();
         LocalDateTime now = LocalDateTime.now();
         user.setId(BaseContext.getCurrentId());
         //设置收款码
-        user.setAlipayPaymentCode(userPaymentDTO.getAliPaymentCode());
-        user.setWeChatPaymentCode(userPaymentDTO.getWeChatPaymentCode());
+        user.setAlipayPaymentCode(userPaymentDTO.getAliPaymentCodeAssetId() == null
+                ? userPaymentDTO.getAliPaymentCode()
+                : null);
+        user.setWeChatPaymentCode(userPaymentDTO.getWeChatPaymentCodeAssetId() == null
+                ? userPaymentDTO.getWeChatPaymentCode()
+                : null);
 
         //更新时间
         user.setUpdateTime(now);
 
         userMapper.update(user);
+        if (userPaymentDTO.getAliPaymentCodeAssetId() != null) {
+            mediaAssetService.replaceBinding(
+                    List.of(userPaymentDTO.getAliPaymentCodeAssetId()),
+                    MediaPurpose.PAYMENT_QR.name(),
+                    MediaAssetConstant.OWNER_USER,
+                    user.getId(),
+                    MediaAssetConstant.BOUND_USER_ALIPAY_PAYMENT,
+                    user.getId(),
+                    1,
+                    Duration.ofDays(7));
+        }
+        if (userPaymentDTO.getWeChatPaymentCodeAssetId() != null) {
+            mediaAssetService.replaceBinding(
+                    List.of(userPaymentDTO.getWeChatPaymentCodeAssetId()),
+                    MediaPurpose.PAYMENT_QR.name(),
+                    MediaAssetConstant.OWNER_USER,
+                    user.getId(),
+                    MediaAssetConstant.BOUND_USER_WECHAT_PAYMENT,
+                    user.getId(),
+                    1,
+                    Duration.ofDays(7));
+        }
+    }
+
+    private void resolveUserMedia(UserVO user) {
+        if (user == null) {
+            return;
+        }
+        var avatars = mediaAssetService.resolvePublicBinding(
+                MediaAssetConstant.BOUND_USER_AVATAR,
+                user.getId(),
+                MediaPurpose.AVATAR.name());
+        if (!avatars.isEmpty()) {
+            user.setHeadImgAssetId(avatars.get(0).getMediaId());
+            user.setHeadImg(avatars.get(0).getUrl());
+        }
+        var studentCards = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_USER_STUDENT_CARD,
+                user.getId(),
+                MediaPurpose.STUDENT_CARD.name());
+        if (!studentCards.isEmpty()) {
+            user.setStudentIdCardAssetId(studentCards.get(0).getMediaId());
+            user.setStudentIdCard(studentCards.get(0).getUrl());
+        }
+        var alipayCodes = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_USER_ALIPAY_PAYMENT,
+                user.getId(),
+                MediaPurpose.PAYMENT_QR.name());
+        if (!alipayCodes.isEmpty()) {
+            user.setAlipayPaymentCodeAssetId(alipayCodes.get(0).getMediaId());
+            user.setAlipayPaymentCode(alipayCodes.get(0).getUrl());
+        }
+        var wechatCodes = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_USER_WECHAT_PAYMENT,
+                user.getId(),
+                MediaPurpose.PAYMENT_QR.name());
+        if (!wechatCodes.isEmpty()) {
+            user.setWeChatPaymentCodeAssetId(wechatCodes.get(0).getMediaId());
+            user.setWeChatPaymentCode(wechatCodes.get(0).getUrl());
+        }
     }
 
     //    @Autowired

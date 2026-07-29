@@ -2,6 +2,7 @@ import Toast from 'tdesign-miniprogram/toast/index';
 
 // 引入服务和工具
 const userService = require('../../../services/userService');
+const mediaService = require('../../../services/mediaService');
 const tokenManager = require('../../../utils/tokenManager');
 const { showLoading, hideLoading, showError } = require('../../../utils/transformers');
 const {
@@ -11,7 +12,6 @@ const {
   compressImageSmart
 } = require('../../../utils/commonJs');
 
-const url = getApp().globalData.API_URL;
 const defaultAvatarUrl = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0';
 
 Page({
@@ -24,6 +24,7 @@ Page({
     token: null,
     nickName: null,
     phone: '', // 用户手机号
+    headImgAssetId: null,
     radio: false,
     hasUserInfo: false,
     canIUseGetUserProfile: wx.canIUse('getUserProfile'),
@@ -47,15 +48,20 @@ Page({
       showLoading('注册中');
       
       // 如果用户上传了自定义头像，需要先上传到服务器
-      if (this.data.userInfo.avatarUrl !== defaultAvatarUrl) {
-        const uploadedAvatarUrl = await this.uploadAvatar(this.data.userInfo.avatarUrl);
+      if (this.data.userInfo.avatarUrl !== defaultAvatarUrl
+          && !/^https?:\/\//.test(this.data.userInfo.avatarUrl)) {
+        const uploaded = await mediaService.uploadImage(
+          this.data.userInfo.avatarUrl,
+          'AVATAR',
+        );
         this.setData({
-          "userInfo.avatarUrl": uploadedAvatarUrl,
+          headImgAssetId: uploaded.mediaId,
         });
       }
       
       // 更新用户信息到后端
       await this.updateUser();
+      this.setData({ headImgAssetId: null });
       
       hideLoading();
       showSuccessToast(this, "注册成功");
@@ -64,6 +70,10 @@ Page({
         wx.navigateBack();
       }, 1500);
     } catch (error) {
+      if (this.data.headImgAssetId) {
+        mediaService.releaseTemporaryImage(this.data.headImgAssetId).catch(() => {});
+        this.setData({ headImgAssetId: null });
+      }
       hideLoading();
       console.error('[注册失败]:', error);
       errorCilcleToast(this, error.message || "注册失败，请重试");
@@ -110,42 +120,6 @@ Page({
     return true;
   },
   
-  // 上传头像到服务器
-  uploadAvatar(filePath) {
-    return new Promise((resolve, reject) => {
-      wx.uploadFile({
-        url: `${url}/api/upload`,
-        filePath: filePath,
-        name: 'img',
-        header: {
-          'token': tokenManager.getToken(),
-          'Content-Type': 'multipart/form-data'
-        },
-        formData: {
-          'dirName': 'avatar',
-        },
-        success: (res) => {
-          try {
-            const data = JSON.parse(res.data);
-            if (data.code === 1) {
-              console.log('[上传头像] 成功:', data.data);
-              resolve(data.data);
-            } else {
-              console.error('[上传头像] 失败:', data);
-              reject(new Error(data.msg || '上传头像失败'));
-            }
-          } catch (e) {
-            console.error('[上传头像] 解析响应失败:', e);
-            reject(new Error('上传头像失败'));
-          }
-        },
-        fail: (err) => {
-          console.error('[上传头像] 请求失败:', err);
-          reject(new Error('上传头像失败'));
-        }
-      });
-    });
-  },
   // 更新用户数据（使用封装的 service）
   async updateUser() {
     let nickName = this.data.userInfo.nickName;
@@ -158,7 +132,8 @@ Page({
 
     const userData = {
       username: nickName,
-      headImg: this.data.userInfo.avatarUrl,
+      headImg: this.data.headImgAssetId ? null : this.data.userInfo.avatarUrl,
+      headImgAssetId: this.data.headImgAssetId,
       phone: this.data.phone, // 添加手机号
     };
 

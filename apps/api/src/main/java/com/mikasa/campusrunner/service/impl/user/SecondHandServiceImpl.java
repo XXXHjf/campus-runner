@@ -97,19 +97,20 @@ public class SecondHandServiceImpl implements SecondHandService {
         validateCategory(dto, true);
         SecondHandCategory category = new SecondHandCategory();
         category.setName(dto.getName().trim());
-        category.setImageAssetId(dto.getImageAssetId());
-        category.setImage(blankToNull(dto.getImage()));
+        category.setImage(dto.getImageAssetId() == null ? blankToNull(dto.getImage()) : null);
         category.setSort(dto.getSort() == null ? 0 : dto.getSort());
         category.setDeleted(DeleteConstant.UN_DELETED);
         categoryMapper.insert(category);
-        if (category.getImageAssetId() != null) {
-            mediaAssetService.bind(
-                    category.getImageAssetId(),
+        if (dto.getImageAssetId() != null) {
+            mediaAssetService.replaceBinding(
+                    List.of(dto.getImageAssetId()),
                     MediaPurpose.SECOND_HAND_CATEGORY_ICON.name(),
                     MediaAssetConstant.OWNER_ADMIN,
                     BaseContext.getCurrentId(),
-                    "SECOND_HAND_CATEGORY",
-                    category.getId());
+                    MediaAssetConstant.BOUND_SECOND_HAND_CATEGORY,
+                    category.getId(),
+                    1,
+                    Duration.ofDays(7));
         }
         resolveCategoryImage(category);
         return category;
@@ -129,26 +130,20 @@ public class SecondHandServiceImpl implements SecondHandService {
         update.setName(dto.getName() == null ? null : dto.getName().trim());
         update.setSort(dto.getSort());
 
-        Long newMediaId = dto.getImageAssetId();
-        Long oldMediaId = existing.getImageAssetId();
-        if (newMediaId != null) {
-            update.setImageAssetId(newMediaId);
-            if (!newMediaId.equals(oldMediaId)) {
-                mediaAssetService.bind(
-                        newMediaId,
-                        MediaPurpose.SECOND_HAND_CATEGORY_ICON.name(),
-                        MediaAssetConstant.OWNER_ADMIN,
-                        BaseContext.getCurrentId(),
-                        "SECOND_HAND_CATEGORY",
-                        id);
-            }
+        if (dto.getImageAssetId() != null) {
+            mediaAssetService.replaceBinding(
+                    List.of(dto.getImageAssetId()),
+                    MediaPurpose.SECOND_HAND_CATEGORY_ICON.name(),
+                    MediaAssetConstant.OWNER_ADMIN,
+                    BaseContext.getCurrentId(),
+                    MediaAssetConstant.BOUND_SECOND_HAND_CATEGORY,
+                    id,
+                    1,
+                    Duration.ofDays(7));
         } else if (dto.getImage() != null && !dto.getImage().isBlank()) {
             update.setImage(dto.getImage().trim());
         }
         categoryMapper.update(update);
-        if (oldMediaId != null && newMediaId != null && !oldMediaId.equals(newMediaId)) {
-            mediaAssetService.scheduleBoundDeletion(oldMediaId, Duration.ofDays(7));
-        }
     }
 
     @Override
@@ -159,7 +154,15 @@ public class SecondHandServiceImpl implements SecondHandService {
             throw new SecondHandException("分类不存在");
         }
         categoryMapper.deleteById(id);
-        mediaAssetService.scheduleBoundDeletion(existing.getImageAssetId(), Duration.ofDays(7));
+        mediaAssetService.replaceBinding(
+                List.of(),
+                MediaPurpose.SECOND_HAND_CATEGORY_ICON.name(),
+                MediaAssetConstant.OWNER_ADMIN,
+                BaseContext.getCurrentId(),
+                MediaAssetConstant.BOUND_SECOND_HAND_CATEGORY,
+                id,
+                1,
+                Duration.ofDays(7));
     }
 
     @Override
@@ -196,7 +199,18 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .updateTime(now)
                 .build();
         productMapper.insert(product);
-        return productMapper.detail(product.getId());
+        if (dto.getImageAssetIds() != null) {
+            mediaAssetService.replaceBinding(
+                    dto.getImageAssetIds(),
+                    MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name(),
+                    MediaAssetConstant.OWNER_USER,
+                    userId,
+                    MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
+                    product.getId(),
+                    6,
+                    Duration.ofDays(7));
+        }
+        return resolveProductImages(productMapper.detail(product.getId()));
     }
 
     @Override
@@ -222,6 +236,17 @@ public class SecondHandServiceImpl implements SecondHandService {
         }
         update.setUpdateTime(LocalDateTime.now());
         productMapper.update(update);
+        if (dto.getImageAssetIds() != null) {
+            mediaAssetService.replaceBinding(
+                    dto.getImageAssetIds(),
+                    MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name(),
+                    MediaAssetConstant.OWNER_USER,
+                    BaseContext.getCurrentId(),
+                    MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
+                    id,
+                    6,
+                    Duration.ofDays(7));
+        }
     }
 
     @Override
@@ -257,13 +282,18 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (query.getStatus() == null) {
             query.setStatus(SecondHandConstant.PRODUCT_ON_SALE);
         }
-        return productMapper.list(query, schoolId);
+        List<SecondHandProductVO> products = productMapper.list(query, schoolId);
+        products.forEach(this::resolveProductImages);
+        return products;
     }
 
     @Override
     public List<SecondHandProductVO> listMyProducts() {
         ensureAuthenticated();
-        return productMapper.listBySeller(BaseContext.getCurrentId());
+        List<SecondHandProductVO> products =
+                productMapper.listBySeller(BaseContext.getCurrentId());
+        products.forEach(this::resolveProductImages);
+        return products;
     }
 
     @Override
@@ -273,7 +303,7 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (detail == null) {
             throw new SecondHandException("商品不存在");
         }
-        return detail;
+        return resolveProductImages(detail);
     }
 
     @Override
@@ -575,7 +605,9 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (query == null) {
             query = new SecondHandProductQueryDTO();
         }
-        return productMapper.list(query, null);
+        List<SecondHandProductVO> products = productMapper.list(query, null);
+        products.forEach(this::resolveProductImages);
+        return products;
     }
 
     @Override
@@ -584,7 +616,7 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (detail == null) {
             throw new SecondHandException("商品不存在");
         }
-        return detail;
+        return resolveProductImages(detail);
     }
 
     @Override
@@ -1217,7 +1249,19 @@ public class SecondHandServiceImpl implements SecondHandService {
     }
 
     private void resolveCategoryImage(SecondHandCategory category) {
-        if (category == null || category.getImageAssetId() == null) {
+        if (category == null) {
+            return;
+        }
+        var images = mediaAssetService.resolvePublicBinding(
+                MediaAssetConstant.BOUND_SECOND_HAND_CATEGORY,
+                category.getId(),
+                MediaPurpose.SECOND_HAND_CATEGORY_ICON.name());
+        if (!images.isEmpty()) {
+            category.setImageAssetId(images.get(0).getMediaId());
+            category.setImage(images.get(0).getUrl());
+            return;
+        }
+        if (category.getImageAssetId() == null) {
             return;
         }
         try {
@@ -1242,6 +1286,36 @@ public class SecondHandServiceImpl implements SecondHandService {
                 (trimToNull(dto.getPickupAddressSnapshot()) == null && trimToNull(dto.getPickupLocation()) == null)) {
             throw new ParamException(MessageConstant.NOT_FOUND_PARAM);
         }
+        if ((dto.getImageAssetIds() == null || dto.getImageAssetIds().isEmpty())
+                && trimToNull(dto.getImages()) == null) {
+            throw new ParamException("请至少选择一张商品图片");
+        }
+        if (dto.getImageAssetIds() != null && dto.getImageAssetIds().size() > 6) {
+            throw new ParamException("商品图片不能超过 6 张");
+        }
+    }
+
+    private SecondHandProductVO resolveProductImages(SecondHandProductVO product) {
+        if (product == null) {
+            return null;
+        }
+        var images = mediaAssetService.resolvePublicBinding(
+                MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
+                product.getId(),
+                MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name());
+        if (!images.isEmpty()) {
+            product.setImageAssetIds(images.stream().map(item -> item.getMediaId()).toList());
+            java.util.LinkedHashSet<String> urls = new java.util.LinkedHashSet<>();
+            images.forEach(item -> urls.add(item.getUrl()));
+            if (product.getImages() != null) {
+                java.util.Arrays.stream(product.getImages().split(","))
+                        .map(String::trim)
+                        .filter(item -> !item.isEmpty())
+                        .forEach(urls::add);
+            }
+            product.setImages(String.join(",", urls));
+        }
+        return product;
     }
 
     private Integer resolvePickupOnly(SecondHandProductDTO dto) {
@@ -1339,6 +1413,22 @@ public class SecondHandServiceImpl implements SecondHandService {
     private SecondHandOrderVO enrichOrder(SecondHandOrderVO order) {
         if (order == null) {
             return null;
+        }
+        var images = mediaAssetService.resolvePublicBinding(
+                MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
+                order.getProductId(),
+                MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name());
+        if (!images.isEmpty()) {
+            order.setProductImageAssetIds(images.stream().map(item -> item.getMediaId()).toList());
+            java.util.LinkedHashSet<String> urls = new java.util.LinkedHashSet<>();
+            images.forEach(item -> urls.add(item.getUrl()));
+            if (order.getProductImages() != null) {
+                java.util.Arrays.stream(order.getProductImages().split(","))
+                        .map(String::trim)
+                        .filter(item -> !item.isEmpty())
+                        .forEach(urls::add);
+            }
+            order.setProductImages(String.join(",", urls));
         }
         if (isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY) && order.getCreateTime() != null) {
             int minutes = getIntConfig("second_hand_payment_timeout_minutes", SecondHandConstant.DEFAULT_PAYMENT_TIMEOUT_MINUTES);

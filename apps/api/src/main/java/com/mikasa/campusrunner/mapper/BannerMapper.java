@@ -27,6 +27,8 @@ public interface BannerMapper {
      */
     List<Banner> getListBySchoolId(@Param("schoolId") Long schoolId);
 
+    Banner getByIdForUpdate(@Param("id") Long id);
+
     /**
      * 根据轮播图id删除对应轮播图
      * @param id

@@ -37,11 +37,13 @@ public class TakeOrderVO {
     private Integer status;//原则上接单的
     private String note;
     private String image;//发单的
+    private Long imageAssetId;
     private Long categoryId;
     private String categoryImage;
     private String categoryName;
     private LocalDateTime takeOrderCreateTime;
     private String takeOrderImage;
+    private Long takeOrderImageAssetId;
     private LocalDateTime takeOrderDeliveryTime;
     private LocalDateTime takeOrderCancelTime;
     private String takeOrderCancelReason;

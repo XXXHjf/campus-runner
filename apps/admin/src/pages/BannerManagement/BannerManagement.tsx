@@ -3,12 +3,11 @@
  * - 获取轮播图列表：GET /admin/api/banner/getList/{schoolId}
  * - 新增轮播图：POST /admin/api/banner/add
  * - 删除轮播图：DELETE /admin/api/banner/delete/{id}
- * - 上传图片：POST /api/upload?dirName=...
+ * - 上传临时图片：POST /admin/api/media/images
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { pinyin } from 'pinyin-pro'
-import { bannerService, addressService } from '../../services'
+import { bannerService, addressService, mediaService } from '../../services'
 import type { AdminSchool, Banner, BannerCreateRequest, BannerJumpType } from '../../types'
 import { formatDateTime } from '../../utils/format'
 import './BannerManagement.css'
@@ -34,30 +33,6 @@ function getErrorMessage(err: unknown, fallback: string) {
     if (typeof record.message === 'string') return record.message
   }
   return fallback
-}
-
-function toCamelCase(value: string) {
-  return value
-    .replace(/[^a-zA-Z0-9]+/g, ' ')
-    .split(' ')
-    .filter(Boolean)
-    .map((item) => item.charAt(0).toUpperCase() + item.slice(1))
-    .join('')
-}
-
-function getSchoolDirName(schoolId: number, schoolName?: string) {
-  if (schoolId === 0) return 'banner/common'
-  if (!schoolName) return null
-  const pinyinParts = pinyin(schoolName, { toneType: 'none', type: 'array' })
-  if (Array.isArray(pinyinParts) && pinyinParts.length > 0) {
-    const camel = pinyinParts
-      .filter((item) => item.trim())
-      .map((item) => item.charAt(0).toUpperCase() + item.slice(1))
-      .join('')
-    if (camel) return `banner/${camel}`
-  }
-  const fallback = toCamelCase(schoolName)
-  return fallback ? `banner/${fallback}` : null
 }
 
 function formatCreateTime(value?: string) {
@@ -172,6 +147,7 @@ export default function BannerManagement() {
     setFormState({
       title: '',
       imgUrl: '',
+      imageAssetId: undefined,
       schoolId: nextSchoolId,
       jumpType: 0,
       jumpTarget: '',
@@ -186,6 +162,15 @@ export default function BannerManagement() {
     setAddModalOpen(true)
   }
 
+  const closeAddModal = () => {
+    if (formState.imageAssetId) {
+      void mediaService.releaseTemporaryImage(formState.imageAssetId).catch((err) => {
+        console.warn('释放临时轮播图失败，将由服务端定时清理', err)
+      })
+    }
+    setAddModalOpen(false)
+  }
+
   const handleSchoolChange = (value: number) => {
     setFormState((prev) => ({ ...prev, schoolId: value }))
   }
@@ -198,24 +183,43 @@ export default function BannerManagement() {
     }))
   }
 
+  const handleFileSelection = (file: File | null) => {
+    if (formState.imageAssetId) {
+      void mediaService.releaseTemporaryImage(formState.imageAssetId).catch((err) => {
+        console.warn('释放已替换的临时轮播图失败，将由服务端定时清理', err)
+      })
+    }
+    setFormState((prev) => ({
+      ...prev,
+      imgUrl: '',
+      imageAssetId: undefined,
+    }))
+    setUploadFile(file)
+    setUploadProgress(0)
+    setAddMessage(null)
+  }
+
   const handleUpload = async () => {
     if (!uploadFile) {
       setAddMessage({ type: 'error', text: '请先选择需要上传的图片' })
-      return
-    }
-    const schoolName = schools.find((school) => school.id === formState.schoolId)?.schoolName
-    const dirName = getSchoolDirName(formState.schoolId, schoolName)
-    if (!dirName) {
-      setAddMessage({ type: 'error', text: '学校列表未加载完成，请刷新后重试' })
       return
     }
     setUploading(true)
     setUploadProgress(0)
     setAddMessage(null)
     try {
-      const url = await bannerService.uploadBannerImage(uploadFile, dirName, setUploadProgress)
-      setFormState((prev) => ({ ...prev, imgUrl: url }))
-      setAddMessage({ type: 'success', text: '上传成功，已获取图片链接' })
+      const result = await mediaService.uploadImage(uploadFile, 'BANNER', setUploadProgress)
+      if (formState.imageAssetId) {
+        await mediaService.releaseTemporaryImage(formState.imageAssetId).catch((err) => {
+          console.warn('释放已替换的临时轮播图失败，将由服务端定时清理', err)
+        })
+      }
+      setFormState((prev) => ({
+        ...prev,
+        imgUrl: result.previewUrl,
+        imageAssetId: result.mediaId,
+      }))
+      setAddMessage({ type: 'success', text: '图片上传成功，请点击“保存”完成新增' })
     } catch (err) {
       console.error('上传图片失败', err)
       setAddMessage({ type: 'error', text: getErrorMessage(err, '上传失败，请稍后重试') })
@@ -229,8 +233,8 @@ export default function BannerManagement() {
       setAddMessage({ type: 'error', text: '请填写轮播图标题' })
       return
     }
-    if (!formState.imgUrl.trim()) {
-      setAddMessage({ type: 'error', text: '请先上传图片获取链接' })
+    if (!formState.imageAssetId) {
+      setAddMessage({ type: 'error', text: '请先上传图片' })
       return
     }
     if (formState.jumpType !== 0 && !formState.jumpTarget.trim()) {
@@ -245,9 +249,10 @@ export default function BannerManagement() {
         title: formState.title.trim(),
         jumpTarget: formState.jumpTarget.trim(),
         remark: formState.remark.trim(),
-        imgUrl: formState.imgUrl.trim(),
+        imgUrl: '',
       })
       await loadList(selectedSchoolId)
+      setFormState((prev) => ({ ...prev, imageAssetId: undefined }))
       setAddModalOpen(false)
     } catch (err) {
       console.error('新增轮播图失败', err)
@@ -431,23 +436,12 @@ export default function BannerManagement() {
         </table>
       </div>
 
-      <div className="notice-box">
-        <span className="notice-icon">💡</span>
-        <div className="notice-content">
-          <strong>上传说明：</strong>
-          <ul>
-            <li>上传图片会先调用 `/api/upload` 获取图片链接，再用于新增轮播图</li>
-            <li>上传目录会根据学校自动生成</li>
-          </ul>
-        </div>
-      </div>
-
       {addModalOpen && (
-        <div className="modal-overlay" onClick={() => setAddModalOpen(false)}>
+        <div className="modal-overlay" onClick={closeAddModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>新增轮播图</h2>
-              <button className="modal-close" onClick={() => setAddModalOpen(false)}>
+              <button className="modal-close" onClick={closeAddModal}>
                 ✕
               </button>
             </div>
@@ -498,21 +492,16 @@ export default function BannerManagement() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                    onChange={(e) => handleFileSelection(e.target.files?.[0] || null)}
                   />
                   <button
                     className="btn-secondary"
                     onClick={handleUpload}
-                    disabled={uploading || (formState.schoolId !== 0 && !selectedSchoolName)}
+                    disabled={uploading}
                   >
                     {uploading ? `上传中 ${uploadProgress}%` : '上传图片'}
                   </button>
                 </div>
-                {formState.imgUrl && (
-                  <div className="form-hint">
-                    已获取图片链接：<span className="text-muted">{formState.imgUrl}</span>
-                  </div>
-                )}
                 {(formState.imgUrl || localPreview) && (
                   <div className="image-preview">
                     <img
@@ -544,7 +533,7 @@ export default function BannerManagement() {
                   type="text"
                   value={formState.jumpTarget}
                   onChange={(e) => setFormState((prev) => ({ ...prev, jumpTarget: e.target.value }))}
-                  placeholder="网页URL / 站内路由 / 小程序页面"
+                  placeholder="请输入所选跳转类型对应的地址"
                   disabled={formState.jumpType === 0}
                 />
               </div>
@@ -560,7 +549,7 @@ export default function BannerManagement() {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setAddModalOpen(false)}>
+              <button className="btn-secondary" onClick={closeAddModal}>
                 取消
               </button>
               <button className="btn-primary" onClick={handleCreate} disabled={addSubmitting}>

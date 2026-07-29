@@ -24,6 +24,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -109,6 +110,7 @@ class MediaAssetServiceImplTest {
                 anyLong(),
                 anyString(),
                 anyLong(),
+                anyInt(),
                 any(LocalDateTime.class));
     }
 
@@ -127,6 +129,7 @@ class MediaAssetServiceImplTest {
                 anyLong(),
                 anyString(),
                 anyLong(),
+                anyInt(),
                 any(LocalDateTime.class)))
                 .thenReturn(1);
 
@@ -142,6 +145,42 @@ class MediaAssetServiceImplTest {
                 org.mockito.ArgumentMatchers.eq(5L),
                 org.mockito.ArgumentMatchers.eq("SECOND_HAND_CATEGORY"),
                 org.mockito.ArgumentMatchers.eq(3L),
+                org.mockito.ArgumentMatchers.eq(0),
+                any(LocalDateTime.class));
+    }
+
+    @Test
+    void bindAllowsAnExistingBusinessBindingToBeKeptByAnotherAdmin() {
+        MediaAsset asset = MediaAsset.builder()
+                .id(5L)
+                .purpose("ORDER_CATEGORY_ICON")
+                .ownerType("ADMIN")
+                .ownerId(8L)
+                .status(MediaAssetConstant.STATUS_BOUND)
+                .boundType("ORDER_CATEGORY")
+                .boundId(3L)
+                .build();
+        when(mediaAssetMapper.getByIdForUpdate(5L)).thenReturn(asset);
+
+        service.bind(
+                5L,
+                "ORDER_CATEGORY_ICON",
+                "ADMIN",
+                9L,
+                "ORDER_CATEGORY",
+                3L);
+
+        verify(mediaAssetMapper).updateBoundSort(
+                org.mockito.ArgumentMatchers.eq(5L),
+                org.mockito.ArgumentMatchers.eq("ORDER_CATEGORY"),
+                org.mockito.ArgumentMatchers.eq(3L),
+                org.mockito.ArgumentMatchers.eq(0),
+                any(LocalDateTime.class));
+        verify(mediaAssetMapper, never()).bind(
+                anyLong(),
+                anyString(),
+                anyLong(),
+                anyInt(),
                 any(LocalDateTime.class));
     }
 
@@ -163,6 +202,89 @@ class MediaAssetServiceImplTest {
         assertEquals(1, deleted);
         verify(aliOSSUtil).deleteObject("media/test.png");
         verify(mediaAssetMapper).markDeleted(anyLong(), any(LocalDateTime.class));
+    }
+
+    @Test
+    void replaceBindingKeepsRequestedOrderAndSchedulesRemovedAssets() {
+        MediaAsset previous = MediaAsset.builder()
+                .id(4L)
+                .purpose("SECOND_HAND_PRODUCT_IMAGE")
+                .status(MediaAssetConstant.STATUS_BOUND)
+                .boundType("SECOND_HAND_PRODUCT")
+                .boundId(20L)
+                .build();
+        MediaAsset replacement = MediaAsset.builder()
+                .id(5L)
+                .purpose("SECOND_HAND_PRODUCT_IMAGE")
+                .ownerType("USER")
+                .ownerId(9L)
+                .status(MediaAssetConstant.STATUS_TEMP)
+                .expiresAt(LocalDateTime.now().plusHours(1))
+                .build();
+        when(mediaAssetMapper.listBoundAssets(
+                "SECOND_HAND_PRODUCT",
+                20L,
+                "SECOND_HAND_PRODUCT_IMAGE"))
+                .thenReturn(List.of(previous));
+        when(mediaAssetMapper.getByIdForUpdate(5L)).thenReturn(replacement);
+        when(mediaAssetMapper.bind(
+                anyLong(),
+                anyString(),
+                anyLong(),
+                anyInt(),
+                any(LocalDateTime.class)))
+                .thenReturn(1);
+
+        service.replaceBinding(
+                List.of(5L),
+                "SECOND_HAND_PRODUCT_IMAGE",
+                "USER",
+                9L,
+                "SECOND_HAND_PRODUCT",
+                20L,
+                6,
+                Duration.ofDays(7));
+
+        verify(mediaAssetMapper).bind(
+                org.mockito.ArgumentMatchers.eq(5L),
+                org.mockito.ArgumentMatchers.eq("SECOND_HAND_PRODUCT"),
+                org.mockito.ArgumentMatchers.eq(20L),
+                org.mockito.ArgumentMatchers.eq(0),
+                any(LocalDateTime.class));
+        verify(mediaAssetMapper).scheduleBoundDeletion(
+                org.mockito.ArgumentMatchers.eq(4L),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class));
+    }
+
+    @Test
+    void privateBindingRequiresAuthorizedResolver() {
+        MediaAsset asset = MediaAsset.builder()
+                .id(8L)
+                .objectKey("media/private.png")
+                .purpose("STUDENT_CARD")
+                .visibility(MediaAssetConstant.VISIBILITY_PRIVATE)
+                .status(MediaAssetConstant.STATUS_BOUND)
+                .sortOrder(0)
+                .build();
+        when(mediaAssetMapper.listBoundAssets(
+                "USER_STUDENT_CARD",
+                9L,
+                "STUDENT_CARD"))
+                .thenReturn(List.of(asset));
+        when(aliOSSUtil.generatePresignedUrl("media/private.png", Duration.ofMinutes(15)))
+                .thenReturn("https://private.example/image");
+
+        assertTrue(service.resolvePublicBinding(
+                "USER_STUDENT_CARD",
+                9L,
+                "STUDENT_CARD").isEmpty());
+        assertEquals(
+                "https://private.example/image",
+                service.resolveAuthorizedBinding(
+                        "USER_STUDENT_CARD",
+                        9L,
+                        "STUDENT_CARD").get(0).getUrl());
     }
 
     private byte[] imageBytes() throws Exception {

@@ -7,6 +7,7 @@ import com.mikasa.campusrunner.common.utils.AliOSSUtil;
 import com.mikasa.campusrunner.common.utils.ImageFileInspector;
 import com.mikasa.campusrunner.mapper.MediaAssetMapper;
 import com.mikasa.campusrunner.pojo.entity.MediaAsset;
+import com.mikasa.campusrunner.pojo.vo.BoundMediaVO;
 import com.mikasa.campusrunner.pojo.vo.MediaUploadVO;
 import com.mikasa.campusrunner.service.MediaAssetService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -30,6 +33,7 @@ public class MediaAssetServiceImpl implements MediaAssetService {
     private static final Duration TEMP_LIFETIME = Duration.ofHours(24);
     private static final Duration PREVIEW_LIFETIME = Duration.ofHours(1);
     private static final Duration PUBLIC_URL_LIFETIME = Duration.ofDays(7);
+    private static final Duration PRIVATE_URL_LIFETIME = Duration.ofMinutes(15);
     private static final Duration DELETE_RETRY_DELAY = Duration.ofHours(1);
     private static final Duration STALLED_UPLOAD_LIFETIME = Duration.ofHours(1);
     private static final int ACTIVE_TEMP_LIMIT = 30;
@@ -73,6 +77,7 @@ public class MediaAssetServiceImpl implements MediaAssetService {
                 .height(image.height())
                 .deleteAfter(now.plus(STALLED_UPLOAD_LIFETIME))
                 .deleteRetryCount(0)
+                .sortOrder(0)
                 .createTime(now)
                 .updateTime(now)
                 .build();
@@ -86,7 +91,7 @@ public class MediaAssetServiceImpl implements MediaAssetService {
             String previewUrl =
                     aliOSSUtil.generatePresignedUrl(objectKey, PREVIEW_LIFETIME);
             if (mediaAssetMapper.markTemporary(asset.getId(), expiresAt, LocalDateTime.now()) != 1) {
-                throw new UploadException("图片状态保存失败");
+                throw new UploadException("图片上传失败，请重试");
             }
             return MediaUploadVO.builder()
                     .mediaId(asset.getId())
@@ -124,7 +129,7 @@ public class MediaAssetServiceImpl implements MediaAssetService {
             if (asset == null || MediaAssetConstant.STATUS_DELETED.equals(asset.getStatus())) {
                 return;
             }
-            throw new UploadException("图片已被业务使用，不能作为临时图片删除");
+            throw new UploadException("该图片正在使用，无法删除");
         }
     }
 
@@ -137,8 +142,19 @@ public class MediaAssetServiceImpl implements MediaAssetService {
             Long ownerId,
             String boundType,
             Long boundId) {
+        bindAtPosition(mediaId, purposeValue, ownerType, ownerId, boundType, boundId, 0);
+    }
+
+    private void bindAtPosition(
+            Long mediaId,
+            String purposeValue,
+            String ownerType,
+            Long ownerId,
+            String boundType,
+            Long boundId,
+            int sortOrder) {
         if (mediaId == null || boundId == null || boundType == null || boundType.isBlank()) {
-            throw new UploadException("图片绑定信息不完整");
+            throw new UploadException("图片信息不完整，请重新选择");
         }
         validateOwner(ownerType, ownerId);
         MediaPurpose purpose = MediaPurpose.from(purposeValue);
@@ -146,28 +162,84 @@ public class MediaAssetServiceImpl implements MediaAssetService {
         if (asset == null) {
             throw new UploadException("图片不存在或已失效");
         }
-        if (!purpose.name().equals(asset.getPurpose())
-                || !ownerType.equals(asset.getOwnerType())
-                || !ownerId.equals(asset.getOwnerId())) {
-            throw new UploadException("图片用途或所有者不匹配");
+        if (!purpose.name().equals(asset.getPurpose())) {
+            throw new UploadException("所选图片不适用于当前操作，请重新选择");
         }
         if (MediaAssetConstant.STATUS_BOUND.equals(asset.getStatus())) {
             if (boundType.equals(asset.getBoundType()) && boundId.equals(asset.getBoundId())) {
+                mediaAssetMapper.updateBoundSort(
+                        mediaId,
+                        boundType,
+                        boundId,
+                        sortOrder,
+                        LocalDateTime.now());
                 return;
             }
-            throw new UploadException("图片已被其他业务使用");
+            throw new UploadException("该图片正在使用，无法更换");
+        }
+        if (!ownerType.equals(asset.getOwnerType())
+                || !ownerId.equals(asset.getOwnerId())) {
+            throw new UploadException("当前账号无法使用该图片，请重新选择");
         }
         if (!MediaAssetConstant.STATUS_TEMP.equals(asset.getStatus())
                 || asset.getExpiresAt() == null
                 || !asset.getExpiresAt().isAfter(LocalDateTime.now())) {
-            throw new UploadException("临时图片已失效，请重新选择");
+            throw new UploadException("图片已失效，请重新选择");
         }
         if (mediaAssetMapper.bind(
                 mediaId,
                 boundType,
                 boundId,
+                sortOrder,
                 LocalDateTime.now()) != 1) {
-            throw new UploadException("图片绑定失败，请重试");
+            throw new UploadException("图片保存失败，请重试");
+        }
+    }
+
+    @Override
+    @Transactional
+    public void replaceBinding(
+            List<Long> mediaIds,
+            String purposeValue,
+            String ownerType,
+            Long ownerId,
+            String boundType,
+            Long boundId,
+            int maxCount,
+            Duration replacedAssetDeleteDelay) {
+        validateOwner(ownerType, ownerId);
+        MediaPurpose purpose = MediaPurpose.from(purposeValue);
+        if (boundId == null || boundType == null || boundType.isBlank()) {
+            throw new UploadException("图片信息不完整，请重新选择");
+        }
+        List<Long> requested = mediaIds == null ? List.of() : mediaIds;
+        Set<Long> unique = new LinkedHashSet<>();
+        for (Long mediaId : requested) {
+            if (mediaId == null || !unique.add(mediaId)) {
+                throw new UploadException("请勿重复选择同一张图片");
+            }
+        }
+        if (unique.size() > Math.max(1, maxCount)) {
+            throw new UploadException("图片数量超过限制");
+        }
+
+        List<MediaAsset> existing =
+                mediaAssetMapper.listBoundAssets(boundType, boundId, purpose.name());
+        int sortOrder = 0;
+        for (Long mediaId : unique) {
+            bindAtPosition(
+                    mediaId,
+                    purpose.name(),
+                    ownerType,
+                    ownerId,
+                    boundType,
+                    boundId,
+                    sortOrder++);
+        }
+        for (MediaAsset asset : existing) {
+            if (!unique.contains(asset.getId())) {
+                scheduleBoundDeletion(asset.getId(), replacedAssetDeleteDelay);
+            }
         }
     }
 
@@ -194,9 +266,51 @@ public class MediaAssetServiceImpl implements MediaAssetService {
             return null;
         }
         if (!MediaAssetConstant.VISIBILITY_PUBLIC.equals(asset.getVisibility())) {
-            throw new UploadException("私有图片必须通过业务鉴权访问");
+            throw new UploadException("无权查看该图片");
         }
         return aliOSSUtil.generatePresignedUrl(asset.getObjectKey(), PUBLIC_URL_LIFETIME);
+    }
+
+    @Override
+    public List<BoundMediaVO> resolvePublicBinding(
+            String boundType,
+            Long boundId,
+            String purposeValue) {
+        return resolveBinding(boundType, boundId, purposeValue, false);
+    }
+
+    @Override
+    public List<BoundMediaVO> resolveAuthorizedBinding(
+            String boundType,
+            Long boundId,
+            String purposeValue) {
+        return resolveBinding(boundType, boundId, purposeValue, true);
+    }
+
+    private List<BoundMediaVO> resolveBinding(
+            String boundType,
+            Long boundId,
+            String purposeValue,
+            boolean allowPrivate) {
+        if (boundId == null || boundType == null || boundType.isBlank()) {
+            return List.of();
+        }
+        MediaPurpose purpose = MediaPurpose.from(purposeValue);
+        List<MediaAsset> assets =
+                mediaAssetMapper.listBoundAssets(boundType, boundId, purpose.name());
+        return assets.stream()
+                .filter(asset -> allowPrivate
+                        || MediaAssetConstant.VISIBILITY_PUBLIC.equals(asset.getVisibility()))
+                .map(asset -> BoundMediaVO.builder()
+                        .mediaId(asset.getId())
+                        .url(aliOSSUtil.generatePresignedUrl(
+                                asset.getObjectKey(),
+                                MediaAssetConstant.VISIBILITY_PRIVATE.equals(asset.getVisibility())
+                                        ? PRIVATE_URL_LIFETIME
+                                        : PUBLIC_URL_LIFETIME))
+                        .sortOrder(asset.getSortOrder())
+                        .build())
+                .toList();
     }
 
     @Override
@@ -257,7 +371,7 @@ public class MediaAssetServiceImpl implements MediaAssetService {
         if (ownerId == null
                 || (!MediaAssetConstant.OWNER_USER.equals(ownerType)
                 && !MediaAssetConstant.OWNER_ADMIN.equals(ownerType))) {
-            throw new UploadException("无法识别图片上传者");
+            throw new UploadException("登录状态异常，请重新登录");
         }
     }
 

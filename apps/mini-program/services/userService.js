@@ -65,15 +65,14 @@ function getPayCode() {
 
 /**
  * 更新支付码
- * @param {string} weChatPaymentCode - 微信支付码
- * @param {string} aliPaymentCode - 支付宝支付码
+ * @param {Object} paymentData - 收款码链接或媒体资源 ID
  * @returns {Promise<Object>} 更新结果
  */
-function updatePaymentCode(weChatPaymentCode, aliPaymentCode) {
+function updatePaymentCode(paymentData) {
   return request({
     url: `${url}/api/user/updatePaymentCode`,
     method: 'PUT',
-    data: { weChatPaymentCode, aliPaymentCode }
+    data: paymentData
   }).then(res => {
     return res.data;
   });

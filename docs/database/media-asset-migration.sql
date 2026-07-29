@@ -1,5 +1,5 @@
 -- ============================================================
--- Campus Runner 统一媒体资源表与二手分类图片兼容迁移
+-- Campus Runner 统一媒体资源表与历史二手分类图片兼容迁移
 --
 -- 执行要求：
 -- 1. 先备份数据库。
@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS `tb_media_asset` (
   `height` INT NOT NULL COMMENT '图片高度',
   `bound_type` VARCHAR(64) NULL COMMENT '绑定的业务类型',
   `bound_id` BIGINT NULL COMMENT '绑定的业务主键',
+  `sort_order` INT NOT NULL DEFAULT 0 COMMENT '同一业务多图顺序',
   `bound_at` DATETIME NULL COMMENT '绑定时间',
   `expires_at` DATETIME NULL COMMENT '临时资源过期时间',
   `delete_after` DATETIME NULL COMMENT '允许物理删除的时间',

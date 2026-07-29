@@ -15,6 +15,7 @@ public class TakeOrder {
     private Long userId;
     private LocalDateTime createTime;
     private String image;
+    private Long imageAssetId;
     private Integer deleted;
     private Integer status;
     private LocalDateTime deliveryTime;

@@ -238,6 +238,17 @@ docs/database/second-hand-schema.sql
 docs/database/second-hand-delivery-migration.sql
 ```
 
+统一图片资源使用：
+
+```text
+docs/database/media-asset-migration.sql
+docs/database/media-asset-phase2-migration.sql
+```
+
+已执行第一阶段 `media-asset-migration.sql` 的环境，本版本只需在发布新版 API 前执行
+`media-asset-phase2-migration.sql`。该脚本仅为 `tb_media_asset` 增加多图排序字段，
+不修改历史 URL，也不删除 OSS 对象。
+
 执行示例：
 
 ```bash
@@ -246,6 +257,9 @@ mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
 
 mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
   < docs/database/second-hand-delivery-migration.sql
+
+mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
+  < docs/database/media-asset-phase2-migration.sql
 ```
 
 以上脚本不会清空已有数据，并对建表或新增字段进行了重复执行保护。
@@ -260,6 +274,9 @@ LIKE 'pickup_address_snapshot';
 
 SHOW COLUMNS FROM tb_second_hand_order
 LIKE 'buyer_delivery_address_snapshot';
+
+SHOW COLUMNS FROM tb_media_asset
+LIKE 'sort_order';
 ```
 
 ## 更新管理后台
@@ -323,15 +340,19 @@ errorCode 1045
 先验证服务器内部服务：
 
 ```bash
-curl -i http://127.0.0.1:8080/api/second-hand/categories
+curl -i http://127.0.0.1:8080/admin/api/banner/getList/1
 ```
 
 再验证 Nginx 和 HTTPS：
 
 ```bash
-curl -i https://www.campusrunner.top/api/second-hand/categories
+curl -i https://www.campusrunner.top/admin/api/banner/getList/1
 curl -I https://www.campusrunner.top/
 ```
+
+轮播图列表接口允许匿名访问并会查询数据库，适合作为发布探针。当前
+`/api/second-hand/categories` 受鉴权保护，未携带 token 时返回 `401` 属于预期行为；
+不要使用 `curl -f` 将该 `401` 误判为后端启动失败。
 
 验证 admin 登录链路时，应使用安全提供的测试账号，不要把密码留在 shell 历史中。
 至少确认 `POST /admin/api/login` 能在前端 15 秒超时之前返回，并检查后端日志确实

@@ -191,7 +191,7 @@ Page({
     if (this.data.actionLoading || !this.data.canCancel) return;
     wx.showModal({
       title: '取消订单',
-      content: Number(this.data.order.status) === 1 ? '卖家交付前取消会发起退款，确认继续？' : '取消后商品会释放回市场，确认继续？',
+      content: Number(this.data.order.status) === 1 ? '卖家交付前取消会发起退款，确认继续？' : '取消后商品将重新上架，确认继续？',
       confirmText: '确认取消',
       confirmColor: '#d54941',
       success: async (res) => {

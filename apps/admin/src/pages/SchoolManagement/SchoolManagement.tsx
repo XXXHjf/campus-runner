@@ -375,7 +375,7 @@ export default function SchoolManagement() {
                   <div className="no-data-content">
                     <span className="no-data-icon">📭</span>
                     <p>暂无数据</p>
-                    <small>请检查接口或搜索条件</small>
+                    <small>可调整搜索条件或点击刷新重试</small>
                   </div>
                 </td>
               </tr>
@@ -412,11 +412,9 @@ export default function SchoolManagement() {
       <div className="notice-box">
         <span className="notice-icon">💡</span>
         <div className="notice-content">
-          <strong>功能说明：</strong>
+          <strong>操作提示：</strong>
           <ul>
             <li>点击学校行展开/收起该学校下的楼宇列表</li>
-            <li>使用接口：`getSchools`、`getBuildingsBySchool`</li>
-            <li>编辑、删除楼宇已支持（调用 `updateBuilding` / `deleteBuilding`）</li>
           </ul>
         </div>
       </div>
