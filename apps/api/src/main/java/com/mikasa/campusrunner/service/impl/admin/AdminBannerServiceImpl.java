@@ -9,6 +9,8 @@ import com.mikasa.campusrunner.common.exception.ParamException;
 import com.mikasa.campusrunner.common.exception.SchoolException;
 import com.mikasa.campusrunner.mapper.BannerMapper;
 import com.mikasa.campusrunner.mapper.SchoolMapper;
+import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
+import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.dto.admin.AdminBannerAddDTO;
 import com.mikasa.campusrunner.pojo.entity.Banner;
 import com.mikasa.campusrunner.service.admin.AdminBannerService;
@@ -39,6 +41,9 @@ public class AdminBannerServiceImpl implements AdminBannerService {
 
     @Autowired
     private MediaAssetService mediaAssetService;
+
+    @Autowired
+    private LegacyMediaFallbackMonitor fallbackMonitor;
 
     /**
      * 管理员端新增轮播图
@@ -147,6 +152,8 @@ public class AdminBannerServiceImpl implements AdminBannerService {
         if (!images.isEmpty()) {
             banner.setImageAssetId(images.get(0).getMediaId());
             banner.setImgUrl(images.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(LegacyMediaSource.BANNER, banner.getId(), banner.getImgUrl());
         }
     }
 }

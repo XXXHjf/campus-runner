@@ -243,6 +243,8 @@ docs/database/second-hand-delivery-migration.sql
 ```text
 docs/database/media-asset-migration.sql
 docs/database/media-asset-phase2-migration.sql
+docs/database/media-asset-history-migration.sql
+docs/database/media-asset-history-migration.md
 ```
 
 已执行第一阶段 `media-asset-migration.sql` 的环境，本版本只需在发布新版 API 前执行
@@ -263,6 +265,20 @@ mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
 ```
 
 以上脚本不会清空已有数据，并对建表或新增字段进行了重复执行保护。
+
+历史图片迁移不能只执行 SQL，也不能在迁移完成前删除旧字段。部署迁移器后，依次执行：
+
+```bash
+/root/campus-runner-media-migration.sh dry-run
+/root/campus-runner-media-migration.sh apply --confirm-writes
+/root/campus-runner-media-migration.sh verify
+/root/check-media-migration.sh start
+```
+
+观察期间用 `/root/check-media-migration.sh status` 巡检。只有连续至少 7 天、日志连续、
+没有 `LEGACY_MEDIA_FALLBACK` 且迁移失败数为零时，脚本才会报告可以进入第一次清理发布。
+详细状态、失败处理、回滚和 OSS 差集删除约束见
+`docs/database/media-asset-history-migration.md`。
 
 执行后可检查关键结构：
 

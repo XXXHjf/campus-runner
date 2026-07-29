@@ -10,6 +10,8 @@ import com.mikasa.campusrunner.common.exception.UserException;
 import com.mikasa.campusrunner.mapper.OrderMapper;
 import com.mikasa.campusrunner.mapper.TakeOrderMapper;
 import com.mikasa.campusrunner.mapper.UserMapper;
+import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
+import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.dto.TakeOrderQueryDTO;
 import com.mikasa.campusrunner.pojo.dto.TakeOrderUpdateStatusDTO;
 import com.mikasa.campusrunner.pojo.entity.Order;
@@ -48,6 +50,9 @@ public class TakeOrderServiceImpl implements TakeOrderService {
 
     @Autowired
     private MediaAssetService mediaAssetService;
+
+    @Autowired
+    private LegacyMediaFallbackMonitor fallbackMonitor;
 
     /**
      * 接单
@@ -245,9 +250,12 @@ public class TakeOrderServiceImpl implements TakeOrderService {
                 MediaAssetConstant.BOUND_TAKE_ORDER,
                 takeOrder.getId(),
                 MediaPurpose.DELIVERY_PROOF.name());
-        return images.isEmpty()
-                ? takeOrderMapper.getImageByOrderId(orderId)
-                : images.get(0).getUrl();
+        if (!images.isEmpty()) {
+            return images.get(0).getUrl();
+        }
+        String legacyImage = takeOrderMapper.getImageByOrderId(orderId);
+        fallbackMonitor.record(LegacyMediaSource.TAKE_ORDER, takeOrder.getId(), legacyImage);
+        return legacyImage;
     }
 
 
@@ -282,6 +290,11 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         if (!alipayCodes.isEmpty()) {
             userPaymentVO.setAliPaymentCodeAssetId(alipayCodes.get(0).getMediaId());
             userPaymentVO.setAliPaymentCode(alipayCodes.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.USER_ALIPAY_PAYMENT,
+                    user.getId(),
+                    user.getAlipayPaymentCode());
         }
         var wechatCodes = mediaAssetService.resolveAuthorizedBinding(
                 MediaAssetConstant.BOUND_USER_WECHAT_PAYMENT,
@@ -290,6 +303,11 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         if (!wechatCodes.isEmpty()) {
             userPaymentVO.setWeChatPaymentCodeAssetId(wechatCodes.get(0).getMediaId());
             userPaymentVO.setWeChatPaymentCode(wechatCodes.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.USER_WECHAT_PAYMENT,
+                    user.getId(),
+                    user.getWeChatPaymentCode());
         }
 
         return userPaymentVO;
@@ -322,6 +340,8 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         if (!contentImages.isEmpty()) {
             order.setImageAssetId(contentImages.get(0).getMediaId());
             order.setImage(contentImages.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(LegacyMediaSource.ORDER, order.getOrderId(), order.getImage());
         }
         var proofImages = mediaAssetService.resolveAuthorizedBinding(
                 MediaAssetConstant.BOUND_TAKE_ORDER,
@@ -330,6 +350,11 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         if (!proofImages.isEmpty()) {
             order.setTakeOrderImageAssetId(proofImages.get(0).getMediaId());
             order.setTakeOrderImage(proofImages.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.TAKE_ORDER,
+                    order.getId(),
+                    order.getTakeOrderImage());
         }
         var categoryImages = mediaAssetService.resolvePublicBinding(
                 MediaAssetConstant.BOUND_ORDER_CATEGORY,
@@ -337,6 +362,11 @@ public class TakeOrderServiceImpl implements TakeOrderService {
                 MediaPurpose.ORDER_CATEGORY_ICON.name());
         if (!categoryImages.isEmpty()) {
             order.setCategoryImage(categoryImages.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.ORDER_CATEGORY,
+                    order.getCategoryId(),
+                    order.getCategoryImage());
         }
     }
 }

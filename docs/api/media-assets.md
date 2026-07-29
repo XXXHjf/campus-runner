@@ -72,6 +72,10 @@ DELETE /admin/api/media/images/{mediaId}
 - `tb_media_asset.bound_type + bound_id + sort_order` 是新图片与业务记录的标准关联。
 - 旧业务表中的 URL 字段和二手分类 `image_asset_id` 暂时保留为历史数据回显兜底；新客户端不再写入签名 URL。
 - 旧 `POST /api/upload` 暂时保留用于滚动升级兼容，但项目内客户端不得继续调用。
+- 二手商品合并新旧图片时，会根据迁移台账排除已迁移的旧 URL，避免同一对象因签名不同而重复显示。
+- API 实际使用旧字段兜底时会记录不含 URL 的 `LEGACY_MEDIA_FALLBACK` 运维日志；旧字段清理以连续观察结果为准。
 
 数据库首次接入执行 `docs/database/media-asset-migration.sql`；已执行第一阶段迁移的环境，在发布
 本版本 API 前执行 `docs/database/media-asset-phase2-migration.sql`。
+历史图片迁移流程见 `docs/database/media-asset-history-migration.md`，迁移台账结构见
+`docs/database/media-asset-history-migration.sql`。

@@ -15,6 +15,9 @@ import com.mikasa.campusrunner.common.exception.UserException;
 import com.mikasa.campusrunner.common.properties.WeChatProperties;
 import com.mikasa.campusrunner.common.utils.WeChatPayUtil;
 import com.mikasa.campusrunner.mapper.*;
+import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
+import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
+import com.mikasa.campusrunner.migration.media.MigratedLegacyMediaFilter;
 import com.mikasa.campusrunner.pojo.dto.*;
 import com.mikasa.campusrunner.pojo.dto.admin.AdminSecondHandCategoryDTO;
 import com.mikasa.campusrunner.pojo.entity.*;
@@ -75,6 +78,10 @@ public class SecondHandServiceImpl implements SecondHandService {
     private WeChatPayUtil weChatPayUtil;
     @Autowired
     private MediaAssetService mediaAssetService;
+    @Autowired
+    private MigratedLegacyMediaFilter migratedLegacyMediaFilter;
+    @Autowired
+    private LegacyMediaFallbackMonitor fallbackMonitor;
     @Autowired
     private CloseableHttpClient wxPayClient;
     @Value("${com.mikasa.campus-runner.dev.mock-payment-enabled:false}")
@@ -1262,8 +1269,16 @@ public class SecondHandServiceImpl implements SecondHandService {
             return;
         }
         if (category.getImageAssetId() == null) {
+            fallbackMonitor.record(
+                    LegacyMediaSource.SECOND_HAND_CATEGORY,
+                    category.getId(),
+                    category.getImage());
             return;
         }
+        fallbackMonitor.record(
+                LegacyMediaSource.SECOND_HAND_CATEGORY_ASSET,
+                category.getId(),
+                1);
         try {
             String resolved = mediaAssetService.resolveUrl(category.getImageAssetId());
             if (resolved != null) {
@@ -1303,17 +1318,19 @@ public class SecondHandServiceImpl implements SecondHandService {
                 MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
                 product.getId(),
                 MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name());
+        var legacyImages = migratedLegacyMediaFilter.keepUnmigrated(
+                "tb_second_hand_product",
+                "images",
+                product.getId(),
+                product.getImages());
         if (!images.isEmpty()) {
             product.setImageAssetIds(images.stream().map(item -> item.getMediaId()).toList());
             java.util.LinkedHashSet<String> urls = new java.util.LinkedHashSet<>();
             images.forEach(item -> urls.add(item.getUrl()));
-            if (product.getImages() != null) {
-                java.util.Arrays.stream(product.getImages().split(","))
-                        .map(String::trim)
-                        .filter(item -> !item.isEmpty())
-                        .forEach(urls::add);
-            }
+            legacyImages.forEach(urls::add);
             product.setImages(String.join(",", urls));
+        } else {
+            product.setImages(String.join(",", legacyImages));
         }
         return product;
     }
@@ -1418,17 +1435,19 @@ public class SecondHandServiceImpl implements SecondHandService {
                 MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
                 order.getProductId(),
                 MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name());
+        var legacyImages = migratedLegacyMediaFilter.keepUnmigrated(
+                "tb_second_hand_product",
+                "images",
+                order.getProductId(),
+                order.getProductImages());
         if (!images.isEmpty()) {
             order.setProductImageAssetIds(images.stream().map(item -> item.getMediaId()).toList());
             java.util.LinkedHashSet<String> urls = new java.util.LinkedHashSet<>();
             images.forEach(item -> urls.add(item.getUrl()));
-            if (order.getProductImages() != null) {
-                java.util.Arrays.stream(order.getProductImages().split(","))
-                        .map(String::trim)
-                        .filter(item -> !item.isEmpty())
-                        .forEach(urls::add);
-            }
+            legacyImages.forEach(urls::add);
             order.setProductImages(String.join(",", urls));
+        } else {
+            order.setProductImages(String.join(",", legacyImages));
         }
         if (isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY) && order.getCreateTime() != null) {
             int minutes = getIntConfig("second_hand_payment_timeout_minutes", SecondHandConstant.DEFAULT_PAYMENT_TIMEOUT_MINUTES);

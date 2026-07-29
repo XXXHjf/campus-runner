@@ -9,6 +9,8 @@ import com.mikasa.campusrunner.common.exception.ParamException;
 import com.mikasa.campusrunner.common.exception.UserException;
 import com.mikasa.campusrunner.common.utils.WeChatPayUtil;
 import com.mikasa.campusrunner.mapper.*;
+import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
+import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.dto.OrderCancelDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderShowByAddressDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderShowByDoubleAddDTO;
@@ -41,6 +43,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private OrderMapper orderMapper;
+
+    @Autowired
+    private LegacyMediaFallbackMonitor fallbackMonitor;
 
     @Autowired
     private AddressBookMapper addressBookMapper;
@@ -560,6 +565,8 @@ public class OrderServiceImpl implements OrderService {
         if (!images.isEmpty()) {
             order.setImageAssetId(images.get(0).getMediaId());
             order.setImage(images.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(LegacyMediaSource.ORDER, order.getId(), order.getImage());
         }
         var categoryImages = mediaAssetService.resolvePublicBinding(
                 MediaAssetConstant.BOUND_ORDER_CATEGORY,
@@ -567,6 +574,11 @@ public class OrderServiceImpl implements OrderService {
                 MediaPurpose.ORDER_CATEGORY_ICON.name());
         if (!categoryImages.isEmpty()) {
             order.setCategoryImage(categoryImages.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.ORDER_CATEGORY,
+                    order.getCategoryId(),
+                    order.getCategoryImage());
         }
         return order;
     }

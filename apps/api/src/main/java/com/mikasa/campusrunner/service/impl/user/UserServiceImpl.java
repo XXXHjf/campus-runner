@@ -7,6 +7,8 @@ import com.mikasa.campusrunner.common.context.BaseContext;
 import com.mikasa.campusrunner.common.exception.LoginFailedException;
 import com.mikasa.campusrunner.common.exception.UserException;
 import com.mikasa.campusrunner.mapper.UserMapper;
+import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
+import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.dto.UserAuthenDTO;
 import com.mikasa.campusrunner.pojo.dto.UserLoginDTO;
 import com.mikasa.campusrunner.pojo.dto.UserPaymentDTO;
@@ -45,6 +47,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private MediaAssetService mediaAssetService;
+
+    @Autowired
+    private LegacyMediaFallbackMonitor fallbackMonitor;
 
     /**
      * 用户微信登录
@@ -246,6 +251,8 @@ public class UserServiceImpl implements UserService {
         if (!avatars.isEmpty()) {
             user.setHeadImgAssetId(avatars.get(0).getMediaId());
             user.setHeadImg(avatars.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(LegacyMediaSource.USER_AVATAR, user.getId(), user.getHeadImg());
         }
         var studentCards = mediaAssetService.resolveAuthorizedBinding(
                 MediaAssetConstant.BOUND_USER_STUDENT_CARD,
@@ -254,6 +261,11 @@ public class UserServiceImpl implements UserService {
         if (!studentCards.isEmpty()) {
             user.setStudentIdCardAssetId(studentCards.get(0).getMediaId());
             user.setStudentIdCard(studentCards.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.USER_STUDENT_CARD,
+                    user.getId(),
+                    user.getStudentIdCard());
         }
         var alipayCodes = mediaAssetService.resolveAuthorizedBinding(
                 MediaAssetConstant.BOUND_USER_ALIPAY_PAYMENT,
@@ -262,6 +274,11 @@ public class UserServiceImpl implements UserService {
         if (!alipayCodes.isEmpty()) {
             user.setAlipayPaymentCodeAssetId(alipayCodes.get(0).getMediaId());
             user.setAlipayPaymentCode(alipayCodes.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.USER_ALIPAY_PAYMENT,
+                    user.getId(),
+                    user.getAlipayPaymentCode());
         }
         var wechatCodes = mediaAssetService.resolveAuthorizedBinding(
                 MediaAssetConstant.BOUND_USER_WECHAT_PAYMENT,
@@ -270,6 +287,11 @@ public class UserServiceImpl implements UserService {
         if (!wechatCodes.isEmpty()) {
             user.setWeChatPaymentCodeAssetId(wechatCodes.get(0).getMediaId());
             user.setWeChatPaymentCode(wechatCodes.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.USER_WECHAT_PAYMENT,
+                    user.getId(),
+                    user.getWeChatPaymentCode());
         }
     }
 

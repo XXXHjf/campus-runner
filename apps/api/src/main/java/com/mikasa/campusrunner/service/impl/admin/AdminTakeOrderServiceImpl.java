@@ -3,6 +3,8 @@ package com.mikasa.campusrunner.service.impl.admin;
 import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
 import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.mapper.TakeOrderMapper;
+import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
+import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.dto.PageResult;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminTakeOrderListVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminTakeOrderStatisticsVO;
@@ -24,6 +26,9 @@ public class AdminTakeOrderServiceImpl implements AdminTakeOrderService {
 
     @Autowired
     private MediaAssetService mediaAssetService;
+
+    @Autowired
+    private LegacyMediaFallbackMonitor fallbackMonitor;
 
     @Override
     public PageResult<AdminTakeOrderListVO> listAll(int page, int pageSize) {
@@ -70,6 +75,11 @@ public class AdminTakeOrderServiceImpl implements AdminTakeOrderService {
         if (!images.isEmpty()) {
             takeOrder.setTakeOrderImageAssetId(images.get(0).getMediaId());
             takeOrder.setTakeOrderImage(images.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.TAKE_ORDER,
+                    takeOrder.getId(),
+                    takeOrder.getTakeOrderImage());
         }
     }
 }

@@ -4,6 +4,8 @@ import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
 import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.common.context.BaseContext;
 import com.mikasa.campusrunner.mapper.CategoryMapper;
+import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
+import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.entity.Category;
 import com.mikasa.campusrunner.service.MediaAssetService;
 import com.mikasa.campusrunner.service.admin.AdminCategoryService;
@@ -24,6 +26,9 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
 
     @Autowired
     private MediaAssetService mediaAssetService;
+
+    @Autowired
+    private LegacyMediaFallbackMonitor fallbackMonitor;
 
     @Override
     public List<Category> list() {
@@ -114,6 +119,8 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
         if (!images.isEmpty()) {
             category.setImageAssetId(images.get(0).getMediaId());
             category.setImage(images.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(LegacyMediaSource.ORDER_CATEGORY, category.getId(), category.getImage());
         }
     }
 }
