@@ -65,7 +65,8 @@ show_status() {
       | sed -n 's/.*verify\.explicit_failed=\([0-9][0-9]*\).*/\1/p' \
       | tail -n 1
   )"
-  explicit_failed="${explicit_failed:-unknown}"
+  # The summary omits zero-valued counters.
+  explicit_failed="${explicit_failed:-0}"
 
   echo "observation_started=true"
   echo "observation_started_utc=$STARTED_UTC"
