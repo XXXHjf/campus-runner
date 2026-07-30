@@ -6,7 +6,7 @@
  * - 上传临时图片：POST /admin/api/media/images
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { bannerService, addressService, mediaService } from '../../services'
 import type { AdminSchool, Banner, BannerCreateRequest, BannerJumpType } from '../../types'
 import { formatDateTime } from '../../utils/format'
@@ -75,6 +75,8 @@ export default function BannerManagement() {
   const [addMessage, setAddMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null,
   )
+  const uploadRequestIdRef = useRef(0)
+  const temporaryMediaIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     void loadSchools()
@@ -103,6 +105,20 @@ export default function BannerManagement() {
       document.body.style.overflow = originalOverflow
     }
   }, [addModalOpen, deleteModal.open, preview.open])
+
+  useEffect(
+    () => () => {
+      uploadRequestIdRef.current += 1
+      const temporaryMediaId = temporaryMediaIdRef.current
+      temporaryMediaIdRef.current = null
+      if (temporaryMediaId) {
+        void mediaService.releaseTemporaryImage(temporaryMediaId).catch((err) => {
+          console.warn('释放未使用的轮播图失败，将由服务端定时清理', err)
+        })
+      }
+    },
+    [],
+  )
 
   const loadSchools = async () => {
     try {
@@ -143,6 +159,8 @@ export default function BannerManagement() {
   }, [list, keyword])
 
   const openAddModal = () => {
+    uploadRequestIdRef.current += 1
+    temporaryMediaIdRef.current = null
     const nextSchoolId = selectedSchoolId ?? 0
     setFormState({
       title: '',
@@ -163,8 +181,12 @@ export default function BannerManagement() {
   }
 
   const closeAddModal = () => {
-    if (formState.imageAssetId) {
-      void mediaService.releaseTemporaryImage(formState.imageAssetId).catch((err) => {
+    if (addSubmitting) return
+    uploadRequestIdRef.current += 1
+    const temporaryMediaId = temporaryMediaIdRef.current
+    temporaryMediaIdRef.current = null
+    if (temporaryMediaId) {
+      void mediaService.releaseTemporaryImage(temporaryMediaId).catch((err) => {
         console.warn('释放临时轮播图失败，将由服务端定时清理', err)
       })
     }
@@ -183,9 +205,13 @@ export default function BannerManagement() {
     }))
   }
 
-  const handleFileSelection = (file: File | null) => {
-    if (formState.imageAssetId) {
-      void mediaService.releaseTemporaryImage(formState.imageAssetId).catch((err) => {
+  const handleFileSelection = async (file: File | null) => {
+    const requestId = uploadRequestIdRef.current + 1
+    uploadRequestIdRef.current = requestId
+    const previousMediaId = temporaryMediaIdRef.current
+    temporaryMediaIdRef.current = null
+    if (previousMediaId) {
+      void mediaService.releaseTemporaryImage(previousMediaId).catch((err) => {
         console.warn('释放已替换的临时轮播图失败，将由服务端定时清理', err)
       })
     }
@@ -197,34 +223,37 @@ export default function BannerManagement() {
     setUploadFile(file)
     setUploadProgress(0)
     setAddMessage(null)
-  }
-
-  const handleUpload = async () => {
-    if (!uploadFile) {
-      setAddMessage({ type: 'error', text: '请先选择需要上传的图片' })
+    if (!file) {
       return
     }
+
     setUploading(true)
-    setUploadProgress(0)
-    setAddMessage(null)
     try {
-      const result = await mediaService.uploadImage(uploadFile, 'BANNER', setUploadProgress)
-      if (formState.imageAssetId) {
-        await mediaService.releaseTemporaryImage(formState.imageAssetId).catch((err) => {
-          console.warn('释放已替换的临时轮播图失败，将由服务端定时清理', err)
+      const result = await mediaService.uploadImage(file, 'BANNER', (progress) => {
+        if (uploadRequestIdRef.current === requestId) {
+          setUploadProgress(progress)
+        }
+      })
+      if (uploadRequestIdRef.current !== requestId) {
+        await mediaService.releaseTemporaryImage(result.mediaId).catch((err) => {
+          console.warn('释放已取消的轮播图失败，将由服务端定时清理', err)
         })
+        return
       }
+      temporaryMediaIdRef.current = result.mediaId
       setFormState((prev) => ({
         ...prev,
         imgUrl: result.previewUrl,
         imageAssetId: result.mediaId,
       }))
-      setAddMessage({ type: 'success', text: '图片上传成功，请点击“保存”完成新增' })
     } catch (err) {
+      if (uploadRequestIdRef.current !== requestId) return
       console.error('上传图片失败', err)
       setAddMessage({ type: 'error', text: getErrorMessage(err, '上传失败，请稍后重试') })
     } finally {
-      setUploading(false)
+      if (uploadRequestIdRef.current === requestId) {
+        setUploading(false)
+      }
     }
   }
 
@@ -233,8 +262,12 @@ export default function BannerManagement() {
       setAddMessage({ type: 'error', text: '请填写轮播图标题' })
       return
     }
+    if (uploading) {
+      setAddMessage({ type: 'error', text: '图片正在上传，请稍候' })
+      return
+    }
     if (!formState.imageAssetId) {
-      setAddMessage({ type: 'error', text: '请先上传图片' })
+      setAddMessage({ type: 'error', text: '请选择轮播图图片' })
       return
     }
     if (formState.jumpType !== 0 && !formState.jumpTarget.trim()) {
@@ -252,6 +285,7 @@ export default function BannerManagement() {
         imgUrl: '',
       })
       await loadList(selectedSchoolId)
+      temporaryMediaIdRef.current = null
       setFormState((prev) => ({ ...prev, imageAssetId: undefined }))
       setAddModalOpen(false)
     } catch (err) {
@@ -302,7 +336,7 @@ export default function BannerManagement() {
       <div className="page-header">
         <div className="header-left">
           <h1>轮播图管理</h1>
-          <p>管理小程序首页轮播图（支持上传图片并配置跳转）</p>
+          <p>管理小程序首页轮播图及跳转设置</p>
         </div>
         <div className="header-right">
           <button className="btn-secondary" onClick={() => loadList(selectedSchoolId)} disabled={loading}>
@@ -441,7 +475,7 @@ export default function BannerManagement() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>新增轮播图</h2>
-              <button className="modal-close" onClick={closeAddModal}>
+              <button className="modal-close" onClick={closeAddModal} disabled={addSubmitting}>
                 ✕
               </button>
             </div>
@@ -486,21 +520,17 @@ export default function BannerManagement() {
 
               <div className="form-group">
                 <label>
-                  图片上传<span className="required">*</span>
+                  轮播图图片<span className="required">*</span>
                 </label>
                 <div className="upload-row">
                   <input
                     type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileSelection(e.target.files?.[0] || null)}
-                  />
-                  <button
-                    className="btn-secondary"
-                    onClick={handleUpload}
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => void handleFileSelection(e.target.files?.[0] || null)}
                     disabled={uploading}
-                  >
-                    {uploading ? `上传中 ${uploadProgress}%` : '上传图片'}
-                  </button>
+                  />
+                  {uploading && <span>上传中 {uploadProgress}%</span>}
+                  {!uploading && formState.imageAssetId && <span>图片已就绪</span>}
                 </div>
                 {(formState.imgUrl || localPreview) && (
                   <div className="image-preview">
@@ -549,10 +579,14 @@ export default function BannerManagement() {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn-secondary" onClick={closeAddModal}>
+              <button className="btn-secondary" onClick={closeAddModal} disabled={addSubmitting}>
                 取消
               </button>
-              <button className="btn-primary" onClick={handleCreate} disabled={addSubmitting}>
+              <button
+                className="btn-primary"
+                onClick={handleCreate}
+                disabled={addSubmitting || uploading}
+              >
                 保存
               </button>
             </div>
