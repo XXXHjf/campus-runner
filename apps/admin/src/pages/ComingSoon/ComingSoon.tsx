@@ -3,6 +3,7 @@
  */
 
 import { useNavigate, useLocation } from 'react-router-dom'
+import { Button, Result } from 'antd'
 import './ComingSoon.css'
 
 export default function ComingSoon() {
@@ -42,21 +43,19 @@ export default function ComingSoon() {
 
   return (
     <div className="coming-soon">
-      <div className="coming-soon-content">
-        <div className="icon-wrapper">
-          <span className="icon">🚧</span>
-        </div>
-        <h1>{getPageTitle()}</h1>
-        <p className="subtitle">该功能暂未开放</p>
-        <div className="actions">
-          <button onClick={() => navigate('/dashboard')} className="primary-btn">
+      <Result
+        status="info"
+        title={getPageTitle()}
+        subTitle="该功能暂未开放"
+        extra={[
+          <Button key="dashboard" type="primary" onClick={() => navigate('/dashboard')}>
             返回首页
-          </button>
-          <button onClick={() => navigate(-1)} className="secondary-btn">
+          </Button>,
+          <Button key="back" onClick={() => navigate(-1)}>
             返回上一页
-          </button>
-        </div>
-      </div>
+          </Button>,
+        ]}
+      />
     </div>
   )
 }

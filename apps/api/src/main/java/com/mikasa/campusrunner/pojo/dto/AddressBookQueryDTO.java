@@ -9,7 +9,6 @@ import lombok.Data;
 @Data
 public class AddressBookQueryDTO {
     private Integer isDefault;
-    private Integer type;
     private Long id;
     private String label;
 }

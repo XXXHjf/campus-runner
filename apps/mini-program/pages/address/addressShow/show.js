@@ -3,20 +3,17 @@ const deliveryAddressService = require('../../../services/deliveryAddressService
 const userService = require('../../../services/userService');
 const tokenManager = require('../../../utils/tokenManager');
 const { showLoading, hideLoading, showError } = require('../../../utils/transformers');
-const { _markLastItem } = require('../../../utils/commonJs');
 
 Page({
   data: {
     userInfo: null,
-    tabValue: 0, //0为取件，1为收件
     addressBook: [],
   },
   
   // 跳转新增地址界面
   gotoAdd() {
-    const type = this.data.tabValue;
     wx.navigateTo({
-      url: `/pages/address/addressAdd/add?type=${type}`,
+      url: '/pages/address/addressAdd/add',
     })
   },
   
@@ -33,10 +30,8 @@ Page({
     try {
       showLoading('加载中');
       const addressBook = await deliveryAddressService.getMyAddresses();
-      // 加上 isLast 属性
-      const addressWithLast = _markLastItem(addressBook);
       this.setData({
-        addressBook: addressWithLast
+        addressBook
       });
     } catch (error) {
       console.error('获取地址簿失败:', error);
@@ -44,21 +39,6 @@ Page({
     } finally {
       hideLoading();
     }
-  },
-  
-  // tabs值更新
-  onTabsChange(event) {
-    this.setData({
-      tabValue: event.detail.value,
-    });
-  },
-  
-  onTabsClick(event) {
-    this.setData({
-      tabValue: event.detail.value,
-    });
-    // 更新展示卡片
-    this._getAddressBook();
   },
   
   // 获取用户数据（使用封装的 service）
@@ -96,20 +76,12 @@ Page({
     }
   },
   // 下拉刷新事件
-  onPullDownRefresh() {
-    // 这里加上要刷新的逻辑
-    this.onShow();
-    // ------------
-    this.showHorizontalText()
-    wx.stopPullDownRefresh()
-  },
-  // 轻展示的方法
-  showHorizontalText() {
-    Toast({
-      context: this,
-      selector: '#t-toast',
-      message: '刷新成功',
-      icon: 'check-circle',
-    });
+  async onPullDownRefresh() {
+    try {
+      await this._getAddressBook();
+      wx.showToast({ title: '刷新成功', icon: 'success' });
+    } finally {
+      wx.stopPullDownRefresh();
+    }
   },
 })

@@ -24,9 +24,7 @@ Page({
     upBuilding: '',
     upDetails: '',
     upDefault: 0,
-    uptype: 0,
     upLabel: '',
-    type: ['取件', '收件'],
     note: '请选择地址',
 
     // 联级/选择器
@@ -67,12 +65,11 @@ Page({
     const upCompusNumberId = this.data.selectedCompusNumberId;
     const upCategoryNumberId = this.data.selectedCategoryNumberId;
     const upBuildingNumberId = this.data.selectedBuildingNumberId;
-    const type = this.data.uptype;
     const label = this.data.upLabel;
     const details = this.data.upDetails;
 
     if (!upCompusNumberId) {
-      errorCilcleToast(this, "空地址");
+      errorCilcleToast(this, "请选择校区和楼栋");
       return;
     }
 
@@ -83,7 +80,6 @@ Page({
         compusNumberId: upCompusNumberId,
         buildCategoryNumberId: upCategoryNumberId,
         buildingNumberId: upBuildingNumberId,
-        type: type,
         label: label,
         details: details,
       };
@@ -103,7 +99,7 @@ Page({
   },
   // 未选择地址，弹出提醒
   saveOnRecord() {
-    errorCilcleToast(this, "请填写收货地址");
+    errorCilcleToast(this, "请选择地址");
   },
   // 点击地址，弹出三级列表
   handleShowPicker() {
@@ -198,13 +194,6 @@ Page({
     
     console.log('label最终值： ' + value);
   },
-  // 地址类型切换
-  changeType() {
-    const oldtype = this.data.uptype;
-    this.setData({
-      uptype: (oldtype + 1) % 2,
-    })
-  },
   // 设置为默认地址
   changeDefault(event) {
     const oldDefault = this.data.upDefault;
@@ -212,20 +201,6 @@ Page({
       upDefault: (oldDefault + 1) % 2,
     })
   },
-  // 保存为默认地址（使用封装的 service）
-  async saveAsDefault() {
-    try {
-      const id = this.data.addressInfo.id;
-      const type = this.data.addressInfo.type;
-      
-      await addressService.updateUserAddress({ id, type });
-      console.log('设置默认地址成功');
-    } catch (error) {
-      console.error('设置默认地址失败:', error);
-      showError('操作失败');
-    }
-  },
-
   // 获取用户数据（使用封装的 service）
   async getGlobalData() {
     try {
@@ -263,12 +238,5 @@ Page({
       showError('加载失败');
     }
   },
-  // 生命周期函数--监听页面加载
-  onLoad(options) {
-    const uptype = options.type;
-    // console.log("address id：",id);
-    this.setData({
-      uptype: uptype,
-    })
-  }
+  onLoad() {}
 })

@@ -4,6 +4,14 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
+import { Alert, App, Button, Form, Input, Modal, Select, Space, Table } from 'antd'
+import {
+  DeleteOutlined,
+  DownOutlined,
+  EditOutlined,
+  PlusOutlined,
+  RightOutlined,
+} from '@ant-design/icons'
 import {
   getSchools,
   getBuildingsBySchool,
@@ -12,6 +20,14 @@ import {
   createPresetAddress,
 } from '../../services/address.service'
 import type { AdminSchool, AdminAddressBuilding } from '../../types'
+import {
+  AdminContentCard,
+  AdminCount,
+  AdminFilterBar,
+  AdminPage,
+  AdminPageHeader,
+  createAdminTableLocale,
+} from '../../components/admin'
 import './SchoolManagement.css'
 
 function isRepeatError(error: unknown) {
@@ -27,7 +43,22 @@ interface SchoolWithChildren {
   expanded: boolean
 }
 
+interface SchoolTableRow {
+  id: string
+  schoolName: string
+  compusName?: string
+  buildCategoryName?: string
+  buildingName?: string
+  createdAt?: string
+  isGroup?: boolean
+  expanded?: boolean
+  loading?: boolean
+  schoolId?: number
+  buildingId?: number
+}
+
 export default function SchoolManagement() {
+  const { message } = App.useApp()
   const [schools, setSchools] = useState<SchoolWithChildren[]>([])
   const [loadingSchools, setLoadingSchools] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -155,19 +186,7 @@ export default function SchoolManagement() {
   }, [schools, searchKeyword])
 
   const rows = useMemo(() => {
-    const allRows: {
-      id: string
-      schoolName: string
-      compusName?: string
-      buildCategoryName?: string
-      buildingName?: string
-      createdAt?: string
-      isGroup?: boolean
-      expanded?: boolean
-      loading?: boolean
-      schoolId?: number
-      buildingId?: number
-    }[] = []
+    const allRows: SchoolTableRow[] = []
 
     filteredSchools.forEach((item) => {
       allRows.push({
@@ -264,404 +283,364 @@ export default function SchoolManagement() {
     setDeleteModal({ open: true, buildingId: row.buildingId, schoolId: row.schoolId })
   }
 
-  const renderActions = (row: {
-    id: string
-    expanded?: boolean
-    loading?: boolean
-    buildingId?: number
-    buildingName?: string
-    schoolId?: number
-  }) => {
+  const renderActions = (row: SchoolTableRow) => {
     if (!row.id.startsWith('school-')) {
+      if (!row.buildingId) return null
+
       return (
-        <div className="table-actions">
-          <button
-            className="btn-action btn-edit"
-            onClick={(e) => {
-              e.stopPropagation()
+        <Space size={4}>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={(event) => {
+              event.stopPropagation()
               void handleEditBuilding(row)
             }}
             disabled={actionLoadingId === row.id}
           >
-            ✏️ 编辑
-          </button>
-          <button
-            className="btn-action btn-delete"
-            onClick={(e) => {
-              e.stopPropagation()
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={(event) => {
+              event.stopPropagation()
               void handleDeleteBuilding(row)
             }}
             disabled={actionLoadingId === row.id}
           >
-            🗑️ 删除
-          </button>
-        </div>
+            删除
+          </Button>
+        </Space>
       )
     }
 
     const schoolId = Number(row.id.replace('school-', ''))
     return (
-      <div className="table-actions">
-        <button
-          className="btn-action btn-edit"
-          onClick={() => toggleExpand(schoolId)}
-          disabled={row.loading}
-        >
-          {row.expanded ? '收起' : '展开'}
-        </button>
-      </div>
+      <Button
+        type="link"
+        size="small"
+        onClick={(event) => {
+          event.stopPropagation()
+          void toggleExpand(schoolId)
+        }}
+        loading={row.loading}
+      >
+        {row.expanded ? '收起' : '展开'}
+      </Button>
     )
   }
 
-  return (
-    <div className="school-management">
-      <div className="page-header">
-        <div className="header-left">
-          <h1>学校管理</h1>
-          <p>展开查看各学校下的地址</p>
-        </div>
-      </div>
-
-      <div className="toolbar">
-        <div className="toolbar-left">
-          <div className="search-box">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="按名称搜索学校/校区/类型/楼宇..."
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="toolbar-right">
-          <span className="data-count">
-            {loadingSchools ? '加载中...' : `共 ${filteredSchools.length} 所学校`}
+  const columns = [
+    {
+      title: '学校',
+      dataIndex: 'schoolName',
+      width: 220,
+      render: (value: string, row: SchoolTableRow) =>
+        row.isGroup ? (
+          <span className="school-group-name">
+            {row.expanded ? <DownOutlined /> : <RightOutlined />}
+            {value}
           </span>
-          <button
-            className="btn-primary"
-            onClick={() =>
-              setAddModal({
-                open: true,
-                selectedSchoolId: undefined,
-                schoolNameInput: '',
-                compusName: '',
-                buildCategoryName: '',
-                buildingName: '',
-              })
-            }
-          >
-            添加地址
-          </button>
-        </div>
-      </div>
+        ) : (
+          value || '-'
+        ),
+    },
+    {
+      title: '校区',
+      dataIndex: 'compusName',
+      width: 180,
+      render: (value: string | undefined, row: SchoolTableRow) =>
+        row.isGroup ? '-' : value || '-',
+    },
+    {
+      title: '类型',
+      dataIndex: 'buildCategoryName',
+      width: 180,
+      render: (value: string | undefined, row: SchoolTableRow) =>
+        row.isGroup ? '-' : value || '-',
+    },
+    {
+      title: '楼宇',
+      dataIndex: 'buildingName',
+      render: (value: string | undefined, row: SchoolTableRow) =>
+        row.isGroup ? '-' : value || '-',
+    },
+    {
+      title: '操作',
+      width: 180,
+      fixed: 'right' as const,
+      render: (_: unknown, row: SchoolTableRow) => renderActions(row),
+    },
+  ]
 
-      <div className="table-container">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>学校</th>
-              <th>校区</th>
-              <th>类型</th>
-              <th>楼宇</th>
-              <th>创建时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="no-data">
-                  <div className="no-data-content">
-                    <span className="no-data-icon">📭</span>
-                    <p>暂无数据</p>
-                    <small>可调整搜索条件或点击刷新重试</small>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={row.isGroup ? 'group-row' : ''}
-                  onClick={() =>
-                    row.isGroup ? toggleExpand(Number(row.id.replace('school-', ''))) : undefined
-                  }
-                >
-                  <td>
-                    {row.isGroup ? (
-                      <span className="table-school">
-                        {row.expanded ? '▼ ' : '▶ '} {row.schoolName}
-                      </span>
-                    ) : (
-                      row.schoolName || '-'
-                    )}
-                  </td>
-                  <td>{row.compusName || (row.isGroup ? '-' : '')}</td>
-          <td>{row.buildCategoryName || (row.isGroup ? '-' : '')}</td>
-          <td>{row.buildingName || (row.isGroup ? '-' : '')}</td>
-          <td className="table-time">{row.createdAt || '-'}</td>
-          <td className="table-actions-cell">{renderActions(row)}</td>
-        </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+  const saveEditedBuilding = async () => {
+    if (!editModal.buildingId || !editModal.schoolId || !editName.trim()) return
+    setActionLoadingId(`building-${editModal.buildingId}`)
+    try {
+      await updateBuilding({
+        buildingID: editModal.buildingId,
+        buildingName: editName.trim(),
+      })
+      await refreshSchoolBuildings(editModal.schoolId)
+      setEditModal({ open: false })
+      message.success('楼宇名称已更新')
+    } catch (error) {
+      const errorMessage = isRepeatError(error)
+        ? '楼宇名称已存在，请检查后再试'
+        : '更新失败，请稍后再试'
+      console.error('更新楼宇失败', error)
+      message.error(errorMessage)
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
 
-      <div className="notice-box">
-        <span className="notice-icon">💡</span>
-        <div className="notice-content">
-          <strong>操作提示：</strong>
-          <ul>
-            <li>点击学校行展开/收起该学校下的楼宇列表</li>
-          </ul>
-        </div>
-      </div>
+  const confirmDeleteBuilding = async () => {
+    if (!deleteModal.buildingId || !deleteModal.schoolId) return
+    setActionLoadingId(`building-${deleteModal.buildingId}`)
+    try {
+      await deleteBuilding(deleteModal.buildingId)
+      await refreshSchoolBuildings(deleteModal.schoolId)
+      setDeleteModal({ open: false })
+      message.success('楼宇已删除')
+    } catch (error) {
+      console.error('删除楼宇失败', error)
+      message.error('删除失败，请稍后再试')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
 
-      {editModal.open && (
-        <div className="modal-overlay" onClick={() => setEditModal({ open: false })}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>编辑楼宇</h2>
-              <button className="modal-close" onClick={() => setEditModal({ open: false })}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>楼宇名称</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="请输入新的楼宇名称"
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setEditModal({ open: false })}>
-                取消
-              </button>
-              <button
-                className="btn-primary"
-                onClick={async () => {
-                  if (!editModal.buildingId || !editModal.schoolId) return
-                  if (!editName.trim()) return
-                  setActionLoadingId(`building-${editModal.buildingId}`)
-                  try {
-                    await updateBuilding({ buildingID: editModal.buildingId, buildingName: editName.trim() })
-                    await refreshSchoolBuildings(editModal.schoolId)
-                    setEditModal({ open: false })
-                  } catch (error) {
-                    const message = isRepeatError(error)
-                      ? '楼宇名称已存在，请检查后再试'
-                      : '更新失败，请稍后再试'
-                    console.error('更新楼宇失败', error)
-                    alert(message)
-                  } finally {
-                    setActionLoadingId(null)
-                  }
-                }}
-                disabled={actionLoadingId === `building-${editModal.buildingId}`}
-              >
-                保存
-              </button>
-            </div>
+  const saveAddress = async () => {
+    const schoolNameFromSelect = schools.find(
+      (item) => item.school.id === addModal.selectedSchoolId,
+    )?.school.schoolName
+    const finalSchoolName = schoolNameFromSelect || addModal.schoolNameInput.trim()
+    if (
+      !finalSchoolName ||
+      !addModal.compusName.trim() ||
+      !addModal.buildCategoryName.trim() ||
+      !addModal.buildingName.trim()
+    ) {
+      setAddMessage({ type: 'error', text: '请填写完整信息' })
+      return
+    }
+    setAddSubmitting(true)
+    try {
+      await createPresetAddress({
+        schoolName: finalSchoolName,
+        compusName: addModal.compusName.trim(),
+        buildCategoryName: addModal.buildCategoryName.trim(),
+        buildingName: addModal.buildingName.trim(),
+      })
+      await loadSchools(true)
+      if (addModal.selectedSchoolId) {
+        await refreshSchoolBuildings(addModal.selectedSchoolId)
+      }
+      setAddMessage({ type: 'success', text: '添加成功，可继续添加' })
+      setAddModal((prev) => ({
+        ...prev,
+        schoolNameInput: prev.selectedSchoolId ? finalSchoolName : prev.schoolNameInput,
+        buildingName: '',
+      }))
+    } catch (error) {
+      const text = isRepeatError(error) ? '地址重复，请检查后再试' : '添加失败，请稍后再试'
+      console.error('添加地址失败', error)
+      setAddMessage({ type: 'error', text })
+    } finally {
+      setAddSubmitting(false)
+    }
+  }
+
+  return (
+    <AdminPage className="school-management">
+      <AdminPageHeader title="学校管理" description="管理学校、校区和楼宇地址" />
+
+      <AdminFilterBar
+        extra={
+          <>
+            <AdminCount>
+              {loadingSchools ? '加载中' : `共 ${filteredSchools.length} 所学校`}
+            </AdminCount>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() =>
+                setAddModal({
+                  open: true,
+                  selectedSchoolId: undefined,
+                  schoolNameInput: '',
+                  compusName: '',
+                  buildCategoryName: '',
+                  buildingName: '',
+                })
+              }
+            >
+              添加地址
+            </Button>
+          </>
+        }
+      >
+        <Input.Search
+          allowClear
+          placeholder="搜索学校、校区、类型或楼宇"
+          value={searchKeyword}
+          onChange={(event) => setSearchKeyword(event.target.value)}
+          onSearch={setSearchKeyword}
+          style={{ width: 380 }}
+        />
+      </AdminFilterBar>
+
+      <AdminContentCard flush>
+        <Table
+          rowKey="id"
+          loading={loadingSchools}
+          dataSource={rows}
+          columns={columns}
+          locale={createAdminTableLocale('暂无学校地址数据')}
+          rowClassName={(row) => (row.isGroup ? 'school-group-row' : '')}
+          onRow={(row) => ({
+            onClick: () => {
+              if (row.isGroup && row.schoolId) void toggleExpand(row.schoolId)
+            },
+          })}
+          pagination={false}
+          scroll={{ x: 980 }}
+        />
+      </AdminContentCard>
+
+      <Alert
+        type="info"
+        showIcon
+        message="点击学校行可展开或收起该学校下的楼宇列表"
+      />
+
+      <Modal
+        title="编辑楼宇"
+        open={editModal.open}
+        onCancel={() => setEditModal({ open: false })}
+        onOk={saveEditedBuilding}
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={actionLoadingId === `building-${editModal.buildingId}`}
+      >
+        <Form layout="vertical">
+          <Form.Item label="楼宇名称" required>
+            <Input
+              value={editName}
+              onChange={(event) => setEditName(event.target.value)}
+              placeholder="请输入新的楼宇名称"
+              onPressEnter={() => void saveEditedBuilding()}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="删除楼宇"
+        open={deleteModal.open}
+        onCancel={() => setDeleteModal({ open: false })}
+        onOk={confirmDeleteBuilding}
+        okText="确认删除"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+        confirmLoading={actionLoadingId === `building-${deleteModal.buildingId}`}
+      >
+        <p>确认删除该楼宇吗？删除后不可恢复。</p>
+      </Modal>
+
+      <Modal
+        title="添加地址"
+        open={addModal.open}
+        onCancel={() => setAddModal((prev) => ({ ...prev, open: false }))}
+        onOk={saveAddress}
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={addSubmitting}
+        width={720}
+        mask={{ closable: !addSubmitting }}
+      >
+        {addMessage && (
+          <Alert
+            className="school-form-alert"
+            type={addMessage.type}
+            showIcon
+            title={addMessage.text}
+          />
+        )}
+        <Form layout="vertical">
+          <Form.Item label="学校" required>
+            <Space.Compact block>
+              <Select
+                allowClear
+                placeholder="选择已有学校"
+                style={{ width: '45%' }}
+                value={addModal.selectedSchoolId}
+                options={schools.map((item) => ({
+                  value: item.school.id,
+                  label: item.school.schoolName,
+                }))}
+                onChange={(value) =>
+                  setAddModal((prev) => ({
+                    ...prev,
+                    selectedSchoolId: value,
+                    schoolNameInput: value
+                      ? schools.find((item) => item.school.id === value)?.school.schoolName || ''
+                      : '',
+                  }))
+                }
+              />
+              <Input
+                value={addModal.schoolNameInput}
+                onChange={(event) =>
+                  setAddModal((prev) => ({
+                    ...prev,
+                    selectedSchoolId: undefined,
+                    schoolNameInput: event.target.value,
+                  }))
+                }
+                placeholder="或输入学校名称"
+              />
+            </Space.Compact>
+          </Form.Item>
+          <div className="admin-form-grid">
+            <Form.Item label="校区" required>
+              <Input
+                value={addModal.compusName}
+                onChange={(event) =>
+                  setAddModal((prev) => ({ ...prev, compusName: event.target.value }))
+                }
+                placeholder="请输入校区"
+              />
+            </Form.Item>
+            <Form.Item label="类型" required>
+              <Input
+                value={addModal.buildCategoryName}
+                onChange={(event) =>
+                  setAddModal((prev) => ({
+                    ...prev,
+                    buildCategoryName: event.target.value,
+                  }))
+                }
+                placeholder="例如：宿舍楼、教学楼"
+              />
+            </Form.Item>
+            <Form.Item className="admin-form-grid__full" label="楼宇" required>
+              <Input
+                value={addModal.buildingName}
+                onChange={(event) =>
+                  setAddModal((prev) => ({ ...prev, buildingName: event.target.value }))
+                }
+                placeholder="请输入楼宇名称"
+              />
+            </Form.Item>
           </div>
-        </div>
-      )}
-
-      {deleteModal.open && (
-        <div className="modal-overlay" onClick={() => setDeleteModal({ open: false })}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>删除确认</h2>
-              <button className="modal-close" onClick={() => setDeleteModal({ open: false })}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>确认删除该楼宇吗？删除后不可恢复。</p>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setDeleteModal({ open: false })}>
-                取消
-              </button>
-              <button
-                className="btn-primary"
-                onClick={async () => {
-                  if (!deleteModal.buildingId || !deleteModal.schoolId) return
-                  setActionLoadingId(`building-${deleteModal.buildingId}`)
-                  try {
-                    await deleteBuilding(deleteModal.buildingId)
-                    await refreshSchoolBuildings(deleteModal.schoolId)
-                    setDeleteModal({ open: false })
-                  } catch (error) {
-                    console.error('删除楼宇失败', error)
-                    alert('删除失败，请稍后再试')
-                  } finally {
-                    setActionLoadingId(null)
-                  }
-                }}
-                disabled={actionLoadingId === `building-${deleteModal.buildingId}`}
-              >
-                确认删除
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {addModal.open && (
-        <div className="modal-overlay" onClick={() => setAddModal((prev) => ({ ...prev, open: false }))}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>添加地址</h2>
-              <button
-                className="modal-close"
-                onClick={() => setAddModal((prev) => ({ ...prev, open: false }))}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              {addMessage && (
-                <div className={`alert ${addMessage.type === 'success' ? 'alert-success' : 'alert-error'}`}>
-                  {addMessage.text}
-                </div>
-              )}
-
-              <div className="form-group">
-                <label>选择学校</label>
-                <div className="select-or-input">
-                  <select
-                    value={addModal.selectedSchoolId ?? ''}
-                    onChange={(e) =>
-                      setAddModal((prev) => ({
-                        ...prev,
-                        selectedSchoolId: e.target.value ? Number(e.target.value) : undefined,
-                        schoolNameInput: e.target.value
-                          ? schools.find((item) => item.school.id === Number(e.target.value))?.school.schoolName ||
-                            ''
-                          : prev.schoolNameInput,
-                      }))
-                    }
-                  >
-                    <option value="">从下拉选择</option>
-                    {schools.map((item) => (
-                      <option key={item.school.id} value={item.school.id}>
-                        {item.school.schoolName}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="inline-sep">或</span>
-                  <input
-                    type="text"
-                    value={addModal.schoolNameInput}
-                    onChange={(e) =>
-                      setAddModal((prev) => ({
-                        ...prev,
-                        selectedSchoolId: undefined,
-                        schoolNameInput: e.target.value,
-                      }))
-                    }
-                    placeholder="手动输入学校名称"
-                  />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>校区</label>
-                <input
-                  type="text"
-                  value={addModal.compusName}
-                  onChange={(e) =>
-                    setAddModal((prev) => ({ ...prev, compusName: e.target.value }))
-                  }
-                  placeholder="请输入校区"
-                />
-              </div>
-              <div className="form-group">
-                <label>类型</label>
-                <input
-                  type="text"
-                  value={addModal.buildCategoryName}
-                  onChange={(e) =>
-                    setAddModal((prev) => ({ ...prev, buildCategoryName: e.target.value }))
-                  }
-                  placeholder="例如：宿舍楼、教学楼"
-                />
-              </div>
-              <div className="form-group">
-                <label>楼宇</label>
-                <input
-                  type="text"
-                  value={addModal.buildingName}
-                  onChange={(e) =>
-                    setAddModal((prev) => ({ ...prev, buildingName: e.target.value }))
-                  }
-                  placeholder="请输入楼宇名称"
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn-secondary"
-                onClick={() => setAddModal((prev) => ({ ...prev, open: false }))}
-                disabled={addSubmitting}
-              >
-                取消
-              </button>
-              <button
-                className="btn-primary"
-                disabled={addSubmitting}
-                onClick={async () => {
-                  const schoolNameFromSelect = schools.find(
-                    (item) => item.school.id === addModal.selectedSchoolId,
-                  )?.school.schoolName
-                  const finalSchoolName = schoolNameFromSelect || addModal.schoolNameInput.trim()
-                  if (!finalSchoolName || !addModal.compusName.trim() || !addModal.buildCategoryName.trim() || !addModal.buildingName.trim()) {
-                    setAddMessage({ type: 'error', text: '请填写完整信息' })
-                    return
-                  }
-                  setAddSubmitting(true)
-                  try {
-                    await createPresetAddress({
-                      schoolName: finalSchoolName,
-                      compusName: addModal.compusName.trim(),
-                      buildCategoryName: addModal.buildCategoryName.trim(),
-                      buildingName: addModal.buildingName.trim(),
-                    })
-                    await loadSchools(true)
-                    if (addModal.selectedSchoolId) {
-                      await refreshSchoolBuildings(addModal.selectedSchoolId)
-                    }
-                    setAddMessage({ type: 'success', text: '添加成功，可继续添加' })
-                    setAddModal((prev) => ({
-                      ...prev,
-                      selectedSchoolId: prev.selectedSchoolId,
-                      schoolNameInput: prev.selectedSchoolId ? finalSchoolName : prev.schoolNameInput,
-                      compusName: prev.compusName,
-                      buildCategoryName: prev.buildCategoryName,
-                      buildingName: '',
-                    }))
-                  } catch (error) {
-                    const text = isRepeatError(error)
-                      ? '地址重复，请检查后再试'
-                      : '添加失败，请稍后再试'
-                    console.error('添加地址失败', error)
-                    setAddMessage({ type: 'error', text })
-                  } finally {
-                    setAddSubmitting(false)
-                  }
-                }}
-              >
-                保存
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        </Form>
+      </Modal>
+    </AdminPage>
   )
 }

@@ -1,8 +1,8 @@
 <!-- 首页展示 -->
 <view class="show">
   <!-- 轮播图区域 -->
-  <view class="banner-wrap">
-    <t-swiper current="{{current}}" autoplay="{{autoplay}}" duration="{{duration}}" interval="{{interval}}" list="{{swiperList}}" navigation="{{ { type: 'dots-bar' } }}" />
+  <view class="banner-wrap" wx:if="{{swiperList.length > 0}}">
+    <t-swiper height="220rpx" current="{{current}}" autoplay="{{autoplay}}" duration="{{duration}}" interval="{{interval}}" list="{{swiperList}}" navigation="{{ { type: 'dots-bar' } }}" />
   </view>
 
   <view class="runner-panel">
@@ -18,65 +18,23 @@
   </view>
 
   <view>
-    <!-- 顶部tab栏 -->
-    <view class="tab">
-      <t-tabs class="tabs" defaultValue="{{tab}}" sticky="true" bind:click="onTabsClick" t-class="custom-tabs" arrow>
-        <!-- 综合排序 -->
-        <t-tab-panel label="综合排序" value="0" icon="filter-3" />
-        <!-- 价格排序 -->
-        <t-tab-panel label="{{tab==1?label1[orderStatus]:label1[2]}}" value="1" icon="{{tab==1?icon1[orderStatus]:icon1[2]}}" />
-        <!-- 快捷筛选 -->
-        <t-tab-panel label="{{tab==2?(orderStatus==2?'快捷筛选':'重置筛选'):'快捷筛选'}}" value="2" icon="{{tab==2?(orderStatus==2?'search':'refresh'):'search'}}" style="background: #F5F5F5;">
-          <!-- 筛选选择-折叠面板 -->
-          <view wx:if="{{orderStatus!=2}}">
-            <!-- 按照跑腿分类筛选 -->
-            <view hidden="{{orderStatus!=0}}" style="margin: 10rpx 0;">
-              <t-collapse theme="card" defaultValue="{{[0]}}" expandMutex expandIcon>
-                <t-collapse-panel header-left-icon="task-visible" header="按照{{showCategory ||'跑腿分类'}}筛选" value="{{1}}">
-                  <t-grid class="block" column="{{4}}" theme="card" hover="true">
-                    <t-grid-item wx:for="{{category}}" wx:key="index" text="{{item.categoryName}}" image="{{item.image}}" style="padding: 16rpx 0 !important;" bindclick="getTakeByCategory" data-item="{{item}}" />
-                  </t-grid>
-                </t-collapse-panel>
-              </t-collapse>
-            </view>
-            <!-- 按照地址类型筛选 -->
-            <view hidden="{{orderStatus!=1}}" style="margin: 10rpx 0;">
-              <t-collapse theme="card" defaultValue="{{[0]}}" expandMutex expandIcon>
-                <t-collapse-panel header-left-icon="map-search" header="按照{{upPickUp==null?(upRecive==null?'地址类型':'收件地址'):(upRecive==null?'取件地址':'取件和收件地址')}}筛选" value="{{1}}">
-                  <view>
-                    <!-- 取件 -->
-                    <view class="box1-2">
-                      <view class="box1-2" bind:tap="handleShowPicker" data-tag="pickup">
-                        <view class="text-address">取件</view>
-                        <view class="address">
-                          {{upPickUp.label[0] || '点击选择取件地址'}} {{upPickUp.label[1]}} {{upPickUp.label[2]}}
-                        </view>
-                      </view>
-                      <!-- 重置按钮 -->
-                      <view hidden="{{upPickUp==null}}" style="width: 100rpx;" bind:tap="clearUpPickUp">
-                        <t-icon name="rotate" size="38rpx" style="color:rgba(128, 128, 128, 0.5);" />
-                      </view>
-                    </view>
-                    <!-- 收件 -->
-                    <view class="box1-2">
-                      <view class="box1-2" bind:tap="handleShowPicker" data-tag="recive">
-                        <text class="text-address">收件</text>
-                        <view class="address" style="font-weight: 600;">
-                          {{upRecive.label[0] || '点击选择收件地址'}} {{upRecive.label[1]}} {{upRecive.label[2]}}
-                        </view>
-                      </view>
-                      <!-- 重置按钮 -->
-                      <view hidden="{{upRecive==null}}" style="width: 100rpx;" bind:tap="clearUpRecive">
-                        <t-icon name="rotate" size="38rpx" style="color:rgba(128, 128, 128, 0.5);" />
-                      </view>
-                    </view>
-                  </view>
-                </t-collapse-panel>
-              </t-collapse>
-            </view>
-          </view>
-        </t-tab-panel>
-      </t-tabs>
+    <view class="filter-bar">
+      <view class="filter-bar-item {{sortMode==='time'?'active':''}}" bindtap="selectTimeSort">
+        <t-icon name="filter-3" size="34rpx" />
+        <text>综合排序</text>
+      </view>
+      <view class="filter-bar-item {{sortMode==='price'?'active':''}}" bindtap="togglePriceSort">
+        <t-icon name="{{sortMode==='price'?(priceSort===0?'caret-up':'caret-down'):'currency-exchange'}}" size="34rpx" />
+        <text>{{sortMode==='price'?(priceSort===0?'价格从高到低':'价格从低到高'):'价格排序'}}</text>
+      </view>
+      <view class="filter-bar-item {{filterCount>0?'active':''}}" bindtap="openFilter">
+        <t-icon name="filter" size="34rpx" />
+        <text>{{filterCount>0?'筛选 · '+filterCount:'筛选'}}</text>
+      </view>
+    </view>
+    <view class="filter-summary" wx:if="{{filterCount>0}}">
+      <text class="filter-summary-text">{{filterSummary}}</text>
+      <text class="filter-summary-reset" bindtap="resetFilters">清除</text>
     </view>
     <!-- 订单展示 -->
     <view class="cart" croll-y>
@@ -110,7 +68,7 @@
             </view>
             <!-- 订单说明文字 -->
             <view class="box2-1">
-              <view class="note">{{item.note||'暂无说明'}}</view>
+              <view class="note">{{item.displayTitle||item.note||'暂无说明'}}</view>
               <view class="pick">取：{{item.pickUpAddress}}</view>
               <view class="recive">收：{{item.reciveAddress}}</view>
             </view>
@@ -157,8 +115,59 @@
   </view>
 </t-popup>
 
-<!-- 筛选选择 -->
-<t-action-sheet id="t-action-sheet" usingCustomNavbar bind:selected="handleSelected" />
+<!-- 统一筛选面板 -->
+<t-popup visible="{{filterVisible}}" bind:visible-change="onFilterVisibleChange" placement="bottom">
+  <view class="filter-sheet">
+    <view class="filter-sheet-header">
+      <text class="filter-sheet-title">筛选跑腿</text>
+      <text class="filter-sheet-reset" bindtap="clearFilterSelection">重置</text>
+    </view>
+
+    <view class="filter-section">
+      <view class="filter-section-title">跑腿类型</view>
+      <view class="filter-options">
+        <view class="filter-chip {{selectedCategoryId==null?'active':''}}" bindtap="selectFilterCategory">全部</view>
+        <view
+          wx:for="{{category}}"
+          wx:key="id"
+          class="filter-chip {{selectedCategoryId==item.id?'active':''}}"
+          bindtap="selectFilterCategory"
+          data-item="{{item}}"
+        >
+          {{item.categoryName}}
+        </view>
+      </view>
+    </view>
+
+    <view class="filter-section">
+      <view class="filter-section-title">地址范围</view>
+      <view class="filter-address-row">
+        <view class="filter-address-main" bindtap="handleShowPicker" data-tag="pickup">
+          <view class="filter-address-label">取件</view>
+          <view class="filter-address-value">
+            {{upPickUp?(upPickUp.label[0]+' '+upPickUp.label[1]+' '+upPickUp.label[2]):'不限取件地址'}}
+          </view>
+          <t-icon name="chevron-right" size="34rpx" color="#7a8491" />
+        </view>
+        <text class="filter-address-clear" wx:if="{{upPickUp}}" bindtap="clearUpPickUp">清除</text>
+      </view>
+      <view class="filter-address-row">
+        <view class="filter-address-main" bindtap="handleShowPicker" data-tag="recive">
+          <view class="filter-address-label">收件</view>
+          <view class="filter-address-value">
+            {{upRecive?(upRecive.label[0]+' '+upRecive.label[1]+' '+upRecive.label[2]):'不限收件地址'}}
+          </view>
+          <t-icon name="chevron-right" size="34rpx" color="#7a8491" />
+        </view>
+        <text class="filter-address-clear" wx:if="{{upRecive}}" bindtap="clearUpRecive">清除</text>
+      </view>
+    </view>
+
+    <view class="filter-sheet-actions">
+      <t-button block theme="primary" bind:tap="applyFilterSelection">查看结果</t-button>
+    </view>
+  </view>
+</t-popup>
 
 <!-- 地址筛选 -->
 <t-picker visible="{{areaVisible}}" value="{{areaValue}}" title="请选择地址" cancelBtn="取消" confirmBtn="确认" bindchange="onPickerChange" bindpick="onColumnChange" bindcancel="onPickerCancel">

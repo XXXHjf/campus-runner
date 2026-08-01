@@ -33,7 +33,6 @@ public class MessageConstant {
 
     public static final String NO_IMAGE = "No image proof of order completion";
 
-    public static final String NOT_THIS_ADDRESS_TYPE = "Address type mismatch, not the pickup or delivery address you are looking for";
     public static final String STATUS_NOT_WAIT_TO_TAKE_ORDER = "Order status is not 'waiting to be taken'";
     public static final String STATUS_NOT_ALREADY_TAKE_ORDER = "Order status is not 'taken', cannot send message";
     public static final String STATUS_NOT_DELIVERYING = "Order status is not 'delivering', cannot send message";

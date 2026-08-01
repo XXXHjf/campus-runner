@@ -247,6 +247,17 @@ docs/database/media-asset-history-migration.sql
 docs/database/media-asset-history-migration.md
 ```
 
+统一地址簿使用：
+
+```text
+docs/database/address-book-type-removal.sql
+docs/database/address-book-type-removal-rollback.sql
+docs/database/address-book-type-removal.md
+```
+
+地址簿迁移会删除已弃用的 `tb_address_book.type`。旧版 API 仍按旧结构读写该列，因此
+应先停止旧版 API，完成数据库备份和迁移后再启动新版 API；验证与回滚步骤见对应说明。
+
 已执行第一阶段 `media-asset-migration.sql` 的环境，本版本只需在发布新版 API 前执行
 `media-asset-phase2-migration.sql`。该脚本仅为 `tb_media_asset` 增加多图排序字段，
 不修改历史 URL，也不删除 OSS 对象。
@@ -262,9 +273,13 @@ mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
 
 mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
   < docs/database/media-asset-phase2-migration.sql
+
+mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
+  < docs/database/address-book-type-removal.sql
 ```
 
-以上脚本不会清空已有数据，并对建表或新增字段进行了重复执行保护。
+以上脚本不会清空业务记录，并对结构变化进行了重复执行保护。地址簿脚本会按设计永久
+删除已弃用的 `type` 列及该列历史值，执行前必须完成数据库备份。
 
 历史图片迁移不能只执行 SQL，也不能在迁移完成前删除旧字段。部署迁移器后，依次执行：
 
@@ -293,7 +308,12 @@ LIKE 'buyer_delivery_address_snapshot';
 
 SHOW COLUMNS FROM tb_media_asset
 LIKE 'sort_order';
+
+SHOW COLUMNS FROM tb_address_book
+LIKE 'type';
 ```
+
+最后一条查询在地址簿迁移完成后应返回空结果。
 
 ## 更新管理后台
 

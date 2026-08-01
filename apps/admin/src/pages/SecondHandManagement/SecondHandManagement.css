@@ -1,24 +1,5 @@
 .second-hand-management {
-  padding: 24px;
-}
-
-.second-hand-management .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.second-hand-management .page-header h1 {
-  margin: 0;
-  font-size: 24px;
-  color: #1f2937;
-}
-
-.second-hand-management .page-header p {
-  margin: 8px 0 0;
-  color: #6b7280;
+  min-width: 0;
 }
 
 .second-hand-management .stat-row {
@@ -29,26 +10,26 @@
   border-radius: 8px;
 }
 
-.second-hand-management .management-tabs {
-  padding: 18px;
-  background: #fff;
-  border-radius: 8px;
+.second-hand-management .second-hand-tabs-card > .admin-content-card__body {
+  padding: 0 20px 20px;
 }
 
-.second-hand-management .toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+.second-hand-management .management-tabs > .ant-tabs-nav {
+  margin-bottom: 20px;
+}
+
+.second-hand-management .admin-filter-bar {
   margin-bottom: 16px;
+  box-shadow: none;
 }
 
-.second-hand-management .toolbar-right {
-  justify-content: flex-end;
-}
-
-.second-hand-management .filter-select {
+.second-hand-management .filter-select,
+.second-hand-management .admin-filter-bar .ant-input-affix-wrapper {
   min-width: 150px;
+}
+
+.second-hand-management .second-hand-actions-bar .admin-filter-bar__controls {
+  justify-content: flex-end;
 }
 
 .second-hand-management .ant-table-wrapper {
@@ -59,7 +40,7 @@
   vertical-align: middle;
 }
 
-.category-icon-thumbnail {
+.second-hand-category-icon-thumbnail {
   width: 44px;
   height: 44px;
   object-fit: cover;
@@ -67,7 +48,7 @@
   border-radius: 8px;
 }
 
-.category-upload-trigger {
+.second-hand-category-upload-trigger {
   display: flex;
   min-height: 72px;
   align-items: center;
@@ -75,7 +56,7 @@
   color: #1677ff;
 }
 
-.category-icon-preview {
+.second-hand-category-icon-preview {
   display: block;
   max-width: 100%;
   max-height: 60vh;
@@ -84,17 +65,17 @@
   border-radius: 8px;
 }
 
-.detail-stack {
+.second-hand-detail-stack {
   width: 100%;
 }
 
-.image-list {
+.second-hand-image-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
-.image-list img {
+.second-hand-image-list img {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
@@ -102,22 +83,14 @@
   border: 1px solid #e5e7eb;
 }
 
-.drawer-loading {
+.second-hand-drawer-loading {
   padding: 48px 0;
   text-align: center;
   color: #6b7280;
 }
 
 @media (max-width: 768px) {
-  .second-hand-management {
-    padding: 16px;
-  }
-
-  .second-hand-management .page-header {
-    flex-direction: column;
-  }
-
-  .second-hand-management .management-tabs {
-    padding: 12px;
+  .second-hand-management .second-hand-tabs-card > .admin-content-card__body {
+    padding: 0 12px 12px;
   }
 }

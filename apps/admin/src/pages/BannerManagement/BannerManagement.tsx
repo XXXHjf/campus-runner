@@ -7,9 +7,35 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Alert,
+  Button,
+  Form,
+  Image,
+  Input,
+  Modal,
+  Progress,
+  Select,
+  Slider,
+  Space,
+  Table,
+  Tag,
+  Upload,
+} from 'antd'
+import { PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons'
+import Cropper, { type Area, type Point } from 'react-easy-crop'
 import { bannerService, addressService, mediaService } from '../../services'
 import type { AdminSchool, Banner, BannerCreateRequest, BannerJumpType } from '../../types'
+import { BANNER_ASPECT_RATIO, createBannerCropFile } from '../../utils/cropImage'
 import { formatDateTime } from '../../utils/format'
+import {
+  AdminContentCard,
+  AdminCount,
+  AdminFilterBar,
+  AdminPage,
+  AdminPageHeader,
+  createAdminTableLocale,
+} from '../../components/admin'
 import './BannerManagement.css'
 
 const jumpTypeLabels: Record<number, string> = {
@@ -71,6 +97,12 @@ export default function BannerManagement() {
   const [localPreview, setLocalPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [cropFile, setCropFile] = useState<File | null>(null)
+  const [cropSource, setCropSource] = useState<string | null>(null)
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedArea, setCroppedArea] = useState<Area | null>(null)
+  const [cropping, setCropping] = useState(false)
   const [addSubmitting, setAddSubmitting] = useState(false)
   const [addMessage, setAddMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null,
@@ -95,6 +127,16 @@ export default function BannerManagement() {
     setLocalPreview(previewUrl)
     return () => URL.revokeObjectURL(previewUrl)
   }, [uploadFile])
+
+  useEffect(() => {
+    if (!cropFile) {
+      setCropSource(null)
+      return
+    }
+    const source = URL.createObjectURL(cropFile)
+    setCropSource(source)
+    return () => URL.revokeObjectURL(source)
+  }, [cropFile])
 
   useEffect(() => {
     const hasModal = addModalOpen || deleteModal.open || preview.open
@@ -175,13 +217,15 @@ export default function BannerManagement() {
     setLocalPreview(null)
     setUploadProgress(0)
     setUploading(false)
+    setCropFile(null)
+    setCropping(false)
     setAddSubmitting(false)
     setAddMessage(null)
     setAddModalOpen(true)
   }
 
   const closeAddModal = () => {
-    if (addSubmitting) return
+    if (addSubmitting || uploading || cropping) return
     uploadRequestIdRef.current += 1
     const temporaryMediaId = temporaryMediaIdRef.current
     temporaryMediaIdRef.current = null
@@ -191,6 +235,7 @@ export default function BannerManagement() {
       })
     }
     setAddModalOpen(false)
+    setCropFile(null)
   }
 
   const handleSchoolChange = (value: number) => {
@@ -203,6 +248,38 @@ export default function BannerManagement() {
       jumpType: value,
       jumpTarget: value === 0 ? '' : prev.jumpTarget,
     }))
+  }
+
+  const openCropper = (file: File) => {
+    setCrop({ x: 0, y: 0 })
+    setZoom(1)
+    setCroppedArea(null)
+    setCropFile(file)
+    setAddMessage(null)
+  }
+
+  const closeCropper = () => {
+    if (cropping) return
+    setCropFile(null)
+  }
+
+  const confirmCrop = async () => {
+    if (!cropFile || !cropSource || !croppedArea) {
+      setAddMessage({ type: 'error', text: '图片尚未准备好，请稍后再试' })
+      return
+    }
+
+    setCropping(true)
+    try {
+      const croppedFile = await createBannerCropFile(cropSource, croppedArea, cropFile.name)
+      setCropFile(null)
+      await handleFileSelection(croppedFile)
+    } catch (err) {
+      console.error('裁切轮播图失败', err)
+      setAddMessage({ type: 'error', text: getErrorMessage(err, '图片处理失败，请重新选择') })
+    } finally {
+      setCropping(false)
+    }
   }
 
   const handleFileSelection = async (file: File | null) => {
@@ -331,326 +408,343 @@ export default function BannerManagement() {
       ? '通用轮播图列表'
       : `${listSchoolName || `学校ID ${selectedSchoolId}`} 轮播图列表`
 
-  return (
-    <div className="banner-management">
-      <div className="page-header">
-        <div className="header-left">
-          <h1>轮播图管理</h1>
-          <p>管理小程序首页轮播图及跳转设置</p>
-        </div>
-        <div className="header-right">
-          <button className="btn-secondary" onClick={() => loadList(selectedSchoolId)} disabled={loading}>
-            刷新
+  const columns = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      width: 72,
+    },
+    {
+      title: '图片',
+      dataIndex: 'imgUrl',
+      width: 150,
+      render: (value: string | undefined, record: Banner) =>
+        value ? (
+          <button
+            type="button"
+            className="banner-image-button"
+            onClick={() => openPreview(record)}
+          >
+            <img src={value} alt={record.title || '轮播图'} />
           </button>
-          <button className="btn-primary" onClick={openAddModal}>
-            <span className="btn-icon">＋</span>
-            新增轮播图
-          </button>
-        </div>
-      </div>
+        ) : (
+          '-'
+        ),
+    },
+    {
+      title: '标题',
+      dataIndex: 'title',
+      width: 180,
+      render: (value: string | undefined) => value || '-',
+    },
+    {
+      title: '学校',
+      width: 160,
+      render: (_: unknown, record: Banner) => schoolLabel(record),
+    },
+    {
+      title: '跳转类型',
+      dataIndex: 'jumpType',
+      width: 120,
+      render: (value: number) => <Tag color="blue">{jumpTypeLabels[value] || '-'}</Tag>,
+    },
+    {
+      title: '跳转目标',
+      dataIndex: 'jumpTarget',
+      width: 220,
+      ellipsis: true,
+      render: (value: string | undefined) => value || '-',
+    },
+    {
+      title: '备注',
+      dataIndex: 'remark',
+      width: 180,
+      ellipsis: true,
+      render: (value: string | undefined) => value || '-',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      width: 180,
+      render: formatCreateTime,
+    },
+    {
+      title: '操作',
+      fixed: 'right' as const,
+      width: 100,
+      render: (_: unknown, record: Banner) => (
+        <Button
+          type="link"
+          danger
+          loading={actionId === record.id}
+          onClick={() => setDeleteModal({ open: true, banner: record })}
+        >
+          删除
+        </Button>
+      ),
+    },
+  ]
 
-      <div className="toolbar">
-        <div className="toolbar-left">
-          <div className="filter-group">
-            <label>查看学校</label>
-            <select
-              value={selectedSchoolId}
-              onChange={(e) => setSelectedSchoolId(Number(e.target.value))}
+  return (
+    <AdminPage className="banner-management">
+      <AdminPageHeader
+        title="轮播图管理"
+        description="管理小程序首页轮播图及跳转设置"
+        actions={
+          <>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => loadList(selectedSchoolId)}
+              loading={loading}
             >
-              <option value={0}>通用轮播图</option>
-              {schools.map((school) => (
-                <option key={school.id} value={school.id}>
-                  {school.schoolName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="search-box">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="搜索：标题/跳转/备注/学校"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
+              刷新
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+              新增轮播图
+            </Button>
+          </>
+        }
+      />
+
+      <AdminFilterBar>
+        <Select
+          aria-label="查看学校"
+          value={selectedSchoolId}
+          style={{ width: 190 }}
+          onChange={setSelectedSchoolId}
+          options={[
+            { value: 0, label: '通用轮播图' },
+            ...schools.map((school) => ({ value: school.id, label: school.schoolName })),
+          ]}
+        />
+        <Input.Search
+          allowClear
+          placeholder="搜索标题、跳转目标、备注或学校"
+          value={keyword}
+          onChange={(event) => setKeyword(event.target.value)}
+          onSearch={setKeyword}
+          style={{ width: 360 }}
+        />
+      </AdminFilterBar>
 
       {error && (
-        <div className="alert alert-error">
-          <span>⚠️ {error}</span>
-        </div>
+        <Alert type="error" showIcon title={error} />
       )}
 
-      <div className="table-container">
-        <div className="table-header">
-          <div>
-            <h3 className="table-title">{listTitle}</h3>
-            <p className="table-subtitle">表格展示当前筛选条件下的轮播图</p>
-          </div>
-          <span className="data-count">{loading ? '加载中...' : `共 ${filteredList.length} 条`}</span>
-        </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th style={{ width: 80 }}>ID</th>
-              <th style={{ width: 130 }}>图片</th>
-              <th style={{ width: 160 }}>标题</th>
-              <th style={{ width: 160 }}>学校</th>
-              <th style={{ width: 120 }}>跳转类型</th>
-              <th>跳转目标</th>
-              <th style={{ width: 180 }}>备注</th>
-              <th style={{ width: 180 }}>创建时间</th>
-              <th style={{ width: 120 }}>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={9} className="no-data">
-                  <div className="no-data-content">
-                    <span className="no-data-icon">⏳</span>
-                    <p>加载中...</p>
-                  </div>
-                </td>
-              </tr>
-            ) : filteredList.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="no-data">
-                  <div className="no-data-content">
-                    <span className="no-data-icon">📭</span>
-                    <p>暂无轮播图数据</p>
-                    <small>可点击右上角新增轮播图</small>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              filteredList.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.id}</td>
-                  <td>
-                    {item.imgUrl ? (
-                      <button
-                        type="button"
-                        className="banner-thumb-button"
-                        onClick={() => openPreview(item)}
-                      >
-                        <img
-                          className="banner-thumb"
-                          src={item.imgUrl}
-                          alt={item.title || 'banner'}
-                        />
-                      </button>
-                    ) : (
-                      <span className="text-muted">暂无图片</span>
-                    )}
-                  </td>
-                  <td>{item.title || '-'}</td>
-                  <td>{schoolLabel(item)}</td>
-                  <td>
-                    <span className="tag">{jumpTypeLabels[item.jumpType] || '-'}</span>
-                  </td>
-                  <td className="text-ellipsis">{item.jumpTarget || '-'}</td>
-                  <td className="text-ellipsis">{item.remark || '-'}</td>
-                  <td>{formatCreateTime(item.createTime)}</td>
-                  <td>
-                    <button
-                      className="btn-action btn-delete"
-                      onClick={() => setDeleteModal({ open: true, banner: item })}
-                      disabled={actionId === item.id}
-                    >
-                      删除
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <AdminContentCard
+        title={listTitle}
+        description="展示当前筛选条件下的轮播图"
+        extra={
+          <AdminCount>{loading ? '加载中' : `共 ${filteredList.length} 条`}</AdminCount>
+        }
+        flush
+      >
+        <Table
+          rowKey="id"
+          loading={loading}
+          dataSource={filteredList}
+          columns={columns}
+          locale={createAdminTableLocale('暂无轮播图数据')}
+          scroll={{ x: 1320 }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
+        />
+      </AdminContentCard>
 
-      {addModalOpen && (
-        <div className="modal-overlay" onClick={closeAddModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>新增轮播图</h2>
-              <button className="modal-close" onClick={closeAddModal} disabled={addSubmitting}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              {addMessage && (
-                <div className={`alert ${addMessage.type === 'success' ? 'alert-success' : 'alert-error'}`}>
-                  {addMessage.text}
-                </div>
+      <Modal
+        title="新增轮播图"
+        open={addModalOpen}
+        onCancel={closeAddModal}
+        onOk={handleCreate}
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={addSubmitting}
+        okButtonProps={{ disabled: uploading || cropping }}
+        mask={{ closable: !addSubmitting && !uploading && !cropping }}
+        destroyOnHidden
+        width={720}
+      >
+        {addMessage && (
+          <Alert
+            className="banner-form-alert"
+            type={addMessage.type}
+            showIcon
+            title={addMessage.text}
+          />
+        )}
+        <Form layout="vertical">
+          <div className="admin-form-grid">
+            <Form.Item label="标题" required>
+              <Input
+                value={formState.title}
+                onChange={(event) =>
+                  setFormState((prev) => ({ ...prev, title: event.target.value }))
+                }
+                placeholder="请输入轮播图标题"
+              />
+            </Form.Item>
+
+            <Form.Item label="归属学校" required>
+              <Select
+                value={formState.schoolId}
+                onChange={handleSchoolChange}
+                options={[
+                  { value: 0, label: '通用轮播图' },
+                  ...schools.map((school) => ({
+                    value: school.id,
+                    label: school.schoolName,
+                  })),
+                ]}
+              />
+              {formState.schoolId !== 0 && !selectedSchoolName && (
+                <span className="banner-form-hint">学校列表加载中，请稍后再上传</span>
               )}
+            </Form.Item>
 
-              <div className="form-group">
-                <label>
-                  标题<span className="required">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formState.title}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, title: e.target.value }))}
-                  placeholder="请输入轮播图标题"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>
-                  归属学校<span className="required">*</span>
-                </label>
-                <select
-                  value={formState.schoolId}
-                  onChange={(e) => handleSchoolChange(Number(e.target.value))}
+            <Form.Item className="admin-form-grid__full" label="轮播图图片" required>
+              <Space direction="vertical" size={12}>
+                <Upload
+                  accept="image/jpeg,image/png,image/webp"
+                  showUploadList={false}
+                  disabled={uploading}
+                  beforeUpload={(file) => {
+                    openCropper(file)
+                    return false
+                  }}
                 >
-                  <option value={0}>通用轮播图</option>
-                  {schools.map((school) => (
-                    <option key={school.id} value={school.id}>
-                      {school.schoolName}
-                    </option>
-                  ))}
-                </select>
-                {formState.schoolId !== 0 && !selectedSchoolName && (
-                  <p className="form-hint">学校列表加载中，请稍后再上传</p>
+                  <Button icon={<UploadOutlined />} loading={uploading}>
+                    选择图片
+                  </Button>
+                </Upload>
+                {uploading && (
+                  <Progress percent={uploadProgress} size="small" style={{ width: 280 }} />
                 )}
-              </div>
-
-              <div className="form-group">
-                <label>
-                  轮播图图片<span className="required">*</span>
-                </label>
-                <div className="upload-row">
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={(e) => void handleFileSelection(e.target.files?.[0] || null)}
-                    disabled={uploading}
-                  />
-                  {uploading && <span>上传中 {uploadProgress}%</span>}
-                  {!uploading && formState.imageAssetId && <span>图片已就绪</span>}
-                </div>
+                {!uploading && formState.imageAssetId && (
+                  <span className="banner-upload-ready">图片已就绪</span>
+                )}
+                <span className="banner-form-hint">
+                  选择图片后可拖动和缩放，显示范围与小程序首页一致
+                </span>
                 {(formState.imgUrl || localPreview) && (
-                  <div className="image-preview">
-                    <img
-                      src={formState.imgUrl || localPreview || ''}
-                      alt="预览"
-                      className="preview-img"
-                    />
-                  </div>
+                  <Image
+                    src={formState.imgUrl || localPreview || ''}
+                    alt="轮播图预览"
+                    width={320}
+                    className="banner-form-preview"
+                  />
                 )}
-              </div>
+              </Space>
+            </Form.Item>
 
-              <div className="form-group">
-                <label>跳转类型</label>
-                <select
-                  value={formState.jumpType}
-                  onChange={(e) => handleJumpTypeChange(Number(e.target.value) as BannerJumpType)}
-                >
-                  {jumpTypeOptions.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <Form.Item label="跳转类型">
+              <Select
+                value={formState.jumpType}
+                onChange={handleJumpTypeChange}
+                options={jumpTypeOptions}
+              />
+            </Form.Item>
 
-              <div className="form-group">
-                <label>跳转目标</label>
-                <input
-                  type="text"
-                  value={formState.jumpTarget}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, jumpTarget: e.target.value }))}
-                  placeholder="请输入所选跳转类型对应的地址"
-                  disabled={formState.jumpType === 0}
-                />
-              </div>
+            <Form.Item label="跳转目标">
+              <Input
+                value={formState.jumpTarget}
+                onChange={(event) =>
+                  setFormState((prev) => ({ ...prev, jumpTarget: event.target.value }))
+                }
+                placeholder="请输入所选跳转类型对应的地址"
+                disabled={formState.jumpType === 0}
+              />
+            </Form.Item>
 
-              <div className="form-group">
-                <label>备注说明</label>
-                <input
-                  type="text"
-                  value={formState.remark}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, remark: e.target.value }))}
-                  placeholder="可选，补充说明"
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={closeAddModal} disabled={addSubmitting}>
-                取消
-              </button>
-              <button
-                className="btn-primary"
-                onClick={handleCreate}
-                disabled={addSubmitting || uploading}
-              >
-                保存
-              </button>
-            </div>
+            <Form.Item className="admin-form-grid__full" label="备注说明">
+              <Input.TextArea
+                rows={3}
+                value={formState.remark}
+                onChange={(event) =>
+                  setFormState((prev) => ({ ...prev, remark: event.target.value }))
+                }
+                placeholder="可选，补充说明"
+              />
+            </Form.Item>
           </div>
-        </div>
-      )}
+        </Form>
+      </Modal>
 
-      {deleteModal.open && (
-        <div className="modal-overlay" onClick={() => setDeleteModal({ open: false })}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>删除确认</h2>
-              <button className="modal-close" onClick={() => setDeleteModal({ open: false })}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>确认删除该轮播图吗？删除后不可恢复。</p>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setDeleteModal({ open: false })}>
-                取消
-              </button>
-              <button
-                className="btn-primary"
-                onClick={() => deleteModal.banner && handleDelete(deleteModal.banner)}
-                disabled={actionId === deleteModal.banner?.id}
-              >
-                确认删除
-              </button>
-            </div>
-          </div>
+      <Modal
+        title="调整轮播图显示范围"
+        open={Boolean(cropFile)}
+        onCancel={closeCropper}
+        onOk={() => void confirmCrop()}
+        okText="确认并上传"
+        cancelText="取消"
+        confirmLoading={cropping}
+        mask={{ closable: !cropping }}
+        width={860}
+        centered
+        destroyOnHidden
+      >
+        <p className="banner-crop-description">
+          拖动图片选择首页要显示的部分，使用下方滑块调整大小。
+        </p>
+        <div className="banner-crop-stage">
+          {cropSource && (
+            <Cropper
+              image={cropSource}
+              crop={crop}
+              zoom={zoom}
+              aspect={BANNER_ASPECT_RATIO}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={(_, areaPixels) => setCroppedArea(areaPixels)}
+              showGrid
+            />
+          )}
         </div>
-      )}
+        <div className="banner-crop-zoom">
+          <span>图片大小</span>
+          <Slider
+            min={1}
+            max={3}
+            step={0.01}
+            value={zoom}
+            onChange={setZoom}
+            aria-label="调整图片大小"
+          />
+        </div>
+      </Modal>
 
-      {preview.open && (
-        <div className="modal-overlay" onClick={() => setPreview({ open: false })}>
-          <div className="modal-content modal-preview" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{preview.title || '轮播图预览'}</h2>
-              <button className="modal-close" onClick={() => setPreview({ open: false })}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              {preview.url ? (
-                <img className="preview-image" src={preview.url} alt="轮播图" />
-              ) : (
-                <div className="text-muted">暂无可预览图片</div>
-              )}
-            </div>
-            <div className="modal-footer">
-              {preview.url && (
-                <a className="btn-secondary" href={preview.url} download>
-                  下载
-                </a>
-              )}
-              <button className="btn-primary" onClick={() => setPreview({ open: false })}>
-                关闭
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <Modal
+        title="删除轮播图"
+        open={deleteModal.open}
+        onCancel={() => setDeleteModal({ open: false })}
+        onOk={() => deleteModal.banner && handleDelete(deleteModal.banner)}
+        okText="确认删除"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+        confirmLoading={actionId === deleteModal.banner?.id}
+      >
+        <p>确认删除该轮播图吗？删除后不可恢复。</p>
+      </Modal>
+
+      <Modal
+        title={preview.title || '轮播图预览'}
+        open={preview.open}
+        onCancel={() => setPreview({ open: false })}
+        footer={null}
+        width={900}
+        centered
+      >
+        {preview.url && (
+          <Image
+            src={preview.url}
+            alt={preview.title || '轮播图预览'}
+            width="100%"
+            preview={false}
+          />
+        )}
+      </Modal>
+    </AdminPage>
   )
 }

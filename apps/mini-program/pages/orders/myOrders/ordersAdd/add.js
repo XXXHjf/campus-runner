@@ -7,6 +7,7 @@ const userService = require('../../../../services/userService');
 const configService = require('../../../../services/configService');
 const mediaService = require('../../../../services/mediaService');
 const tokenManager = require('../../../../utils/tokenManager');
+const { maskPhone } = require('../../../../utils/privacy');
 const { showLoading, hideLoading, showError } = require('../../../../utils/transformers');
 const {
   containsEmoji,
@@ -66,6 +67,7 @@ Page({
     // 联系方式
     showUser: null,
     showPhone: null,
+    maskedShowPhone: '',
     // 订单类型
     category: {},
     showCategory: {},
@@ -74,6 +76,8 @@ Page({
     doorAccess: DOOR_ACCESS.NO_GUARD,
     // 文字说明
     note: null,
+    noteTitle: '',
+    noteDetail: '',
     // 图片说明
     fileList: [],
     image: null,
@@ -206,6 +210,8 @@ Page({
       showRecive: this.data.showRecive,
       showUser: this.data.showUser,
       showPhone: this.data.showPhone,
+      noteTitle: this.data.noteTitle,
+      noteDetail: this.data.noteDetail,
       showCategory: this.data.showCategory,
       doorAccess: this.data.doorAccess,
       note: this.data.note,
@@ -236,9 +242,24 @@ Page({
       success: (res) => {
         if (res.confirm) {
           const restored = restoreFromDraft(draft);
+          const noteParts = String(restored.note || '').split(/\r?\n/);
+          let noteTitle = restored.noteTitle || noteParts.shift() || '';
+          let noteDetail = restored.noteDetail || noteParts.join('\n');
+          if (!restored.noteTitle && noteTitle.length > 30) {
+            noteDetail = `${noteTitle.slice(30)}${noteDetail}`.slice(0, 69);
+            noteTitle = noteTitle.slice(0, 30);
+          }
+          noteTitle = String(noteTitle).slice(0, 30);
+          noteDetail = String(noteDetail).slice(0, 69);
           this.setData({
             ...restored,
+            noteTitle,
+            noteDetail,
+            note: this._composeNote(noteTitle, noteDetail),
+            maskedShowPhone: maskPhone(restored.showPhone),
             hasLoadedDraft: true
+          }, () => {
+            this.buttonColor();
           });
           checkCilcleToast(this, '已恢复草稿');
         } else {
@@ -503,30 +524,6 @@ Page({
     }
   },
 
-  // 获取取件地址数据（使用封装的 service）
-  async _getPickUpList() {
-    try {
-      const pickUpList = await addressService.getAddressByType(0);
-      this.setData({ pickUpList });
-      return pickUpList;
-    } catch (error) {
-      console.error('获取取件地址失败:', error);
-      throw error;
-    }
-  },
-
-  // 获取收件地址数据（使用封装的 service）
-  async getReciveList() {
-    try {
-      const reciveList = await addressService.getAddressByType(1);
-      this.setData({ reciveList });
-      return reciveList;
-    } catch (error) {
-      console.error('获取收件地址失败:', error);
-      throw error;
-    }
-  },
-  
   // ============ 地址缓存管理 ============
   
   // 保存上次使用的地址到本地缓存
@@ -655,24 +652,20 @@ Page({
   },
   // 增加新地址
   button0() {
-    // 取件
-    const type = 0;
     wx.navigateTo({
-      url: `/pages/address/addressAdd/add?type=${type}`,
+      url: '/pages/address/addressAdd/add',
     })
   },
   button1() {
-    // 收件
-    const type = 1;
     wx.navigateTo({
-      url: `/pages/address/addressAdd/add?type=${type}`,
+      url: '/pages/address/addressAdd/add',
     })
   },
   // 编辑地址
   editAddress(e) {
     const { id } = e.currentTarget.dataset;
     if (!id) {
-      showErrorToast('地址ID不存在');
+      showErrorToast('地址已失效，请重新选择');
       return;
     }
     wx.navigateTo({
@@ -687,6 +680,7 @@ Page({
       this.setData({
         showUser: userInfo.username || this.data.userInfo?.username,
         showPhone: userInfo.phone || this.data.userInfo?.phone,
+        maskedShowPhone: maskPhone(userInfo.phone || this.data.userInfo?.phone),
       })
     }
   },
@@ -706,6 +700,7 @@ Page({
       visibleUser: false
     });
     this.buttonColor();
+    this._saveDraftData();
   },
   tiptChangeShowuser(e) {
     console.log('Name值： ' + e.detail.value)
@@ -716,7 +711,8 @@ Page({
   tiptChangePhone(e) {
     console.log('phone值： ' + e.detail.value)
     this.setData({
-      showPhone: e.detail.value
+      showPhone: e.detail.value,
+      maskedShowPhone: maskPhone(e.detail.value),
     })
   },
   // 订单类别category（使用封装的 service）
@@ -760,15 +756,28 @@ Page({
       doorAccess: (old + 1) % 2
     });
   },
-  // 文字说明
-  onNoteInput(e) {
-    // 移除所有空格
-    const noteWithoutSpaces = e.detail.value.replace(/\s+/g, '');
+  _composeNote(title = this.data.noteTitle, detail = this.data.noteDetail) {
+    return [String(title || '').trim(), String(detail || '').trim()]
+      .filter(Boolean)
+      .join('\n');
+  },
+  onNoteTitleInput(e) {
+    const noteTitle = e.detail.value;
     this.setData({
-      note: noteWithoutSpaces
+      noteTitle,
+      note: this._composeNote(noteTitle, this.data.noteDetail),
     });
     this.buttonColor();
-    this._saveDraftData(); // 保存草稿
+    this._saveDraftData();
+  },
+  onNoteDetailInput(e) {
+    const noteDetail = e.detail.value;
+    this.setData({
+      noteDetail,
+      note: this._composeNote(this.data.noteTitle, noteDetail),
+    });
+    this.buttonColor();
+    this._saveDraftData();
   },
   // 图片说明
   // 添加图片
@@ -1000,6 +1009,10 @@ Page({
   
   // 订单数据预处理
   _prepareOrderData() {
+    this.setData({
+      note: this._composeNote(),
+    });
+
     // 处理价格：免费模式下价格设为 null
     if (this.data.priceAccess === PRICE_MODE.FREE || this.data.price == 0) {
       this.setData({

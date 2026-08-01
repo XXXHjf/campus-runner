@@ -10,6 +10,7 @@
 }
 
 .box1 {
+  order: 0;
   border-radius: 20rpx;
   margin: 20rpx 30rpx 10rpx;
   background-color: white;
@@ -45,10 +46,11 @@
 .text {
   margin: 5rpx 0;
   font-size: small;
-  color: gray;
+  color: #5f6772;
 }
 
 .menu-section {
+  order: 3;
   margin: 18rpx 30rpx 0;
   padding: 24rpx;
   background: #ffffff;
@@ -86,6 +88,7 @@
 }
 
 .menu-icon {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -93,6 +96,23 @@
   height: 58rpx;
   background: #eaf2ff;
   border-radius: 18rpx;
+}
+
+.menu-badge {
+  position: absolute;
+  top: -10rpx;
+  right: -14rpx;
+  min-width: 30rpx;
+  padding: 2rpx 7rpx;
+  color: #ffffff;
+  background: #e34d59;
+  border: 2rpx solid #ffffff;
+  border-radius: 999rpx;
+  font-size: 19rpx;
+  font-weight: 700;
+  line-height: 28rpx;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 .menu-copy {
@@ -108,10 +128,12 @@
   white-space: nowrap;
 }
 .box2 {
+  order: 4;
   margin: 10rpx 0;
 }
 
 .button {
+  order: 5;
   margin: 40rpx 30rpx;
   border-radius: 10rpx;
   background-color: white;
@@ -134,11 +156,30 @@
 
 /* 待收款提醒样式 - 优化版 */
 .pending-payment-section {
+  order: 2;
   margin: 20rpx 30rpx;
 }
 
 .pending-unpaid-section {
+  order: 2;
   margin: 20rpx 30rpx;
+}
+
+.task-center-heading {
+  order: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16rpx 30rpx 0;
+  color: #111827;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.task-center-count {
+  color: #0052d9;
+  font-size: 24rpx;
+  font-weight: 600;
 }
 
 .pending-unpaid-card {

@@ -35,9 +35,7 @@ Page({
     upBuildingNum: '',
     upDetails: '',
     upDefault: 0,
-    uptype: 0,
     upLabel: '',
-    type: ['取件', '收件'],
     note: '请选择地址',
     showLabelTip: false,
     showDetailsTip: false,
@@ -75,7 +73,6 @@ Page({
         'id': id,
         'details': this.data.upDetails,
         'label': this.data.upLabel,
-        'type': this.data.uptype,
       };
 
       if (this.data.upCompusNum != null) {
@@ -197,22 +194,13 @@ Page({
   async saveAsDefault() {
     try {
       const id = this.data.addressInfo.id;
-      const type = this.data.addressInfo.type;
-      await addressService.updateUserAddress({ id, type });
+      await addressService.updateUserAddress({ id });
       console.log('设置默认地址成功');
     } catch (error) {
       console.error('设置默认地址失败:', error);
       throw error;
     }
   },
-  // 收发地址类型切换
-  changeType() {
-    const oldtype = this.data.uptype;
-    this.setData({
-      uptype: (oldtype + 1) % 2,
-    })
-  },
-  
   // 显示地址选择器
   showAddressPicker() {
     const triplePicker = this.selectComponent('#triplePicker');
@@ -256,7 +244,6 @@ Page({
         upCategory: addressInfo.buildCategoryName,
         upBuilding: addressInfo.buildingName,
         upDetails: addressInfo.details || '',
-        uptype: addressInfo.type,
         upDefault: addressInfo.isDefault,
         upLabel: addressInfo.label || '',
         showLabelTip: false,

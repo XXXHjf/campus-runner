@@ -15,5 +15,4 @@ public class AddressBookUpdateDTO {
     private Long buildingNumberId;
     private String details;
     private String label;
-    private Integer type;
 }

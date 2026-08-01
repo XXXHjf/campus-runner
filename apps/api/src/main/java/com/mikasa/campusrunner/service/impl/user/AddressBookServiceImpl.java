@@ -74,18 +74,7 @@ public class AddressBookServiceImpl implements AddressBookService {
                 .label(addressBookDTO.getLabel())
                 .userId(BaseContext.getCurrentId())
                 .isDefault(DefaultStatusConstant.NO_DEFAULT)
-                .type(addressBookDTO.getType()).build();
-
-//        AddressBook addressBook = new AddressBook();
-//        addressBook.setSchoolId(schoolId);
-//        addressBook.setCompusId(compusId);
-//        addressBook.setBuildingId(buildingId);
-//        addressBook.setDeleted(DeleteConstant.UN_DELETED);
-//        addressBook.setDetails(addressBookDTO.getDetails());
-//        addressBook.setLabel(addressBookDTO.getLabel());
-//        addressBook.setUserId(BaseContext.getCurrentId());
-//        addressBook.setIsDefault(DefaultStatusConstant.NO_DEFAULT);
-//        addressBook.setType(addressBookDTO.getType());
+                .build();
 
         int row = addressBookMapper.insert(addressBook);
     }
@@ -189,16 +178,9 @@ public class AddressBookServiceImpl implements AddressBookService {
         if (!address.getUserId().equals(BaseContext.getCurrentId())){
             throw new AddressException(MessageConstant.NOT_YOUR_ORDER);
         }
-        //根据需求，不在区分收件取件地址
-//        if (!address.getType().equals(addressBookDefaultDTO.getType())){
-//            throw new AddressException(MessageConstant.NOT_THIS_ADDRESS_TYPE);
-//        }
-
         //先全部清零
         AddressBook addressBook = new AddressBook();
         addressBook.setUserId(BaseContext.getCurrentId());
-        //不再区分收件与取件地址
-//        addressBook.setType(addressBookDefaultDTO.getType());
         addressBook.setIsDefault(DefaultStatusConstant.NO_DEFAULT);
         addressBookMapper.clearDefault(addressBook);
 

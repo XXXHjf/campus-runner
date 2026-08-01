@@ -7,13 +7,33 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Table, Button, Modal, Form, Input, Popconfirm, message, Space, Image } from 'antd'
+import {
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  Popconfirm,
+  App,
+  Space,
+  Image,
+  Upload,
+} from 'antd'
+import { UploadOutlined } from '@ant-design/icons'
 import type { AdminCategory } from '../../types/admin'
 import { mediaService } from '../../services'
 import { get, post, put, del } from '../../services/request'
+import {
+  AdminContentCard,
+  AdminFilterBar,
+  AdminPage,
+  AdminPageHeader,
+  createAdminTableLocale,
+} from '../../components/admin'
 import './CategoryManagement.css'
 
 export default function CategoryManagement() {
+  const { message } = App.useApp()
   const [loading, setLoading] = useState(false)
   const [list, setList] = useState<AdminCategory[]>([])
   const [keyword, setKeyword] = useState('')
@@ -156,7 +176,6 @@ export default function CategoryManagement() {
             width={60}
             height={60}
             style={{ objectFit: 'cover', borderRadius: 8 }}
-            fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Crect width='60' height='60' fill='%23f0f0f0'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23ccc' font-size='10'%3E暂无%3C/text%3E%3C/svg%3E"
             preview={{ mask: '查看' }}
           />
         ) : (
@@ -187,44 +206,42 @@ export default function CategoryManagement() {
   ]
 
   return (
-    <div className="category-management">
-      <div className="page-header">
-        <div className="header-left">
-          <h1>分类管理</h1>
-          <p>管理跑腿订单的分类</p>
-        </div>
-        <div className="header-right">
+    <AdminPage className="category-management">
+      <AdminPageHeader
+        title="分类管理"
+        description="管理跑腿订单的分类"
+        actions={
           <Button type="primary" onClick={openAddModal}>
             新增分类
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="toolbar">
+      <AdminFilterBar>
         <Input.Search
-          placeholder="搜索分类名称..."
+          placeholder="搜索分类名称"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onSearch={(value) => setKeyword(value)}
           style={{ width: 320 }}
           allowClear
         />
-      </div>
+      </AdminFilterBar>
 
-      <div className="table-container">
+      <AdminContentCard flush>
         <Table
           dataSource={filteredList}
           columns={columns}
           rowKey="id"
           loading={loading}
-          locale={{ emptyText: '暂无分类数据' }}
+          locale={createAdminTableLocale('暂无分类数据')}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
             showTotal: (total: number) => `共 ${total} 条`,
           }}
         />
-      </div>
+      </AdminContentCard>
 
       <Modal
         title={editingCategory ? '编辑分类' : '新增分类'}
@@ -232,7 +249,7 @@ export default function CategoryManagement() {
         onOk={handleSubmit}
         onCancel={closeModal}
         confirmLoading={submitting}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
@@ -247,13 +264,19 @@ export default function CategoryManagement() {
           </Form.Item>
           <Form.Item label="分类图标">
             <Space direction="vertical">
-              <input
-                type="file"
+              <Upload
+                showUploadList={false}
                 accept="image/jpeg,image/png,image/webp"
                 disabled={uploading}
-                onChange={(event) => void handleImageChange(event.target.files?.[0] || null)}
-              />
-              {uploading && <span>上传中...</span>}
+                beforeUpload={(file) => {
+                  void handleImageChange(file)
+                  return false
+                }}
+              >
+                <Button icon={<UploadOutlined />} loading={uploading}>
+                  选择图片
+                </Button>
+              </Upload>
               {imagePreview && (
                 <Image
                   src={imagePreview}
@@ -266,6 +289,6 @@ export default function CategoryManagement() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </AdminPage>
   )
 }

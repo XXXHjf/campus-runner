@@ -48,39 +48,11 @@
 
 .sidebar.collapsed .logo {
   text-align: center;
-  font-size: 32px;
+  font-size: 24px;
   flex: none;
   background: none;
   -webkit-text-fill-color: white;
-  animation: bounce 2s ease-in-out infinite;
   cursor: default;
-}
-
-@keyframes bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-.sidebar.collapsed .logo:hover {
-  animation: run 0.6s ease-in-out infinite;
-}
-
-@keyframes run {
-  0%,
-  100% {
-    transform: translateX(0) scale(1);
-  }
-  25% {
-    transform: translateX(-2px) scale(0.98);
-  }
-  75% {
-    transform: translateX(2px) scale(1.02);
-  }
 }
 
 .sidebar.collapsed .collapse-btn {
@@ -171,6 +143,9 @@
 }
 
 .logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   font-size: 17px;
   font-weight: 700;
   white-space: nowrap;
@@ -188,25 +163,6 @@
   letter-spacing: 0.5px;
   transform: scale(1.02);
   cursor: pointer;
-}
-
-.sidebar:not(.collapsed) .logo::before {
-  content: '🏃';
-  display: inline-block;
-  animation: wiggle 3s ease-in-out infinite;
-}
-
-@keyframes wiggle {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  25% {
-    transform: rotate(-5deg);
-  }
-  75% {
-    transform: rotate(5deg);
-  }
 }
 
 .collapse-btn {
@@ -249,15 +205,21 @@
 
 .menu-item {
   display: flex;
+  width: calc(100% - 8px);
   align-items: center;
   padding: 11px 14px;
   margin: 0 4px;
+  border: 0;
+  background: transparent;
+  appearance: none;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   color: rgba(255, 255, 255, 0.75);
   position: relative;
   border-radius: 8px;
   font-size: 14px;
+  font-family: inherit;
+  text-align: left;
 }
 
 .menu-item:hover {
@@ -320,6 +282,10 @@
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.menu-arrow .anticon {
+  font-size: 10px;
+}
+
 .submenu {
   background: rgba(0, 0, 0, 0.15);
   padding: 6px 0;
@@ -343,6 +309,7 @@
 }
 
 .submenu-item {
+  width: calc(100% - 12px);
   padding: 9px 16px 9px 44px;
   font-size: 13.5px;
   margin: 2px 6px;
@@ -409,6 +376,12 @@
 .navbar-left {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.mobile-menu-btn,
+.mobile-sidebar-mask {
+  display: none;
 }
 
 .page-title {
@@ -455,6 +428,7 @@
   color: #666;
   cursor: pointer;
   transition: all 0.3s ease;
+  height: 40px;
 }
 
 .logout-btn:hover {
@@ -478,16 +452,49 @@
     transform: translateX(-100%);
   }
 
-  .sidebar.collapsed {
+  .sidebar.mobile-open {
     transform: translateX(0);
+    width: min(280px, 84vw);
+    min-width: min(280px, 84vw);
+    max-width: min(280px, 84vw);
+  }
+
+  .sidebar.mobile-open.collapsed {
+    width: 64px;
+    min-width: 64px;
+    max-width: 64px;
   }
 
   .main-content {
     margin-left: 0;
+    width: 100%;
   }
 
   .top-navbar {
     padding: 0 16px;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #374151;
+    cursor: pointer;
+  }
+
+  .mobile-sidebar-mask {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    border: 0;
+    background: rgba(15, 23, 42, 0.42);
+    appearance: none;
   }
 
   .user-name {

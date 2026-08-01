@@ -2,7 +2,9 @@
 const userService = require('../../../services/userService');
 const takeOrderService = require('../../../services/takeOrderService');
 const userOrderService = require('../../../services/userOrderService');
+const secondHandService = require('../../../services/secondHandService');
 const tokenManager = require('../../../utils/tokenManager');
+const { maskPhone } = require('../../../utils/privacy');
 const { showLoading, hideLoading, showError } = require('../../../utils/transformers');
 
 import Dialog from 'tdesign-miniprogram/dialog/index'; //对话框
@@ -16,6 +18,7 @@ Page({
   data: {
     wxInfo: null,
     userInfo: null,
+    displayPhone: '',
     loginLoadShow: false,
     defaultAvatarUrl: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
     shareFlag: false,
@@ -72,6 +75,8 @@ Page({
     ],
     notReceiveOrderList: [],
     unpaidOrderList: [],
+    secondHandOrderCount: 0,
+    bargainPendingCount: 0,
     hasShownCompleteInfoDialog: false, // 标记是否已显示过弹窗（本次会话）
   },
 
@@ -248,7 +253,8 @@ Page({
           userInfo: {
             ...userInfo,
             token: token.token
-          }
+          },
+          displayPhone: maskPhone(userInfo.phone),
         });
 
         // 判断是否为新用户并进行初始化
@@ -322,8 +328,11 @@ Page({
         // 清除页面数据
         this.setData({
           userInfo: null,
+          displayPhone: '',
           notReceiveOrderList: [],
-          unpaidOrderList: []
+          unpaidOrderList: [],
+          secondHandOrderCount: 0,
+          bargainPendingCount: 0,
         });
         
         // 清除全局数据
@@ -410,7 +419,10 @@ Page({
         token: app.globalData.userInfo?.token || tokenManager.getToken()
       };
       
-      this.setData({ userInfo: userInfoWithToken });
+      this.setData({
+        userInfo: userInfoWithToken,
+        displayPhone: maskPhone(userInfo.phone),
+      });
       console.log('获取用户数据成功:', userInfo);
       return userInfo;
     } catch (error) {
@@ -480,6 +492,34 @@ Page({
     }
   },
 
+  async _getSecondHandTaskCounts() {
+    try {
+      const [buyerOrders, sellerOrders, bargains] = await Promise.all([
+        secondHandService.listBuyerOrders(),
+        secondHandService.listSellerOrders(),
+        secondHandService.listMyBargains(),
+      ]);
+      const buyerActionCount = buyerOrders.filter((item) => [0, 2].includes(Number(item.status))).length;
+      const sellerActionCount = sellerOrders.filter((item) => Number(item.status) === 1).length;
+      const userId = this.data.userInfo && this.data.userInfo.id;
+      const bargainPendingCount = bargains.filter((item) => (
+        Number(item.status) === 0
+        && userId != null
+        && Number(item.sellerId) === Number(userId)
+      )).length;
+      return {
+        secondHandOrderCount: buyerActionCount + sellerActionCount,
+        bargainPendingCount,
+      };
+    } catch (error) {
+      console.error('获取二手待办失败:', error);
+      return {
+        secondHandOrderCount: 0,
+        bargainPendingCount: 0,
+      };
+    }
+  },
+
   // 未支付订单跳转
   tapToUnpaid() {
     const orderCount = this.data.unpaidOrderList.length;
@@ -546,8 +586,11 @@ Page({
       console.log('未登录，跳过数据加载');
       this.setData({
         userInfo: null,
+        displayPhone: '',
         notReceiveOrderList: [],
-        unpaidOrderList: []
+        unpaidOrderList: [],
+        secondHandOrderCount: 0,
+        bargainPendingCount: 0,
       });
       return;
     }
@@ -556,12 +599,15 @@ Page({
     try {
       await this.getGlobalData();
       
-      // 获取未收款订单
-      const notReceiveOrders = await this._getOrderWithNotReceive();
-      const unpaidOrders = await this._getUnpaidOrders();
+      const [notReceiveOrders, unpaidOrders, secondHandTasks] = await Promise.all([
+        this._getOrderWithNotReceive(),
+        this._getUnpaidOrders(),
+        this._getSecondHandTaskCounts(),
+      ]);
       this.setData({
         notReceiveOrderList: notReceiveOrders,
-        unpaidOrderList: unpaidOrders
+        unpaidOrderList: unpaidOrders,
+        ...secondHandTasks,
       });
       
       // 检查是否需要显示信息完善引导弹窗
@@ -571,8 +617,11 @@ Page({
       // 如果是 401 错误，说明 token 已失效，清空登录状态
       this.setData({
         userInfo: null,
+        displayPhone: '',
         notReceiveOrderList: [],
-        unpaidOrderList: []
+        unpaidOrderList: [],
+        secondHandOrderCount: 0,
+        bargainPendingCount: 0,
       });
     }
   },

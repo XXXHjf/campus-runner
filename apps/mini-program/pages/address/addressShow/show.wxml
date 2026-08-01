@@ -1,43 +1,55 @@
-<!-- 顶部tab栏 -->
-<!-- <view class="tab">
-  <t-tabs defaultValue="{{tabValue}}" bind:change="onTabsChange" bind:click="onTabsClick" t-class="custom-tabs">
-    <t-tab-panel label="取件地址" icon="order-ascending" value="0" />
-    <t-tab-panel label="收件地址" icon="order-descending" value="1" />
-  </t-tabs>
-</view> -->
-<!--用于展示地址-->
-<view class="show">
-  <!-- 展示地址卡片的空间 -->
-  <!-- <view class="cart" scroll-y>
-    <block wx:for="{{addressBook}}" wx:key="id">
-      <view class="show-cart" bindtap="gotoAI" data-item="{{item}}">
-        <view style="background-color: white; padding: 10rpx 0;display: flex; align-items: center;">
-          <t-icon class="icon" name="{{item.isDefault==0? 'map':'star'}}" size="16" />
-          <view class="title">{{item.label || (tabValue==0?'取件地址':'收件地址')}}</view>
-          <view hidden="{{item.isDefault==0}}" style="margin-left: 20rpx;">
-            <t-tag variant="light" theme="primary">默认地址</t-tag>
-          </view>
-        </view>
-        <view>
-          <t-cell class="address" title="{{item.compusName}} {{item.buildCategoryName}} {{item.buildingName}}" hover arrow />
-          <t-cell class="info" title="{{item.details || '还没有填写具体地址呢'}}" style="color: darkgray!important;" />
-        </view>
-      </view>
-    </block>
-  </view> -->
-  <!-- 添加按钮 -->
-  <!-- <t-icon class="add" name="add" color="white" size="60rpx" bind:click="gotoAdd" /> -->
-
-  <view class="address-list">
-    <t-cell wx:for="{{addressBook}}" wx:key="id" class="address-cell" title="{{item.compusName}} {{item.buildCategoryName}} {{item.buildingName}}" hover arrow description="{{item.details || '还没有填写具体地址呢'}}" bordered="{{!item.isLast}}" bindtap="gotoAI" data-item="{{item}}"/>
+<view class="address-page">
+  <view class="address-hero">
+    <view class="hero-icon">
+      <t-icon name="location" size="42rpx" color="#0052d9" />
+    </view>
+    <view class="hero-copy">
+      <view class="hero-title">我的常用地址</view>
+      <view class="hero-subtitle">发布跑腿和二手配送时可直接选择</view>
+    </view>
+    <view class="address-count">{{addressBook.length}}个</view>
   </view>
 
+  <view class="address-list" wx:if="{{addressBook.length > 0}}">
+    <view
+      wx:for="{{addressBook}}"
+      wx:key="id"
+      class="address-card"
+      bindtap="gotoAI"
+      data-item="{{item}}"
+    >
+      <view class="address-card-head">
+        <view class="address-label">{{item.label || '常用地址'}}</view>
+        <t-tag wx:if="{{item.isDefault==1}}" size="small" variant="light" theme="primary">默认</t-tag>
+        <view class="address-edit">
+          <text>编辑</text>
+          <t-icon name="chevron-right" size="32rpx" color="#8a94a3" />
+        </view>
+      </view>
+      <view class="address-main">
+        {{item.compusName}} {{item.buildCategoryName}} {{item.buildingName}}
+      </view>
+      <view class="address-detail">
+        <t-icon name="map-location" size="30rpx" color="#667085" />
+        <text>{{item.details || '未填写门牌号等详细信息'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="address-empty" wx:else>
+    <view class="empty-icon">
+      <t-icon name="map-search" size="72rpx" color="#7ea8ef" />
+    </view>
+    <view class="empty-title">还没有常用地址</view>
+    <view class="empty-desc">添加后，下单时就不用重复填写了</view>
+  </view>
+
+  <view class="bottom-placeholder"></view>
 </view>
 
-<view class="add-address-btn" bind:tap="gotoAdd">+新增地址</view>
-
-
-
-
-<!-- 刷新轻提示 -->
-<t-toast id="t-toast" />
+<view class="bottom-action">
+  <view class="add-address-btn" bindtap="gotoAdd">
+    <t-icon name="add" size="36rpx" color="#ffffff" />
+    <text>新增地址</text>
+  </view>
+</view>

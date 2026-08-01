@@ -68,7 +68,6 @@ Page({
         addressBook: (addressBook || []).map((item) => ({
           ...item,
           addressText: this.formatAddress(item),
-          typeText: Number(item.type) === 1 ? '收件' : '取件',
         })),
         hasLoadedAddresses: true,
       });
@@ -186,7 +185,7 @@ Page({
 
   gotoAddPickupAddress() {
     this.setData({ showPickupAddressSheet: false });
-    wx.navigateTo({ url: '/pages/address/addressAdd/add?type=0' });
+    wx.navigateTo({ url: '/pages/address/addressAdd/add' });
   },
 
   chooseCondition() {

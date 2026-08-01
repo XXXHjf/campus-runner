@@ -851,8 +851,7 @@ PUT /api/address
 
 ```json
 {
-  "id": 0,
-  "type": 0
+  "id": 0
 }
 ```
 
@@ -891,8 +890,7 @@ POST /api/address
   "buildCategoryNumberId": 0,
   "buildingNumberId": 0,
   "details": "string",
-  "label": "string",
-  "type": 0
+  "label": "string"
 }
 ```
 
@@ -932,8 +930,7 @@ PUT /api/address/update
   "buildCategoryNumberId": 0,
   "buildingNumberId": 0,
   "details": "string",
-  "label": "string",
-  "type": 0
+  "label": "string"
 }
 ```
 
@@ -2749,8 +2746,7 @@ PUT /admin/api/config/service_fee_min
 
 ```json
 {
-  "id": 0,
-  "type": 0
+  "id": 0
 }
 
 ```
@@ -2760,7 +2756,6 @@ PUT /admin/api/config/service_fee_min
 |名称|类型|必选|约束|中文名|说明|
 |---|---|---|---|---|---|
 |id|integer(int64)|false|none||none|
-|type|integer(int32)|false|none||none|
 
 <h2 id="tocS_AddressBookUpdateDTO">AddressBookUpdateDTO</h2>
 
@@ -2777,8 +2772,7 @@ PUT /admin/api/config/service_fee_min
   "buildCategoryNumberId": 0,
   "buildingNumberId": 0,
   "details": "string",
-  "label": "string",
-  "type": 0
+  "label": "string"
 }
 
 ```
@@ -2794,7 +2788,6 @@ PUT /admin/api/config/service_fee_min
 |buildingNumberId|integer(int64)|false|none||none|
 |details|string|false|none||none|
 |label|string|false|none||none|
-|type|integer(int32)|false|none||none|
 
 <h2 id="tocS_RefundInfoDTO">RefundInfoDTO</h2>
 
@@ -2968,8 +2961,7 @@ PUT /admin/api/config/service_fee_min
   "buildCategoryNumberId": 0,
   "buildingNumberId": 0,
   "details": "string",
-  "label": "string",
-  "type": 0
+  "label": "string"
 }
 
 ```
@@ -2984,7 +2976,6 @@ PUT /admin/api/config/service_fee_min
 |buildingNumberId|integer(int64)|false|none||none|
 |details|string|false|none||none|
 |label|string|false|none||none|
-|type|integer(int32)|false|none||none|
 
 <h2 id="tocS_AdminRegisterDTO">AdminRegisterDTO</h2>
 
@@ -3818,7 +3809,6 @@ PUT /admin/api/config/service_fee_min
   "label": "string",
   "userId": 0,
   "isDefault": 0,
-  "type": 0,
   "deleted": 0
 }
 
@@ -3837,7 +3827,6 @@ PUT /admin/api/config/service_fee_min
 |label|string|false|none||none|
 |userId|integer(int64)|false|none||none|
 |isDefault|integer(int32)|false|none||none|
-|type|integer(int32)|false|none||none|
 |deleted|integer(int32)|false|none||none|
 
 <h2 id="tocS_ResultListAddressBookShowVO">ResultListAddressBookShowVO</h2>
@@ -3862,7 +3851,6 @@ PUT /admin/api/config/service_fee_min
       "label": "string",
       "userId": 0,
       "isDefault": 0,
-      "type": 0,
       "deleted": 0
     }
   ]

@@ -2,8 +2,9 @@
  * 登录页面
  */
 
-import { useState, FormEvent } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Alert, Button, Card, Form, Input } from 'antd'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { userService } from '../../services'
 import { tokenManager } from '../../utils/token'
@@ -47,8 +48,7 @@ export default function Login() {
     return null
   }
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
     setError('')
 
     if (!formData.username || !formData.password) {
@@ -63,7 +63,6 @@ export default function Login() {
         password: formData.password,
       })
 
-      console.log('登录响应', data)
       const token = getTokenFromLoginResponse(data)
       if (!token) {
         throw new Error('登录失败，请确认账号信息后重试')
@@ -77,7 +76,7 @@ export default function Login() {
         id: String(data.id ?? 'admin'),
         phone: 'N/A',
         username: data.nickname || data.username || '管理员',
-        headImg: data.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
+        headImg: data.avatar || '',
         sex: Gender.UNKNOWN,
         schoolId: data.school !== undefined ? String(data.school) : '',
         schoolName: data.school !== undefined ? String(data.school) : undefined,
@@ -98,52 +97,44 @@ export default function Login() {
 
   return (
     <div className="login-container">
-        <div className="login-box">
-          <div className="login-header">
-            <h1>帮帮校园送</h1>
-            <p>中后台管理系统</p>
-          </div>
+      <Card className="login-box" bordered={false}>
+        <div className="login-header">
+          <h1>帮帮校园送</h1>
+          <p>中后台管理系统</p>
+        </div>
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          {error && (
-            <div className="error-message">
-              <span>⚠️ {error}</span>
-            </div>
-          )}
+        <Form className="login-form" layout="vertical" onFinish={handleSubmit}>
+          {error && <Alert type="error" showIcon title={error} />}
 
-          <div className="form-group">
-            <label htmlFor="username">用户名</label>
-            <input
-              id="username"
-              type="text"
+          <Form.Item label="用户名" required>
+            <Input
               placeholder="请输入用户名"
               value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, username: event.target.value }))
+              }
               disabled={loading}
               autoComplete="username"
             />
-          </div>
+          </Form.Item>
 
-          <div className="form-group">
-            <label htmlFor="password">密码</label>
-            <input
-              id="password"
-              type="password"
+          <Form.Item label="密码" required>
+            <Input.Password
               placeholder="请输入密码"
               value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, password: event.target.value }))
+              }
               disabled={loading}
               autoComplete="current-password"
             />
-          </div>
+          </Form.Item>
 
-          <button type="submit" className="login-button" disabled={loading}>
-            {loading ? '登录中...' : '登录'}
-          </button>
-
-
-        </form>
-      </div>
+          <Button type="primary" htmlType="submit" block loading={loading}>
+            登录
+          </Button>
+        </Form>
+      </Card>
 
       <div className="login-footer">
         <p>© 2025 帮帮校园送 - 中后台管理系统</p>

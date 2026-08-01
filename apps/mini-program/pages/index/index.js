@@ -12,59 +12,39 @@ const {
 // 引入新的服务层
 const orderService = require('../../services/orderService');
 const addressService = require('../../services/addressService');
+const bannerService = require('../../services/bannerService');
 const userService = require('../../services/userService');
-const { debounce, showLoading, hideLoading, showSuccess, showError } = require('../../utils/transformers');
+const { showLoading, hideLoading, showError } = require('../../utils/transformers');
 const {
-  TAB_TYPES,
-  ORDER_STATUS,
-  PRICE_SORT_STATUS,
-  ADDRESS_TYPES,
   FILTER_TYPES,
-  TAB_CONFIG,
   SWIPER_CONFIG,
-  DEBOUNCE_DELAY,
   LOADING_MESSAGES,
   ERROR_MESSAGES,
   SUCCESS_MESSAGES
 } = require('../../utils/constants');
 
-// 动作面板，用于筛选选择
-import ActionSheet, {
-  ActionSheetTheme
-} from 'tdesign-miniprogram/action-sheet/index';
 // 轻提示
 import Toast from 'tdesign-miniprogram/toast/index';
-
-// 轮播图
-const imageCdn = 'https://tdesign.gtimg.com/mobile/demos';
-const swiperList = [{
-  value: `https://campus-runner.oss-cn-hangzhou.aliyuncs.com/other/swiper/b51e16fc-2e83-4261-8640-8730dc29ac64.jpg?Expires=1813539269&OSSAccessKeyId=LTAI5tF5ytFN5eSVf3cjR92a&Signature=xZIQk816u8To%2FuXS0qnvGiyh2v0%3D`,
-  ariaLabel: '图片0',
-}, {
-  value: `${imageCdn}/swiper1.png`,
-  ariaLabel: '图片1',
-}, {
-  value: `${imageCdn}/swiper2.png`,
-  ariaLabel: '图片2',
-}];
 
 Page({
   data: {
     userInfo: {},
     takes: [], // 订单列表（数组类型）
-    tab: TAB_TYPES.TIME_SORT, // tab标签
     visible: false,
     isLoginChecking: false,
-
-    orderStatus: ORDER_STATUS.DISABLED, // 订单状态
-    icon1: TAB_CONFIG.ICONS,
-    label1: TAB_CONFIG.LABELS,
+    sortMode: 'time',
+    priceSort: 0,
+    filterVisible: false,
+    filterCount: 0,
+    filterSummary: '',
+    selectedCategoryId: null,
+    selectedCategoryName: '',
     // 轮播图
     current: SWIPER_CONFIG.CURRENT,
     autoplay: SWIPER_CONFIG.AUTOPLAY,
     duration: SWIPER_CONFIG.DURATION,
     interval: SWIPER_CONFIG.INTERVAL,
-    swiperList,
+    swiperList: [],
     // 选择器
     addressList: [], //用于存储地址allList
     areaVisible: false, //选择器判定
@@ -76,15 +56,15 @@ Page({
     buildings: [],
     upType: 0, //0取1收
     upAddress: {},
-    upPickUp: {},
-    upRecive: {},
+    upPickUp: null,
+    upRecive: null,
     flagAddress: 0,
     flagPickUp: 0,
     flagRecive: 0,
     // 折叠面板
     activeValues: [0],
     // 跑腿分类
-    category: {},
+    category: [],
     showCategory: null,
     // 弹出层
     cur: {},
@@ -100,10 +80,31 @@ Page({
     pickerTag: '', // 标识触发选择器是取件/收件地址
   },
 
-  // 初始化防抖方法
   onLoad() {
-    // 创建防抖的地址筛选方法
-    this.debouncedGetTakeByAddress = debounce(this.getTakeByAddress.bind(this), DEBOUNCE_DELAY);
+    this.loadBanners();
+  },
+
+  async loadBanners(schoolId) {
+    const requestId = (this._bannerRequestId || 0) + 1;
+    this._bannerRequestId = requestId;
+
+    try {
+      const banners = await bannerService.getHomepageBanners(schoolId);
+      if (requestId !== this._bannerRequestId) return;
+      this.setData({
+        current: 0,
+        swiperList: banners.map((banner) => ({
+          ...banner,
+          value: banner.imgUrl,
+          ariaLabel: banner.title || '首页轮播图'
+        }))
+      });
+    } catch (error) {
+      console.error('获取首页轮播图失败:', error);
+      if (requestId === this._bannerRequestId && this.data.swiperList.length === 0) {
+        this.setData({ swiperList: [] });
+      }
+    }
   },
 
   // 详情跳转
@@ -119,101 +120,147 @@ Page({
       url: '/pages/orders/myOrders/ordersAdd/add',
     });
   },
-  //tabs值更新
-  onTabsClick(event) {
+  selectTimeSort() {
+    if (!this._ensureLoggedIn()) return;
+    this.setData({ sortMode: 'time' });
+    this.applyFilters();
+  },
+  togglePriceSort() {
+    if (!this._ensureLoggedIn()) return;
+    const priceSort = this.data.sortMode === 'price' ? (this.data.priceSort + 1) % 2 : 0;
     this.setData({
-      tab: event.detail.value,
+      sortMode: 'price',
+      priceSort,
     });
-    // 功能实现
-    try {
-      // *** 改进：使用 tokenManager 检查 token ***
-      if (tokenManager.hasToken()) {
-        console.log('token不为空，tabs正常', this.data.tab);
-        if (this.data.tab != TAB_TYPES.PRICE_SORT) {
-          this.setData({
-            orderStatus: ORDER_STATUS.RESET_FILTER,
-          });
-        } else {
-          this.setData({
-            orderStatus: (this.data.orderStatus + 1) % 2
-          })
-        }
-        console.log('orderStatus正常', this.data.orderStatus);
-        if (this.data.tab == TAB_TYPES.TIME_SORT) {
-          this.getTakeByTime();
-        };
-        if (this.data.tab == TAB_TYPES.PRICE_SORT) {
-          this.getTakeByPrice();
-        };
-        if (this.data.tab == TAB_TYPES.QUICK_FILTER) {
-          this.setData({
-            upPickUp: null,
-            upRecive: null,
-            showCategory: null,
-          });
-          this.searchActio();
-        };
-      } else {
-        console.log('token为空，tabs禁用');
-        this.noToken();
-        this.setData({
-          orderStatus: ORDER_STATUS.RESET_FILTER
-        })
-        console.log('orderStatus禁用', this.data.orderStatus);
-      }
-    } catch (error) {
-      console.error('错误抛出：', error);
-      this.setData({
-        orderStatus: ORDER_STATUS.RESET_FILTER
-      })
-      this.noToken();
+    this.applyFilters();
+  },
+  async openFilter() {
+    if (!this._ensureLoggedIn()) return;
+    this._filterSnapshot = {
+      selectedCategoryId: this.data.selectedCategoryId,
+      selectedCategoryName: this.data.selectedCategoryName,
+      showCategory: this.data.showCategory,
+      upPickUp: this.data.upPickUp,
+      upRecive: this.data.upRecive,
+    };
+    this.setData({ filterVisible: true });
+    if (!Array.isArray(this.data.category) || this.data.category.length === 0) {
+      await this.getCategory();
     }
   },
-  // 筛选选择
-  searchActio() {
-    // 动作面板
-    ActionSheet.show({
-      theme: ActionSheetTheme.List,
-      selector: '#t-action-sheet',
-      context: this,
-      items: [{
-          label: '按照跑腿分类筛选',
-          icon: 'task-visible',
-        },
-        {
-          label: '按照地址类型筛选',
-          icon: 'map-search',
-        },
-      ],
-    });
+  onFilterVisibleChange(e) {
+    if (!e.detail.visible && this._filterSnapshot) {
+      this.setData({
+        ...this._filterSnapshot,
+        filterVisible: false,
+      });
+      this._filterSnapshot = null;
+      return;
+    }
+    this.setData({ filterVisible: e.detail.visible });
   },
-  handleSelected(e) {
-    // console.log(e.detail);
+  selectFilterCategory(e) {
+    const item = e.currentTarget.dataset.item;
     this.setData({
-      orderStatus: e.detail.index,
+      selectedCategoryId: item ? item.id : null,
+      selectedCategoryName: item ? item.categoryName : '',
+      showCategory: item ? item.categoryName : null,
     });
-    console.log('筛选种类，0分类1地址', this.data.orderStatus)
-    if (this.data.tab == TAB_TYPES.QUICK_FILTER && this.data.orderStatus == ORDER_STATUS.CATEGORY_FILTER) {
-      this.getCategory();
-    };
   },
   clearUpPickUp() {
-    this.setData({
-      upPickUp: null
-    })
-    this.getTakeByAddress();
+    this.setData({ upPickUp: null });
   },
   clearUpRecive() {
+    this.setData({ upRecive: null });
+  },
+  clearFilterSelection() {
     this.setData({
-      upRecive: null
-    })
-    this.getTakeByAddress();
+      selectedCategoryId: null,
+      selectedCategoryName: '',
+      showCategory: null,
+      upPickUp: null,
+      upRecive: null,
+    });
   },
-  // 获取订单信息-综合排序
-  async getTakeByTime() {
+  applyFilterSelection() {
+    this._filterSnapshot = null;
+    this._updateFilterMeta();
+    this.setData({ filterVisible: false });
+    this.applyFilters();
+  },
+  resetFilters() {
+    this.clearFilterSelection();
+    this._updateFilterMeta();
+    this.applyFilters();
+  },
+  _ensureLoggedIn() {
+    if (tokenManager.hasToken()) return true;
+    this.noToken();
+    return false;
+  },
+  _updateFilterMeta() {
+    const names = [];
+    if (this.data.selectedCategoryId != null) names.push(this.data.selectedCategoryName);
+    if (this.data.upPickUp) names.push(`取件：${this.data.upPickUp.label.slice(-1)[0]}`);
+    if (this.data.upRecive) names.push(`收件：${this.data.upRecive.label.slice(-1)[0]}`);
+    this.setData({
+      filterCount: names.length,
+      filterSummary: names.join(' · '),
+    });
+  },
+  _decorateTakes(takes) {
+    return (Array.isArray(takes) ? takes : []).map((item) => ({
+      ...item,
+      displayTitle: String(item.note || '').split(/\r?\n/)[0],
+    }));
+  },
+  _sortTakes(takes) {
+    if (this.data.sortMode !== 'price') return takes;
+    const direction = this.data.priceSort === 0 ? -1 : 1;
+    return [...takes].sort((a, b) => {
+      const aPrice = Number(a.price) || 0;
+      const bPrice = Number(b.price) || 0;
+      return (aPrice - bPrice) * direction;
+    });
+  },
+  async _loadFilteredTakes() {
+    const { upPickUp, upRecive, selectedCategoryId, selectedCategoryName, userInfo } = this.data;
+    let takes;
+
+    if (upPickUp && upRecive) {
+      takes = await orderService.getOrdersByDoubleAddress(upPickUp, upRecive, userInfo.schoolId);
+    } else if (upPickUp) {
+      takes = await orderService.getOrdersBySingleAddress(
+        upPickUp,
+        FILTER_TYPES.PICKUP_ADDRESS,
+        userInfo.schoolId
+      );
+    } else if (upRecive) {
+      takes = await orderService.getOrdersBySingleAddress(
+        upRecive,
+        FILTER_TYPES.RECEIVE_ADDRESS,
+        userInfo.schoolId
+      );
+    } else if (selectedCategoryId != null) {
+      takes = await orderService.getOrdersByCategory(selectedCategoryId);
+    } else if (this.data.sortMode === 'price') {
+      takes = await orderService.getOrdersByPrice(this.data.priceSort);
+    } else {
+      takes = await orderService.getOrdersByTime();
+    }
+
+    if ((upPickUp || upRecive) && selectedCategoryId != null) {
+      takes = takes.filter((item) => (
+        Number(item.categoryId) === Number(selectedCategoryId)
+        || item.categoryName === selectedCategoryName
+      ));
+    }
+    return this._sortTakes(this._decorateTakes(takes));
+  },
+  async applyFilters() {
     try {
       showLoading(LOADING_MESSAGES.GETTING_ORDERS);
-      const takes = await orderService.getOrdersByTime();
+      const takes = await this._loadFilteredTakes();
       this.setData({ takes });
     } catch (error) {
       console.error('获取订单失败:', error);
@@ -222,85 +269,16 @@ Page({
       hideLoading();
     }
   },
-  // 获取订单信息-价格排序
-  async getTakeByPrice() {
-    try {
-      showLoading(LOADING_MESSAGES.GETTING_ORDERS);
-      const status = this.data.orderStatus;
-      const takes = await orderService.getOrdersByPrice(status);
-      this.setData({ takes });
-    } catch (error) {
-      console.error('获取订单失败:', error);
-      showError(ERROR_MESSAGES.GET_ORDERS_FAILED);
-    } finally {
-      hideLoading();
-    }
+  getTakeByTime() {
+    this.setData({ sortMode: 'time' });
+    return this.applyFilters();
   },
-  // 获取订单信息-分类筛选
-  async getTakeByCategory(event) {
-    try {
-      showLoading(LOADING_MESSAGES.GETTING_ORDERS);
-      const item = event.currentTarget.dataset.item;
-      this.setData({
-        showCategory: item.categoryName,
-      });
-      const takes = await orderService.getOrdersByCategory(item.id);
-      this.setData({ takes });
-    } catch (error) {
-      console.error('获取订单失败:', error);
-      showError(ERROR_MESSAGES.GET_ORDERS_FAILED);
-    } finally {
-      hideLoading();
-    }
+  getTakeByPrice() {
+    this.setData({ sortMode: 'price' });
+    return this.applyFilters();
   },
-  // 获取订单信息-地址筛选
-  async getTakeByAddress() {
-    try {
-      showLoading(LOADING_MESSAGES.GETTING_ORDERS);
-      let takes;
-      
-      if (this.data.upPickUp == null || this.data.upRecive == null) {
-        // 单向筛选
-        if (this.data.upPickUp != null) {
-          this.setData({
-            upType: ADDRESS_TYPES.PICKUP,
-            upAddress: this.data.upPickUp,
-          });
-          takes = await orderService.getOrdersBySingleAddress(
-            this.data.upPickUp, 
-            FILTER_TYPES.PICKUP_ADDRESS,
-            this.data.userInfo.schoolId
-          );
-        } else if (this.data.upRecive != null) {
-          this.setData({
-            upType: ADDRESS_TYPES.RECEIVE,
-            upAddress: this.data.upRecive,
-          });
-          takes = await orderService.getOrdersBySingleAddress(
-            this.data.upRecive, 
-            FILTER_TYPES.RECEIVE_ADDRESS,
-            this.data.userInfo.schoolId
-          );
-        } else {
-          // 都没有选择，返回综合排序
-          takes = await orderService.getOrdersByTime();
-        }
-      } else {
-        // 双向筛选
-        takes = await orderService.getOrdersByDoubleAddress(
-          this.data.upPickUp,
-          this.data.upRecive,
-          this.data.userInfo.schoolId
-        );
-      }
-      
-      this.setData({ takes });
-    } catch (error) {
-      console.error('获取订单失败:', error);
-      showError(ERROR_MESSAGES.GET_ORDERS_FAILED);
-    } finally {
-      hideLoading();
-    }
+  getTakeByAddress() {
+    return this.applyFilters();
   },
   // 修改当前地址-类型设置
   upPickUp() {
@@ -437,7 +415,7 @@ Page({
         upAddress: e.detail,
       })
     };
-    this.getTakeByAddress();
+    this._updateFilterMeta();
   },
   onPickerCancel(e) {
     console.log('picker cancel', e.detail);
@@ -603,12 +581,7 @@ Page({
   //   const timeStr = _formatTime(expectTime);
   //   return timeStr;
   // },
-  // 生命周期函数--监听离开显示
-  onHide() {
-    this.setData({
-      tab: TAB_TYPES.TIME_SORT
-    })
-  },
+  onHide() {},
   // 生命周期函数--监听页面显示
   onShow() {
     this.checkPrivacyAcknowledged();
@@ -633,8 +606,8 @@ Page({
 
           this.getGlobalData()
             .then(() => {
-              // 在获取到userInfo之后调用getTakeByTime
-              this.getTakeByTime();
+              this.applyFilters();
+              this.loadBanners(this.data.userInfo.schoolId);
             })
             .catch(() => {})
             .finally(() => {
@@ -651,8 +624,8 @@ Page({
 
       this.getGlobalData()
         .then(() => {
-          // 在获取到userInfo之后调用getTakeByTime
-          this.getTakeByTime();
+          this.applyFilters();
+          this.loadBanners(this.data.userInfo.schoolId);
         })
         .catch(() => {})
         .finally(() => {
@@ -747,8 +720,6 @@ Page({
       selectedBuildingNumberId: upBuildingNumberId,
     });
 
-    // 根据选择的地址刷新订单列表（防抖处理）
-    this.debouncedGetTakeByAddress();
   },
 
 })

@@ -17,6 +17,5 @@ public class AddressBookShowVO {
     private String label;
     private Long userId;
     private Integer isDefault;
-    private Integer type;
     private Integer deleted;
 }

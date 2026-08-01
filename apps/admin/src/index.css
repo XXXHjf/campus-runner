@@ -20,6 +20,13 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --admin-text-color: #1f2937;
+  --admin-text-secondary: #6b7280;
+  --admin-border-color: #e5e7eb;
+  --admin-fill-color: #f3f4f6;
+  --admin-radius: 8px;
+  --admin-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
 body {
@@ -45,6 +52,12 @@ a:hover {
 /* 移除默认按钮样式，让每个组件自己定义 */
 button {
   font-family: inherit;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 /* 滚动条样式 */

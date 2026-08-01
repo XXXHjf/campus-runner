@@ -9,5 +9,4 @@ import lombok.Data;
 @Data
 public class AddressBookDefaultDTO {
     private Long id;
-    private Integer type;
 }

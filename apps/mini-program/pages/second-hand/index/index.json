@@ -2,6 +2,7 @@
   "navigationBarTitleText": "校园二手",
   "usingComponents": {
     "t-button": "tdesign-miniprogram/button/button",
+    "t-icon": "tdesign-miniprogram/icon/icon",
     "t-search": "tdesign-miniprogram/search/search",
     "t-tag": "tdesign-miniprogram/tag/tag",
     "t-image": "tdesign-miniprogram/image/image",
