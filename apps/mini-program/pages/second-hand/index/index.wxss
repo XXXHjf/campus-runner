@@ -1,17 +1,21 @@
 page {
   background: #f6f8f7;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .second-hand-page {
+  width: 100%;
   min-height: 100vh;
   padding: 28rpx 24rpx 48rpx;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .market-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 24rpx;
   padding: 28rpx 4rpx 20rpx;
 }
@@ -32,12 +36,11 @@ page {
 
 .subtitle {
   margin-top: 12rpx;
-  color: #68746e;
+  color: #56625b;
   font-size: 26rpx;
 }
 
 .trust-strip,
-.workbench,
 .search-wrap,
 .empty {
   background: #ffffff;
@@ -69,60 +72,46 @@ page {
   font-size: 22rpx;
 }
 
-.workbench {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16rpx;
-  margin-top: 20rpx;
-  padding: 18rpx;
-}
-
-.workbench-item {
-  min-height: 112rpx;
-  padding: 20rpx;
-  border: 1rpx solid #e7eee9;
-  border-radius: 12rpx;
+.publish-entry {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  height: 72rpx;
+  padding: 0 24rpx;
+  color: #ffffff;
+  background: #0052d9;
+  border-radius: 36rpx;
+  font-size: 25rpx;
+  font-weight: 700;
+  box-shadow: 0 8rpx 18rpx rgba(0, 82, 217, 0.2);
   box-sizing: border-box;
 }
 
-.workbench-item.primary {
-  background: #eaf8f1;
-  border-color: #c8ebd8;
-}
-
-.workbench-title {
-  display: block;
-  color: #17231d;
-  font-size: 28rpx;
-  font-weight: 700;
-}
-
-.workbench-desc {
-  display: block;
-  margin-top: 8rpx;
-  color: #748078;
-  font-size: 22rpx;
-}
-
 .search-wrap {
-  margin-top: 22rpx;
+  margin-top: 12rpx;
   overflow: hidden;
 }
 
 .category-scroll {
-  margin: 22rpx -24rpx 0;
-  width: calc(100% + 48rpx);
+  display: block;
+  width: 100%;
+  margin-top: 22rpx;
+  overflow: hidden;
 }
 
 .category-row {
-  display: flex;
+  display: inline-flex;
+  min-width: 100%;
   gap: 14rpx;
-  padding: 0 24rpx;
+  box-sizing: border-box;
   white-space: nowrap;
 }
 
 .category-pill {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
   height: 64rpx;
@@ -218,6 +207,6 @@ page {
 
 .empty-desc {
   margin: 12rpx 0 24rpx;
-  color: #7a867f;
+  color: #5f6b64;
   font-size: 24rpx;
 }

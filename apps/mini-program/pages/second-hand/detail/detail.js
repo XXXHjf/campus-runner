@@ -123,7 +123,6 @@ Page({
         addressBook: (addressBook || []).map((item) => ({
           ...item,
           addressText: this.formatAddress(item),
-          typeText: Number(item.type) === 1 ? '收件' : '取件',
         })),
       });
     } catch (error) {
@@ -143,7 +142,7 @@ Page({
   },
 
   gotoAddDeliveryAddress() {
-    wx.navigateTo({ url: '/pages/address/addressAdd/add?type=1' });
+    wx.navigateTo({ url: '/pages/address/addressAdd/add' });
   },
 
   confirmBuy() {

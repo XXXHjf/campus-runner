@@ -43,7 +43,7 @@
     <view class="door-container">
       <view class="door-left" bind:tap="handleChangeDoor">
         <view class="box1">
-          <text class="text-address">配送过程有门禁</text>
+          <text class="text-address">门禁</text>
         </view>
         <t-switch value="{{doorAccess==0?false:true}}" icon="{{['check', 'close']}}" size="small" slot="note" />
       </view>
@@ -64,7 +64,7 @@
       <view style="font-weight: 600;"> {{showUser || '暂无'}} </view>
     </view>
     <view class="contact-box" style="margin-left: 20rpx;">
-      <view style="font-weight: 600;"> {{showPhone || '暂无'}} </view>
+      <view style="font-weight: 600;"> {{maskedShowPhone || '暂无'}} </view>
     </view>
     <view class="edit-box">
       <t-icon name="edit" bind:click="onIconTap" />
@@ -140,10 +140,32 @@
   </view>
   <!-- 分割线 -->
   <t-divider class="drvider" />
-  <!-- 内容说明  -->
-  <view>
-    <text class="text-address">文字说明</text>
-    <t-textarea t-class="external-class" t-class-indicator="{{skylineRender?'skyline-indicator':''}}" placeholder="请输入跑腿内容注明详细要求，该内容将作为标题显示" bordered maxlength="100" disableDefaultPadding="{{true}}" indicator style="{{style}}" bindchange="onNoteInput" style="margin: 20rpx 30rpx" />
+  <view class="content-field">
+    <text class="text-address">一句话需求</text>
+    <t-input
+      class="content-title-input"
+      value="{{noteTitle}}"
+      placeholder="例如：帮取一个快递送到梅苑"
+      maxlength="30"
+      clearable="{{true}}"
+      bind:change="onNoteTitleInput"
+    />
+    <view class="content-field-tip">这句话会显示在跑腿大厅</view>
+  </view>
+  <view class="content-field">
+    <text class="text-address">详细要求</text>
+    <t-textarea
+      t-class="external-class"
+      t-class-indicator="{{skylineRender?'skyline-indicator':''}}"
+      value="{{noteDetail}}"
+      placeholder="补充取件位置、物品规格和注意事项（选填）"
+      bordered
+      maxlength="69"
+      disableDefaultPadding="{{true}}"
+      indicator
+      bindchange="onNoteDetailInput"
+      style="margin: 20rpx 30rpx"
+    />
   </view>
   <view>
     <text class="text-address">图片说明</text>
@@ -267,7 +289,7 @@
       <view class="confirm-item-compact confirm-highlight-bg">
         <t-icon name="mobile" size="32rpx" color="#0052d9" class="confirm-icon-td" />
         <text class="confirm-label-compact">联系电话</text>
-        <text class="confirm-value-compact highlight-text-compact">{{showPhone}}</text>
+        <text class="confirm-value-compact highlight-text-compact">{{maskedShowPhone}}</text>
       </view>
       
       <!-- 取件地址 -->

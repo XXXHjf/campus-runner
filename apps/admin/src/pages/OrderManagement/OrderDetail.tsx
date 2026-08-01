@@ -23,7 +23,6 @@ const orderStatusMap: Record<number, { label: string; color: string }> = {
   6: { label: '提现成功', color: '#10b981' },
   7: { label: '提现失败', color: '#dc2626' },
 }
-
 function getOrderStatusTag(status: number) {
   const entry = orderStatusMap[status]
   if (entry) {
@@ -236,5 +235,3 @@ export default function OrderDetail({ detail, loading }: OrderDetailProps) {
     </div>
   )
 }
-
-export { getOrderStatusTag, orderStatusMap }

@@ -16,7 +16,6 @@
             <if test="label != null and label != ''">and label = #{label}</if>
             <if test="userId != null">and user_id = #{userId}</if>
             <if test="isDefault != null">and is_default = #{isDefault}</if>
-            <if test="type != null">and type = #{type}</if>
             <if test="deleted != null">and deleted = #{deleted}</if>
         </where>
     </select>
@@ -36,7 +35,6 @@
             address_book.label,
             address_book.user_id,
             address_book.is_default,
-            address_book.type,
             address_book.deleted
 
         FROM
@@ -52,6 +50,7 @@
             address_book.building_id = building.id AND
             address_book.user_id = #{id} and
             address_book.deleted = 0
+        order by address_book.is_default desc, address_book.id desc
     </select>
 
     <select id="query" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookShowVO">
@@ -65,7 +64,6 @@
             address_book.label,
             address_book.user_id,
             address_book.is_default,
-            address_book.type,
             address_book.deleted
 
         FROM
@@ -88,7 +86,6 @@
             <if test="label != null and label != ''">And address_book.label like concat('%',#{label},'%') </if>
             <if test="userId != null">And address_book.user_id = #{userId}</if>
             <if test="isDefault != null">And address_book.is_default = #{isDefault}</if>
-            <if test="type != null">And address_book.type = #{type}</if>
         </where>
         order by address_book.is_default desc
 
@@ -96,19 +93,27 @@
 
 
     <insert id="insert">
-        insert into tb_address_book values(
-                                           null,
-                                           #{schoolId},
-                                           #{compusId},
-                                           #{buildCategoryId},
-                                           #{buildingId},
-                                           #{details},
-                                           #{label},
-                                           #{userId},
-                                           #{isDefault},
-                                           #{type},
-                                           #{deleted}
-                                          )
+        insert into tb_address_book(
+            school_id,
+            compus_id,
+            build_category_id,
+            building_id,
+            details,
+            label,
+            user_id,
+            is_default,
+            deleted
+        ) values (
+            #{schoolId},
+            #{compusId},
+            #{buildCategoryId},
+            #{buildingId},
+            #{details},
+            #{label},
+            #{userId},
+            #{isDefault},
+            #{deleted}
+        )
     </insert>
 
 
@@ -123,7 +128,6 @@
             <if test="label != null and label != ''">label = #{label}, </if>
             <if test="userId != null">user_id = #{userId}, </if>
             <if test="isDefault != null">is_default = #{isDefault}, </if>
-            <if test="type != null">type = #{type}, </if>
             <if test="deleted != null">deleted = #{deleted}, </if>
         </set>
         where id = #{id} and deleted = 0

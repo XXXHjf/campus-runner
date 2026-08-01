@@ -2,6 +2,7 @@ import Toast from 'tdesign-miniprogram/toast/index';
 
 // 引入服务和工具
 const userService = require('../../../services/userService');
+const mediaService = require('../../../services/mediaService');
 const tokenManager = require('../../../utils/tokenManager');
 const { showLoading, hideLoading, showError } = require('../../../utils/transformers');
 const {
@@ -21,9 +22,6 @@ const {
   getStatusDesc
 } = require('../../../utils/authStatus');
 
-const url = getApp().globalData.API_URL;
-
-
 Page({
 
   /**
@@ -40,7 +38,7 @@ Page({
     
     // 校园认证相关
     studentIdCardUrl: null, // 学生证照片本地路径
-    uploadedStudentIdCardUrl: null, // 上传后的服务器路径
+    uploadedStudentIdCardAssetId: null,
     
     // 认证须知弹窗
     showAuthNotice: false, // 是否显示认证须知弹窗
@@ -176,9 +174,12 @@ Page({
       wx.showToast({ title: '审核中，暂不可修改', icon: 'none' });
       return;
     }
+    if (this.data.uploadedStudentIdCardAssetId) {
+      mediaService.releaseTemporaryImage(this.data.uploadedStudentIdCardAssetId).catch(() => {});
+    }
     this.setData({
       studentIdCardUrl: null,
-      uploadedStudentIdCardUrl: null
+      uploadedStudentIdCardAssetId: null
     });
   },
   previewStudentIdCard() {
@@ -190,49 +191,16 @@ Page({
     });
   },
   // 上传学生证照片到服务器
-  uploadStudentIdCard() {
-    return new Promise((resolve, reject) => {
-      if (!this.data.studentIdCardUrl) {
-        reject(new Error('未选择学生证照片'));
-        return;
-      }
-
-      wx.uploadFile({
-        url: `${url}/api/upload`,
-        filePath: this.data.studentIdCardUrl,
-        name: 'img',
-        dirName: 'studentIdCard',
-        header: {
-          'token': tokenManager.getToken(),
-          'Content-Type': 'multipart/form-data'
-        },
-        formData: {
-          'dirName': 'studentIdCard'
-        },
-        success: (res) => {
-          try {
-            const data = JSON.parse(res.data);
-            if (data.code === 1) {
-              console.log('上传学生证照片成功:', data.data);
-              this.setData({
-                uploadedStudentIdCardUrl: data.data
-              });
-              resolve(data.data);
-            } else {
-              console.error('上传失败:', data);
-              reject(new Error(data.msg || '上传失败'));
-            }
-          } catch (e) {
-            console.error('解析响应失败:', e);
-            reject(new Error('解析响应失败'));
-          }
-        },
-        fail: (err) => {
-          console.error('上传失败:', err);
-          reject(new Error('上传失败'));
-        }
-      });
-    });
+  async uploadStudentIdCard() {
+    if (!this.data.studentIdCardUrl) {
+      throw new Error('未选择学生证照片');
+    }
+    const uploaded = await mediaService.uploadImage(
+      this.data.studentIdCardUrl,
+      'STUDENT_CARD',
+    );
+    this.setData({ uploadedStudentIdCardAssetId: uploaded.mediaId });
+    return uploaded.mediaId;
   },
   // 确认修改（使用封装的 service）
   async identify() {
@@ -273,19 +241,23 @@ Page({
       showLoading('提交中');
       
       // 先处理证件材料：有新图则上传，否则复用已提交的URL
-      let studentIdCardUrl = this.data.uploadedStudentIdCardUrl || existingRemoteImage;
-      if (hasNewLocalImage && !this.data.uploadedStudentIdCardUrl) {
-        studentIdCardUrl = await this.uploadStudentIdCard();
+      let studentIdCardAssetId = this.data.uploadedStudentIdCardAssetId
+        || this.data.userInfo?.studentIdCardAssetId
+        || null;
+      if (hasNewLocalImage && !this.data.uploadedStudentIdCardAssetId) {
+        studentIdCardAssetId = await this.uploadStudentIdCard();
       }
       
       const authData = {
         schoolId: effectiveSchoolId,
         realname: effectiveName,
         stuId: effectiveStuId,
-        studentIdCard: studentIdCardUrl
+        studentIdCard: studentIdCardAssetId ? null : existingRemoteImage,
+        studentIdCardAssetId
       };
       
       await userService.authenticate(authData);
+      this.setData({ uploadedStudentIdCardAssetId: null });
       console.log('确认修改成功');
       showSuccessToast(this, "提交成功，等待审核");
       

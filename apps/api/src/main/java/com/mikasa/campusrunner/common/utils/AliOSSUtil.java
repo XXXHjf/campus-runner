@@ -6,6 +6,8 @@ import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.OSSException;
 import com.aliyun.oss.common.auth.CredentialsProvider;
 import com.aliyun.oss.common.auth.DefaultCredentialProvider;
+import com.aliyun.oss.model.OSSObject;
+import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PutObjectResult;
 import com.mikasa.campusrunner.common.constant.AliOSSConstant;
 import com.mikasa.campusrunner.common.exception.UploadException;
@@ -14,6 +16,8 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.time.Duration;
 import java.util.Date;
@@ -64,12 +68,53 @@ public class AliOSSUtil {
         }
     }
 
+    public boolean objectExists(String objectKey) {
+        OSS ossClient = buildClient();
+        try {
+            return ossClient.doesObjectExist(bucketName, objectKey);
+        } catch (OSSException | ClientException e) {
+            log.error("Failed to check OSS object existence", e);
+            throw new UploadException("图片存储状态检查失败");
+        } finally {
+            ossClient.shutdown();
+        }
+    }
+
+    public byte[] downloadObject(String objectKey, long maxBytes) {
+        OSS ossClient = buildClient();
+        try {
+            ObjectMetadata metadata = ossClient.getObjectMetadata(bucketName, objectKey);
+            if (metadata.getContentLength() <= 0 || metadata.getContentLength() > maxBytes) {
+                throw new UploadException("历史图片大小不符合当前限制");
+            }
+            try (OSSObject object = ossClient.getObject(bucketName, objectKey);
+                 InputStream input = object.getObjectContent()) {
+                byte[] bytes = input.readNBytes(Math.toIntExact(maxBytes + 1));
+                if (bytes.length == 0 || bytes.length > maxBytes) {
+                    throw new UploadException("历史图片大小不符合当前限制");
+                }
+                return bytes;
+            }
+        } catch (UploadException e) {
+            throw e;
+        } catch (OSSException e) {
+            log.error("OSS rejected object download, code: {}, requestId: {}",
+                    e.getErrorCode(), e.getRequestId());
+            throw new UploadException("历史图片读取失败");
+        } catch (ClientException | IOException e) {
+            log.error("Failed to download OSS object", e);
+            throw new UploadException("历史图片读取失败");
+        } finally {
+            ossClient.shutdown();
+        }
+    }
+
     public String generatePresignedUrl(String objectKey, Duration duration) {
         OSS ossClient = buildClient();
         try {
             Date expiration = new Date(System.currentTimeMillis() + duration.toMillis());
             URL url = ossClient.generatePresignedUrl(bucketName, objectKey, expiration);
-            return url.toString();
+            return ensureHttps(url.toString());
         } catch (OSSException | ClientException e) {
             log.error("Failed to generate OSS URL, objectKey: {}", objectKey, e);
             throw new UploadException("图片访问地址生成失败");
@@ -95,5 +140,12 @@ public class AliOSSUtil {
         CredentialsProvider credentialsProvider =
                 new DefaultCredentialProvider(accessKeyId, accessKeySecret);
         return new OSSClientBuilder().build(endpoint, credentialsProvider);
+    }
+
+    static String ensureHttps(String url) {
+        if (url != null && url.regionMatches(true, 0, "http://", 0, 7)) {
+            return "https://" + url.substring(7);
+        }
+        return url;
     }
 }

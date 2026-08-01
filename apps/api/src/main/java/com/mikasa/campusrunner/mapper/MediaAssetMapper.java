@@ -34,7 +34,20 @@ public interface MediaAssetMapper {
             @Param("id") Long id,
             @Param("boundType") String boundType,
             @Param("boundId") Long boundId,
+            @Param("sortOrder") Integer sortOrder,
             @Param("boundAt") LocalDateTime boundAt);
+
+    int updateBoundSort(
+            @Param("id") Long id,
+            @Param("boundType") String boundType,
+            @Param("boundId") Long boundId,
+            @Param("sortOrder") Integer sortOrder,
+            @Param("updateTime") LocalDateTime updateTime);
+
+    List<MediaAsset> listBoundAssets(
+            @Param("boundType") String boundType,
+            @Param("boundId") Long boundId,
+            @Param("purpose") String purpose);
 
     int scheduleTemporaryDeletion(
             @Param("id") Long id,

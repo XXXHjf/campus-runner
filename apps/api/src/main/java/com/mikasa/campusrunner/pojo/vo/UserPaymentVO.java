@@ -9,5 +9,7 @@ import lombok.Data;
 @Data
 public class UserPaymentVO {
     private String aliPaymentCode;//支付宝收款码
+    private Long aliPaymentCodeAssetId;
     private String weChatPaymentCode;//微信收款码
+    private Long weChatPaymentCodeAssetId;
 }

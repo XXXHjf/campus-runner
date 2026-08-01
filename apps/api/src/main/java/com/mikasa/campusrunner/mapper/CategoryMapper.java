@@ -20,6 +20,8 @@ public interface CategoryMapper {
      */
     Category getById(Long id);
 
+    Category getByIdForUpdate(Long id);
+
     /**
      * 获取所有订单类型
      * @return

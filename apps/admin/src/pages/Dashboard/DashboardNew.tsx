@@ -4,7 +4,19 @@
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Button, Card, Col, Descriptions, Row, Spin, Statistic } from 'antd'
+import {
+  AppstoreOutlined,
+  CalendarOutlined,
+  CarOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  EnvironmentOutlined,
+  ShoppingOutlined,
+  TeamOutlined,
+} from '@ant-design/icons'
 import { kpiService } from '../../services'
+import { AdminContentCard, AdminPage, AdminPageHeader } from '../../components/admin'
 import './DashboardNew.css'
 
 export default function DashboardNew() {
@@ -61,123 +73,111 @@ export default function DashboardNew() {
     {
       title: '订单总数',
       value: stats.orderTotal,
-      icon: '📦',
+      icon: <ShoppingOutlined />,
       color: '#667eea',
       path: '/orders/all',
     },
     {
       title: '待接单',
       value: stats.orderPending,
-      icon: '⏳',
+      icon: <ClockCircleOutlined />,
       color: '#f59e0b',
       path: '/orders/pending',
     },
     {
       title: '已完成',
       value: stats.orderCompleted,
-      icon: '✅',
+      icon: <CheckCircleOutlined />,
       color: '#10b981',
       path: '/orders/completed',
     },
     {
       title: '今日订单',
       value: stats.orderToday,
-      icon: '📊',
+      icon: <CalendarOutlined />,
       color: '#3b82f6',
       path: '/orders/stats',
     },
     {
       title: '用户总数',
       value: stats.userTotal,
-      icon: '👥',
+      icon: <TeamOutlined />,
       color: '#8b5cf6',
       path: '/users/all',
     },
     {
       title: '接单总数',
       value: stats.takeTotal,
-      icon: '🏃',
+      icon: <CarOutlined />,
       color: '#ec4899',
       path: '/takes/all',
     },
   ]
 
   const quickActions = [
-    { label: '查看全部订单', icon: '📦', path: '/orders/all' },
-    { label: '用户管理', icon: '👥', path: '/users/all' },
-    { label: '地址管理', icon: '📍', path: '/address/system' },
-    { label: '分类管理', icon: '📂', path: '/category' },
+    { label: '查看全部订单', icon: <ShoppingOutlined />, path: '/orders/all' },
+    { label: '用户管理', icon: <TeamOutlined />, path: '/users/all' },
+    { label: '学校管理', icon: <EnvironmentOutlined />, path: '/address/school' },
+    { label: '分类管理', icon: <AppstoreOutlined />, path: '/category' },
   ]
 
   if (loading) {
     return (
       <div className="dashboard-loading">
-        <div className="loading-spinner"></div>
-        <p>加载中...</p>
+        <Spin size="large" description="加载数据" />
       </div>
     )
   }
 
   return (
-    <div className="dashboard-new">
-      <div className="dashboard-header">
-        <h1>数据概览</h1>
-        <p>欢迎使用帮帮校园送中后台管理系统</p>
-      </div>
+    <AdminPage className="dashboard-new">
+      <AdminPageHeader
+        title="数据概览"
+        description="查看平台核心数据并快速进入常用管理功能"
+      />
 
-      {/* 统计卡片 */}
-      <div className="stats-grid">
-        {statCards.map((card, index) => (
-          <div
-            key={index}
-            className="stat-card"
-            style={{ '--card-color': card.color } as React.CSSProperties}
-            onClick={() => navigate(card.path)}
-          >
-            <div className="stat-icon">{card.icon}</div>
-            <div className="stat-content">
-              <h3>{card.title}</h3>
-              <p className="stat-value">{card.value.toLocaleString()}</p>
-            </div>
-          </div>
+      <Row gutter={[16, 16]}>
+        {statCards.map((card) => (
+          <Col key={card.title} xs={24} sm={12} xl={8}>
+            <Card
+              hoverable
+              className="dashboard-stat-card"
+              onClick={() => navigate(card.path)}
+            >
+              <div className="dashboard-stat-card__icon" style={{ color: card.color }}>
+                {card.icon}
+              </div>
+              <Statistic title={card.title} value={card.value} />
+            </Card>
+          </Col>
         ))}
-      </div>
+      </Row>
 
-      {/* 快捷操作 */}
-      <div className="quick-actions">
-        <h2>快捷操作</h2>
-        <div className="actions-grid">
-          {quickActions.map((action, index) => (
-            <button key={index} className="action-btn" onClick={() => navigate(action.path)}>
-              <span className="action-icon">{action.icon}</span>
-              <span className="action-label">{action.label}</span>
-            </button>
+      <AdminContentCard title="快捷操作">
+        <div className="dashboard-actions">
+          {quickActions.map((action) => (
+            <Button
+              key={action.label}
+              icon={action.icon}
+              onClick={() => navigate(action.path)}
+            >
+              {action.label}
+            </Button>
           ))}
         </div>
-      </div>
+      </AdminContentCard>
 
-      {/* 系统信息 */}
-      <div className="system-info">
-        <h2>系统信息</h2>
-        <div className="info-grid">
-          <div className="info-item">
-            <span className="info-label">系统版本</span>
-            <span className="info-value">v1.0.0</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">React 版本</span>
-            <span className="info-value">19.1.1</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">构建工具</span>
-            <span className="info-value">Vite 7.1.12</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">API 地址</span>
-            <span className="info-value">campusrunner.top</span>
-          </div>
-        </div>
-      </div>
-    </div>
+      <AdminContentCard title="系统信息">
+        <Descriptions
+          column={{ xs: 1, sm: 2, lg: 4 }}
+          items={[
+            { key: 'version', label: '系统版本', children: 'v1.0.0' },
+            { key: 'react', label: 'React 版本', children: '19.1.1' },
+            { key: 'vite', label: '构建工具', children: 'Vite 7.1.12' },
+            { key: 'api', label: '服务域名', children: 'campusrunner.top' },
+          ]}
+        />
+      </AdminContentCard>
+    </AdminPage>
   )
 }

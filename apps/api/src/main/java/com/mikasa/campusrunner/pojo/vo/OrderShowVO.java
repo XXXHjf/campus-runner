@@ -39,7 +39,9 @@ public class OrderShowVO{
     private Integer status;
     private String note;
     private String image;
+    private Long imageAssetId;
     private Integer deleted;
+    private Long categoryId;
     private String categoryImage;
     private String categoryName;
     private String realname;

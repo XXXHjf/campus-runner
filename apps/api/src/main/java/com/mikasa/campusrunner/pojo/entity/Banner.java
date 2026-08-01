@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 public class Banner {
     private Long id;//
     private String imgUrl;//轮播图图片地址
+    private Long imageAssetId;
     private String title;//轮播图标题
     private Long schoolId;//轮播图对应的学校id(如果为0则代表所有学校，即通用的轮播图，否则为对应学校的轮播图)
     private String schoolName;//轮播图对应的学校名字

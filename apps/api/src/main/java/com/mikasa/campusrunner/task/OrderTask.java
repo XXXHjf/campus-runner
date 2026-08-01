@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.ExtendedBeanInfoFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +31,11 @@ import java.util.List;
  * created  2024/5/8 9:18
  */
 @Component
+@ConditionalOnProperty(
+        prefix = "app.scheduling",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = true)
 @Slf4j
 public class OrderTask {
 

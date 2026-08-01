@@ -11,5 +11,6 @@ public class Category {
     private Long id;
     private String categoryName;
     private String image;
+    private Long imageAssetId;
     private Integer deleted;
 }

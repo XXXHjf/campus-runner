@@ -156,6 +156,13 @@ function validateBasicInfo(data) {
  * @returns {Object} { valid: boolean, message: string }
  */
 function validateContent(data) {
+  const title = String(data.noteTitle || '').trim();
+  if (!title) {
+    return { valid: false, message: '请填写一句话需求' };
+  }
+  if (title.length > 30) {
+    return { valid: false, message: '一句话需求不能超过30个字符' };
+  }
   return validateNote(data.note);
 }
 

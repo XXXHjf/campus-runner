@@ -47,21 +47,6 @@ function getAllAddresses() {
 }
 
 /**
- * 获取指定类型的地址
- * @param {number} type - 地址类型 (0: 取件, 1: 收件)
- * @returns {Promise<Object>} 地址数据
- */
-function getAddressByType(type) {
-  return request({
-    url: `${url}/api/address`,
-    method: 'GET',
-    data: { type }
-  }).then(res => {
-    return res.data.data || {};
-  });
-}
-
-/**
  * 创建用户自定义地址
  * @param {Object} addressData - 地址数据
  * @returns {Promise<Object>} 创建结果
@@ -172,7 +157,6 @@ module.exports = {
   getThreeLevelAddress,
   getCategories,
   getAllAddresses,
-  getAddressByType,
   createUserAddress,
   updateUserAddress,
   updateUserAddressDetail,

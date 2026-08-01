@@ -18,13 +18,21 @@ import {
   Col,
   Modal,
   Image,
-  message,
+  App,
 } from 'antd'
 import type { AdminTakeOrderItem, AdminTakeOrderStatistics, AdminOrderDetailResponse } from '../../types/admin'
 import { takeOrderService, orderService } from '../../services'
 import OrderDetail from '../OrderManagement/OrderDetail'
 import { TAKE_ORDER_STATUS_LABELS, TAKE_ORDER_STATUS_COLORS } from '../../constants'
 import { formatDateTime, formatPrice, formatPhone } from '../../utils/format'
+import {
+  AdminContentCard,
+  AdminCount,
+  AdminFilterBar,
+  AdminPage,
+  AdminPageHeader,
+  createAdminTableLocale,
+} from '../../components/admin'
 import './TakeOrderManagement.css'
 
 /** 接单状态标签渲染 */
@@ -73,12 +81,12 @@ const TAB_CONFIG: Record<
   },
 }
 
-const TAB_KEYS = ['all', 'withdrawn', 'stats'] as const
-type TabKey = (typeof TAB_KEYS)[number]
+type TabKey = 'all' | 'withdrawn' | 'stats'
 
 const PAGE_SIZE = 20
 
 export default function TakeOrderManagement() {
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -359,13 +367,8 @@ export default function TakeOrderManagement() {
   }, [tabKey])
 
   return (
-    <div className="take-order-management">
-      <div className="page-header">
-        <div className="header-left">
-          <h1>接单管理</h1>
-          <p>管理平台接单信息与状态</p>
-        </div>
-      </div>
+    <AdminPage className="take-order-management">
+      <AdminPageHeader title="接单管理" description="管理平台接单信息与状态" />
 
       <Tabs
         activeKey={tabKey}
@@ -380,25 +383,24 @@ export default function TakeOrderManagement() {
 
       {isListTab ? (
         <>
-          <div className="toolbar">
+          <AdminFilterBar extra={<AdminCount>共 {total} 条</AdminCount>}>
             <Input.Search
-              placeholder="搜索订单编号/发单人/接单人/接单电话..."
+              placeholder="搜索订单编号、发单人、接单人或联系电话"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               onSearch={(value) => setKeyword(value)}
               style={{ width: 400 }}
               allowClear
             />
-            <span className="data-count">共 {total} 条</span>
-          </div>
+          </AdminFilterBar>
 
-          <div className="table-container">
+          <AdminContentCard flush>
             <Table
               dataSource={filteredList}
               columns={columns}
               rowKey="id"
               loading={loading}
-              locale={{ emptyText: '暂无接单数据' }}
+              locale={createAdminTableLocale('暂无接单数据')}
               scroll={{ x: 2200 }}
               pagination={{
                 current: page,
@@ -409,7 +411,7 @@ export default function TakeOrderManagement() {
                 onChange: onPageChange,
               }}
             />
-          </div>
+          </AdminContentCard>
         </>
       ) : (
         <div className="stats-container">
@@ -461,7 +463,7 @@ export default function TakeOrderManagement() {
         onCancel={() => setDetailModal({ open: false, loading: false, data: null })}
         footer={<Button onClick={() => setDetailModal({ open: false, loading: false, data: null })}>关闭</Button>}
         width={900}
-        destroyOnClose
+        destroyOnHidden
       >
         <OrderDetail detail={detailModal.data} loading={detailModal.loading} />
       </Modal>
@@ -473,17 +475,16 @@ export default function TakeOrderManagement() {
         onCancel={() => setImagePreview({ open: false, url: '' })}
         footer={null}
         width={600}
-        destroyOnClose
+        destroyOnHidden
         centered
       >
         <div style={{ textAlign: 'center', padding: 16 }}>
           <Image
             src={imagePreview.url}
             style={{ maxWidth: '100%' }}
-            fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Crect width='300' height='300' fill='%23f0f0f0'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23ccc' font-size='14'%3E图片加载失败%3C/text%3E%3C/svg%3E"
           />
         </div>
       </Modal>
-    </div>
+    </AdminPage>
   )
 }

@@ -11,5 +11,6 @@ public class UserSaveDTO {
     private String phone;
     private String username;
     private String headImg;
+    private Long headImgAssetId;
     private Integer sex;
 }

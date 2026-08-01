@@ -94,11 +94,11 @@
         <scroll-view scroll-y class="address-list">
           <view wx:for="{{addressBook}}" wx:key="id" class="address-option {{selectedBuyerAddressId==item.id?'active':''}}" data-id="{{item.id}}" bindtap="selectBuyerAddress">
             <view class="address-main">{{item.addressText}}</view>
-            <view class="address-meta">{{item.typeText}}地址{{item.isDefault==1?' · 默认':''}}{{item.label?' · '+item.label:''}}</view>
+            <view class="address-meta">{{item.isDefault==1?'默认地址 · ':''}}{{item.label || '常用地址'}}</view>
           </view>
           <view wx:if="{{addressBook.length==0}}" class="empty-address">
             <view class="empty-title">还没有配送地址</view>
-            <view class="info-muted">新增一个收件地址后再下单。</view>
+            <view class="info-muted">新增一个地址后再下单。</view>
           </view>
         </scroll-view>
         <t-button size="small" variant="outline" bind:tap="gotoAddDeliveryAddress">新增地址</t-button>

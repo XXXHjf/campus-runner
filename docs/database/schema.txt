@@ -8,7 +8,6 @@ CREATE TABLE `tb_address_book` (
   `label` VARCHAR(50) NULL COMMENT '地址标签(寝室 教学楼等)' ,
   `user_id` BIGINT NULL COMMENT '关联的用户id' ,
   `is_default` INT NULL COMMENT '是否为默认地址(0否 1时)' ,
-  `type` INT NULL COMMENT '地址种类(0取件地址 1收件地址)' ,
   `deleted` INT NULL COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
    PRIMARY KEY (`id`)
 )

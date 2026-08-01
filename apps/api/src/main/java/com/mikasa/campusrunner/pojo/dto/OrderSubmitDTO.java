@@ -34,6 +34,7 @@ public class OrderSubmitDTO {
     private Integer doorAccess;//门禁
     private String note;
     private String image;
+    private Long imageAssetId;
     private Long categoryId;
     private String username;//订单用的昵称
     private String phone;//订单用的phone字段

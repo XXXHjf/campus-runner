@@ -238,6 +238,30 @@ docs/database/second-hand-schema.sql
 docs/database/second-hand-delivery-migration.sql
 ```
 
+统一图片资源使用：
+
+```text
+docs/database/media-asset-migration.sql
+docs/database/media-asset-phase2-migration.sql
+docs/database/media-asset-history-migration.sql
+docs/database/media-asset-history-migration.md
+```
+
+统一地址簿使用：
+
+```text
+docs/database/address-book-type-removal.sql
+docs/database/address-book-type-removal-rollback.sql
+docs/database/address-book-type-removal.md
+```
+
+地址簿迁移会删除已弃用的 `tb_address_book.type`。旧版 API 仍按旧结构读写该列，因此
+应先停止旧版 API，完成数据库备份和迁移后再启动新版 API；验证与回滚步骤见对应说明。
+
+已执行第一阶段 `media-asset-migration.sql` 的环境，本版本只需在发布新版 API 前执行
+`media-asset-phase2-migration.sql`。该脚本仅为 `tb_media_asset` 增加多图排序字段，
+不修改历史 URL，也不删除 OSS 对象。
+
 执行示例：
 
 ```bash
@@ -246,9 +270,30 @@ mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
 
 mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
   < docs/database/second-hand-delivery-migration.sql
+
+mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
+  < docs/database/media-asset-phase2-migration.sql
+
+mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
+  < docs/database/address-book-type-removal.sql
 ```
 
-以上脚本不会清空已有数据，并对建表或新增字段进行了重复执行保护。
+以上脚本不会清空业务记录，并对结构变化进行了重复执行保护。地址簿脚本会按设计永久
+删除已弃用的 `type` 列及该列历史值，执行前必须完成数据库备份。
+
+历史图片迁移不能只执行 SQL，也不能在迁移完成前删除旧字段。部署迁移器后，依次执行：
+
+```bash
+/root/campus-runner-media-migration.sh dry-run
+/root/campus-runner-media-migration.sh apply --confirm-writes
+/root/campus-runner-media-migration.sh verify
+/root/check-media-migration.sh start
+```
+
+观察期间用 `/root/check-media-migration.sh status` 巡检。只有连续至少 7 天、日志连续、
+没有 `LEGACY_MEDIA_FALLBACK` 且迁移失败数为零时，脚本才会报告可以进入第一次清理发布。
+详细状态、失败处理、回滚和 OSS 差集删除约束见
+`docs/database/media-asset-history-migration.md`。
 
 执行后可检查关键结构：
 
@@ -260,7 +305,15 @@ LIKE 'pickup_address_snapshot';
 
 SHOW COLUMNS FROM tb_second_hand_order
 LIKE 'buyer_delivery_address_snapshot';
+
+SHOW COLUMNS FROM tb_media_asset
+LIKE 'sort_order';
+
+SHOW COLUMNS FROM tb_address_book
+LIKE 'type';
 ```
+
+最后一条查询在地址簿迁移完成后应返回空结果。
 
 ## 更新管理后台
 
@@ -323,15 +376,19 @@ errorCode 1045
 先验证服务器内部服务：
 
 ```bash
-curl -i http://127.0.0.1:8080/api/second-hand/categories
+curl -i http://127.0.0.1:8080/admin/api/banner/getList/1
 ```
 
 再验证 Nginx 和 HTTPS：
 
 ```bash
-curl -i https://www.campusrunner.top/api/second-hand/categories
+curl -i https://www.campusrunner.top/admin/api/banner/getList/1
 curl -I https://www.campusrunner.top/
 ```
+
+轮播图列表接口允许匿名访问并会查询数据库，适合作为发布探针。当前
+`/api/second-hand/categories` 受鉴权保护，未携带 token 时返回 `401` 属于预期行为；
+不要使用 `curl -f` 将该 `401` 误判为后端启动失败。
 
 验证 admin 登录链路时，应使用安全提供的测试账号，不要把密码留在 shell 历史中。
 至少确认 `POST /admin/api/login` 能在前端 15 秒超时之前返回，并检查后端日志确实

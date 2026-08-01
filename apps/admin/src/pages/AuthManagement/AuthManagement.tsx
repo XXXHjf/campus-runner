@@ -5,8 +5,17 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
+import { Alert, App, Avatar, Button, Image, Input, Modal, Space, Table, Tag } from 'antd'
 import { authService } from '../../services'
 import type { PendingAuthUser, AuthReviewStatus } from '../../types'
+import {
+  AdminContentCard,
+  AdminCount,
+  AdminFilterBar,
+  AdminPage,
+  AdminPageHeader,
+  createAdminTableLocale,
+} from '../../components/admin'
 import './AuthManagement.css'
 
 const statusLabels: Record<number, string> = {
@@ -52,6 +61,7 @@ type ConfirmModalState =
     }
 
 export default function AuthManagement() {
+  const { message } = App.useApp()
   const [loading, setLoading] = useState(false)
   const [list, setList] = useState<PendingAuthUser[]>([])
   const [keyword, setKeyword] = useState('')
@@ -104,7 +114,7 @@ export default function AuthManagement() {
       setConfirmModal({ open: false })
     } catch (err: unknown) {
       console.error('更新审核状态失败', err)
-      alert(getErrorMessage(err, '更新失败，请稍后重试'))
+      message.error(getErrorMessage(err, '更新失败，请稍后重试'))
     } finally {
       setActionUserId(null)
     }
@@ -120,247 +130,197 @@ export default function AuthManagement() {
     })
   }
 
-  return (
-    <div className="auth-management">
-      <div className="page-header">
-        <div className="header-left">
-          <h1>审核管理</h1>
-          <p>处理学生认证申请（查看材料并审核通过/不通过）</p>
+  const columns = [
+    {
+      title: '用户ID',
+      dataIndex: 'id',
+      width: 90,
+    },
+    {
+      title: '用户',
+      width: 180,
+      render: (_: unknown, user: PendingAuthUser) => (
+        <div className="auth-user-cell">
+          <Avatar src={user.headImg || undefined}>
+            {!user.headImg ? (user.username || '?').slice(0, 1).toUpperCase() : undefined}
+          </Avatar>
+          <span>{user.username || '-'}</span>
         </div>
-        <div className="header-right">
-          <button className="btn-secondary" onClick={loadList} disabled={loading}>
-            刷新
-          </button>
-        </div>
-      </div>
+      ),
+    },
+    {
+      title: '姓名',
+      dataIndex: 'realname',
+      width: 120,
+      render: (value: string | undefined) => value || '-',
+    },
+    {
+      title: '学校',
+      dataIndex: 'schoolName',
+      width: 180,
+      render: (value: string | undefined) => value || '-',
+    },
+    {
+      title: '学号',
+      dataIndex: 'stuId',
+      width: 130,
+      render: (value: string | undefined) => value || '-',
+    },
+    {
+      title: '手机号',
+      dataIndex: 'phone',
+      width: 140,
+      render: (value: string | undefined) => value || '-',
+    },
+    {
+      title: '状态',
+      dataIndex: 'studentIdCardReview',
+      width: 120,
+      render: (value: number | undefined) => {
+        const review = value ?? 0
+        return <Tag color={statusColors[review]}>{statusLabels[review] || '未知'}</Tag>
+      },
+    },
+    {
+      title: '材料',
+      width: 100,
+      render: (_: unknown, user: PendingAuthUser) => {
+        const url = guessImageUrl(user.studentIdCard)
+        return url ? (
+          <Button type="link" onClick={() => openPreview(user)}>
+            查看材料
+          </Button>
+        ) : (
+          '无'
+        )
+      },
+    },
+    {
+      title: '操作',
+      fixed: 'right' as const,
+      width: 230,
+      render: (_: unknown, user: PendingAuthUser) => {
+        const disabled = actionUserId === user.id
+        return (
+          <Space size={4}>
+            <Button
+              type="link"
+              size="small"
+              disabled={disabled}
+              onClick={() => setConfirmModal({ open: true, user, review: 1 })}
+            >
+              标记审核中
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              disabled={disabled}
+              onClick={() => setConfirmModal({ open: true, user, review: 2 })}
+            >
+              通过
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              disabled={disabled}
+              onClick={() => setConfirmModal({ open: true, user, review: 3 })}
+            >
+              不通过
+            </Button>
+          </Space>
+        )
+      },
+    },
+  ]
 
-      <div className="toolbar">
-        <div className="toolbar-left">
-          <div className="search-box">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="搜索：ID/昵称/姓名/手机号/学校/学号"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="toolbar-right">
-          <span className="data-count">
-            {loading ? '加载中...' : `待处理 ${filteredList.length} 条`}
-          </span>
-        </div>
-      </div>
+  return (
+    <AdminPage className="auth-management">
+      <AdminPageHeader
+        title="审核管理"
+        description="查看学生认证材料并处理审核申请"
+        actions={
+          <Button onClick={loadList} loading={loading}>
+            刷新
+          </Button>
+        }
+      />
+
+      <AdminFilterBar
+        extra={
+          <AdminCount>{loading ? '加载中' : `待处理 ${filteredList.length} 条`}</AdminCount>
+        }
+      >
+        <Input.Search
+          allowClear
+          placeholder="搜索 ID、昵称、姓名、手机号、学校或学号"
+          value={keyword}
+          onChange={(event) => setKeyword(event.target.value)}
+          onSearch={setKeyword}
+          style={{ width: 420 }}
+        />
+      </AdminFilterBar>
 
       {error && (
-        <div className="alert alert-error">
-          <span>⚠️ {error}</span>
-        </div>
+        <Alert type="error" showIcon title={error} />
       )}
 
-      <div className="table-container">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th style={{ width: 90 }}>用户ID</th>
-              <th style={{ width: 140 }}>昵称</th>
-              <th style={{ width: 120 }}>姓名</th>
-              <th style={{ width: 160 }}>学校</th>
-              <th style={{ width: 120 }}>学号</th>
-              <th style={{ width: 140 }}>手机号</th>
-              <th style={{ width: 120 }}>状态</th>
-              <th>材料</th>
-              <th style={{ width: 210 }}>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={9} className="no-data">
-                  <div className="no-data-content">
-                    <span className="no-data-icon">⏳</span>
-                    <p>加载中...</p>
-                  </div>
-                </td>
-              </tr>
-            ) : filteredList.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="no-data">
-                  <div className="no-data-content">
-                    <span className="no-data-icon">📭</span>
-                    <p>暂无待审核数据</p>
-                    <small>可点击右上角刷新</small>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              filteredList.map((user) => {
-                const review = user.studentIdCardReview ?? 0
-                const url = guessImageUrl(user.studentIdCard)
-                const disabled = actionUserId === user.id
+      <AdminContentCard flush>
+        <Table
+          rowKey="id"
+          loading={loading}
+          dataSource={filteredList}
+          columns={columns}
+          locale={createAdminTableLocale('暂无待审核数据')}
+          scroll={{ x: 1320 }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
+        />
+      </AdminContentCard>
 
-                return (
-                  <tr key={user.id}>
-                    <td>{user.id}</td>
-                    <td>
-                      <div className="user-cell">
-                        <img
-                          className="user-avatar"
-                          src={
-                            user.headImg ||
-                            `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-                              String(user.id),
-                            )}`
-                          }
-                          alt="头像"
-                        />
-                        <span className="user-name">{user.username || '-'}</span>
-                      </div>
-                    </td>
-                    <td>{user.realname || '-'}</td>
-                    <td>{user.schoolName || '-'}</td>
-                    <td>{user.stuId || '-'}</td>
-                    <td>{user.phone || '-'}</td>
-                    <td>
-                      <span
-                        className="status-badge"
-                        style={{
-                          backgroundColor: statusColors[review] || '#6b7280',
-                        }}
-                      >
-                        {statusLabels[review] || '未知'}
-                      </span>
-                    </td>
-                    <td>
-                      {url ? (
-                        <button className="btn-link" onClick={() => openPreview(user)}>
-                          查看材料
-                        </button>
-                      ) : user.studentIdCard ? (
-                        <span className="text-muted">{user.studentIdCard}</span>
-                      ) : (
-                        <span className="text-muted">无</span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="table-actions">
-                        <button
-                          className="btn-action btn-reviewing"
-                          onClick={() => setConfirmModal({ open: true, user, review: 1 })}
-                          disabled={disabled}
-                          title="标记为审核中"
-                        >
-                          审核中
-                        </button>
-                        <button
-                          className="btn-action btn-approve"
-                          onClick={() => setConfirmModal({ open: true, user, review: 2 })}
-                          disabled={disabled}
-                        >
-                          通过
-                        </button>
-                        <button
-                          className="btn-action btn-reject"
-                          onClick={() => setConfirmModal({ open: true, user, review: 3 })}
-                          disabled={disabled}
-                        >
-                          不通过
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Modal
+        title="确认审核操作"
+        open={confirmModal.open}
+        onCancel={() => setConfirmModal({ open: false })}
+        onOk={() =>
+          confirmModal.open && void updateStatus(confirmModal.user, confirmModal.review)
+        }
+        okText="确认提交"
+        cancelText="取消"
+        confirmLoading={confirmModal.open && actionUserId === confirmModal.user.id}
+      >
+        {confirmModal.open && (
+          <Space direction="vertical" size={12}>
+            <span>
+              用户：
+              {confirmModal.user.realname ||
+                confirmModal.user.username ||
+                String(confirmModal.user.id)}
+            </span>
+            <span>
+              设置状态：
+              <Tag color={statusColors[confirmModal.review]}>
+                {statusLabels[confirmModal.review] || '未知'}
+              </Tag>
+            </span>
+            <span className="auth-modal-note">提交后将更新该用户的学生认证审核状态。</span>
+          </Space>
+        )}
+      </Modal>
 
-      {confirmModal.open && (
-        <div className="modal-overlay" onClick={() => setConfirmModal({ open: false })}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>确认审核操作</h2>
-              <button className="modal-close" onClick={() => setConfirmModal({ open: false })}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="confirm-summary">
-                <div className="confirm-row">
-                  <span className="confirm-label">用户</span>
-                  <span className="confirm-value">
-                    {confirmModal.user.realname ||
-                      confirmModal.user.username ||
-                      String(confirmModal.user.id)}
-                  </span>
-                </div>
-                <div className="confirm-row">
-                  <span className="confirm-label">设置状态</span>
-                  <span
-                    className="status-badge"
-                    style={{
-                      backgroundColor: statusColors[confirmModal.review] || '#6b7280',
-                    }}
-                  >
-                    {statusLabels[confirmModal.review] || '未知'}
-                  </span>
-                </div>
-              </div>
-              <p className="text-muted" style={{ marginTop: 12 }}>
-                提交后将更新该用户的学生认证审核状态。
-              </p>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn-secondary"
-                onClick={() => setConfirmModal({ open: false })}
-                disabled={actionUserId === confirmModal.user.id}
-              >
-                取消
-              </button>
-              <button
-                className="btn-primary"
-                onClick={() => void updateStatus(confirmModal.user, confirmModal.review)}
-                disabled={actionUserId === confirmModal.user.id}
-              >
-                确认提交
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {preview.open && (
-        <div className="modal-overlay" onClick={() => setPreview({ open: false })}>
-          <div className="modal-content modal-preview" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{preview.title || '材料预览'}</h2>
-              <button className="modal-close" onClick={() => setPreview({ open: false })}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              {preview.url ? (
-                <img className="preview-image" src={preview.url} alt="材料" />
-              ) : (
-                <div className="text-muted">无可预览内容</div>
-              )}
-            </div>
-            <div className="modal-footer">
-              {preview.url && (
-                <a className="btn-secondary" href={preview.url} target="_blank" rel="noreferrer">
-                  在新标签页打开
-                </a>
-              )}
-              <button className="btn-primary" onClick={() => setPreview({ open: false })}>
-                关闭
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <Modal
+        title={preview.title || '材料预览'}
+        open={preview.open}
+        onCancel={() => setPreview({ open: false })}
+        footer={null}
+        width={860}
+        centered
+      >
+        {preview.url && <Image src={preview.url} alt="学生认证材料" width="100%" />}
+      </Modal>
+    </AdminPage>
   )
 }

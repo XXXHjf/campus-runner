@@ -3,26 +3,11 @@
     <view>
       <view class="eyebrow">校园担保交易</view>
       <view class="title">找同校好物</view>
-      <!-- <view class="subtitle">平台担保支付，交付确认后卖家收款</view> -->
+      <view class="subtitle">按关键词和分类发现闲置</view>
     </view>
-  </view>
-
-  <view class="workbench">
-    <view class="workbench-item primary" bindtap="gotoPublish">
-      <text class="workbench-title">发布闲置</text>
-      <text class="workbench-desc">拍照填价，快速上架</text>
-    </view>
-    <view class="workbench-item" bindtap="gotoMyProducts">
-      <text class="workbench-title">我的发布</text>
-      <text class="workbench-desc">编辑、上下架</text>
-    </view>
-    <view class="workbench-item" bindtap="gotoOrders">
-      <text class="workbench-title">我的买卖</text>
-      <text class="workbench-desc">支付与交付进度</text>
-    </view>
-    <view class="workbench-item" bindtap="gotoBargains">
-      <text class="workbench-title">议价工作台</text>
-      <text class="workbench-desc">处理报价请求</text>
+    <view class="publish-entry" bindtap="gotoPublish">
+      <t-icon name="add" size="32rpx" color="#ffffff" />
+      <text>发布闲置</text>
     </view>
   </view>
 
@@ -30,7 +15,13 @@
     <t-search value="{{keyword}}" placeholder="搜索商品、地点、关键词" bind:change="onSearchChange" bind:submit="onSearch" bind:clear="clearSearch" />
   </view>
 
-  <scroll-view scroll-x class="category-scroll" show-scrollbar="{{false}}">
+  <scroll-view
+    class="category-scroll"
+    scroll-x="{{true}}"
+    enhanced="{{true}}"
+    bounces="{{false}}"
+    show-scrollbar="{{false}}"
+  >
     <view class="category-row">
       <view class="category-pill {{activeCategoryId==null?'active':''}}" bindtap="selectCategory">全部</view>
       <view wx:for="{{categories}}" wx:key="id" class="category-pill {{activeCategoryId==item.id?'active':''}}" data-id="{{item.id}}" bindtap="selectCategory">

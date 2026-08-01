@@ -47,7 +47,7 @@ const TAB_CONFIG = {
 
 // 轮播图配置
 const SWIPER_CONFIG = {
-  CURRENT: 1,
+  CURRENT: 0,
   AUTOPLAY: true,
   DURATION: 500,
   INTERVAL: 5000

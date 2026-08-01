@@ -19,12 +19,20 @@ import {
   Statistic,
   Row,
   Col,
-  message,
+  App,
 } from 'antd'
 import type { AdminUserItem, AdminUserDetail, AdminUserStatistics } from '../../types/admin'
 import { userService } from '../../services'
 import { GENDER_LABELS } from '../../constants'
 import { formatDateTime, formatPhone, formatPrice } from '../../utils/format'
+import {
+  AdminContentCard,
+  AdminCount,
+  AdminFilterBar,
+  AdminPage,
+  AdminPageHeader,
+  createAdminTableLocale,
+} from '../../components/admin'
 import './UserManagement.css'
 
 /** Tab 配置映射 */
@@ -43,12 +51,12 @@ const TAB_CONFIG: Record<string, { label: string; api: (page: number, pageSize: 
   },
 }
 
-const TAB_KEYS = ['all', 'authenticated', 'pending-auth', 'stats'] as const
-type TabKey = (typeof TAB_KEYS)[number]
+type TabKey = 'all' | 'authenticated' | 'pending-auth' | 'stats'
 
 const PAGE_SIZE = 20
 
 export default function UserManagement() {
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -161,7 +169,7 @@ export default function UserManagement() {
   }
 
   // Handle pagination change
-  const onPageChange = (newPage: number, newPageSize: number) => {
+  const onPageChange = (newPage: number) => {
     setPage(newPage)
   }
 
@@ -292,13 +300,8 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="user-management">
-      <div className="page-header">
-        <div className="header-left">
-          <h1>用户管理</h1>
-          <p>管理平台用户信息与认证状态</p>
-        </div>
-      </div>
+    <AdminPage className="user-management">
+      <AdminPageHeader title="用户管理" description="管理平台用户信息与认证状态" />
 
       <Tabs
         activeKey={tabKey}
@@ -314,25 +317,24 @@ export default function UserManagement() {
 
       {isListTab ? (
         <>
-          <div className="toolbar">
+          <AdminFilterBar extra={<AdminCount>共 {total} 条</AdminCount>}>
             <Input.Search
-              placeholder="搜索用户昵称/姓名/手机号/学校/ID..."
+              placeholder="搜索用户昵称、姓名、手机号、学校或 ID"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               onSearch={(value) => setKeyword(value)}
               style={{ width: 360 }}
               allowClear
             />
-            <span className="data-count">共 {total} 条</span>
-          </div>
+          </AdminFilterBar>
 
-          <div className="table-container">
+          <AdminContentCard flush>
             <Table
               dataSource={filteredList}
               columns={columns}
               rowKey="id"
               loading={loading}
-              locale={{ emptyText: '暂无用户数据' }}
+              locale={createAdminTableLocale('暂无用户数据')}
               scroll={{ x: 1400 }}
               pagination={{
                 current: page,
@@ -343,7 +345,7 @@ export default function UserManagement() {
                 onChange: onPageChange,
               }}
             />
-          </div>
+          </AdminContentCard>
         </>
       ) : (
         <div className="stats-container">
@@ -385,7 +387,7 @@ export default function UserManagement() {
       <Drawer
         title="用户详情"
         placement="right"
-        width={560}
+        size={560}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         loading={detailLoading}
@@ -436,6 +438,6 @@ export default function UserManagement() {
           </>
         )}
       </Drawer>
-    </div>
+    </AdminPage>
   )
 }

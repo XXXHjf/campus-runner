@@ -6,11 +6,11 @@
         insert into tb_media_asset(
             object_key, purpose, visibility, owner_type, owner_id, status,
             mime_type, file_size, width, height, expires_at, delete_after,
-            delete_retry_count, create_time, update_time
+            delete_retry_count, sort_order, create_time, update_time
         ) values(
             #{objectKey}, #{purpose}, #{visibility}, #{ownerType}, #{ownerId}, #{status},
             #{mimeType}, #{fileSize}, #{width}, #{height}, #{expiresAt}, #{deleteAfter},
-            #{deleteRetryCount}, #{createTime}, #{updateTime}
+            #{deleteRetryCount}, #{sortOrder}, #{createTime}, #{updateTime}
         )
     </insert>
 
@@ -61,6 +61,7 @@
         set status = 'BOUND',
             bound_type = #{boundType},
             bound_id = #{boundId},
+            sort_order = #{sortOrder},
             bound_at = #{boundAt},
             expires_at = null,
             delete_after = null,
@@ -68,6 +69,26 @@
         where id = #{id}
           and status = 'TEMP'
     </update>
+
+    <update id="updateBoundSort">
+        update tb_media_asset
+        set sort_order = #{sortOrder},
+            update_time = #{updateTime}
+        where id = #{id}
+          and bound_type = #{boundType}
+          and bound_id = #{boundId}
+          and status = 'BOUND'
+    </update>
+
+    <select id="listBoundAssets" resultType="com.mikasa.campusrunner.pojo.entity.MediaAsset">
+        select *
+        from tb_media_asset
+        where bound_type = #{boundType}
+          and bound_id = #{boundId}
+          and purpose = #{purpose}
+          and status = 'BOUND'
+        order by sort_order asc, id asc
+    </select>
 
     <update id="scheduleTemporaryDeletion">
         update tb_media_asset

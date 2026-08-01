@@ -12,18 +12,24 @@ import {
   Input,
   Button,
   Modal,
-  Descriptions,
   Tag,
   Card,
   Statistic,
   Row,
   Col,
-  message,
+  App,
 } from 'antd'
 import type { AdminOrderItem, AdminOrderDetailResponse, AdminOrderStatistics } from '../../types/admin'
 import { orderService } from '../../services'
-import { DOOR_ACCESS_LABELS } from '../../constants'
 import { formatDateTime, formatPrice, formatPhone } from '../../utils/format'
+import {
+  AdminContentCard,
+  AdminCount,
+  AdminFilterBar,
+  AdminPage,
+  AdminPageHeader,
+  createAdminTableLocale,
+} from '../../components/admin'
 import OrderDetail from './OrderDetail'
 import './OrderManagement.css'
 
@@ -42,7 +48,6 @@ const orderStatusMap: Record<number, { label: string; color: string }> = {
   6: { label: '提现成功', color: '#10b981' },
   7: { label: '提现失败', color: '#dc2626' },
 }
-
 function getOrderStatusTag(status: number) {
   const entry = orderStatusMap[status]
   if (entry) {
@@ -75,12 +80,12 @@ const TAB_CONFIG: Record<string, { label: string; api: (page: number, pageSize: 
   },
 }
 
-const TAB_KEYS = ['all', 'pending', 'progress', 'completed', 'canceled', 'stats'] as const
-type TabKey = (typeof TAB_KEYS)[number]
+type TabKey = 'all' | 'pending' | 'progress' | 'completed' | 'canceled' | 'stats'
 
 const PAGE_SIZE = 20
 
 export default function OrderManagement() {
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -440,13 +445,8 @@ export default function OrderManagement() {
   const actionModalTitle = actionModal.type === 'cancel' ? '取消订单' : '订单退款'
 
   return (
-    <div className="order-management">
-      <div className="page-header">
-        <div className="header-left">
-          <h1>订单管理</h1>
-          <p>管理平台订单信息与状态</p>
-        </div>
-      </div>
+    <AdminPage className="order-management">
+      <AdminPageHeader title="订单管理" description="管理平台订单信息与状态" />
 
       <Tabs
         activeKey={tabKey}
@@ -464,25 +464,26 @@ export default function OrderManagement() {
 
       {isListTab ? (
         <>
-          <div className="toolbar">
+          <AdminFilterBar
+            extra={<AdminCount>共 {total} 条</AdminCount>}
+          >
             <Input.Search
-              placeholder="搜索订单编号/发单人/联系电话..."
+              placeholder="搜索订单编号、发单人或联系电话"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               onSearch={(value) => setKeyword(value)}
               style={{ width: 360 }}
               allowClear
             />
-            <span className="data-count">共 {total} 条</span>
-          </div>
+          </AdminFilterBar>
 
-          <div className="table-container">
+          <AdminContentCard flush>
             <Table
               dataSource={filteredList}
               columns={columns}
               rowKey="id"
               loading={loading}
-              locale={{ emptyText: '暂无订单数据' }}
+              locale={createAdminTableLocale('暂无订单数据')}
               scroll={{ x: 1800 }}
               pagination={{
                 current: page,
@@ -493,7 +494,7 @@ export default function OrderManagement() {
                 onChange: onPageChange,
               }}
             />
-          </div>
+          </AdminContentCard>
         </>
       ) : (
         <div className="stats-container">
@@ -559,7 +560,7 @@ export default function OrderManagement() {
           </Button>,
         ]}
         width={900}
-        destroyOnClose
+        destroyOnHidden
       >
         <OrderDetail detail={detailModal.data} loading={detailModal.loading} />
       </Modal>
@@ -573,7 +574,7 @@ export default function OrderManagement() {
         confirmLoading={actionModal.submitting}
         okText="确认"
         cancelText="取消"
-        destroyOnClose
+        destroyOnHidden
       >
         <div className="action-modal-form">
           {actionModal.error && (
@@ -598,8 +599,6 @@ export default function OrderManagement() {
           </div>
         </div>
       </Modal>
-    </div>
+    </AdminPage>
   )
 }
-
-export { getOrderStatusTag, orderStatusMap }

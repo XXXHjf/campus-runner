@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  App,
   Button,
   Card,
   Col,
@@ -19,7 +20,6 @@ import {
   Tabs,
   Tag,
   Upload,
-  message,
 } from 'antd'
 import type { UploadFile, UploadProps } from 'antd'
 import { del, get, post, put } from '../../services/request'
@@ -28,6 +28,13 @@ import {
   uploadImage,
   type MediaUploadResult,
 } from '../../services/media.service'
+import {
+  AdminContentCard,
+  AdminFilterBar,
+  AdminPage,
+  AdminPageHeader,
+  createAdminTableLocale,
+} from '../../components/admin'
 import './SecondHandManagement.css'
 
 type Category = {
@@ -207,6 +214,7 @@ function getErrorText(error: unknown, fallback: string) {
 }
 
 export default function SecondHandManagement() {
+  const { message } = App.useApp()
   const [categories, setCategories] = useState<Category[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [orders, setOrders] = useState<Order[]>([])
@@ -535,9 +543,9 @@ export default function SecondHandManagement() {
     if (!data) return <Empty />
     const images = splitImages(data.images)
     return (
-      <Space direction="vertical" size={20} className="detail-stack">
+      <Space direction="vertical" size={20} className="second-hand-detail-stack">
         {images.length > 0 && (
-          <div className="image-list">
+          <div className="second-hand-image-list">
             {images.map((src) => (
               <img key={src} src={src} alt={data.title} />
             ))}
@@ -596,16 +604,16 @@ export default function SecondHandManagement() {
   }
 
   return (
-    <div className="second-hand-management">
-      <div className="page-header">
-        <div>
-          <h1>二手交易管理</h1>
-          <p>处理商品、订单、分类、议价与留言记录</p>
-        </div>
-        <Button onClick={loadAll} loading={loading}>
-          刷新
-        </Button>
-      </div>
+    <AdminPage className="second-hand-management">
+      <AdminPageHeader
+        title="二手交易管理"
+        description="处理商品、订单、分类、议价与留言记录"
+        actions={
+          <Button onClick={loadAll} loading={loading}>
+            刷新
+          </Button>
+        }
+      />
 
       <Row gutter={16} className="stat-row">
         <Col xs={24} md={6}>
@@ -630,15 +638,16 @@ export default function SecondHandManagement() {
         </Col>
       </Row>
 
-      <Tabs
-        className="management-tabs"
-        items={[
+      <AdminContentCard className="second-hand-tabs-card">
+        <Tabs
+          className="management-tabs"
+          items={[
           {
             key: 'products',
             label: '商品',
             children: (
               <>
-                <div className="toolbar">
+                <AdminFilterBar>
                   <Space wrap>
                     <Input
                       allowClear
@@ -667,11 +676,12 @@ export default function SecondHandManagement() {
                       查询
                     </Button>
                   </Space>
-                </div>
+                </AdminFilterBar>
                 <Table
                   loading={loading}
                   rowKey="id"
                   dataSource={products}
+                  locale={createAdminTableLocale('暂无商品数据')}
                   scroll={{ x: 1180 }}
                   columns={[
                     { title: 'ID', dataIndex: 'id', width: 80 },
@@ -717,7 +727,7 @@ export default function SecondHandManagement() {
             label: '订单',
             children: (
               <>
-                <div className="toolbar">
+                <AdminFilterBar>
                   <Space wrap>
                     <Select
                       allowClear
@@ -731,11 +741,12 @@ export default function SecondHandManagement() {
                       查询
                     </Button>
                   </Space>
-                </div>
+                </AdminFilterBar>
                 <Table
                   loading={loading}
                   rowKey="id"
                   dataSource={orders}
+                  locale={createAdminTableLocale('暂无订单数据')}
                   scroll={{ x: 1280 }}
                   columns={[
                     { title: '订单号', dataIndex: 'orderNumber', width: 180 },
@@ -779,15 +790,16 @@ export default function SecondHandManagement() {
             label: '分类',
             children: (
               <>
-                <div className="toolbar toolbar-right">
+                <AdminFilterBar className="second-hand-actions-bar">
                   <Button type="primary" onClick={() => openCategoryModal()}>
                     新增分类
                   </Button>
-                </div>
+                </AdminFilterBar>
                 <Table
                   loading={loading}
                   rowKey="id"
                   dataSource={categories}
+                  locale={createAdminTableLocale('暂无分类数据')}
                   columns={[
                     { title: 'ID', dataIndex: 'id', width: 80 },
                     { title: '名称', dataIndex: 'name' },
@@ -798,7 +810,7 @@ export default function SecondHandManagement() {
                       render: (value: string | undefined, record: Category) =>
                         value ? (
                           <img
-                            className="category-icon-thumbnail"
+                            className="second-hand-category-icon-thumbnail"
                             src={value}
                             alt={`${record.name}图标`}
                           />
@@ -836,6 +848,7 @@ export default function SecondHandManagement() {
                 loading={loading}
                 rowKey="id"
                 dataSource={bargains}
+                locale={createAdminTableLocale('暂无议价数据')}
                 scroll={{ x: 980 }}
                 columns={[
                   { title: 'ID', dataIndex: 'id', width: 80 },
@@ -869,7 +882,7 @@ export default function SecondHandManagement() {
             label: '留言',
             children: (
               <>
-                <div className="toolbar">
+                <AdminFilterBar>
                   <Space wrap>
                     <Input
                       allowClear
@@ -882,11 +895,12 @@ export default function SecondHandManagement() {
                       查询
                     </Button>
                   </Space>
-                </div>
+                </AdminFilterBar>
                 <Table
                   loading={loading}
                   rowKey="id"
                   dataSource={messages}
+                  locale={createAdminTableLocale('暂无留言数据')}
                   columns={[
                     { title: 'ID', dataIndex: 'id', width: 80 },
                     { title: '商品ID', dataIndex: 'productId', width: 100 },
@@ -900,8 +914,9 @@ export default function SecondHandManagement() {
               </>
             ),
           },
-        ]}
-      />
+          ]}
+        />
+      </AdminContentCard>
 
       <Modal
         title={editingCategory ? '编辑二手分类' : '新增二手分类'}
@@ -941,7 +956,7 @@ export default function SecondHandManagement() {
               onRemove={removeCategoryImage}
             >
               {categoryFileList.length === 0 && (
-                <div className="category-upload-trigger">
+                <div className="second-hand-category-upload-trigger">
                   <span>选择图片</span>
                 </div>
               )}
@@ -961,7 +976,11 @@ export default function SecondHandManagement() {
         destroyOnHidden
       >
         {categoryPreviewUrl && (
-          <img className="category-icon-preview" src={categoryPreviewUrl} alt="分类图标预览" />
+          <img
+            className="second-hand-category-icon-preview"
+            src={categoryPreviewUrl}
+            alt="分类图标预览"
+          />
         )}
       </Modal>
 
@@ -990,13 +1009,13 @@ export default function SecondHandManagement() {
         onClose={() => setDetail({ open: false, type: null, data: null, loading: false })}
       >
         {detail.loading ? (
-          <div className="drawer-loading">加载中...</div>
+          <div className="second-hand-drawer-loading">加载中...</div>
         ) : detail.type === 'product' ? (
           renderProductDetail(detail.data)
         ) : (
           renderOrderDetail(detail.data)
         )}
       </Drawer>
-    </div>
+    </AdminPage>
   )
 }

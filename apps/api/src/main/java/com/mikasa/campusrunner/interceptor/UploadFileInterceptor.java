@@ -55,7 +55,7 @@ public class UploadFileInterceptor implements HandlerInterceptor {
             log.info("Request missing token...");
 
             //返回结果
-            Result<String> result = Result.error("NO_TOKEN: Missing token in request");
+            Result<String> result = Result.error("登录已失效，请重新登录");
             //构造json
             String json = JSONObject.toJSONString(result);
 
@@ -76,7 +76,7 @@ public class UploadFileInterceptor implements HandlerInterceptor {
             //说明当前token不合法
             //返回结果
             log.info("Illegal token, request denied!");
-            Result<String> result = Result.error("ILLEGAL_TOKEN: Token is invalid, access denied");
+            Result<String> result = Result.error("登录已失效，请重新登录");
             String json = JSONObject.toJSONString(result);
             //返回json数据
 //            response.setStatus(401);

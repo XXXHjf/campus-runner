@@ -1,125 +1,190 @@
-/* 详情卡片布局 */
-.show-cart {
-  border-radius: 25rpx;
-  margin: 20rpx 40rpx;
-  background-color: white;
-  padding: 0 20rpx;
-  /* box-shadow: 4px 4px 3px rgba(0, 0, 0, 0.1); */
-  /* 水平偏移，垂直偏移，模糊半径，颜色 */
+page {
+  background: #f5f6f8;
 }
 
-/* 总体布局 */
-.show {
-  position: relative;
+.address-page {
+  min-height: 100vh;
+  padding: 24rpx 28rpx 0;
+  box-sizing: border-box;
+}
+
+.address-hero {
   display: flex;
-  flex-direction: column;
-  height: 100vh;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx;
+  background: #ffffff;
+  border: 1rpx solid #edf1f6;
+  border-radius: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(15, 35, 80, 0.05);
+}
+
+.hero-icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  background: #eaf2ff;
+  border-radius: 20rpx;
+}
+
+.hero-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-title {
+  color: #111827;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.hero-subtitle {
+  margin-top: 8rpx;
+  color: #5f6772;
+  font-size: 23rpx;
+}
+
+.address-count {
+  flex: 0 0 auto;
+  color: #0052d9;
+  font-size: 24rpx;
+  font-weight: 700;
 }
 
 .address-list {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: calc(220rpx + env(safe-area-inset-bottom));
-  /* 留出底端按钮空间，与其高度一致 */
-}
-
-/* 展示卡片总体布局 */
-.cart {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 18rpx;
+  margin-top: 22rpx;
 }
 
-/* 单元格 */
-/* .t-cell {
-  height: 50rpx !important;
-  padding: auto 50rpx !important;
-  position: static !important;
-} */
-
-.address .t-cell__title-text {
-  font-size: 28rpx !important;
-  font-weight: bold !important;
+.address-card {
+  padding: 26rpx 24rpx;
+  background: #ffffff;
+  border: 1rpx solid #edf1f6;
+  border-radius: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(15, 35, 80, 0.05);
 }
 
-.info .t-cell__title-text {
-  font-size: 28rpx !important;
-  /* font-weight: bold !important; */
-  color: darkgray !important;
-  font-size: small !important;
-  /* padding: 30rpx 15rpx; */
+.address-card:active {
+  background: #f8faff;
 }
 
-.icon {
-  padding: 5rpx 10rpx 5rpx 10rpx;
+.address-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.address-label {
+  max-width: 220rpx;
+  overflow: hidden;
   color: #0052d9;
+  font-size: 24rpx;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.title {
-  padding: 5rpx 5rpx;
-  font-size: 0.8rem;
-  font-weight: bold;
-  color: #0052d9;
+.address-edit {
+  display: flex;
+  align-items: center;
+  gap: 2rpx;
+  margin-left: auto;
+  color: #667085;
+  font-size: 23rpx;
 }
 
-/* tab */
-.tab {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+.address-main {
+  margin-top: 18rpx;
+  color: #182230;
+  font-size: 31rpx;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
-.custom-tabs {
-  position: sticky;
-  z-index: 2;
-  margin-bottom: 20rpx;
+.address-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+  margin-top: 14rpx;
+  color: #5f6772;
+  font-size: 25rpx;
+  line-height: 1.5;
 }
 
-/* 添加按钮 */
-.add {
-  background-color: #0052d9;
-  border-radius: 50rpx;
-  position: fixed;
-  width: 80rpx;
-  height: 80rpx;
-  bottom: calc(150rpx + env(safe-area-inset-bottom));
-  right: 80rpx;
-  z-index: 999;
+.address-detail text {
+  flex: 1;
+  min-width: 0;
+}
+
+.address-empty {
+  margin-top: 22rpx;
+  padding: 96rpx 32rpx;
+  background: #ffffff;
+  border: 1rpx solid #edf1f6;
+  border-radius: 20rpx;
+  text-align: center;
+}
+
+.empty-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1rpx solid rgba(0, 0, 0, 0.3);
-  /* 增加这条边框规则 */
+  width: 120rpx;
+  height: 120rpx;
+  margin: 0 auto;
+  background: #edf4ff;
+  border-radius: 60rpx;
+}
+
+.empty-title {
+  margin-top: 28rpx;
+  color: #182230;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.empty-desc {
+  margin-top: 12rpx;
+  color: #667085;
+  font-size: 24rpx;
+}
+
+.bottom-placeholder {
+  height: calc(150rpx + env(safe-area-inset-bottom));
+}
+
+.bottom-action {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  padding: 20rpx 28rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1rpx solid #edf1f6;
+  box-shadow: 0 -8rpx 24rpx rgba(15, 35, 80, 0.08);
+  box-sizing: border-box;
 }
 
 .add-address-btn {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  min-height: 150rpx;
-  line-height: 90rpx;
-  padding-bottom: env(safe-area-inset-bottom);
-  text-align: center;
-  background-color: white;
-  color: black;
-  box-shadow: 0 -5px 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  height: 88rpx;
+  color: #ffffff;
+  background: #0052d9;
+  border-radius: 18rpx;
+  font-size: 29rpx;
+  font-weight: 700;
+  box-shadow: 0 10rpx 22rpx rgba(0, 82, 217, 0.22);
 }
 
-.address-cell {
-  --td-cell-border-right-space: 0rpx;
-  --td-cell-border-left-space: 60rpx;
-  --td-cell-border-width: 1px;
-  --td-cell-vertical-padding: 25rpx;
-  --td-cell-line-height: 50rpx;
-  --td-cell-border-color: #555;
-}
-
-.t-cell {
-  padding-left: 60rpx !important;
-  padding-right: 30rpx !important;
-}
-
-.t-cell__title-text {
-  font-weight: bold !important;
+.add-address-btn:active {
+  opacity: 0.88;
 }

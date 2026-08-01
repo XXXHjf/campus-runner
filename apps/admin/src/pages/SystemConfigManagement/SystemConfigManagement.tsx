@@ -5,10 +5,26 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Space,
+  Spin,
+  Statistic,
+  Tag,
+} from 'antd'
 import { systemConfigService } from '../../services'
 import { userService } from '../../services'
 import { useAuthContext } from '../../contexts/AuthContext'
 import type { SystemConfigFieldDefinition, SystemConfigKey } from '../../types'
+import { AdminPage, AdminPageHeader } from '../../components/admin'
 import './SystemConfigManagement.css'
 
 const configFields: SystemConfigFieldDefinition[] = [
@@ -254,34 +270,38 @@ export default function SystemConfigManagement() {
   }
 
   return (
-    <div className="system-config-management">
-      <div className="page-header">
-        <div className="header-left">
-          <h1>系统配置</h1>
-          <p>管理系统级业务参数，涉及业务流程请谨慎修改。</p>
-        </div>
-        <div className="header-right">
-          <button className="btn-secondary" onClick={loadConfigValues} disabled={loading}>
+    <AdminPage className="system-config-management">
+      <AdminPageHeader
+        title="系统配置"
+        description="管理系统级业务参数，修改后将影响相关业务流程"
+        actions={
+          <Button onClick={loadConfigValues} loading={loading}>
             刷新
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
-      <div className="summary-card">
-        <div className="summary-item">
-          <span className="summary-label">配置项数量</span>
-          <span className="summary-value">{configFields.length}</span>
-        </div>
-        <div className="summary-item">
-          <span className="summary-label">未保存变更</span>
-          <span className="summary-value">{changedKeys.length}</span>
-        </div>
-      </div>
+      <Row gutter={16}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic title="配置项数量" value={configFields.length} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="未保存变更"
+              value={changedKeys.length}
+              styles={{
+                content: changedKeys.length > 0 ? { color: '#d97706' } : undefined,
+              }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {globalError && (
-        <div className="alert alert-error">
-          <span>⚠️ {globalError}</span>
-        </div>
+        <Alert type="error" showIcon title={globalError} />
       )}
 
       <div className="config-list">
@@ -292,17 +312,20 @@ export default function SystemConfigManagement() {
           const showSuccess = successKey === field.key && !changed
 
           return (
-            <div key={field.key} className="config-card">
-              <div className="config-card-header">
-                <div>
-                  <h2>{field.label}</h2>
-                  <p>{field.description}</p>
+            <Card
+              key={field.key}
+              title={
+                <div className="config-card-title">
+                  <span>{field.label}</span>
+                  <small>{field.description}</small>
                 </div>
-                <span className={`status-tag ${changed ? 'status-changed' : 'status-stable'}`}>
+              }
+              extra={
+                <Tag color={changed ? 'gold' : 'green'}>
                   {changed ? '待保存' : '已同步'}
-                </span>
-              </div>
-
+                </Tag>
+              }
+            >
               <div className="config-row">
                 <div className="config-current">
                   <span className="field-label">当前值</span>
@@ -316,107 +339,92 @@ export default function SystemConfigManagement() {
                   <label htmlFor={field.key} className="field-label">
                     新值
                   </label>
-                  <div className="input-wrapper">
-                    <input
+                  <Space.Compact block>
+                    <InputNumber
                       id={field.key}
-                      type="number"
+                      stringMode
                       step={field.step ?? '0.01'}
-                      min={typeof field.min === 'number' ? field.min : undefined}
+                      min={typeof field.min === 'number' ? String(field.min) : undefined}
                       placeholder={field.placeholder}
-                      value={editValues[field.key]}
-                      onChange={(e) => handleInputChange(field.key, e.target.value)}
+                      value={editValues[field.key] || null}
+                      onChange={(value) => handleInputChange(field.key, String(value ?? ''))}
                       disabled={isSaving || loading}
+                      status={fieldError ? 'error' : undefined}
+                      style={{ width: '100%' }}
                     />
-                    {field.unit && <span className="input-suffix">{field.unit}</span>}
-                  </div>
+                    {field.unit && <Button disabled>{field.unit}</Button>}
+                  </Space.Compact>
                   {fieldError && <p className="field-error">{fieldError}</p>}
                   {showSuccess && <p className="field-success">保存成功</p>}
                 </div>
 
                 <div className="config-actions">
-                  <button
-                    className="btn-secondary"
+                  <Button
                     onClick={() => handleResetOne(field)}
                     disabled={isSaving || loading || !changed}
                   >
                     还原
-                  </button>
-                  <button
-                    className="btn-primary"
+                  </Button>
+                  <Button
+                    type="primary"
                     onClick={() => handleSaveOne(field)}
                     disabled={isSaving || loading || !changed}
+                    loading={isSaving}
                   >
-                    {isSaving ? '保存中...' : '保存'}
-                  </button>
+                    保存
+                  </Button>
                 </div>
               </div>
-            </div>
+            </Card>
           )
         })}
       </div>
 
-      {loading && (
-        <div className="loading-state">
-          <span>加载中...</span>
-        </div>
-      )}
+      {loading && <Spin className="config-loading" description="加载中" />}
 
-      {confirmModal.open && confirmModal.field && (
-        <div className="modal-overlay" onClick={closeConfirmModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>敏感操作确认</h2>
-              <button className="modal-close" onClick={closeConfirmModal} disabled={confirming}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <p className="confirm-text">
-                即将修改“{confirmModal.field.label}”为 <b>{confirmModal.value}</b>
-                {confirmModal.field.unit ? ` ${confirmModal.field.unit}` : ''}
-                ，请输入账号密码完成二次验证。
-              </p>
-              <div className="modal-form-group">
-                <label htmlFor="confirm-password">密码</label>
-                <input
-                  id="confirm-password"
-                  type="password"
+      <Modal
+        title="敏感操作确认"
+        open={confirmModal.open && Boolean(confirmModal.field)}
+        onCancel={closeConfirmModal}
+        onOk={handleConfirmSave}
+        okText="验证并保存"
+        cancelText="取消"
+        confirmLoading={confirming}
+        mask={{ closable: !confirming }}
+      >
+        {confirmModal.open && confirmModal.field && (
+          <>
+            <p className="system-config-confirm-text">
+              即将修改“{confirmModal.field.label}”为 <b>{confirmModal.value}</b>
+              {confirmModal.field.unit ? ` ${confirmModal.field.unit}` : ''}
+              ，请输入账号密码完成二次验证。
+            </p>
+            <Form layout="vertical">
+              <Form.Item
+                label="密码"
+                validateStatus={confirmModal.error ? 'error' : undefined}
+                help={confirmModal.error || undefined}
+              >
+                <Input.Password
+                  autoFocus
                   value={confirmModal.password}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setConfirmModal((prev) => ({
                       ...prev,
-                      password: e.target.value,
+                      password: event.target.value,
                       error: '',
                     }))
                   }
                   disabled={confirming}
                   autoComplete="current-password"
                   placeholder="请输入当前密码"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      void handleConfirmSave()
-                    }
-                  }}
+                  onPressEnter={() => void handleConfirmSave()}
                 />
-              </div>
-              {confirmModal.error && <p className="modal-error">{confirmModal.error}</p>}
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={closeConfirmModal} disabled={confirming}>
-                取消
-              </button>
-              <button
-                className="btn-primary"
-                onClick={() => void handleConfirmSave()}
-                disabled={confirming}
-              >
-                {confirming ? '验证中...' : '验证并保存'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+              </Form.Item>
+            </Form>
+          </>
+        )}
+      </Modal>
+    </AdminPage>
   )
 }

@@ -111,7 +111,7 @@
   font-size: small;
   font-weight: 500;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
-  color: gray;
+  color: #5f6772;
 }
 
 .recive {
@@ -123,7 +123,7 @@
   font-size: small;
   font-weight: 500;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
-  color: gray;
+  color: #5f6772;
 }
 
 .box3 {
@@ -139,7 +139,7 @@
   font-size: x-small;
   font-weight: 500;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
-  color: gray;
+  color: #5f6772;
   /* padding-bottom: 10rpx; */
   /* background: mediumaquamarine; */
 }
@@ -183,20 +183,77 @@
   margin-right: 32rpx;
 }
 
-/* tab */
-.tab {
+/* 排序与筛选 */
+.filter-bar {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1.35fr 0.8fr;
+  min-height: 88rpx;
+  padding: 0 18rpx;
+  background: #ffffff;
+  border-bottom: 1rpx solid #edf0f4;
+  box-sizing: border-box;
 }
 
-.tabs {
-  --tab-font-size: 20rpx;
+.filter-bar-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  min-width: 0;
+  color: #20252c;
+  font-size: 26rpx;
+  white-space: nowrap;
+}
+
+.filter-bar-item.active {
+  color: #0052d9;
+  font-weight: 700;
+}
+
+.filter-bar-item.active::after {
+  content: '';
+  position: absolute;
+  right: 24rpx;
+  bottom: 0;
+  left: 24rpx;
+  height: 6rpx;
+  background: #0052d9;
+  border-radius: 999rpx;
+}
+
+.filter-summary {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 18rpx 28rpx;
+  background: #edf4ff;
+  border-bottom: 1rpx solid #d8e7ff;
+}
+
+.filter-summary-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #334155;
+  font-size: 24rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-summary-reset {
+  color: #0052d9;
+  font-size: 24rpx;
+  font-weight: 700;
 }
 
 /* 轮播图 */
 .banner-wrap {
   margin: 20rpx 24rpx 0;
+  height: 220rpx;
   overflow: hidden;
   border-radius: 18rpx;
   background: #ffffff;
@@ -262,7 +319,7 @@
   font-size: small;
   font-weight: 600;
   font-family: Verdana, Geneva, Tahoma, sans-serif;
-  color: gray;
+  color: #5f6772;
 }
 
 .drvider {
@@ -273,7 +330,7 @@
 }
 /* 首次加载弹出 */
 .text {
-  color: gray;
+  color: #5f6772;
   font-size: small;
 }
 
@@ -325,7 +382,7 @@
 .runner-subtitle {
   margin-top: 8rpx;
   font-size: 24rpx;
-  color: #6b7280;
+  color: #5f6772;
   line-height: 1.45;
 }
 
@@ -345,4 +402,121 @@
   font-weight: 700;
   box-shadow: 0 10rpx 20rpx rgba(0, 82, 217, 0.22);
   box-sizing: border-box;
+}
+
+.filter-sheet {
+  max-height: 80vh;
+  padding: 0 28rpx calc(28rpx + env(safe-area-inset-bottom));
+  background: #ffffff;
+  border-radius: 24rpx 24rpx 0 0;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.filter-sheet-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 104rpx;
+  background: #ffffff;
+  border-bottom: 1rpx solid #edf0f4;
+}
+
+.filter-sheet-title {
+  color: #111827;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.filter-sheet-reset {
+  color: #0052d9;
+  font-size: 26rpx;
+}
+
+.filter-section {
+  padding: 28rpx 0 6rpx;
+}
+
+.filter-section-title {
+  margin-bottom: 20rpx;
+  color: #1f2937;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.filter-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 130rpx;
+  height: 66rpx;
+  padding: 0 22rpx;
+  color: #4b5563;
+  background: #f4f6f8;
+  border: 2rpx solid transparent;
+  border-radius: 12rpx;
+  font-size: 25rpx;
+  box-sizing: border-box;
+}
+
+.filter-chip.active {
+  color: #0052d9;
+  background: #edf4ff;
+  border-color: #8db7ff;
+  font-weight: 700;
+}
+
+.filter-address-row {
+  display: flex;
+  align-items: center;
+  min-height: 86rpx;
+  border-bottom: 1rpx solid #edf0f4;
+}
+
+.filter-address-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+}
+
+.filter-address-label {
+  width: 88rpx;
+  color: #0052d9;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.filter-address-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #374151;
+  font-size: 25rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-address-clear {
+  margin-left: 14rpx;
+  color: #6b7280;
+  font-size: 23rpx;
+}
+
+.filter-sheet-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-top: 30rpx;
+  padding: 18rpx 0 0;
+  background: #ffffff;
 }

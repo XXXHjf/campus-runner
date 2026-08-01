@@ -33,10 +33,6 @@
       <view style="margin-right: 660rpx;background: white;">
         <t-divider style="margin:0;" />
       </view>
-      <!-- <t-input label="地址类型" placeholder="{{type[uptype]}}" align="right" disabled borderless>
-        <t-button slot="suffix" theme="primary" size="extra-small" bind:tap="changeType"> 切换 </t-button>
-      </t-input> -->
-
     </t-cell-group>
   </view>
 

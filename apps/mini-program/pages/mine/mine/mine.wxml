@@ -14,7 +14,7 @@
             <t-tag wx:if="{{userInfo}}" class="tag" variant="light" size="small" theme="{{userInfo.authentication==0?'default':'primary'}}" icon="{{userInfo.sex==null?'':userInfo.sex==0?'gender-female':'gender-male'}}">{{userInfo.authentication==1?' 已认证':' 未认证'}}</t-tag>
           </view>
           <view>
-            <text class="text">{{userInfo==null?'使用微信授权登录':(userInfo.phone!=null?'Tel：'+userInfo.phone:'请完善信息')}}</text>
+            <text class="text">{{userInfo==null?'使用微信授权登录':(displayPhone?'Tel：'+displayPhone:'请完善信息')}}</text>
           </view>
         </view>
       </view>
@@ -28,12 +28,21 @@
       <view wx:for="{{item.items}}" wx:for-item="menu" wx:key="value" class="menu-card" data-value="{{menu.value}}" bindtap="onMenuTap">
         <view class="menu-icon">
           <t-icon name="{{menu.icon}}" size="42rpx" color="#0052d9" />
+          <view class="menu-badge" wx:if="{{menu.value==='label_1' && unpaidOrderList.length>0}}">{{unpaidOrderList.length}}</view>
+          <view class="menu-badge" wx:if="{{menu.value==='label_2' && notReceiveOrderList.length>0}}">{{notReceiveOrderList.length}}</view>
+          <view class="menu-badge" wx:if="{{menu.value==='label_8' && secondHandOrderCount>0}}">{{secondHandOrderCount}}</view>
+          <view class="menu-badge" wx:if="{{menu.value==='label_9' && bargainPendingCount>0}}">{{bargainPendingCount}}</view>
         </view>
         <view class="menu-copy">
           <view class="menu-label">{{menu.label}}</view>
         </view>
       </view>
     </view>
+  </view>
+
+  <view class="task-center-heading" wx:if="{{unpaidOrderList.length > 0 || notReceiveOrderList.length > 0 || secondHandOrderCount > 0 || bargainPendingCount > 0}}">
+    <text>待办事项</text>
+    <text class="task-center-count">{{unpaidOrderList.length + notReceiveOrderList.length + secondHandOrderCount + bargainPendingCount}}项</text>
   </view>
 
   <!-- 待支付提醒 -->

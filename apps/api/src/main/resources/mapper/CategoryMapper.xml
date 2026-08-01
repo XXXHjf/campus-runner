@@ -8,6 +8,10 @@
         select * from tb_category where id = #{id} and deleted = 0
     </select>
 
+    <select id="getByIdForUpdate" resultType="com.mikasa.campusrunner.pojo.entity.Category">
+        select * from tb_category where id = #{id} and deleted = 0 for update
+    </select>
+
     <select id="getAll" resultType="com.mikasa.campusrunner.pojo.entity.Category">
         select * from tb_category where deleted = 0
     </select>

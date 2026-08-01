@@ -14,5 +14,4 @@ public class AddressBookDTO {
     private Long buildingNumberId;
     private String details;
     private String label;
-    private Integer type;//地址种类(0取件地址 1收件地址)
 }

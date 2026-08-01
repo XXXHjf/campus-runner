@@ -13,7 +13,7 @@ const url = getApp().globalData.API_URL;
  */
 function safeList(res) {
   if (res && res.data && res.data.code !== undefined && res.data.code !== 1) {
-    throw new Error(res.data.msg || '接口返回异常');
+    throw new Error(res.data.msg || '请求失败，请稍后重试');
   }
   if (res && res.data && Array.isArray(res.data.data)) {
     return res.data.data;
@@ -34,7 +34,7 @@ function safeList(res) {
 function request(options) {
   return new Promise((resolve, reject) => {
     // *** 改进：使用 tokenManager 统一获取 token ***
-    const token = tokenManager.getToken();
+    const token = options.skipTokenCheck ? null : tokenManager.getToken();
     const requestUrl = options.url;
     
     wx.request({
@@ -43,21 +43,21 @@ function request(options) {
       data: options.data,
       header: {
         'Content-Type': 'application/json',
-        'token': token,
+        ...(token ? { token } : {}),
         ...options.header
       },
       timeout: options.timeout || 10000,
       success: (res) => {
         if (res.statusCode === 200) {
           resolve(res);
-        } else if (res.statusCode === 401) {
+        } else if (res.statusCode === 401 && !options.skipTokenCheck) {
           // 401 错误，尝试刷新 token
           console.log('收到401响应，尝试刷新token');
           refreshTokenAndRetry(options)
             .then(resolve)
             .catch(reject);
         } else {
-          reject(new Error(`请求失败: ${res.statusCode}`));
+          reject(new Error('请求失败，请稍后重试'));
         }
       },
       fail: (error) => {

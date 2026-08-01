@@ -80,7 +80,7 @@
       <scroll-view scroll-y class="address-sheet-list">
         <view wx:for="{{addressBook}}" wx:key="id" class="address-option {{form.pickupAddressId==item.id?'active':''}}" data-id="{{item.id}}" bindtap="selectPickupAddress">
           <view class="address-main">{{item.addressText}}</view>
-          <view class="address-meta">{{item.typeText}}地址{{item.isDefault==1?' · 默认':''}}{{item.label?' · '+item.label:''}}</view>
+          <view class="address-meta">{{item.isDefault==1?'默认地址 · ':''}}{{item.label || '常用地址'}}</view>
         </view>
         <view wx:if="{{addressBook.length==0}}" class="empty-address">
           <view class="empty-title">还没有可选地址</view>

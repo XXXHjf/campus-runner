@@ -10,6 +10,8 @@ import com.mikasa.campusrunner.common.exception.UserException;
 import com.mikasa.campusrunner.mapper.OrderMapper;
 import com.mikasa.campusrunner.mapper.TakeOrderMapper;
 import com.mikasa.campusrunner.mapper.UserMapper;
+import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
+import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.dto.TakeOrderQueryDTO;
 import com.mikasa.campusrunner.pojo.dto.TakeOrderUpdateStatusDTO;
 import com.mikasa.campusrunner.pojo.entity.Order;
@@ -18,6 +20,7 @@ import com.mikasa.campusrunner.pojo.vo.TakeOrderUserInfoVO;
 import com.mikasa.campusrunner.pojo.vo.TakeOrderVO;
 import com.mikasa.campusrunner.pojo.vo.UserPaymentVO;
 import com.mikasa.campusrunner.pojo.vo.UserVO;
+import com.mikasa.campusrunner.service.MediaAssetService;
 import com.mikasa.campusrunner.service.user.TakeOrderService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
@@ -43,6 +47,12 @@ public class TakeOrderServiceImpl implements TakeOrderService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private MediaAssetService mediaAssetService;
+
+    @Autowired
+    private LegacyMediaFallbackMonitor fallbackMonitor;
 
     /**
      * 接单
@@ -125,13 +135,16 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         }else if (status.equals(TakeOrderStatusConstant.ORDER_FINISH)){
             //将订单状态修改为已送达
 
-            if (StringUtils.isEmpty(takeOrderUpdateStatusDTO.getImage())){
+            if (takeOrderUpdateStatusDTO.getImageAssetId() == null
+                    && StringUtils.isEmpty(takeOrderUpdateStatusDTO.getImage())){
                 throw new ParamException(MessageConstant.NO_IMAGE);
             }
 
             //修改接单信息状态
             takeOrder.setStatus(TakeOrderStatusConstant.ORDER_FINISH);
-            takeOrder.setImage(takeOrderUpdateStatusDTO.getImage());
+            takeOrder.setImage(takeOrderUpdateStatusDTO.getImageAssetId() == null
+                    ? takeOrderUpdateStatusDTO.getImage()
+                    : null);
             takeOrder.setDeliveryTime(now);
             //修改订单信息状态
             order.setStatus(OrderStatusConstant.ORDER_FINISH);
@@ -157,6 +170,18 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         //更新
         int row1 = takeOrderMapper.update(takeOrder);
         int row2 = orderMapper.update(order);
+        if (status.equals(TakeOrderStatusConstant.ORDER_FINISH)
+                && takeOrderUpdateStatusDTO.getImageAssetId() != null) {
+            mediaAssetService.replaceBinding(
+                    List.of(takeOrderUpdateStatusDTO.getImageAssetId()),
+                    MediaPurpose.DELIVERY_PROOF.name(),
+                    MediaAssetConstant.OWNER_USER,
+                    BaseContext.getCurrentId(),
+                    MediaAssetConstant.BOUND_TAKE_ORDER,
+                    takeOrder.getId(),
+                    1,
+                    Duration.ofDays(7));
+        }
     }
 
 
@@ -167,6 +192,7 @@ public class TakeOrderServiceImpl implements TakeOrderService {
     @Override
     public List<TakeOrderVO> getMy() {
         List<TakeOrderVO> list = takeOrderMapper.getMy(BaseContext.getCurrentId());
+        list.forEach(this::resolveTakeOrderImages);
         return list;
     }
 
@@ -183,6 +209,7 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         takeOrder.setUserId(BaseContext.getCurrentId());
 
         List<TakeOrderVO> list = takeOrderMapper.query(takeOrder);
+        list.forEach(this::resolveTakeOrderImages);
         return list;
     }
 
@@ -219,8 +246,16 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         if (!takeOrder.getStatus().equals(TakeOrderStatusConstant.ORDER_FINISH)){
             throw new OrderException(MessageConstant.ORDER_NOT_FINISHED);
         }
-        String url = takeOrderMapper.getImageByOrderId(orderId);
-        return url;
+        var images = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_TAKE_ORDER,
+                takeOrder.getId(),
+                MediaPurpose.DELIVERY_PROOF.name());
+        if (!images.isEmpty()) {
+            return images.get(0).getUrl();
+        }
+        String legacyImage = takeOrderMapper.getImageByOrderId(orderId);
+        fallbackMonitor.record(LegacyMediaSource.TAKE_ORDER, takeOrder.getId(), legacyImage);
+        return legacyImage;
     }
 
 
@@ -248,6 +283,32 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         UserPaymentVO userPaymentVO = new UserPaymentVO();
         userPaymentVO.setAliPaymentCode(user.getAlipayPaymentCode());
         userPaymentVO.setWeChatPaymentCode(user.getWeChatPaymentCode());
+        var alipayCodes = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_USER_ALIPAY_PAYMENT,
+                user.getId(),
+                MediaPurpose.PAYMENT_QR.name());
+        if (!alipayCodes.isEmpty()) {
+            userPaymentVO.setAliPaymentCodeAssetId(alipayCodes.get(0).getMediaId());
+            userPaymentVO.setAliPaymentCode(alipayCodes.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.USER_ALIPAY_PAYMENT,
+                    user.getId(),
+                    user.getAlipayPaymentCode());
+        }
+        var wechatCodes = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_USER_WECHAT_PAYMENT,
+                user.getId(),
+                MediaPurpose.PAYMENT_QR.name());
+        if (!wechatCodes.isEmpty()) {
+            userPaymentVO.setWeChatPaymentCodeAssetId(wechatCodes.get(0).getMediaId());
+            userPaymentVO.setWeChatPaymentCode(wechatCodes.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.USER_WECHAT_PAYMENT,
+                    user.getId(),
+                    user.getWeChatPaymentCode());
+        }
 
         return userPaymentVO;
     }
@@ -267,6 +328,45 @@ public class TakeOrderServiceImpl implements TakeOrderService {
                         userId,
                         userVO.getSchoolId(),
                         OrderStatusConstant.SENDER_CONFIRMS_RECEIPT);
+        list.forEach(this::resolveTakeOrderImages);
         return list;
+    }
+
+    private void resolveTakeOrderImages(TakeOrderVO order) {
+        var contentImages = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_ORDER,
+                order.getOrderId(),
+                MediaPurpose.ORDER_IMAGE.name());
+        if (!contentImages.isEmpty()) {
+            order.setImageAssetId(contentImages.get(0).getMediaId());
+            order.setImage(contentImages.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(LegacyMediaSource.ORDER, order.getOrderId(), order.getImage());
+        }
+        var proofImages = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_TAKE_ORDER,
+                order.getId(),
+                MediaPurpose.DELIVERY_PROOF.name());
+        if (!proofImages.isEmpty()) {
+            order.setTakeOrderImageAssetId(proofImages.get(0).getMediaId());
+            order.setTakeOrderImage(proofImages.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.TAKE_ORDER,
+                    order.getId(),
+                    order.getTakeOrderImage());
+        }
+        var categoryImages = mediaAssetService.resolvePublicBinding(
+                MediaAssetConstant.BOUND_ORDER_CATEGORY,
+                order.getCategoryId(),
+                MediaPurpose.ORDER_CATEGORY_ICON.name());
+        if (!categoryImages.isEmpty()) {
+            order.setCategoryImage(categoryImages.get(0).getUrl());
+        } else {
+            fallbackMonitor.record(
+                    LegacyMediaSource.ORDER_CATEGORY,
+                    order.getCategoryId(),
+                    order.getCategoryImage());
+        }
     }
 }

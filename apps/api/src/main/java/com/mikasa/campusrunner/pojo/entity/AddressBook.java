@@ -23,6 +23,5 @@ public class AddressBook {
     private String label;
     private Long userId;
     private Integer isDefault;
-    private Integer type;
     private Integer deleted;
 }
