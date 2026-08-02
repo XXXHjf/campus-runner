@@ -139,8 +139,6 @@ list 项：
     "studentIdCard": "https://xxx.oss.com/stuid/abc.jpg",
     "studentIdCardReview": 2,
     "score": 100,
-    "alipayPaymentCode": "https://xxx.oss.com/qrcode/alipay.jpg",
-    "weChatPaymentCode": "https://xxx.oss.com/qrcode/wechat.jpg",
     "isManager": 0,
     "orderCount": 12,
     "takeOrderCount": 8,
@@ -165,8 +163,6 @@ list 项：
 | studentIdCard | string | 学生证照片 |
 | studentIdCardReview | int | 审核状态 |
 | score | int | 信誉分 |
-| alipayPaymentCode | string | 支付宝收款码 |
-| weChatPaymentCode | string | 微信收款码 |
 | isManager | int | 是否管理员 |
 | orderCount | int | 发单数 |
 | takeOrderCount | int | 接单数 |

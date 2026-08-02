@@ -1,6 +1,5 @@
 package com.mikasa.campusrunner.pojo.vo;
 
-import com.mikasa.campusrunner.pojo.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -36,10 +35,6 @@ public class UserVO {
     private Integer studentIdCardReview;//学生证审核状态
     private Integer score;
     private BigDecimal money;
-    private String alipayPaymentCode;//支付宝收款码
-    private Long alipayPaymentCodeAssetId;
-    private String weChatPaymentCode;//微信收款码
-    private Long weChatPaymentCodeAssetId;
     private Integer isManager;//是否是管理员
     private Integer deleted;
     private LocalDateTime createTime;

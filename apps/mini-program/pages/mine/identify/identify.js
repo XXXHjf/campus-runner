@@ -6,11 +6,10 @@ const mediaService = require('../../../services/mediaService');
 const tokenManager = require('../../../utils/tokenManager');
 const { showLoading, hideLoading, showError } = require('../../../utils/transformers');
 const {
-  showSuccessToast,
-  compressImageSmart
+  showSuccessToast
 } = require('../../../utils/commonJs');
 const {
-  AUTH_STATUS,
+  STUDENT_ID_CARD_REVIEW_STATUS: AUTH_STATUS,
   isApproved,
   getStatusText,
   getStatusTheme,
@@ -267,20 +266,7 @@ Page({
         });
       });
       
-      let tempFilePath = res.tempFiles[0].tempFilePath;
-      
-      // 使用智能压缩（保留质量优先，确保不超过2MB）
-      try {
-        tempFilePath = await compressImageSmart(tempFilePath);
-      } catch (compressErr) {
-        console.error('图片压缩失败:', compressErr);
-        wx.showToast({
-          title: '图片压缩失败，请重试',
-          icon: 'none',
-          duration: 2000
-        });
-        return;
-      }
+      const tempFilePath = res.tempFiles[0].tempFilePath;
       
       this.setData({
         studentIdCardUrl: tempFilePath
@@ -468,8 +454,8 @@ Page({
     
     // 验证是否有证件材料：首次提交必须上传；驳回可沿用原证件或重新上传
     const hasNewLocalImage = !!this.data.studentIdCardUrl;
-    const existingRemoteImage = this.data.userInfo?.studentIdCard || null;
-    if (!hasNewLocalImage && !existingRemoteImage) {
+    const existingAssetId = this.data.userInfo?.studentIdCardAssetId || null;
+    if (!hasNewLocalImage && !existingAssetId) {
       wx.showToast({
         title: '请上传证件照片',
         icon: "error",
@@ -481,9 +467,9 @@ Page({
     try {
       showLoading('提交中');
       
-      // 先处理证件材料：有新图则上传，否则复用已提交的URL
+      // 有新图则上传，否则复用已绑定的媒体资源。
       let studentIdCardAssetId = this.data.uploadedStudentIdCardAssetId
-        || this.data.userInfo?.studentIdCardAssetId
+        || existingAssetId
         || null;
       if (hasNewLocalImage && !this.data.uploadedStudentIdCardAssetId) {
         studentIdCardAssetId = await this.uploadStudentIdCard();
@@ -494,7 +480,6 @@ Page({
         schoolId: effectiveSchoolId,
         realname: effectiveName,
         stuId: effectiveStuId,
-        studentIdCard: studentIdCardAssetId ? null : existingRemoteImage,
         studentIdCardAssetId
       };
       

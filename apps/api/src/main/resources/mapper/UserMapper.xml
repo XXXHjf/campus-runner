@@ -13,19 +13,14 @@
             user.username,
             user.realname,
             user.openid,
-            user.head_img,
-            user.sex,
             user.sex,
             user.phone,
             user.authentication,
             user.school_id,
             user.stu_id,
-            user.student_id_card,
             user.student_id_card_review,
             user.score,
             user.money,
-            user.alipay_payment_code,
-            user.wechat_payment_code,
             user.is_manager,
             user.deleted,
             user.create_time,
@@ -70,27 +65,15 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into tb_user values
-        (null,
-         #{username},
-         #{realname},
-         #{openid},
-         #{headImg},
-         #{sex},
-         #{phone},
-         #{authentication},
-         #{schoolId},
-         #{stuId},
-         #{studentIdCard},
-         #{studentIdCardReview},
-         #{score},
-         #{money},
-         #{alipayPaymentCode},
-         #{weChatPaymentCode},
-         #{isManager},
-         #{deleted},
-         #{createTime},
-         #{updateTime})
+        insert into tb_user(
+            username, realname, openid, sex, phone, authentication,
+            school_id, stu_id, student_id_card_review, score, money,
+            is_manager, deleted, create_time, update_time
+        ) values (
+            #{username}, #{realname}, #{openid}, #{sex}, #{phone}, #{authentication},
+            #{schoolId}, #{stuId}, #{studentIdCardReview}, #{score}, #{money},
+            #{isManager}, #{deleted}, #{createTime}, #{updateTime}
+        )
     </insert>
 
 
@@ -100,18 +83,14 @@
             <if test="username != null and username != ''">username = #{username},</if>
             <if test="realname != null and realname != ''">realname = #{realname},</if>
             <if test="openid != null and openid != ''">openid = #{openid},</if>
-            <if test="headImg != null and headImg != ''">head_img = #{headImg},</if>
             <if test="sex != null">sex = #{sex},</if>
             <if test="phone != null and phone != ''">phone = #{phone},</if>
             <if test="authentication != null">authentication = #{authentication},</if>
             <if test="schoolId != null">school_id = #{schoolId},</if>
             <if test="stuId != null and stuId != ''">stu_id = #{stuId},</if>
-            <if test="studentIdCard != null and studentIdCard != ''">student_id_card = #{studentIdCard},</if>
             <if test="studentIdCardReview != null">student_id_card_review = #{studentIdCardReview},</if>
             <if test="score != null">score = #{score},</if>
             <if test="money != null">money = #{money},</if>
-            <if test="alipayPaymentCode != null and alipayPaymentCode != ''">alipay_payment_code = #{alipayPaymentCode},</if>
-            <if test="weChatPaymentCode != null and weChatPaymentCode != ''">wechat_payment_code = #{weChatPaymentCode},</if>
             <if test="isManager != null">is_manager = #{isManager},</if>
             <if test="deleted != null">deleted = #{deleted},</if>
             <if test="createTime != null">create_time = #{createTime},</if>
@@ -119,24 +98,8 @@
         </set>
         where id = #{id}
     </update>
-
-
-
-    <!--    <select id="getAll" resultType="com.mikasa.campusrunner.pojo.entity.User">-->
-<!--        select * from tb_user-->
-<!--    </select>-->
-
-
-
-<!--    <insert id="insert">-->
-<!--        insert into tb_user-->
-<!--        values(null, #{username}, #{realname}, #{openid}, #{headImg}, #{sex}, #{phone}, #{authentication},-->
-<!--               #{schoolId}, #{stuId}, #{score}, #{money}, #{deleted}, #{createTime}, #{updateTime})-->
-<!--    </insert>-->
-
-
     <select id="getAllUsers" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminUserListVO">
-        SELECT u.id, u.username, u.realname, u.head_img, u.sex, u.phone,
+        SELECT u.id, u.username, u.realname, u.sex, u.phone,
                s.school_name, u.stu_id, u.authentication, u.student_id_card_review,
                u.score, u.create_time,
                (SELECT COUNT(*) FROM tb_orders WHERE user_id = u.id AND deleted = 0) AS order_count,
@@ -149,7 +112,7 @@
     </select>
 
     <select id="getAuthenticatedUsers" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminUserListVO">
-        SELECT u.id, u.username, u.realname, u.head_img, u.sex, u.phone,
+        SELECT u.id, u.username, u.realname, u.sex, u.phone,
                s.school_name, u.stu_id, u.authentication, u.student_id_card_review,
                u.score, u.create_time,
                (SELECT COUNT(*) FROM tb_orders WHERE user_id = u.id AND deleted = 0) AS order_count,
@@ -162,9 +125,9 @@
     </select>
 
     <select id="getPendingReviewUsers" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminUserListVO">
-        SELECT u.id, u.username, u.realname, u.head_img, u.sex, u.phone,
+        SELECT u.id, u.username, u.realname, u.sex, u.phone,
                s.school_name, u.stu_id, u.authentication, u.student_id_card_review,
-               u.score, u.student_id_card, u.create_time,
+               u.score, u.create_time,
                (SELECT COUNT(*) FROM tb_orders WHERE user_id = u.id AND deleted = 0) AS order_count,
                (SELECT COUNT(*) FROM tb_take_orders tk2 WHERE tk2.user_id = u.id AND tk2.deleted = 0) AS take_order_count
         FROM tb_user u
@@ -175,10 +138,9 @@
     </select>
 
     <select id="getAdminUserDetail" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminUserDetailVO">
-        SELECT u.id, u.username, u.realname, u.head_img, u.sex, u.phone,
-               s.school_name, u.stu_id, u.authentication, u.student_id_card,
+        SELECT u.id, u.username, u.realname, u.sex, u.phone,
+               s.school_name, u.stu_id, u.authentication,
                u.student_id_card_review, u.score, u.money,
-               u.alipay_payment_code, u.wechat_payment_code AS weChatPaymentCode,
                u.is_manager, u.create_time, u.update_time,
                (SELECT COUNT(*) FROM tb_orders WHERE user_id = u.id AND deleted = 0) AS order_count,
                (SELECT COUNT(*) FROM tb_take_orders tk2 WHERE tk2.user_id = u.id AND tk2.deleted = 0) AS take_order_count,

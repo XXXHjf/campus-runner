@@ -60,19 +60,6 @@
   background: #111827;
 }
 
-.banner-crop-zoom {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  margin-top: 18px;
-  color: var(--admin-text-secondary);
-}
-
-.banner-crop-zoom .ant-slider {
-  margin-inline: 0;
-}
-
 @media (max-width: 640px) {
   .banner-crop-stage {
     aspect-ratio: 4 / 3;

@@ -4,6 +4,7 @@ import com.mikasa.campusrunner.common.exception.BaseException;
 import com.mikasa.campusrunner.common.result.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -18,6 +19,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public Result uploadSizeExceptionHandler(MaxUploadSizeExceededException e) {
+        log.warn("Upload rejected because the multipart size limit was exceeded");
+        return Result.error("图片文件过大，请选择不超过 10MB 的图片");
+    }
 
     @ExceptionHandler
     public Result exceptionHandler(BaseException e){

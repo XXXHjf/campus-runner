@@ -10,7 +10,6 @@ import lombok.Data;
 public class TakeOrderUpdateStatusDTO {
     private Long id;
     private Integer status;
-    private String image;
     private Long imageAssetId;
     private String cancelReason;
 }

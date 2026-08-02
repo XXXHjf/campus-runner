@@ -5,18 +5,10 @@
 
 
     <insert id="save">
-        insert into tb_take_orders values(
-                                          null,
-                                          #{orderId},
-                                          #{userId},
-                                          #{createTime},
-                                          #{image},
-                                          #{deleted},
-                                          #{status},
-                                          #{deliveryTime},
-                                          #{cancelTime},
-                                          #{cancelReason}
-                                         )
+        insert into tb_take_orders
+        (order_id, user_id, create_time, deleted, status, delivery_time, cancel_time, cancel_reason)
+        values
+        (#{orderId}, #{userId}, #{createTime}, #{deleted}, #{status}, #{deliveryTime}, #{cancelTime}, #{cancelReason})
     </insert>
 
     <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.TakeOrder">
@@ -45,9 +37,7 @@
             users.realname,
             orders.status,
             orders.note,
-            orders.image,
             orders.category_id,
-            category.image AS category_image,
             category.category_name,
             take_order.take_order_create_time,
             take_order.take_order_image,
@@ -66,7 +56,6 @@
                  take_order.id,
                  take_order.order_id,
                  take_order.create_time AS take_order_create_time,
-                 take_order.image AS take_order_image,
                  take_order.delivery_time AS take_order_delivery_time,
                  take_order.cancel_time AS take_order_cancel_time,
                  take_order.cancel_reason AS take_order_cancel_reason
@@ -149,9 +138,7 @@
             users.realname,
             orders.status,
             orders.note,
-            orders.image,
             orders.category_id,
-            category.image AS category_image,
             category.category_name,
             take_order.take_order_create_time,
             take_order.take_order_image,
@@ -170,7 +157,6 @@
                  take_order.id,
                  take_order.order_id,
                  take_order.create_time AS take_order_create_time,
-                 take_order.image AS take_order_image,
                  take_order.delivery_time AS take_order_delivery_time,
                  take_order.cancel_time AS take_order_cancel_time,
                  take_order.cancel_reason AS take_order_cancel_reason
@@ -262,10 +248,6 @@
         select * from tb_take_orders where order_id = #{orderId} and deleted = 0
     </select>
 
-    <select id="getImageByOrderId" resultType="java.lang.String">
-        select image from tb_take_orders where deleted = 0 and order_id = #{orderId}
-    </select>
-
     <select id="getByOrderIdAndUserId" resultType="com.mikasa.campusrunner.pojo.entity.TakeOrder">
         select * from tb_take_orders where order_id = #{orderId} and user_id = #{userId} and deleted = 0
     </select>
@@ -292,12 +274,9 @@
             tb_user.`realname`,
             tb_orders.`status`,
             tb_orders.`note`,
-            tb_orders.image,
             tb_orders.`category_id`,
-            tb_category.`image` AS category_image,
             tb_category.`category_name` AS category_name,
             tk.create_time AS take_order_create_time,
-            tk.image AS take_order_image,
             tk.delivery_time AS take_order_delivery_time,
             tk.cancel_time AS take_order_cancel_time,
             tk.cancel_reason AS take_order_cancel_reason
@@ -309,7 +288,6 @@
             (
                 SELECT
                     id,
-                    image,
                     create_time,
                     delivery_time,
                     cancel_time,
@@ -389,8 +367,7 @@
                ap.address AS pick_up_address, ar.address AS recive_address,
                pub_user.realname AS publisher_name, o.phone AS publisher_phone,
                tk_user.realname AS taker_name, tk_user.phone AS taker_phone,
-               tk.create_time AS take_order_time, tk.delivery_time,
-               tk.image AS take_order_image
+               tk.create_time AS take_order_time, tk.delivery_time
         FROM tb_take_orders tk
         INNER JOIN tb_orders o ON tk.order_id = o.id AND o.deleted = 0
         LEFT JOIN tb_category c ON o.category_id = c.id
@@ -420,8 +397,7 @@
                ap.address AS pick_up_address, ar.address AS recive_address,
                pub_user.realname AS publisher_name, o.phone AS publisher_phone,
                tk_user.realname AS taker_name, tk_user.phone AS taker_phone,
-               tk.create_time AS take_order_time, tk.delivery_time,
-               tk.image AS take_order_image
+               tk.create_time AS take_order_time, tk.delivery_time
         FROM tb_take_orders tk
         INNER JOIN tb_orders o ON tk.order_id = o.id AND o.deleted = 0
         LEFT JOIN tb_category c ON o.category_id = c.id
@@ -486,7 +462,6 @@
             <if test="orderId != null">order_id = #{orderId}, </if>
             <if test="userId != null">user_id = #{userId}, </if>
             <if test="createTime != null">create_time = #{createTime}, </if>
-            <if test="image != null and image != ''">image = #{image}, </if>
             <if test="deleted != null">deleted = #{deleted}, </if>
             <if test="status != null">status = #{status}, </if>
             <if test="deliveryTime != null">delivery_time = #{deliveryTime}, </if>

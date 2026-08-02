@@ -311,21 +311,6 @@
   <t-button block bind:tap="payOrder" theme="primary">去支付</t-button>
 </view>
 
-<!-- 确定订单前的弹出层 -->
-<!-- <t-popup visible="{{visibleConfirm}}" bind:visible-change="tpopVisibleChange" placement="bottom">
-  <view style="height: 600rpx;width: 100%;">
-    <t-image class="imgCode" src="{{weChatPaymentCode}}" mode="aspectFill" bind:tap="timgClickView" data-src="{{weChatPaymentCode}}" />
-    <t-button block size="medium" bind:tap="tbtnTapConfirm" theme="primary" style="width: 80%;position: absolute;bottom: 30rpx;left: 50%; transform: translateX(-50%);">我已付款！</t-button>
-  </view>
-
-  <block wx:if="{{!ifIKnow}}">
-    <t-overlay visible="true" duration="{{0}}" background-color="rgba(255, 255, 255, 0.97)" style="position: absolute;display: flex;align-items: center;justify-content: center;">
-      <view style="width: 85%;margin: -200rpx auto 20rpx;text-align: center;">您可以直接向下面的二维码转账，也可以根据联系方式自行交易。</view>
-      <t-button block size="medium" bind:tap="tbtnTapIKnow" theme="primary" style="width: 40%;position: absolute;bottom: 150rpx;left: 50%; transform: translateX(-50%);">知道了</t-button>
-    </t-overlay>
-  </block>
-</t-popup> -->
-
 <!-- 空白填充 -->
 <view class="bottom-spacer"></view>
 

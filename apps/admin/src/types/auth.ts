@@ -28,8 +28,6 @@ export interface PendingAuthUser {
   studentIdCardReview?: AuthReviewStatus
   score?: number
   money?: number
-  alipayPaymentCode?: string
-  weChatPaymentCode?: string
   isManager?: number
   deleted?: number
   createTime?: string

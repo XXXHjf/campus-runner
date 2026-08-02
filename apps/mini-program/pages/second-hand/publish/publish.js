@@ -21,16 +21,13 @@ Page({
     form: {
       title: '',
       description: '',
-      images: '',
       imageAssetIds: [],
       categoryId: null,
       conditionLevel: '轻微使用',
       price: '',
       pickupAddressId: null,
       pickupAddressSnapshot: '',
-      pickupLocation: '',
       pickupOnly: 1,
-      supportDelivery: 0,
       negotiable: 1,
     },
   },
@@ -89,24 +86,19 @@ Page({
         name: image.split('/').pop(),
         status: 'done',
       }));
-      const pickupAddressText = product.pickupAddressSnapshot || product.pickupLocation || '';
-      const pickupOnly = product.pickupOnly == null
-        ? (Number(product.supportDelivery) === 1 ? 0 : 1)
-        : Number(product.pickupOnly);
+      const pickupAddressText = product.pickupAddressSnapshot || '';
+      const pickupOnly = Number(product.pickupOnly ?? 1);
       this.setData({
         form: {
           title: product.title || '',
           description: product.description || '',
-          images: product.images || '',
           imageAssetIds: assetIds,
           categoryId: product.categoryId || null,
           conditionLevel: product.conditionLevel || '轻微使用',
           price: product.price || '',
           pickupAddressId: product.pickupAddressId || null,
           pickupAddressSnapshot: pickupAddressText,
-          pickupLocation: pickupAddressText,
           pickupOnly,
-          supportDelivery: pickupOnly === 1 ? 0 : 1,
           negotiable: product.negotiable == null ? 1 : product.negotiable,
         },
         pickupAddressText,
@@ -135,10 +127,7 @@ Page({
 
   setPickupOnly(e) {
     const pickupOnly = e.detail.value ? 1 : 0;
-    this.setData({
-      'form.pickupOnly': pickupOnly,
-      'form.supportDelivery': pickupOnly === 1 ? 0 : 1,
-    });
+    this.setData({ 'form.pickupOnly': pickupOnly });
   },
 
   chooseCategory() {
@@ -177,7 +166,6 @@ Page({
     this.setData({
       'form.pickupAddressId': address.id,
       'form.pickupAddressSnapshot': address.addressText,
-      'form.pickupLocation': address.addressText,
       pickupAddressText: address.addressText,
       showPickupAddressSheet: false,
     });
@@ -245,15 +233,10 @@ Page({
 
   syncImages() {
     const completed = this.data.fileList.filter((file) => file.status === 'done');
-    const images = completed
-      .filter((file) => file.url && !file.mediaId)
-      .map((file) => file.url)
-      .join(',');
     const imageAssetIds = completed
       .filter((file) => file.mediaId)
       .map((file) => file.mediaId);
     this.setData({
-      'form.images': images,
       'form.imageAssetIds': imageAssetIds,
     });
   },
@@ -315,7 +298,6 @@ Page({
       title: form.title.trim(),
       description: form.description.trim(),
       pickupAddressSnapshot: form.pickupAddressSnapshot.trim(),
-      pickupLocation: form.pickupAddressSnapshot.trim(),
       price: Number(form.price),
     };
     try {

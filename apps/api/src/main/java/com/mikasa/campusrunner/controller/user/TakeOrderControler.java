@@ -6,7 +6,6 @@ import com.mikasa.campusrunner.pojo.dto.TakeOrderQueryDTO;
 import com.mikasa.campusrunner.pojo.dto.TakeOrderUpdateStatusDTO;
 import com.mikasa.campusrunner.pojo.vo.TakeOrderUserInfoVO;
 import com.mikasa.campusrunner.pojo.vo.TakeOrderVO;
-import com.mikasa.campusrunner.pojo.vo.UserPaymentVO;
 import com.mikasa.campusrunner.service.user.TakeOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -76,14 +75,6 @@ public class TakeOrderControler {
         log.info("Order ID: {}", orderId);
         String url = takeOrderService.getImageByOrderId(orderId);
         return Result.success(url);
-    }
-
-    @GetMapping("/paymentCode/{orderId}")
-    @Operation(summary = "根据订单id查询接单人收款码")
-    public Result<UserPaymentVO> getPaymentCodeByOrderId(@PathVariable Long orderId){
-        log.info("Order ID: {}", orderId);
-        UserPaymentVO userPaymentVO = takeOrderService.getPaymentCodeByOderId(orderId);
-        return Result.success(userPaymentVO);
     }
 
     @GetMapping("/notWithdrawn")

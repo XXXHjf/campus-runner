@@ -10,7 +10,6 @@
     "pages/second-hand/order-detail/order-detail",
     "pages/second-hand/my-products/my-products",
     "pages/mine/newUser/index",
-    "pages/logs/logs",
     "pages/address/addressShow/show",
     "pages/address/addressAdd/add",
     "pages/address/addressInfo/info",
@@ -22,7 +21,6 @@
     "pages/mine/identify/identify",
     "pages/mine/reIdentify/reIdentify",
     "pages/mine/userInfo/info",
-    "pages/mine/paycode/paycode",
     "pages/help-info/help-info"
   ],
   "window": {

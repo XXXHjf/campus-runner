@@ -16,17 +16,21 @@ import {
   Modal,
   Progress,
   Select,
-  Slider,
   Space,
   Table,
   Tag,
   Upload,
 } from 'antd'
 import { PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons'
-import Cropper, { type Area, type Point } from 'react-easy-crop'
+import Cropper, { type Area, type MediaSize, type Point, type Size } from 'react-easy-crop'
 import { bannerService, addressService, mediaService } from '../../services'
 import type { AdminSchool, Banner, BannerCreateRequest, BannerJumpType } from '../../types'
-import { BANNER_ASPECT_RATIO, createBannerCropFile } from '../../utils/cropImage'
+import {
+  BANNER_ASPECT_RATIO,
+  BANNER_OUTPUT_HEIGHT,
+  BANNER_OUTPUT_WIDTH,
+  createBannerCropFile,
+} from '../../utils/cropImage'
 import { formatDateTime } from '../../utils/format'
 import {
   AdminContentCard,
@@ -51,6 +55,10 @@ const jumpTypeOptions: { value: BannerJumpType; label: string }[] = [
   { value: 2, label: '站内页面' },
   { value: 3, label: '小程序页面' },
 ]
+
+const bannerMaxInteractionZoom = 8
+
+type BannerFormState = BannerCreateRequest & { imgUrl: string }
 
 function getErrorMessage(err: unknown, fallback: string) {
   if (err instanceof Error) return err.message
@@ -85,7 +93,7 @@ export default function BannerManagement() {
   })
   const [actionId, setActionId] = useState<number | null>(null)
 
-  const [formState, setFormState] = useState<BannerCreateRequest>({
+  const [formState, setFormState] = useState<BannerFormState>({
     title: '',
     imgUrl: '',
     schoolId: 0,
@@ -101,6 +109,8 @@ export default function BannerManagement() {
   const [cropSource, setCropSource] = useState<string | null>(null)
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
+  const [cropMediaSize, setCropMediaSize] = useState<MediaSize | null>(null)
+  const [cropFrameSize, setCropFrameSize] = useState<Size | null>(null)
   const [croppedArea, setCroppedArea] = useState<Area | null>(null)
   const [cropping, setCropping] = useState(false)
   const [addSubmitting, setAddSubmitting] = useState(false)
@@ -200,6 +210,27 @@ export default function BannerManagement() {
     })
   }, [list, keyword])
 
+  const cropMaxZoom = useMemo(() => {
+    if (!cropMediaSize || !cropFrameSize) return 1
+
+    const sourceWidthAtZoomOne =
+      (cropFrameSize.width / cropMediaSize.width) * cropMediaSize.naturalWidth
+    const sourceHeightAtZoomOne =
+      (cropFrameSize.height / cropMediaSize.height) * cropMediaSize.naturalHeight
+    const pixelSafeZoom = Math.min(
+      sourceWidthAtZoomOne / BANNER_OUTPUT_WIDTH,
+      sourceHeightAtZoomOne / BANNER_OUTPUT_HEIGHT,
+    )
+
+    return Math.max(1, Math.min(pixelSafeZoom, bannerMaxInteractionZoom))
+  }, [cropFrameSize, cropMediaSize])
+
+  useEffect(() => {
+    if (zoom > cropMaxZoom) {
+      setZoom(cropMaxZoom)
+    }
+  }, [cropMaxZoom, zoom])
+
   const openAddModal = () => {
     uploadRequestIdRef.current += 1
     temporaryMediaIdRef.current = null
@@ -251,8 +282,18 @@ export default function BannerManagement() {
   }
 
   const openCropper = (file: File) => {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setAddMessage({ type: 'error', text: '仅支持 JPEG、PNG 或 WebP 图片' })
+      return
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      setAddMessage({ type: 'error', text: '图片过大，请选择较小的图片' })
+      return
+    }
     setCrop({ x: 0, y: 0 })
     setZoom(1)
+    setCropMediaSize(null)
+    setCropFrameSize(null)
     setCroppedArea(null)
     setCropFile(file)
     setAddMessage(null)
@@ -355,11 +396,12 @@ export default function BannerManagement() {
     setAddMessage(null)
     try {
       await bannerService.addBanner({
-        ...formState,
+        imageAssetId: formState.imageAssetId,
+        schoolId: formState.schoolId,
+        jumpType: formState.jumpType,
         title: formState.title.trim(),
         jumpTarget: formState.jumpTarget.trim(),
         remark: formState.remark.trim(),
-        imgUrl: '',
       })
       await loadList(selectedSchoolId)
       temporaryMediaIdRef.current = null
@@ -605,7 +647,7 @@ export default function BannerManagement() {
             </Form.Item>
 
             <Form.Item className="admin-form-grid__full" label="轮播图图片" required>
-              <Space direction="vertical" size={12}>
+              <Space orientation="vertical" size={12}>
                 <Upload
                   accept="image/jpeg,image/png,image/webp"
                   showUploadList={false}
@@ -686,7 +728,7 @@ export default function BannerManagement() {
         destroyOnHidden
       >
         <p className="banner-crop-description">
-          拖动图片选择首页要显示的部分，使用下方滑块调整大小。
+          拖动图片选择首页要显示的部分，使用鼠标滚轮或双指缩放。
         </p>
         <div className="banner-crop-stage">
           {cropSource && (
@@ -694,24 +736,21 @@ export default function BannerManagement() {
               image={cropSource}
               crop={crop}
               zoom={zoom}
+              minZoom={1}
+              maxZoom={cropMaxZoom}
               aspect={BANNER_ASPECT_RATIO}
+              objectFit="contain"
+              restrictPosition
+              zoomWithScroll
+              zoomSpeed={0.4}
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={(_, areaPixels) => setCroppedArea(areaPixels)}
+              onMediaLoaded={setCropMediaSize}
+              onCropSizeChange={setCropFrameSize}
               showGrid
             />
           )}
-        </div>
-        <div className="banner-crop-zoom">
-          <span>图片大小</span>
-          <Slider
-            min={1}
-            max={3}
-            step={0.01}
-            value={zoom}
-            onChange={setZoom}
-            aria-label="调整图片大小"
-          />
         </div>
       </Modal>
 

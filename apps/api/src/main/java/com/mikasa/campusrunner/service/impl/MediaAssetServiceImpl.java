@@ -4,7 +4,7 @@ import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
 import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.common.exception.UploadException;
 import com.mikasa.campusrunner.common.utils.AliOSSUtil;
-import com.mikasa.campusrunner.common.utils.ImageFileInspector;
+import com.mikasa.campusrunner.common.utils.ImageProcessingService;
 import com.mikasa.campusrunner.mapper.MediaAssetMapper;
 import com.mikasa.campusrunner.pojo.entity.MediaAsset;
 import com.mikasa.campusrunner.pojo.vo.BoundMediaVO;
@@ -40,6 +40,7 @@ public class MediaAssetServiceImpl implements MediaAssetService {
 
     private final MediaAssetMapper mediaAssetMapper;
     private final AliOSSUtil aliOSSUtil;
+    private final ImageProcessingService imageProcessingService;
 
     @Override
     public MediaUploadVO uploadImage(
@@ -52,12 +53,9 @@ public class MediaAssetServiceImpl implements MediaAssetService {
         if (!purpose.allowsOwnerType(ownerType)) {
             throw new UploadException("当前账号不能上传该用途的图片");
         }
-        byte[] bytes = readAndValidateSize(file, purpose);
-        ImageFileInspector.ImageInfo image =
-                ImageFileInspector.inspect(bytes, purpose.getMaxDimension());
-        if (!purpose.allows(image.mimeType())) {
-            throw new UploadException("该用途不支持此图片格式");
-        }
+        byte[] source = readAndValidateSize(file, purpose);
+        ImageProcessingService.ProcessedImage image =
+                imageProcessingService.process(source, purpose);
         if (mediaAssetMapper.countActiveTemporary(ownerType, ownerId) >= ACTIVE_TEMP_LIMIT) {
             throw new UploadException("待处理图片过多，请先完成或取消当前操作");
         }
@@ -72,7 +70,7 @@ public class MediaAssetServiceImpl implements MediaAssetService {
                 .ownerId(ownerId)
                 .status(MediaAssetConstant.STATUS_UPLOADING)
                 .mimeType(image.mimeType())
-                .fileSize((long) bytes.length)
+                .fileSize((long) image.bytes().length)
                 .width(image.width())
                 .height(image.height())
                 .deleteAfter(now.plus(STALLED_UPLOAD_LIFETIME))
@@ -85,7 +83,7 @@ public class MediaAssetServiceImpl implements MediaAssetService {
 
         boolean objectUploaded = false;
         try {
-            aliOSSUtil.uploadObject(objectKey, bytes);
+            aliOSSUtil.uploadObject(objectKey, image.bytes());
             objectUploaded = true;
             LocalDateTime expiresAt = now.plus(TEMP_LIFETIME);
             String previewUrl =
@@ -347,12 +345,12 @@ public class MediaAssetServiceImpl implements MediaAssetService {
         if (file == null || file.isEmpty()) {
             throw new UploadException("请选择图片");
         }
-        if (file.getSize() > purpose.getMaxBytes()) {
-            throw new UploadException("图片不能超过 2MB");
+        if (file.getSize() > purpose.getMaxInputBytes()) {
+            throw new UploadException("图片不能超过 10MB");
         }
         try {
             byte[] bytes = file.getBytes();
-            if (bytes.length == 0 || bytes.length > purpose.getMaxBytes()) {
+            if (bytes.length == 0 || bytes.length > purpose.getMaxInputBytes()) {
                 throw new UploadException("图片大小不正确");
             }
             return bytes;

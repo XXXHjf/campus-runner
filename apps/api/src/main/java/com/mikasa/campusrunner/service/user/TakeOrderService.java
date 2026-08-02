@@ -4,7 +4,6 @@ import com.mikasa.campusrunner.pojo.dto.TakeOrderQueryDTO;
 import com.mikasa.campusrunner.pojo.dto.TakeOrderUpdateStatusDTO;
 import com.mikasa.campusrunner.pojo.vo.TakeOrderUserInfoVO;
 import com.mikasa.campusrunner.pojo.vo.TakeOrderVO;
-import com.mikasa.campusrunner.pojo.vo.UserPaymentVO;
 
 import java.util.List;
 
@@ -52,14 +51,6 @@ public interface TakeOrderService {
      * @return
      */
     String getImageByOrderId(Long orderId);
-
-    /**
-     * 根据订单id查询接单人收款码
-     * @param orderId
-     * @return
-     */
-    UserPaymentVO getPaymentCodeByOderId(Long orderId);
-
 
     /**
      * 查询当前用户接单已完成但未提现订单

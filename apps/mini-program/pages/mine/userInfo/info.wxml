@@ -49,26 +49,6 @@
   </t-input>
 </view>
 
-<!-- 第三部分卡片：收款信息 -->
-<view wx:if="{{false}}" class="card" style="margin-top: 50rpx;">
-  <!-- 收款信息 -->
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="barcode" size="20" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">收款信息</view>
-  </view>
-  <!-- 分割线 -->
-  <t-divider class="drvider" />
-  <t-input label="我的收款码" disabled="true" borderless="true">
-    <view slot="suffix" class="suffix">
-      <view class="box1">
-        <input type="nickname" class="nickname-input" bind:tap="toPaycode" placeholder="{{(userInfo.weChatPaymentCode==null||userInfo.weChatPaymentCode==='')?' 未保存':' 已保存'}}" style="text-align: end;" disabled="true" borderless="true" />
-        <t-icon name="chevron-right" size="24" color="rgba(0, 0, 0, 0.4)" style="padding-left: 24rpx;" />
-      </view>
-    </view>
-  </t-input>
-</view>
-
-
 
 <!-- 保存信息按钮 -->
 <view class="button">

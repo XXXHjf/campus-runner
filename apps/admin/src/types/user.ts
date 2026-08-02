@@ -22,8 +22,6 @@ export interface UserInfo {
   realname?: string
   stuId?: string
   studentIdCard?: string
-  weChatPaymentCode?: string
-  aliPaymentCode?: string
   isAuthenticated: boolean
   createdAt?: string
   updatedAt?: string
@@ -77,18 +75,6 @@ export interface AuthenticateRequest {
   realname: string
   stuId: string
   studentIdCard: string
-}
-
-// 更新支付码请求
-export interface UpdatePaymentCodeRequest {
-  weChatPaymentCode?: string
-  aliPaymentCode?: string
-}
-
-// 支付码信息
-export interface PaymentCodeInfo {
-  weChatPaymentCode: string
-  aliPaymentCode: string
 }
 
 // 学校信息

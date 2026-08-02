@@ -7,7 +7,6 @@ import com.mikasa.campusrunner.common.properties.JWTProperties;
 import com.mikasa.campusrunner.common.result.Result;
 import com.mikasa.campusrunner.common.utils.JWTUtil;
 import com.mikasa.campusrunner.pojo.dto.admin.AdminLoginDTO;
-import com.mikasa.campusrunner.pojo.dto.admin.AdminRegisterDTO;
 import com.mikasa.campusrunner.pojo.entity.Admin;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminLoginVO;
 import com.mikasa.campusrunner.service.admin.AdminService;
@@ -62,15 +61,6 @@ public class AdminController {
         BeanUtils.copyProperties(admin, vo);
         vo.setAdminToken(token);
         return Result.success(vo);
-    }
-
-
-    @PostMapping("/register")
-    @Operation(summary = "管理员用户注册")
-    public Result adminRegister(@RequestBody AdminRegisterDTO adminRegisterDTO) {
-        log.info("Admin register, {}", adminRegisterDTO);
-        adminService.register(adminRegisterDTO);
-        return Result.success();
     }
 
 }

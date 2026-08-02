@@ -3,9 +3,8 @@ package com.mikasa.campusrunner.service.impl.admin;
 import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
 import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.common.context.BaseContext;
+import com.mikasa.campusrunner.common.exception.ParamException;
 import com.mikasa.campusrunner.mapper.CategoryMapper;
-import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
-import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.entity.Category;
 import com.mikasa.campusrunner.service.MediaAssetService;
 import com.mikasa.campusrunner.service.admin.AdminCategoryService;
@@ -27,9 +26,6 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
     @Autowired
     private MediaAssetService mediaAssetService;
 
-    @Autowired
-    private LegacyMediaFallbackMonitor fallbackMonitor;
-
     @Override
     public List<Category> list() {
         log.info("Listing all categories...");
@@ -43,21 +39,19 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
     public Category add(Category category) {
         log.info("Adding category: {}", category.getCategoryName());
         Long imageAssetId = category.getImageAssetId();
-        if (imageAssetId != null) {
-            category.setImage(null);
+        if (imageAssetId == null) {
+            throw new ParamException("请选择分类图标");
         }
         categoryMapper.insert(category);
-        if (imageAssetId != null) {
-            mediaAssetService.replaceBinding(
-                    List.of(imageAssetId),
-                    MediaPurpose.ORDER_CATEGORY_ICON.name(),
-                    MediaAssetConstant.OWNER_ADMIN,
-                    BaseContext.getCurrentId(),
-                    MediaAssetConstant.BOUND_ORDER_CATEGORY,
-                    category.getId(),
-                    1,
-                    Duration.ofDays(7));
-        }
+        mediaAssetService.replaceBinding(
+                List.of(imageAssetId),
+                MediaPurpose.ORDER_CATEGORY_ICON.name(),
+                MediaAssetConstant.OWNER_ADMIN,
+                BaseContext.getCurrentId(),
+                MediaAssetConstant.BOUND_ORDER_CATEGORY,
+                category.getId(),
+                1,
+                Duration.ofDays(7));
         resolveImage(category);
         return category;
     }
@@ -71,7 +65,6 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
             return null;
         }
         if (category.getImageAssetId() != null) {
-            category.setImage(null);
             mediaAssetService.replaceBinding(
                     List.of(category.getImageAssetId()),
                     MediaPurpose.ORDER_CATEGORY_ICON.name(),
@@ -119,8 +112,6 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
         if (!images.isEmpty()) {
             category.setImageAssetId(images.get(0).getMediaId());
             category.setImage(images.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(LegacyMediaSource.ORDER_CATEGORY, category.getId(), category.getImage());
         }
     }
 }

@@ -9,7 +9,6 @@ import lombok.Data;
  */
 @Data
 public class AdminBannerAddDTO {
-    private String imgUrl;//轮播图地址
     private Long imageAssetId;
     private String title;//轮播图标题
     private Long schoolId;//轮播图对应的学校id(如果为0则代表所有学校，即通用的轮播图，否则为对应学校的轮播图)

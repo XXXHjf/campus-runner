@@ -134,8 +134,6 @@ export interface AdminUserDetail {
   studentIdCard: string
   studentIdCardReview: number
   score: number
-  alipayPaymentCode: string
-  weChatPaymentCode: string
   isManager: number
   orderCount: number
   takeOrderCount: number

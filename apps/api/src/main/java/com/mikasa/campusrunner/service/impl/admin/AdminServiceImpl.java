@@ -1,16 +1,13 @@
 package com.mikasa.campusrunner.service.impl.admin;
 
-import com.mikasa.campusrunner.common.constant.AdminStatusConstant;
 import com.mikasa.campusrunner.common.constant.MessageConstant;
 import com.mikasa.campusrunner.common.exception.AdminException;
 import com.mikasa.campusrunner.common.utils.EncryptSHA256Util;
 import com.mikasa.campusrunner.mapper.AdminMapper;
 import com.mikasa.campusrunner.pojo.dto.admin.AdminLoginDTO;
-import com.mikasa.campusrunner.pojo.dto.admin.AdminRegisterDTO;
 import com.mikasa.campusrunner.pojo.entity.Admin;
 import com.mikasa.campusrunner.service.admin.AdminService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,32 +62,6 @@ public class AdminServiceImpl implements AdminService {
         adminMapper.update(admin);
 
         return admin;
-    }
-
-    /**
-     * 挂你来源用户注册
-     * @param adminRegisterDTO
-     */
-    @Override
-    @Transactional
-    public void register(AdminRegisterDTO adminRegisterDTO) {
-        log.info("Admin user registration in progress...");
-        Admin admin = new Admin();
-        BeanUtils.copyProperties(adminRegisterDTO, admin);
-        String loginIP = getIPv4AndMacAddress();//获取IPv4地址和Mac地址
-        LocalDateTime now = LocalDateTime.now();
-        String passwordHash = EncryptSHA256Util.encrypt(adminRegisterDTO.getPassword());//获得密码的哈希值
-
-
-        admin.setStatus(AdminStatusConstant.IS_SUPER_ADMINISTRATOR); //设置管理员类别状态
-        admin.setSchool(Long.valueOf(AdminStatusConstant.IS_SUPER_ADMINISTRATOR)); //设置school字段
-        admin.setLastLoginIp(loginIP);
-        admin.setLastLoginTime(now);
-        admin.setCreateTime(now);
-        admin.setUpdateTime(now);
-        admin.setPasswordHash(passwordHash);
-
-        adminMapper.insert(admin);
     }
 
     /**

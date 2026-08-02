@@ -7,7 +7,6 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into tb_banner(
                               id,
-                              img_url,
                               title,
                               school_id,
                               school_name,
@@ -19,7 +18,6 @@
                               deleted
         ) values (
                   null,
-                  #{imgUrl},
                   #{title},
                   #{schoolId},
                   #{schoolName},

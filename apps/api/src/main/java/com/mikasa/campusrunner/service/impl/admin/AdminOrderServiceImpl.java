@@ -6,8 +6,6 @@ import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.common.constant.OrderStatusConstant;
 import com.mikasa.campusrunner.common.exception.OrderException;
 import com.mikasa.campusrunner.mapper.OrderMapper;
-import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
-import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.dto.PageResult;
 import com.mikasa.campusrunner.pojo.dto.RefundInfoDTO;
 import com.mikasa.campusrunner.pojo.entity.Order;
@@ -36,9 +34,6 @@ public class AdminOrderServiceImpl implements AdminOrderService {
 
     @Autowired
     private MediaAssetService mediaAssetService;
-
-    @Autowired
-    private LegacyMediaFallbackMonitor fallbackMonitor;
 
     @Autowired(required = false)
     private WeChatPayService weChatPayService;
@@ -126,8 +121,6 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         if (!contentImages.isEmpty()) {
             order.setImageAssetId(contentImages.get(0).getMediaId());
             order.setImage(contentImages.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(LegacyMediaSource.ORDER, order.getId(), order.getImage());
         }
         if (order.getTakeOrderId() != null) {
             var proofImages = mediaAssetService.resolveAuthorizedBinding(
@@ -137,11 +130,6 @@ public class AdminOrderServiceImpl implements AdminOrderService {
             if (!proofImages.isEmpty()) {
                 order.setTakerImageAssetId(proofImages.get(0).getMediaId());
                 order.setTakerImage(proofImages.get(0).getUrl());
-            } else {
-                fallbackMonitor.record(
-                        LegacyMediaSource.TAKE_ORDER,
-                        order.getTakeOrderId(),
-                        order.getTakerImage());
             }
         }
         return order;

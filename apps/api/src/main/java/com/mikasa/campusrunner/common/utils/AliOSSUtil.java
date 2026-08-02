@@ -6,18 +6,13 @@ import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.OSSException;
 import com.aliyun.oss.common.auth.CredentialsProvider;
 import com.aliyun.oss.common.auth.DefaultCredentialProvider;
-import com.aliyun.oss.model.OSSObject;
-import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PutObjectResult;
-import com.mikasa.campusrunner.common.constant.AliOSSConstant;
 import com.mikasa.campusrunner.common.exception.UploadException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.time.Duration;
 import java.util.Date;
@@ -36,12 +31,6 @@ public class AliOSSUtil {
     private String accessKeySecret;
     private String region;// 授权STSAssumeRole访问的Region。以华东1（杭州）为例，其它Region请根据实际情况填写。 cn-hangzhou
     private String roleArn;//填写RAM角色的ARN信息，即需要扮演的角色ID。
-
-    public String upload(String objectName, byte[] bytes, String dirName) {
-        String objectKey = dirName + "/" + objectName;
-        uploadObject(objectKey, bytes);
-        return generatePresignedUrl(objectKey, Duration.ofMillis(AliOSSConstant.EXPIRATION));
-    }
 
     /**
      * Upload an object and return its stable OSS object key. Signed URLs are
@@ -63,47 +52,6 @@ public class AliOSSUtil {
         } catch (ClientException e) {
             log.error("OSS client failed to upload object, objectKey: {}", objectKey, e);
             throw new UploadException("图片上传服务暂时不可用");
-        } finally {
-            ossClient.shutdown();
-        }
-    }
-
-    public boolean objectExists(String objectKey) {
-        OSS ossClient = buildClient();
-        try {
-            return ossClient.doesObjectExist(bucketName, objectKey);
-        } catch (OSSException | ClientException e) {
-            log.error("Failed to check OSS object existence", e);
-            throw new UploadException("图片存储状态检查失败");
-        } finally {
-            ossClient.shutdown();
-        }
-    }
-
-    public byte[] downloadObject(String objectKey, long maxBytes) {
-        OSS ossClient = buildClient();
-        try {
-            ObjectMetadata metadata = ossClient.getObjectMetadata(bucketName, objectKey);
-            if (metadata.getContentLength() <= 0 || metadata.getContentLength() > maxBytes) {
-                throw new UploadException("历史图片大小不符合当前限制");
-            }
-            try (OSSObject object = ossClient.getObject(bucketName, objectKey);
-                 InputStream input = object.getObjectContent()) {
-                byte[] bytes = input.readNBytes(Math.toIntExact(maxBytes + 1));
-                if (bytes.length == 0 || bytes.length > maxBytes) {
-                    throw new UploadException("历史图片大小不符合当前限制");
-                }
-                return bytes;
-            }
-        } catch (UploadException e) {
-            throw e;
-        } catch (OSSException e) {
-            log.error("OSS rejected object download, code: {}, requestId: {}",
-                    e.getErrorCode(), e.getRequestId());
-            throw new UploadException("历史图片读取失败");
-        } catch (ClientException | IOException e) {
-            log.error("Failed to download OSS object", e);
-            throw new UploadException("历史图片读取失败");
         } finally {
             ossClient.shutdown();
         }

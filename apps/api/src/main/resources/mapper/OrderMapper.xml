@@ -28,14 +28,12 @@
             orders.phone,
             orders.status,
             orders.note,
-            orders.image,
             orders.category_id,
-            category.image AS category_image, -- 类别图片路径，从类别表里得到
             category.category_name,
             orders.deleted
         FROM
             tb_orders AS orders, -- 这是订单表 主表
-            tb_category AS category, -- 这是类别表 为了获得类别的图片, 即category_image
+            tb_category AS category,
 
             (SELECT
                 ad.id,
@@ -126,14 +124,12 @@
                orders.phone,
                orders.status,
                orders.note,
-               orders.image,
                orders.category_id,
-               category.image AS category_image, -- 类别图片路径，从类别表里得到
                category.category_name,
                orders.deleted
         FROM
             tb_orders AS orders, -- 这是订单表 主表
-            tb_category AS category, -- 这是类别表 为了获得类别的图片, 即category_image
+            tb_category AS category,
             (SELECT
                  ad.id,
                  CONCAT(school.school_name, ' ',
@@ -227,9 +223,7 @@
                 orders.phone,
                 orders.status,
                 orders.note,
-                orders.image,
                 orders.category_id,
-                category.image AS category_image,
                 category.category_name,
                 orders.deleted
         FROM
@@ -324,9 +318,7 @@
             orders.phone,
             orders.status,
             orders.note,
-            orders.image,
             orders.category_id,
-            category.image AS category_image,
             category.category_name,
             orders.deleted
         FROM
@@ -407,9 +399,7 @@
             orders.phone,
             orders.status,
             orders.note,
-            orders.image,
             orders.category_id,
-            category.image AS category_image,
             category.category_name,
             orders.deleted
         FROM
@@ -498,9 +488,7 @@
                 orders.phone,
                 orders.status,
                 orders.note,
-                orders.image,
                 orders.category_id,
-                category.image AS category_image,
                 category.category_name,
                 orders.deleted,
                 user.realname
@@ -594,14 +582,12 @@
             orders.phone,
             orders.status,
             orders.note,
-            orders.image,
             orders.category_id,
-            category.image AS category_image, -- 类别图片路径，从类别表里得到
             category.category_name,
             orders.deleted
         FROM
             tb_orders AS orders, -- 这是订单表 主表
-            tb_category AS category, -- 这是类别表 为了获得类别的图片, 即category_image
+            tb_category AS category,
 
             (SELECT
                 ad.id,
@@ -703,14 +689,12 @@
             orders.phone,
             orders.status,
             orders.note,
-            orders.image,
             orders.category_id,
-            category.image AS category_image, -- 类别图片路径，从类别表里得到
             category.category_name,
             orders.deleted
         FROM
             tb_orders AS orders, -- 这是订单表 主表
-            tb_category AS category, -- 这是类别表 为了获得类别的图片, 即category_image
+            tb_category AS category,
 
             (SELECT
             ad.id,
@@ -888,7 +872,6 @@
                               phone,
                               status,
                               note,
-                              image,
                               category_id,
                               deleted)
         values(
@@ -913,7 +896,6 @@
                                      #{phone},
                                      #{status},
                                      #{note},
-                                     #{image},
                                      #{categoryId},
                                      #{deleted}
                                     )
@@ -947,7 +929,6 @@
             <if test="phone != null and phone != ''">phone = #{phone}, </if>
             <if test="status != null">status = #{status}, </if>
             <if test="note != null and note != ''">note = #{note}, </if>
-            <if test="image != null and image != ''">image = #{image}, </if>
             <if test="categoryId != null">category_id = #{categoryId}, </if>
             <if test="deleted != null">deleted = #{deleted}, </if>
         </set>
@@ -1020,12 +1001,12 @@
     <select id="getAdminOrderDetail" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminOrderDetailVO">
         SELECT o.id, o.order_number, o.status, c.category_name,
                o.price, o.service_fee_rate, o.service_fee, o.pay_amount,
-               o.username, o.phone, o.note, o.image, o.door_access,
+               o.username, o.phone, o.note, o.door_access,
                o.gap, o.exceed_time, o.create_time, o.cancel_time, o.cancel_reson AS cancel_reason,
                ap.address AS pick_up_address, ar.address AS recive_address,
                tk.id AS take_order_id, tk.user_id AS taker_user_id, tk_user.realname AS taker_realname,
                tk_user.phone AS taker_phone, tk.create_time AS taker_take_time,
-               tk.delivery_time AS taker_delivery_time, tk.image AS taker_image,
+               tk.delivery_time AS taker_delivery_time,
                pl.transaction_id AS payment_transaction_id, pl.trade_state AS payment_trade_state,
                pl.total AS payment_total, pl.service_fee AS payment_service_fee,
                pl.payer_openid AS payment_payer_openid, pl.success_time AS payment_success_time,

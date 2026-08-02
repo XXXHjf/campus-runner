@@ -24,7 +24,5 @@ public final class MediaAssetConstant {
     public static final String BOUND_TAKE_ORDER = "TAKE_ORDER";
     public static final String BOUND_USER_AVATAR = "USER_AVATAR";
     public static final String BOUND_USER_STUDENT_CARD = "USER_STUDENT_CARD";
-    public static final String BOUND_USER_ALIPAY_PAYMENT = "USER_ALIPAY_PAYMENT";
-    public static final String BOUND_USER_WECHAT_PAYMENT = "USER_WECHAT_PAYMENT";
     public static final String BOUND_BANNER = "BANNER";
 }

@@ -158,20 +158,6 @@ function confirmOrder(orderId) {
   });
 }
 
-/**
- * 获取接单人支付码
- * @param {string|number} orderId - 订单ID
- * @returns {Promise<Object>} 支付码信息
- */
-function getTakerPaymentCode(orderId) {
-  return request({
-    url: `${url}/api/takeOrders/paymentCode/${orderId}`,
-    method: 'GET'
-  }).then(res => {
-    return res.data.data || {};
-  });
-}
-
 module.exports = {
   getMyOrders,
   getMyOrderDetail,
@@ -182,7 +168,6 @@ module.exports = {
   refundOrder,
   syncPayStatus,
   mockPaySuccess,
-  confirmOrder,
-  getTakerPaymentCode
+  confirmOrder
 };
 

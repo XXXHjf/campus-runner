@@ -224,13 +224,6 @@
 - `takeOrderCancelTime`：接单侧取消时间
 - `takeOrderCancelReason`：接单侧取消原因
 
-### 7.3 用户收款字段
-
-- `weChatPaymentCode`：接单人微信收款码（扫码收款备用链路）
-- `aliPaymentCode`：支付宝收款码（文档有，业务中可能未启用）
-
----
-
 ## 8. 关键接口时序
 
 有偿单推荐时序：

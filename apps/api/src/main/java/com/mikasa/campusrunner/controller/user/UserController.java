@@ -5,7 +5,6 @@ import com.mikasa.campusrunner.common.properties.JWTProperties;
 import com.mikasa.campusrunner.common.utils.JWTUtil;
 import com.mikasa.campusrunner.pojo.dto.UserAuthenDTO;
 import com.mikasa.campusrunner.pojo.dto.UserLoginDTO;
-import com.mikasa.campusrunner.pojo.dto.UserPaymentDTO;
 import com.mikasa.campusrunner.pojo.dto.UserSaveDTO;
 import com.mikasa.campusrunner.pojo.entity.User;
 import com.mikasa.campusrunner.pojo.vo.UserLoginVO;
@@ -56,18 +55,9 @@ public class UserController {
         return Result.success(userLoginVO);
     }
 
-//    @PutMapping("/save")
-//    @Operation(summary = "保存相关信息")
-//    public Result save(@RequestBody UserSaveDTO userSaveDTO){
-//        log.info("Save user info, {}", userSaveDTO);
-//        userService.save(userSaveDTO);
-//        return Result.success();
-//    }
-
     @PutMapping("/update")
     @Operation(summary = "用户信息更新")
     public Result update(@RequestBody UserSaveDTO userSaveDTO){
-        //TODO 需要支持收款码
         log.info("User info update: {}", userSaveDTO);
         userService.save(userSaveDTO);
         return Result.success();
@@ -87,15 +77,6 @@ public class UserController {
         log.info("Query current user");
         UserVO user = userService.getCurrentUser();
         return Result.success(user);
-    }
-
-
-    @PutMapping("/updatePaymentCode")
-    @Operation(summary = "更新收款码")
-    public Result updatePaymentCode(@RequestBody UserPaymentDTO userPaymentDTO){
-        log.info("Update payment QR code: {}", userPaymentDTO);
-        userService.updatePaymentCode(userPaymentDTO);
-        return Result.success();
     }
 
 }

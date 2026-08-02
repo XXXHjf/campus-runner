@@ -797,19 +797,9 @@ Page({
     });
     
     try {
-      // 压缩图片
-      let filePath = file.url;
-      try {
-        const { compressImageSmart } = require('../../../../utils/commonJs');
-        filePath = await compressImageSmart(file.url);
-        console.log('[图片上传] 压缩成功');
-      } catch (compressError) {
-        console.warn('[图片上传] 压缩失败，使用原图:', compressError);
-      }
-      
       // 上传图片
       const uploadResult = await mediaService.uploadImage(
-        filePath,
+        file.url,
         'ORDER_IMAGE',
         (progress) => {
           this.setData({ [`fileList[${fileIndex}].percent`]: progress });

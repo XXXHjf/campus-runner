@@ -24,12 +24,9 @@
 CREATE TABLE IF NOT EXISTS `tb_second_hand_category` (
   `id` BIGINT AUTO_INCREMENT NOT NULL COMMENT '分类主键id',
   `name` VARCHAR(50) NOT NULL COMMENT '二手分类名称，如数码电子、文具教材',
-  `image` VARCHAR(255) NULL COMMENT '分类图标图片地址，可为空',
-  `image_asset_id` BIGINT NULL COMMENT '新媒体资源id，为空时兼容读取旧 image',
   `sort` INT NULL DEFAULT 0 COMMENT '排序值，越小越靠前',
   `deleted` INT NULL DEFAULT 0 COMMENT '逻辑删除字段：0未删除，1已删除',
-  PRIMARY KEY (`id`),
-  KEY `idx_second_hand_category_image_asset` (`image_asset_id`)
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB COMMENT='二手交易分类表';
 
 -- ============================================================
@@ -55,11 +52,6 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_category` (
 -- 1 仅支持买家自提。
 -- 0 买家下单前可选择自提或卖家配送。
 --
--- support_delivery：
--- 兼容旧字段，含义与 pickup_only 相反。
--- 0 不支持卖家配送，仅支持买家自提。
--- 1 支持卖家配送，买家下单前选择配送地址。
---
 -- negotiable：
 -- 0 不允许议价。
 -- 1 允许议价，同一买家对同一商品最多 3 次，具体次数由系统配置控制。
@@ -72,14 +64,11 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_product` (
   `category_id` BIGINT NOT NULL COMMENT '二手分类id，关联 tb_second_hand_category.id',
   `title` VARCHAR(80) NOT NULL COMMENT '商品标题，列表和详情页主标题',
   `description` TEXT NULL COMMENT '商品描述，如使用情况、配件、购买时间、瑕疵说明',
-  `images` TEXT NULL COMMENT '商品图片地址集合，当前小程序以英文逗号分隔存储',
   `condition_level` VARCHAR(30) NULL COMMENT '商品成色，如全新、九成新、八成新',
   `price` DECIMAL(10,2) NOT NULL COMMENT '商品售价，买家直接购买时的成交价',
   `pickup_address_id` BIGINT NULL COMMENT '自提点地址簿id，关联 tb_address_book.id，仅作来源记录',
   `pickup_address_snapshot` VARCHAR(500) NULL COMMENT '自提点地址快照，如南校区 宿舍楼 弘毅楼 506室',
-  `pickup_location` VARCHAR(255) NOT NULL COMMENT '兼容旧字段：卖家指定自提地点，当前写入自提点快照',
   `pickup_only` INT NULL DEFAULT 1 COMMENT '是否仅自提：1仅自提，0买家可选自提或卖家配送',
-  `support_delivery` INT NULL DEFAULT 0 COMMENT '兼容旧字段：是否支持卖家配送，0否，1是',
   `negotiable` INT NULL DEFAULT 1 COMMENT '是否允许议价：0否，1是',
   `status` INT NULL DEFAULT 0 COMMENT '商品状态：0在售，1待支付锁定，2交易中，3已售出，4已下架',
   `view_count` INT NULL DEFAULT 0 COMMENT '浏览次数，用于后续热度排序或数据统计',
@@ -260,20 +249,12 @@ DEALLOCATE PREPARE stmt;
 
 SET @ddl = IF(
   (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tb_second_hand_product' AND COLUMN_NAME = 'pickup_only') = 0,
-  'ALTER TABLE tb_second_hand_product ADD COLUMN pickup_only INT NULL DEFAULT 1 COMMENT ''是否仅自提：1仅自提，0买家可选自提或卖家配送'' AFTER pickup_location',
+  'ALTER TABLE tb_second_hand_product ADD COLUMN pickup_only INT NULL DEFAULT 1 COMMENT ''是否仅自提：1仅自提，0买家可选自提或卖家配送'' AFTER pickup_address_snapshot',
   'SELECT 1'
 );
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
-
-UPDATE tb_second_hand_product
-SET pickup_address_snapshot = pickup_location
-WHERE pickup_address_snapshot IS NULL AND pickup_location IS NOT NULL;
-
-UPDATE tb_second_hand_product
-SET pickup_only = CASE WHEN support_delivery = 1 THEN 0 ELSE 1 END
-WHERE pickup_only IS NULL;
 
 -- ============================================================
 -- 兼容升级：给已存在的二手订单表补充交付地址快照字段

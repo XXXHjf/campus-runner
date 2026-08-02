@@ -3,8 +3,6 @@ package com.mikasa.campusrunner.service.impl.admin;
 import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
 import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.mapper.UserMapper;
-import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
-import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.dto.PageResult;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminUserDetailVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminUserListVO;
@@ -27,9 +25,6 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Autowired
     private MediaAssetService mediaAssetService;
-
-    @Autowired
-    private LegacyMediaFallbackMonitor fallbackMonitor;
 
     @Override
     public PageResult<AdminUserListVO> listAll(int page, int pageSize) {
@@ -65,11 +60,6 @@ public class AdminUserServiceImpl implements AdminUserService {
             if (!studentCards.isEmpty()) {
                 user.setStudentIdCardAssetId(studentCards.get(0).getMediaId());
                 user.setStudentIdCard(studentCards.get(0).getUrl());
-            } else {
-                fallbackMonitor.record(
-                        LegacyMediaSource.USER_STUDENT_CARD,
-                        user.getId(),
-                        user.getStudentIdCard());
             }
         });
         long total = userMapper.countByReviewStatus(1);
@@ -110,8 +100,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (!avatars.isEmpty()) {
             user.setHeadImgAssetId(avatars.get(0).getMediaId());
             user.setHeadImg(avatars.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(LegacyMediaSource.USER_AVATAR, user.getId(), user.getHeadImg());
         }
     }
 
@@ -126,8 +114,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (!avatars.isEmpty()) {
             user.setHeadImgAssetId(avatars.get(0).getMediaId());
             user.setHeadImg(avatars.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(LegacyMediaSource.USER_AVATAR, user.getId(), user.getHeadImg());
         }
         var studentCards = mediaAssetService.resolveAuthorizedBinding(
                 MediaAssetConstant.BOUND_USER_STUDENT_CARD,
@@ -136,37 +122,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (!studentCards.isEmpty()) {
             user.setStudentIdCardAssetId(studentCards.get(0).getMediaId());
             user.setStudentIdCard(studentCards.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(
-                    LegacyMediaSource.USER_STUDENT_CARD,
-                    user.getId(),
-                    user.getStudentIdCard());
-        }
-        var alipayCodes = mediaAssetService.resolveAuthorizedBinding(
-                MediaAssetConstant.BOUND_USER_ALIPAY_PAYMENT,
-                user.getId(),
-                MediaPurpose.PAYMENT_QR.name());
-        if (!alipayCodes.isEmpty()) {
-            user.setAlipayPaymentCodeAssetId(alipayCodes.get(0).getMediaId());
-            user.setAlipayPaymentCode(alipayCodes.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(
-                    LegacyMediaSource.USER_ALIPAY_PAYMENT,
-                    user.getId(),
-                    user.getAlipayPaymentCode());
-        }
-        var wechatCodes = mediaAssetService.resolveAuthorizedBinding(
-                MediaAssetConstant.BOUND_USER_WECHAT_PAYMENT,
-                user.getId(),
-                MediaPurpose.PAYMENT_QR.name());
-        if (!wechatCodes.isEmpty()) {
-            user.setWeChatPaymentCodeAssetId(wechatCodes.get(0).getMediaId());
-            user.setWeChatPaymentCode(wechatCodes.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(
-                    LegacyMediaSource.USER_WECHAT_PAYMENT,
-                    user.getId(),
-                    user.getWeChatPaymentCode());
         }
     }
 }

@@ -20,20 +20,6 @@ export const config = {
   // 是否开启请求日志
   enableRequestLog: import.meta.env.DEV,
 
-  // 是否开启 mock 数据
-  enableMock: false,
-
-  // 分页默认配置
-  pagination: {
-    defaultPageSize: 10,
-    pageSizeOptions: [10, 20, 50, 100],
-  },
-
-  // 上传配置
-  upload: {
-    maxSize: 5 * 1024 * 1024, // 5MB
-    acceptTypes: ['image/jpeg', 'image/png', 'image/gif'],
-  },
 }
 
 export default config

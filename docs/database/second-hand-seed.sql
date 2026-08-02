@@ -108,56 +108,56 @@ SET @cat_sport = (
 --    student_id_card_review = 2：学生证审核通过。
 -- ============================================================
 INSERT INTO tb_user(
-  username, realname, openid, head_img, sex, phone, authentication,
-  school_id, stu_id, student_id_card, student_id_card_review, score, money,
-  alipay_payment_code, wechat_payment_code, is_manager, deleted, create_time, update_time
+  username, realname, openid, sex, phone, authentication,
+  school_id, stu_id, student_id_card_review, score, money,
+  is_manager, deleted, create_time, update_time
 )
 SELECT
-  '林同学', '林雨晴', 'seed_second_seller_001', '', 0, '13800001001', 1,
-  @seed_school_id, '20260001', 'https://example.com/student-card-001.jpg', 2, 100, 0.00,
-  '', '', 0, 0, NOW() - INTERVAL 18 DAY, NOW() - INTERVAL 1 DAY
+  '林同学', '林雨晴', 'seed_second_seller_001', 0, '13800001001', 1,
+  @seed_school_id, '20260001', 2, 100, 0.00,
+  0, 0, NOW() - INTERVAL 18 DAY, NOW() - INTERVAL 1 DAY
 FROM DUAL
 WHERE NOT EXISTS (
   SELECT 1 FROM tb_user WHERE openid = 'seed_second_seller_001' AND deleted = 0
 );
 
 INSERT INTO tb_user(
-  username, realname, openid, head_img, sex, phone, authentication,
-  school_id, stu_id, student_id_card, student_id_card_review, score, money,
-  alipay_payment_code, wechat_payment_code, is_manager, deleted, create_time, update_time
+  username, realname, openid, sex, phone, authentication,
+  school_id, stu_id, student_id_card_review, score, money,
+  is_manager, deleted, create_time, update_time
 )
 SELECT
-  '周同学', '周亦然', 'seed_second_seller_002', '', 1, '13800001002', 1,
-  @seed_school_id, '20260002', 'https://example.com/student-card-002.jpg', 2, 98, 0.00,
-  '', '', 0, 0, NOW() - INTERVAL 16 DAY, NOW() - INTERVAL 2 DAY
+  '周同学', '周亦然', 'seed_second_seller_002', 1, '13800001002', 1,
+  @seed_school_id, '20260002', 2, 98, 0.00,
+  0, 0, NOW() - INTERVAL 16 DAY, NOW() - INTERVAL 2 DAY
 FROM DUAL
 WHERE NOT EXISTS (
   SELECT 1 FROM tb_user WHERE openid = 'seed_second_seller_002' AND deleted = 0
 );
 
 INSERT INTO tb_user(
-  username, realname, openid, head_img, sex, phone, authentication,
-  school_id, stu_id, student_id_card, student_id_card_review, score, money,
-  alipay_payment_code, wechat_payment_code, is_manager, deleted, create_time, update_time
+  username, realname, openid, sex, phone, authentication,
+  school_id, stu_id, student_id_card_review, score, money,
+  is_manager, deleted, create_time, update_time
 )
 SELECT
-  '陈同学', '陈星河', 'seed_second_buyer_001', '', 1, '13800002001', 1,
-  @seed_school_id, '20260003', 'https://example.com/student-card-003.jpg', 2, 100, 0.00,
-  '', '', 0, 0, NOW() - INTERVAL 12 DAY, NOW() - INTERVAL 1 DAY
+  '陈同学', '陈星河', 'seed_second_buyer_001', 1, '13800002001', 1,
+  @seed_school_id, '20260003', 2, 100, 0.00,
+  0, 0, NOW() - INTERVAL 12 DAY, NOW() - INTERVAL 1 DAY
 FROM DUAL
 WHERE NOT EXISTS (
   SELECT 1 FROM tb_user WHERE openid = 'seed_second_buyer_001' AND deleted = 0
 );
 
 INSERT INTO tb_user(
-  username, realname, openid, head_img, sex, phone, authentication,
-  school_id, stu_id, student_id_card, student_id_card_review, score, money,
-  alipay_payment_code, wechat_payment_code, is_manager, deleted, create_time, update_time
+  username, realname, openid, sex, phone, authentication,
+  school_id, stu_id, student_id_card_review, score, money,
+  is_manager, deleted, create_time, update_time
 )
 SELECT
-  '许同学', '许知夏', 'seed_second_buyer_002', '', 0, '13800002002', 1,
-  @seed_school_id, '20260004', 'https://example.com/student-card-004.jpg', 2, 96, 0.00,
-  '', '', 0, 0, NOW() - INTERVAL 10 DAY, NOW() - INTERVAL 3 DAY
+  '许同学', '许知夏', 'seed_second_buyer_002', 0, '13800002002', 1,
+  @seed_school_id, '20260004', 2, 96, 0.00,
+  0, 0, NOW() - INTERVAL 10 DAY, NOW() - INTERVAL 3 DAY
 FROM DUAL
 WHERE NOT EXISTS (
   SELECT 1 FROM tb_user WHERE openid = 'seed_second_buyer_002' AND deleted = 0
@@ -181,16 +181,15 @@ SET @buyer_xu = (
 --    status：0在售，1待支付锁定，2交易中，3已售出，4已下架。
 -- ============================================================
 INSERT INTO tb_second_hand_product(
-  seller_id, school_id, compus_id, category_id, title, description, images,
-  condition_level, price, pickup_location, support_delivery, negotiable,
+  seller_id, school_id, compus_id, category_id, title, description,
+  condition_level, price, pickup_address_snapshot, pickup_only, negotiable,
   status, view_count, favorite_count, deleted, create_time, update_time
 )
 SELECT
   @seller_lin, @seed_school_id, @seed_compus_id, @cat_digital,
   '[测试] iPad Air 5 64G 深空灰',
   '自用 iPad Air 5，屏幕无划痕，电池状态正常，送保护壳和二代笔替代笔。适合上课记笔记。',
-  '',
-  '九成新', 2850.00, '主校区图书馆一楼大厅', 0, 1,
+  '九成新', 2850.00, '主校区图书馆一楼大厅', 1, 1,
   0, 38, 2, 0, NOW() - INTERVAL 3 DAY, NOW() - INTERVAL 2 HOUR
 FROM DUAL
 WHERE NOT EXISTS (
@@ -198,16 +197,15 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO tb_second_hand_product(
-  seller_id, school_id, compus_id, category_id, title, description, images,
-  condition_level, price, pickup_location, support_delivery, negotiable,
+  seller_id, school_id, compus_id, category_id, title, description,
+  condition_level, price, pickup_address_snapshot, pickup_only, negotiable,
   status, view_count, favorite_count, deleted, create_time, update_time
 )
 SELECT
   @seller_zhou, @seed_school_id, @seed_compus_id, @cat_book,
   '[测试] 高等数学同济第七版上下册',
   '上下册合售，有少量铅笔笔记，期末复习很够用。另送一本线代习题册。',
-  '',
-  '八成新', 32.00, '教学楼 A 座门口', 1, 1,
+  '八成新', 32.00, '教学楼 A 座门口', 0, 1,
   0, 21, 1, 0, NOW() - INTERVAL 2 DAY, NOW() - INTERVAL 5 HOUR
 FROM DUAL
 WHERE NOT EXISTS (
@@ -215,16 +213,15 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO tb_second_hand_product(
-  seller_id, school_id, compus_id, category_id, title, description, images,
-  condition_level, price, pickup_location, support_delivery, negotiable,
+  seller_id, school_id, compus_id, category_id, title, description,
+  condition_level, price, pickup_address_snapshot, pickup_only, negotiable,
   status, view_count, favorite_count, deleted, create_time, update_time
 )
 SELECT
   @seller_lin, @seed_school_id, @seed_compus_id, @cat_sport,
   '[测试] 迪卡侬山地车 适合校园通勤',
   '刹车和变速都正常，车筐有一点旧。支持晚饭后送到宿舍区附近。',
-  '',
-  '七成新', 420.00, '东门快递站旁', 1, 1,
+  '七成新', 420.00, '东门快递站旁', 0, 1,
   0, 55, 4, 0, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 1 HOUR
 FROM DUAL
 WHERE NOT EXISTS (
@@ -232,16 +229,15 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO tb_second_hand_product(
-  seller_id, school_id, compus_id, category_id, title, description, images,
-  condition_level, price, pickup_location, support_delivery, negotiable,
+  seller_id, school_id, compus_id, category_id, title, description,
+  condition_level, price, pickup_address_snapshot, pickup_only, negotiable,
   status, view_count, favorite_count, deleted, create_time, update_time
 )
 SELECT
   @seller_zhou, @seed_school_id, @seed_compus_id, @cat_digital,
   '[测试] Sony WH-1000XM4 降噪耳机',
   '功能正常，耳罩去年换过，轻微使用痕迹。当前有买家待支付，用来测试锁定态。',
-  '',
-  '八成新', 799.00, '生活区 3 号楼楼下', 0, 1,
+  '八成新', 799.00, '生活区 3 号楼楼下', 1, 1,
   1, 46, 3, 0, NOW() - INTERVAL 8 HOUR, NOW() - INTERVAL 20 MINUTE
 FROM DUAL
 WHERE NOT EXISTS (
@@ -249,16 +245,15 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO tb_second_hand_product(
-  seller_id, school_id, compus_id, category_id, title, description, images,
-  condition_level, price, pickup_location, support_delivery, negotiable,
+  seller_id, school_id, compus_id, category_id, title, description,
+  condition_level, price, pickup_address_snapshot, pickup_only, negotiable,
   status, view_count, favorite_count, deleted, create_time, update_time
 )
 SELECT
   @seller_lin, @seed_school_id, @seed_compus_id, @cat_life,
   '[测试] 小熊电煮锅 1.5L',
   '宿舍煮面神器，已支付待交付，用来测试卖家标记交付和买家确认收货。',
-  '',
-  '九成新', 58.00, '南门便利店门口', 0, 0,
+  '九成新', 58.00, '南门便利店门口', 1, 0,
   2, 19, 0, 0, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 30 MINUTE
 FROM DUAL
 WHERE NOT EXISTS (
@@ -266,16 +261,15 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO tb_second_hand_product(
-  seller_id, school_id, compus_id, category_id, title, description, images,
-  condition_level, price, pickup_location, support_delivery, negotiable,
+  seller_id, school_id, compus_id, category_id, title, description,
+  condition_level, price, pickup_address_snapshot, pickup_only, negotiable,
   status, view_count, favorite_count, deleted, create_time, update_time
 )
 SELECT
   @seller_zhou, @seed_school_id, @seed_compus_id, @cat_book,
   '[测试] 四级真题试卷 近三年',
   '已成交商品，用来测试已售出列表和订单完成态。',
-  '',
-  '八成新', 18.00, '图书馆自习区门口', 0, 1,
+  '八成新', 18.00, '图书馆自习区门口', 1, 1,
   3, 12, 0, 0, NOW() - INTERVAL 5 DAY, NOW() - INTERVAL 1 DAY
 FROM DUAL
 WHERE NOT EXISTS (
@@ -283,16 +277,15 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO tb_second_hand_product(
-  seller_id, school_id, compus_id, category_id, title, description, images,
-  condition_level, price, pickup_location, support_delivery, negotiable,
+  seller_id, school_id, compus_id, category_id, title, description,
+  condition_level, price, pickup_address_snapshot, pickup_only, negotiable,
   status, view_count, favorite_count, deleted, create_time, update_time
 )
 SELECT
   @seller_lin, @seed_school_id, @seed_compus_id, @cat_life,
   '[测试] 台灯 已下架样例',
   '后台下架样例，前台默认列表不展示，后台商品管理可查看。',
-  '',
-  '七成新', 25.00, '西区食堂门口', 0, 1,
+  '七成新', 25.00, '西区食堂门口', 1, 1,
   4, 7, 0, 0, NOW() - INTERVAL 4 DAY, NOW() - INTERVAL 1 DAY
 FROM DUAL
 WHERE NOT EXISTS (

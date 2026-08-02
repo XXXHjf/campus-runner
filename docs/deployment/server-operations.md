@@ -40,6 +40,8 @@ java -version
       `admin` 不同，必须通过服务器 `/root/campus-runner.env` 中的 `DB_PASSWORD`
       注入；真实密码不得写入本文档或 Git。
 - [ ] `server.port` 为 `8080`，`server.ssl.enabled` 为 `false`。
+- [ ] 图片上传的 multipart 单文件上限为 `10MB`、单请求上限为 `20MB`；生产
+      `campus-runner-start.sh` 已更新为仓库当前版本。
 - [ ] 生产模拟支付已关闭，微信支付商户号、回调地址和私钥均为生产配置。
 - [ ] `application.yaml` 和 `apiclient_key.pem` 存在，并确认它们将被打入本次 JAR。
 - [ ] 本次代码要求的数据库迁移已在备份后执行。
@@ -65,6 +67,12 @@ server:
   port: 8080
   ssl:
     enabled: false
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
 
 com:
   mikasa:
@@ -243,8 +251,8 @@ docs/database/second-hand-delivery-migration.sql
 ```text
 docs/database/media-asset-migration.sql
 docs/database/media-asset-phase2-migration.sql
-docs/database/media-asset-history-migration.sql
-docs/database/media-asset-history-migration.md
+docs/database/legacy-compatibility-cleanup.sql
+docs/database/legacy-compatibility-cleanup.md
 ```
 
 统一地址簿使用：
@@ -258,9 +266,9 @@ docs/database/address-book-type-removal.md
 地址簿迁移会删除已弃用的 `tb_address_book.type`。旧版 API 仍按旧结构读写该列，因此
 应先停止旧版 API，完成数据库备份和迁移后再启动新版 API；验证与回滚步骤见对应说明。
 
-已执行第一阶段 `media-asset-migration.sql` 的环境，本版本只需在发布新版 API 前执行
-`media-asset-phase2-migration.sql`。该脚本仅为 `tb_media_asset` 增加多图排序字段，
-不修改历史 URL，也不删除 OSS 对象。
+`media-asset-migration.sql` 和 `media-asset-phase2-migration.sql` 用于首次建立当前媒体表结构。
+已完成历史图片迁移的生产环境，本次清理发布执行 `legacy-compatibility-cleanup.sql`。该脚本会
+永久删除旧字段，不能让旧版 API 与迁移后的数据库并行运行。
 
 执行示例：
 
@@ -276,24 +284,15 @@ mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
 
 mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
   < docs/database/address-book-type-removal.sql
+
+# 仅用于结束图片兼容期的停机发布
+mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
+  < docs/database/legacy-compatibility-cleanup.sql
 ```
 
-以上脚本不会清空业务记录，并对结构变化进行了重复执行保护。地址簿脚本会按设计永久
-删除已弃用的 `type` 列及该列历史值，执行前必须完成数据库备份。
-
-历史图片迁移不能只执行 SQL，也不能在迁移完成前删除旧字段。部署迁移器后，依次执行：
-
-```bash
-/root/campus-runner-media-migration.sh dry-run
-/root/campus-runner-media-migration.sh apply --confirm-writes
-/root/campus-runner-media-migration.sh verify
-/root/check-media-migration.sh start
-```
-
-观察期间用 `/root/check-media-migration.sh status` 巡检。只有连续至少 7 天、日志连续、
-没有 `LEGACY_MEDIA_FALLBACK` 且迁移失败数为零时，脚本才会报告可以进入第一次清理发布。
-详细状态、失败处理、回滚和 OSS 差集删除约束见
-`docs/database/media-asset-history-migration.md`。
+地址簿和旧兼容字段清理都会永久删除数据，执行前必须完成可恢复的数据库备份。图片清理脚本
+会先验证旧图片都有新媒体绑定，并把已弃用的收款码媒体放入七天延迟删除；验证不通过时会
+主动终止。停机顺序、检查项和完整回滚方法见 `docs/database/legacy-compatibility-cleanup.md`。
 
 执行后可检查关键结构：
 
@@ -311,9 +310,16 @@ LIKE 'sort_order';
 
 SHOW COLUMNS FROM tb_address_book
 LIKE 'type';
+
+SELECT COUNT(*) AS remaining_legacy_columns
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND COLUMN_NAME IN ('img_url', 'head_img', 'student_id_card',
+                      'alipay_payment_code', 'wechat_payment_code',
+                      'pickup_location', 'support_delivery');
 ```
 
-最后一条查询在地址簿迁移完成后应返回空结果。
+地址簿列查询应返回空结果；兼容字段统计在清理发布完成后必须为 `0`。
 
 ## 更新管理后台
 

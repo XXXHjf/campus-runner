@@ -11,8 +11,7 @@ const {
   checkCilcleToast,
   errorCilcleToast,
   showErrorToast,
-  showSuccessToast,
-  compressImageSmart
+  showSuccessToast
 } = require('../../../utils/commonJs');
 
 Page({
@@ -27,33 +26,14 @@ Page({
     newNickName: null,
   },
   // 头像
-  async onChooseAvatar(e) {
+  onChooseAvatar(e) {
     const { avatarUrl } = e.detail;
     const { nickName } = this.data.userInfo;
-    
-    try {
-      // 显示加载提示
-      wx.showLoading({ 
-        title: '处理图片中...', 
-        mask: true 
-      });
-      
-      // 智能压缩图片
-      const compressedPath = await compressImageSmart(avatarUrl);
-      
-      wx.hideLoading();
-      
-      this.setData({
-        newAvatar: compressedPath,
-        hasUserInfo: nickName && compressedPath && compressedPath !== this.data.defaultAvatarUrl,
-      });
-      
-      console.log('[头像选择] 图片处理成功');
-    } catch (error) {
-      wx.hideLoading();
-      console.error('[头像选择] 图片处理失败:', error);
-      errorCilcleToast(this, '图片处理失败，请重试');
-    }
+
+    this.setData({
+      newAvatar: avatarUrl,
+      hasUserInfo: nickName && avatarUrl && avatarUrl !== this.data.defaultAvatarUrl,
+    });
   },
   // 昵称
   tiptChangeUsername(e) {
@@ -159,7 +139,6 @@ Page({
     // 准备更新数据
     const updatedUserInfo = {
       username: this.data.newNickName || this.data.userInfo.username,
-      headImg: this.data.newAvatarAssetId ? null : (this.data.newAvatar || this.data.userInfo.headImg),
       headImgAssetId: this.data.newAvatarAssetId,
       phone: this.data.phoneNumber || this.data.userInfo.phone,
     };
@@ -201,12 +180,6 @@ Page({
   toIdentify() {
     wx.navigateTo({
       url: '/pages/mine/identify/identify',
-    })
-  },
-  // 点击我的收款码跳转
-  toPaycode() {
-    wx.navigateTo({
-      url: '/pages/mine/paycode/paycode',
     })
   },
   // 生命周期函数--监听页面显示

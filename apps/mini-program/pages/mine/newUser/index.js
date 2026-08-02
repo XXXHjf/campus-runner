@@ -8,8 +8,7 @@ const { showLoading, hideLoading, showError } = require('../../../utils/transfor
 const {
   containsEmoji,
   errorCilcleToast,
-  showSuccessToast,
-  compressImageSmart
+  showSuccessToast
 } = require('../../../utils/commonJs');
 
 const defaultAvatarUrl = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0';
@@ -132,7 +131,6 @@ Page({
 
     const userData = {
       username: nickName,
-      headImg: this.data.headImgAssetId ? null : this.data.userInfo.avatarUrl,
       headImgAssetId: this.data.headImgAssetId,
       phone: this.data.phone, // 添加手机号
     };
@@ -159,33 +157,14 @@ Page({
     })
   },
   // 头像与昵称获取
-  async onChooseAvatar(e) {
+  onChooseAvatar(e) {
     const { avatarUrl } = e.detail;
     const { nickName } = this.data.userInfo;
-    
-    try {
-      // 显示加载提示
-      wx.showLoading({ 
-        title: '处理图片中...', 
-        mask: true 
-      });
-      
-      // 智能压缩图片
-      const compressedPath = await compressImageSmart(avatarUrl);
-      
-      wx.hideLoading();
-      
-      this.setData({
-        "userInfo.avatarUrl": compressedPath,
-        hasUserInfo: nickName && compressedPath && compressedPath !== defaultAvatarUrl,
-      });
-      
-      console.log('[头像选择] 图片处理成功');
-    } catch (error) {
-      wx.hideLoading();
-      console.error('[头像选择] 图片处理失败:', error);
-      errorCilcleToast(this, '图片处理失败，请重试');
-    }
+
+    this.setData({
+      "userInfo.avatarUrl": avatarUrl,
+      hasUserInfo: nickName && avatarUrl && avatarUrl !== defaultAvatarUrl,
+    });
   },
   // input表单的input事件--昵称修改
   iptInputNickName(e) {

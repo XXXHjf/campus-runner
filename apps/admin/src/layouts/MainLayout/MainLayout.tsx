@@ -12,10 +12,8 @@ import {
   AuditOutlined,
   CarOutlined,
   DashboardOutlined,
-  DollarOutlined,
   DownOutlined,
   EnvironmentOutlined,
-  MessageOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   PictureOutlined,
@@ -119,25 +117,6 @@ const menuItems: MenuItem[] = [
     path: '/second-hand',
   },
   {
-    key: 'finance',
-    label: '财务管理',
-    icon: <DollarOutlined />,
-    children: [
-      { key: 'finance-overview', label: '财务概览', path: '/finance/overview' },
-      { key: 'finance-income', label: '收益统计', path: '/finance/income' },
-      { key: 'finance-withdraw', label: '提现记录', path: '/finance/withdraw' },
-    ],
-  },
-  {
-    key: 'message',
-    label: '消息管理',
-    icon: <MessageOutlined />,
-    children: [
-      { key: 'message-subscribe', label: '订阅消息', path: '/message/subscribe' },
-      { key: 'message-template', label: '消息模板', path: '/message/template' },
-    ],
-  },
-  {
     key: 'banners',
     label: '轮播图管理',
     icon: <PictureOutlined />,
@@ -149,8 +128,6 @@ const menuItems: MenuItem[] = [
     icon: <SettingOutlined />,
     children: [
       { key: 'system-config', label: '系统配置', path: '/system/config' },
-      { key: 'system-admin', label: '管理员管理', path: '/system/admin' },
-      { key: 'system-logs', label: '操作日志', path: '/system/logs' },
     ],
   },
 ]

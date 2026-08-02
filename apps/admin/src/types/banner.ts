@@ -25,7 +25,6 @@ export interface Banner {
 }
 
 export interface BannerCreateRequest {
-  imgUrl?: string
   imageAssetId?: number
   title: string
   schoolId: number

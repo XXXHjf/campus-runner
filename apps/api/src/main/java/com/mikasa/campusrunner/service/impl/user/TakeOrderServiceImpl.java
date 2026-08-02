@@ -10,15 +10,12 @@ import com.mikasa.campusrunner.common.exception.UserException;
 import com.mikasa.campusrunner.mapper.OrderMapper;
 import com.mikasa.campusrunner.mapper.TakeOrderMapper;
 import com.mikasa.campusrunner.mapper.UserMapper;
-import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
-import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.dto.TakeOrderQueryDTO;
 import com.mikasa.campusrunner.pojo.dto.TakeOrderUpdateStatusDTO;
 import com.mikasa.campusrunner.pojo.entity.Order;
 import com.mikasa.campusrunner.pojo.entity.TakeOrder;
 import com.mikasa.campusrunner.pojo.vo.TakeOrderUserInfoVO;
 import com.mikasa.campusrunner.pojo.vo.TakeOrderVO;
-import com.mikasa.campusrunner.pojo.vo.UserPaymentVO;
 import com.mikasa.campusrunner.pojo.vo.UserVO;
 import com.mikasa.campusrunner.service.MediaAssetService;
 import com.mikasa.campusrunner.service.user.TakeOrderService;
@@ -50,9 +47,6 @@ public class TakeOrderServiceImpl implements TakeOrderService {
 
     @Autowired
     private MediaAssetService mediaAssetService;
-
-    @Autowired
-    private LegacyMediaFallbackMonitor fallbackMonitor;
 
     /**
      * 接单
@@ -135,16 +129,12 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         }else if (status.equals(TakeOrderStatusConstant.ORDER_FINISH)){
             //将订单状态修改为已送达
 
-            if (takeOrderUpdateStatusDTO.getImageAssetId() == null
-                    && StringUtils.isEmpty(takeOrderUpdateStatusDTO.getImage())){
+            if (takeOrderUpdateStatusDTO.getImageAssetId() == null){
                 throw new ParamException(MessageConstant.NO_IMAGE);
             }
 
             //修改接单信息状态
             takeOrder.setStatus(TakeOrderStatusConstant.ORDER_FINISH);
-            takeOrder.setImage(takeOrderUpdateStatusDTO.getImageAssetId() == null
-                    ? takeOrderUpdateStatusDTO.getImage()
-                    : null);
             takeOrder.setDeliveryTime(now);
             //修改订单信息状态
             order.setStatus(OrderStatusConstant.ORDER_FINISH);
@@ -227,7 +217,6 @@ public class TakeOrderServiceImpl implements TakeOrderService {
             throw new TakeOrderException(MessageConstant.TAKE_ORDER_NOT_FOUND);
         }
 
-        //TODO 这里需要添加收款码
         TakeOrderUserInfoVO takeOrderUserInfoVO = takeOrderMapper.getUserInfoByOrderId(orderId);
         return takeOrderUserInfoVO;
     }
@@ -253,64 +242,7 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         if (!images.isEmpty()) {
             return images.get(0).getUrl();
         }
-        String legacyImage = takeOrderMapper.getImageByOrderId(orderId);
-        fallbackMonitor.record(LegacyMediaSource.TAKE_ORDER, takeOrder.getId(), legacyImage);
-        return legacyImage;
-    }
-
-
-    /**
-     * 根据订单id查询接单人收款码
-     * @param orderId
-     * @return
-     */
-    @Override
-    public UserPaymentVO getPaymentCodeByOderId(Long orderId) {
-        //获得对应接单表信息
-        TakeOrder takeOrder = takeOrderMapper.getByOrderId(orderId);
-        //没有该订单
-        if (takeOrder == null){
-            throw new TakeOrderException(MessageConstant.TAKE_ORDER_NOT_FOUND);
-        }
-
-        //订单状态不是已送达
-        if (!takeOrder.getStatus().equals(TakeOrderStatusConstant.ORDER_FINISH)){
-            throw new OrderException(MessageConstant.ORDER_NOT_FINISHED);
-        }
-
-        UserVO user = userMapper.getById(takeOrder.getUserId());
-
-        UserPaymentVO userPaymentVO = new UserPaymentVO();
-        userPaymentVO.setAliPaymentCode(user.getAlipayPaymentCode());
-        userPaymentVO.setWeChatPaymentCode(user.getWeChatPaymentCode());
-        var alipayCodes = mediaAssetService.resolveAuthorizedBinding(
-                MediaAssetConstant.BOUND_USER_ALIPAY_PAYMENT,
-                user.getId(),
-                MediaPurpose.PAYMENT_QR.name());
-        if (!alipayCodes.isEmpty()) {
-            userPaymentVO.setAliPaymentCodeAssetId(alipayCodes.get(0).getMediaId());
-            userPaymentVO.setAliPaymentCode(alipayCodes.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(
-                    LegacyMediaSource.USER_ALIPAY_PAYMENT,
-                    user.getId(),
-                    user.getAlipayPaymentCode());
-        }
-        var wechatCodes = mediaAssetService.resolveAuthorizedBinding(
-                MediaAssetConstant.BOUND_USER_WECHAT_PAYMENT,
-                user.getId(),
-                MediaPurpose.PAYMENT_QR.name());
-        if (!wechatCodes.isEmpty()) {
-            userPaymentVO.setWeChatPaymentCodeAssetId(wechatCodes.get(0).getMediaId());
-            userPaymentVO.setWeChatPaymentCode(wechatCodes.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(
-                    LegacyMediaSource.USER_WECHAT_PAYMENT,
-                    user.getId(),
-                    user.getWeChatPaymentCode());
-        }
-
-        return userPaymentVO;
+        return null;
     }
 
 
@@ -340,8 +272,6 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         if (!contentImages.isEmpty()) {
             order.setImageAssetId(contentImages.get(0).getMediaId());
             order.setImage(contentImages.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(LegacyMediaSource.ORDER, order.getOrderId(), order.getImage());
         }
         var proofImages = mediaAssetService.resolveAuthorizedBinding(
                 MediaAssetConstant.BOUND_TAKE_ORDER,
@@ -350,11 +280,6 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         if (!proofImages.isEmpty()) {
             order.setTakeOrderImageAssetId(proofImages.get(0).getMediaId());
             order.setTakeOrderImage(proofImages.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(
-                    LegacyMediaSource.TAKE_ORDER,
-                    order.getId(),
-                    order.getTakeOrderImage());
         }
         var categoryImages = mediaAssetService.resolvePublicBinding(
                 MediaAssetConstant.BOUND_ORDER_CATEGORY,
@@ -362,11 +287,6 @@ public class TakeOrderServiceImpl implements TakeOrderService {
                 MediaPurpose.ORDER_CATEGORY_ICON.name());
         if (!categoryImages.isEmpty()) {
             order.setCategoryImage(categoryImages.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(
-                    LegacyMediaSource.ORDER_CATEGORY,
-                    order.getCategoryId(),
-                    order.getCategoryImage());
         }
     }
 }

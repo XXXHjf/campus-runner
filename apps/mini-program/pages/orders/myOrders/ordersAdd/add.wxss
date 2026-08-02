@@ -431,12 +431,6 @@
   align-items: center;
 }
 
-/* 保留旧的emoji样式（已废弃） */
-.label-icon {
-  font-size: 32rpx;
-  margin-right: 10rpx;
-}
-
 .label-text {
   font-size: 30rpx;
   font-weight: 600;
@@ -507,13 +501,6 @@
   flex-shrink: 0;
 }
 
-/* 保留旧的emoji样式（已废弃） */
-.confirm-icon-small {
-  font-size: 32rpx;
-  margin-right: 10rpx;
-  flex-shrink: 0;
-}
-
 .confirm-label-compact {
   font-size: 28rpx;
   color: #666;
@@ -571,13 +558,6 @@
 
 /* TDesign图标样式 - 温馨提示 */
 .tips-icon-td {
-  margin-right: 10rpx;
-  flex-shrink: 0;
-}
-
-/* 保留旧的emoji样式（已废弃） */
-.tips-icon-small {
-  font-size: 28rpx;
   margin-right: 10rpx;
   flex-shrink: 0;
 }
@@ -683,102 +663,4 @@
   opacity: 0.5;
   background-color: rgba(0, 0, 0, 0.05);
 }
-
-/* 保留旧版样式以防其他地方使用 */
-.order-confirm-content {
-  padding: 20rpx 0;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.confirm-card {
-  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
-  border-radius: 16rpx;
-  padding: 20rpx;
-  margin: 0 20rpx;
-  border: 2rpx solid #E8EAED;
-}
-
-.confirm-item {
-  display: flex;
-  align-items: center;
-  padding: 20rpx 15rpx;
-  border-bottom: 1rpx solid #F0F0F0;
-  transition: background-color 0.2s;
-}
-
-.confirm-item:last-child {
-  border-bottom: none;
-}
-
-.confirm-item-highlight {
-  background-color: rgba(0, 82, 217, 0.03);
-  border-radius: 12rpx;
-  border-bottom: none;
-  margin-bottom: 10rpx;
-}
-
-.confirm-icon {
-  font-size: 36rpx;
-  margin-right: 15rpx;
-  flex-shrink: 0;
-}
-
-.confirm-label {
-  font-size: 28rpx;
-  color: #666;
-  width: 140rpx;
-  flex-shrink: 0;
-}
-
-.confirm-value {
-  flex: 1;
-  font-size: 28rpx;
-  color: #333;
-  font-weight: 500;
-  text-align: right;
-  word-break: break-all;
-}
-
-.highlight-text {
-  color: #0052d9;
-  font-weight: 600;
-  font-size: 30rpx;
-}
-
-.price-text {
-  color: #FF6B00;
-  font-weight: 600;
-  font-size: 32rpx;
-}
-
-.warning-text {
-  color: #FF6B00;
-  font-weight: 500;
-}
-
-/* 温馨提示 */
-.confirm-tips {
-  display: flex;
-  align-items: center;
-  margin: 20rpx 20rpx 10rpx;
-  padding: 20rpx;
-  background: linear-gradient(135deg, #FFF9E6 0%, #FFF4D9 100%);
-  border-radius: 12rpx;
-  border-left: 6rpx solid #FFB800;
-}
-
-.tips-icon {
-  font-size: 32rpx;
-  margin-right: 12rpx;
-  flex-shrink: 0;
-}
-
-.tips-text {
-  font-size: 24rpx;
-  color: #8B6914;
-  line-height: 1.6;
-  flex: 1;
-}
-
 

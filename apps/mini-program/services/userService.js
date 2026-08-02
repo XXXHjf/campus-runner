@@ -51,34 +51,6 @@ function authenticate(authData) {
 }
 
 /**
- * 获取支付码
- * @returns {Promise<Object>} 支付码信息
- */
-function getPayCode() {
-  return request({
-    url: `${url}/api/user/paycode`,
-    method: 'GET'
-  }).then(res => {
-    return res.data.data || {};
-  });
-}
-
-/**
- * 更新支付码
- * @param {Object} paymentData - 收款码链接或媒体资源 ID
- * @returns {Promise<Object>} 更新结果
- */
-function updatePaymentCode(paymentData) {
-  return request({
-    url: `${url}/api/user/updatePaymentCode`,
-    method: 'PUT',
-    data: paymentData
-  }).then(res => {
-    return res.data;
-  });
-}
-
-/**
  * 获取学校列表
  * @returns {Promise<Array>} 学校列表
  */
@@ -95,8 +67,6 @@ module.exports = {
   getUserInfo,
   updateUserInfo,
   authenticate,
-  getPayCode,
-  updatePaymentCode,
   getSchools
 };
 

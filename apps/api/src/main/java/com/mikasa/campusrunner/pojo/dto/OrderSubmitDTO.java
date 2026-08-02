@@ -1,6 +1,5 @@
 package com.mikasa.campusrunner.pojo.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -33,7 +32,6 @@ public class OrderSubmitDTO {
     private Integer gap;//超时间隔
     private Integer doorAccess;//门禁
     private String note;
-    private String image;
     private Long imageAssetId;
     private Long categoryId;
     private String username;//订单用的昵称

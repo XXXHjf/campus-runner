@@ -111,7 +111,7 @@ export default function CategoryManagement() {
       form.setFieldValue('imageAssetId', uploaded.mediaId)
     } catch (err) {
       console.error('上传分类图标失败', err)
-      message.error('上传分类图标失败')
+      message.error(err instanceof Error ? err.message : '上传分类图标失败，请重试')
     } finally {
       setUploading(false)
     }

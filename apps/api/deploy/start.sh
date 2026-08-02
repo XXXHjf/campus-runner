@@ -37,6 +37,8 @@ cd "$APP_DIR"
 nohup "$JAVA_BIN" -jar "$APP_JAR" \
     --server.port=8080 \
     --server.ssl.enabled=false \
+    --spring.servlet.multipart.max-file-size=10MB \
+    --spring.servlet.multipart.max-request-size=20MB \
     --com.mikasa.campus-runner.dev.mock-payment-enabled=false \
     --logging.level.com.mikasa.campusrunner.mapper=INFO \
     --logging.level.com.wechat.pay.contrib.apache.httpclient.SignatureExec=OFF \

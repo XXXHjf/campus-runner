@@ -1,4 +1,5 @@
 import { del, request } from './request'
+import { prepareImageForUpload } from '../utils/prepareImageForUpload'
 
 export type MediaPurpose =
   | 'ORDER_CATEGORY_ICON'
@@ -8,7 +9,6 @@ export type MediaPurpose =
   | 'DELIVERY_PROOF'
   | 'AVATAR'
   | 'STUDENT_CARD'
-  | 'PAYMENT_QR'
   | 'BANNER'
 
 export type MediaUploadResult = {
@@ -23,8 +23,9 @@ export async function uploadImage(
   purpose: MediaPurpose,
   onProgress?: (progress: number) => void,
 ): Promise<MediaUploadResult> {
+  const preparedFile = await prepareImageForUpload(file, purpose)
   const formData = new FormData()
-  formData.append('file', file)
+  formData.append('file', preparedFile)
   formData.append('purpose', purpose)
 
   return request<MediaUploadResult>({

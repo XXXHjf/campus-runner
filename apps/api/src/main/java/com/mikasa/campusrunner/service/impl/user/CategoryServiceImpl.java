@@ -3,8 +3,6 @@ package com.mikasa.campusrunner.service.impl.user;
 import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
 import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.mapper.CategoryMapper;
-import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
-import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.entity.Category;
 import com.mikasa.campusrunner.service.MediaAssetService;
 import com.mikasa.campusrunner.service.user.CategoryService;
@@ -25,9 +23,6 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Autowired
     private MediaAssetService mediaAssetService;
-
-    @Autowired
-    private LegacyMediaFallbackMonitor fallbackMonitor;
 
     /**
      * 根据id查询商品分类
@@ -63,8 +58,6 @@ public class CategoryServiceImpl implements CategoryService {
         if (!images.isEmpty()) {
             category.setImageAssetId(images.get(0).getMediaId());
             category.setImage(images.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(LegacyMediaSource.ORDER_CATEGORY, category.getId(), category.getImage());
         }
     }
 }

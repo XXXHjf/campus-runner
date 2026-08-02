@@ -1,11 +1,10 @@
 -- ============================================================
--- Campus Runner 统一媒体资源表与历史二手分类图片兼容迁移
+-- Campus Runner 统一媒体资源表
 --
 -- 执行要求：
 -- 1. 先备份数据库。
--- 2. 先确保 tb_second_hand_category 已存在；全新环境先执行 second-hand-schema.sql。
--- 3. 在发布依赖 image_asset_id 的 API 前执行。
--- 4. 脚本不删除旧 image 字段或旧 OSS 文件，可重复执行。
+-- 2. 在发布统一媒体资源 API 前执行。
+-- 3. 可重复执行。
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `tb_media_asset` (
@@ -37,38 +36,5 @@ CREATE TABLE IF NOT EXISTS `tb_media_asset` (
   KEY `idx_media_asset_binding` (`bound_type`, `bound_id`)
 ) ENGINE=InnoDB COMMENT='统一媒体资源及生命周期';
 
-SET @has_image_asset_id = (
-  SELECT COUNT(*)
-  FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'tb_second_hand_category'
-    AND COLUMN_NAME = 'image_asset_id'
-);
-SET @add_image_asset_id_sql = IF(
-  @has_image_asset_id = 0,
-  'ALTER TABLE tb_second_hand_category ADD COLUMN image_asset_id BIGINT NULL COMMENT ''新媒体资源 id；为空时兼容读取旧 image'' AFTER image',
-  'SELECT 1'
-);
-PREPARE add_image_asset_id_stmt FROM @add_image_asset_id_sql;
-EXECUTE add_image_asset_id_stmt;
-DEALLOCATE PREPARE add_image_asset_id_stmt;
-
-SET @has_category_image_asset_index = (
-  SELECT COUNT(*)
-  FROM information_schema.STATISTICS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'tb_second_hand_category'
-    AND INDEX_NAME = 'idx_second_hand_category_image_asset'
-);
-SET @add_category_image_asset_index_sql = IF(
-  @has_category_image_asset_index = 0,
-  'ALTER TABLE tb_second_hand_category ADD INDEX idx_second_hand_category_image_asset (image_asset_id)',
-  'SELECT 1'
-);
-PREPARE add_category_image_asset_index_stmt FROM @add_category_image_asset_index_sql;
-EXECUTE add_category_image_asset_index_stmt;
-DEALLOCATE PREPARE add_category_image_asset_index_stmt;
-
 -- 验证：
 -- SHOW TABLES LIKE 'tb_media_asset';
--- SHOW COLUMNS FROM tb_second_hand_category LIKE 'image_asset_id';

@@ -31,7 +31,6 @@ CREATE TABLE `tb_admin` (
 ENGINE = InnoDB;
 CREATE TABLE `tb_banner` ( 
   `id` BIGINT AUTO_INCREMENT NOT NULL,
-  `img_url` VARCHAR(255) NULL COMMENT '轮播图图片地址' ,
   `title` VARCHAR(255) NULL COMMENT '轮播图标题' ,
   `school_id` BIGINT NULL COMMENT '轮播图对应的学校id(如果为0则代表所有学校，即通用的轮播图，否则为对应学校的轮播图)' ,
   `school_name` VARCHAR(255) NULL COMMENT '轮播图对应的学校名字' ,
@@ -72,7 +71,6 @@ COMMENT = '楼宇表
 CREATE TABLE `tb_category` ( 
   `id` BIGINT AUTO_INCREMENT NOT NULL,
   `category_name` VARCHAR(50) NULL COMMENT '商品类别名称' ,
-  `image` VARCHAR(255) NULL COMMENT '图标' ,
   `deleted` INT NULL COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
    PRIMARY KEY (`id`)
 )
@@ -110,7 +108,6 @@ CREATE TABLE `tb_orders` (
   `phone` VARCHAR(50) NULL COMMENT '订单用的电话字段' ,
   `status` INT NULL COMMENT '订单状态(-4退款异常 -3退款成功 -2退款中 -1未支付 0待接单 1已接单 2派送中 3已送达 4已取消 5已完成 6提现成功 7提现失败)' ,
   `note` TEXT NULL COMMENT '订单说明信息' ,
-  `image` VARCHAR(255) NULL COMMENT '图片路径' ,
   `category_id` BIGINT NULL COMMENT '类别id' ,
   `deleted` INT NULL DEFAULT 0  COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
   `real_price` DECIMAL(10,2) NULL COMMENT '禁用 实际成交价格' ,
@@ -176,7 +173,6 @@ CREATE TABLE `tb_take_orders` (
   `order_id` BIGINT NULL COMMENT '订单id' ,
   `user_id` BIGINT NULL COMMENT '接单人id' ,
   `create_time` DATETIME NULL COMMENT '接单时间' ,
-  `image` VARCHAR(255) NULL COMMENT '派送完成时的图片' ,
   `deleted` INT NULL COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
   `status` INT NULL COMMENT '接单状态(0已接单 1派送中 2已送达 3已取消)' ,
   `delivery_time` DATETIME NULL COMMENT '送达时间' ,
@@ -191,18 +187,14 @@ CREATE TABLE `tb_user` (
   `username` VARCHAR(50) NULL COMMENT '用户名(昵称)' ,
   `realname` VARCHAR(50) NULL COMMENT '真实姓名' ,
   `openid` VARCHAR(255) NULL COMMENT '微信登录的id' ,
-  `head_img` VARCHAR(255) NULL COMMENT '头像' ,
   `sex` TINYINT NULL COMMENT '性别' ,
   `phone` VARCHAR(50) NULL COMMENT '手机号' ,
   `authentication` INT NULL COMMENT '是否认证(0 未认证, 1 已认证)' ,
   `school_id` BIGINT NULL COMMENT '学校id' ,
   `stu_id` VARCHAR(50) NULL COMMENT '学号' ,
-  `student_id_card` VARCHAR(255) NULL COMMENT '学生证照片链接' ,
   `student_id_card_review` INT NULL DEFAULT 0  COMMENT '学生证审核(0未审核 1审核中 2审核通过 3审核不通过)' ,
   `score` INT NULL DEFAULT 100  COMMENT '信誉分(默认100)' ,
   `money` DECIMAL(10,2) NULL COMMENT '钱包' ,
-  `alipay_payment_code` VARCHAR(255) NULL COMMENT '支付宝收款码' ,
-  `wechat_payment_code` VARCHAR(255) NULL COMMENT '微信收款码' ,
   `is_manager` INT NULL DEFAULT 0  COMMENT '是否是管理员(0不是 1是)' ,
   `deleted` INT NULL COMMENT '逻辑删除字段(0 未删除, 1 已删除)' ,
   `create_time` DATETIME NULL COMMENT '创建时间' ,

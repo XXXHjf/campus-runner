@@ -70,7 +70,7 @@
     <sql id="orderVoSelect">
         o.id, o.order_number, o.product_id, o.bargain_id, o.buyer_id,
         buyer.username as buyer_name, o.seller_id, seller.username as seller_name,
-        p.title as product_title, p.images as product_images,
+        p.title as product_title,
         o.product_amount, o.pay_amount, o.service_fee_rate, o.service_fee, o.seller_income,
         o.delivery_mode, o.pickup_address_snapshot, o.buyer_delivery_address_id,
         o.buyer_delivery_address_snapshot, o.delivery_remark, o.status, o.pay_time, o.cancel_time,

@@ -58,10 +58,8 @@ type Product = {
   images?: string
   conditionLevel?: string
   price: number
-  pickupLocation?: string
   pickupAddressSnapshot?: string
   pickupOnly?: number
-  supportDelivery?: number
   negotiable?: number
   status: number
   viewCount?: number
@@ -366,8 +364,8 @@ export default function SecondHandManagement() {
       message.error('仅支持 JPEG、PNG 或 WebP 图片')
       return Upload.LIST_IGNORE
     }
-    if (file.size > 2 * 1024 * 1024) {
-      message.error('图片不能超过 2MB')
+    if (file.size > 25 * 1024 * 1024) {
+      message.error('图片过大，请选择较小的图片')
       return Upload.LIST_IGNORE
     }
     return true
@@ -562,9 +560,9 @@ export default function SecondHandManagement() {
             {[data.schoolName, data.compusName].filter(Boolean).join(' / ') || '-'}
           </Descriptions.Item>
           <Descriptions.Item label="交付方式">
-            {data.pickupOnly === 1 ? '仅自提' : data.supportDelivery === 1 ? '自提或配送' : '自提'}
+            {data.pickupOnly === 1 ? '仅自提' : '自提或配送'}
           </Descriptions.Item>
-          <Descriptions.Item label="自提地点">{compactText(data.pickupLocation || data.pickupAddressSnapshot)}</Descriptions.Item>
+          <Descriptions.Item label="自提地点">{compactText(data.pickupAddressSnapshot)}</Descriptions.Item>
           <Descriptions.Item label="是否可议价">{data.negotiable === 1 ? '可议价' : '不可议价'}</Descriptions.Item>
           <Descriptions.Item label="浏览/收藏">
             {data.viewCount || 0} / {data.favoriteCount || 0}
@@ -938,7 +936,7 @@ export default function SecondHandManagement() {
           </Form.Item>
           <Form.Item
             label="分类图标"
-            extra="支持 JPEG、PNG、WebP，最大 2MB，建议使用正方形图片"
+            extra="支持 JPEG、PNG、WebP，建议使用正方形图片"
             required
             validateStatus={categoryImageError ? 'error' : undefined}
             help={categoryImageError || undefined}

@@ -23,7 +23,7 @@
 | GET | `/admin/api/users/all?page=1&pageSize=20` | 全部用户 | 分页查询所有注册用户，包含认证状态、发单数和接单数 |
 | GET | `/admin/api/users/authenticated?page=1&pageSize=20` | 已认证用户 | 分页查询已完成学生认证的用户列表 |
 | GET | `/admin/api/users/pending-review?page=1&pageSize=20` | 待审核用户 | 分页查询学生证待审核的用户，包含学生证照片 |
-| GET | `/admin/api/users/{id}` | 用户详情 | 根据ID查询完整用户信息，含收款码、累计收入、发单接单统计 |
+| GET | `/admin/api/users/{id}` | 用户详情 | 根据ID查询用户资料、认证材料、累计收入和发单接单统计 |
 | GET | `/admin/api/users/statistics` | 用户统计 | 获取用户总数、已认证/未认证数、待审核数、今日新增和管理员数量 |
 
 ---

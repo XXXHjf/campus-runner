@@ -148,6 +148,19 @@
             <version>3.15.1</version>
         </dependency>
 
+        <!-- 统一图片缩放、方向修正与重新编码 -->
+        <dependency>
+            <groupId>net.coobird</groupId>
+            <artifactId>thumbnailator</artifactId>
+            <version>0.4.21</version>
+        </dependency>
+        <!-- 为 ImageIO 补充 WebP 解码能力；处理后仍按用途输出 JPEG 或 PNG -->
+        <dependency>
+            <groupId>com.github.usefulness</groupId>
+            <artifactId>webp-imageio</artifactId>
+            <version>0.11.0</version>
+        </dependency>
+
 <!--        java9以上要增加-->
         <dependency>
             <groupId>javax.xml.bind</groupId>

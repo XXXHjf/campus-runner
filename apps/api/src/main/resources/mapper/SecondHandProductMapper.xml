@@ -5,13 +5,11 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into tb_second_hand_product(
             id, seller_id, school_id, compus_id, category_id, title, description,
-            images, condition_level, price, pickup_address_id, pickup_address_snapshot,
-            pickup_location, pickup_only, support_delivery,
+            condition_level, price, pickup_address_id, pickup_address_snapshot, pickup_only,
             negotiable, status, view_count, favorite_count, deleted, create_time, update_time
         ) values(
             null, #{sellerId}, #{schoolId}, #{compusId}, #{categoryId}, #{title}, #{description},
-            #{images}, #{conditionLevel}, #{price}, #{pickupAddressId}, #{pickupAddressSnapshot},
-            #{pickupLocation}, #{pickupOnly}, #{supportDelivery},
+            #{conditionLevel}, #{price}, #{pickupAddressId}, #{pickupAddressSnapshot}, #{pickupOnly},
             #{negotiable}, #{status}, #{viewCount}, #{favoriteCount}, #{deleted}, #{createTime}, #{updateTime}
         )
     </insert>
@@ -23,14 +21,11 @@
             <if test="categoryId != null">category_id = #{categoryId},</if>
             <if test="title != null and title != ''">title = #{title},</if>
             <if test="description != null">description = #{description},</if>
-            <if test="images != null">images = #{images},</if>
             <if test="conditionLevel != null and conditionLevel != ''">condition_level = #{conditionLevel},</if>
             <if test="price != null">price = #{price},</if>
             <if test="pickupAddressId != null">pickup_address_id = #{pickupAddressId},</if>
             <if test="pickupAddressSnapshot != null and pickupAddressSnapshot != ''">pickup_address_snapshot = #{pickupAddressSnapshot},</if>
-            <if test="pickupLocation != null and pickupLocation != ''">pickup_location = #{pickupLocation},</if>
             <if test="pickupOnly != null">pickup_only = #{pickupOnly},</if>
-            <if test="supportDelivery != null">support_delivery = #{supportDelivery},</if>
             <if test="negotiable != null">negotiable = #{negotiable},</if>
             <if test="status != null">status = #{status},</if>
             <if test="viewCount != null">view_count = #{viewCount},</if>
@@ -48,9 +43,9 @@
     <sql id="productVoSelect">
         p.id, p.seller_id, u.username as seller_name, p.school_id, s.school_name,
         p.compus_id, cp.compus_name, p.category_id, c.name as category_name,
-        p.title, p.description, p.images, p.condition_level, p.price,
-        p.pickup_address_id, p.pickup_address_snapshot, p.pickup_location,
-        p.pickup_only, p.support_delivery, p.negotiable, p.status,
+        p.title, p.description, p.condition_level, p.price,
+        p.pickup_address_id, p.pickup_address_snapshot,
+        p.pickup_only, p.negotiable, p.status,
         p.view_count, p.favorite_count, p.create_time, p.update_time
     </sql>
 

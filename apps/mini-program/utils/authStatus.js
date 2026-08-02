@@ -68,10 +68,7 @@ function getStatusDesc(status) {
 }
 
 module.exports = {
-  // 新命名
   STUDENT_ID_CARD_REVIEW_STATUS,
-  // 兼容旧命名（仅用于现有代码引用）
-  AUTH_STATUS: STUDENT_ID_CARD_REVIEW_STATUS,
   isApproved,
   getStatusText,
   getStatusTheme,

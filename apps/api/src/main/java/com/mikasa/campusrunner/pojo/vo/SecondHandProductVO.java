@@ -25,9 +25,7 @@ public class SecondHandProductVO {
     private BigDecimal price;
     private Long pickupAddressId;
     private String pickupAddressSnapshot;
-    private String pickupLocation;
     private Integer pickupOnly;
-    private Integer supportDelivery;
     private Integer negotiable;
     private Integer status;
     private Integer viewCount;

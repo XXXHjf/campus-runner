@@ -9,8 +9,6 @@ import com.mikasa.campusrunner.common.exception.ParamException;
 import com.mikasa.campusrunner.common.exception.SchoolException;
 import com.mikasa.campusrunner.mapper.BannerMapper;
 import com.mikasa.campusrunner.mapper.SchoolMapper;
-import com.mikasa.campusrunner.migration.media.LegacyMediaFallbackMonitor;
-import com.mikasa.campusrunner.migration.media.LegacyMediaSource;
 import com.mikasa.campusrunner.pojo.dto.admin.AdminBannerAddDTO;
 import com.mikasa.campusrunner.pojo.entity.Banner;
 import com.mikasa.campusrunner.service.admin.AdminBannerService;
@@ -42,9 +40,6 @@ public class AdminBannerServiceImpl implements AdminBannerService {
     @Autowired
     private MediaAssetService mediaAssetService;
 
-    @Autowired
-    private LegacyMediaFallbackMonitor fallbackMonitor;
-
     /**
      * 管理员端新增轮播图
      * @param dto
@@ -55,12 +50,8 @@ public class AdminBannerServiceImpl implements AdminBannerService {
         log.info("Admin adding banner...");
         Banner banner = new Banner();
         BeanUtils.copyProperties(dto, banner);
-        if (dto.getImageAssetId() == null
-                && (dto.getImgUrl() == null || dto.getImgUrl().isBlank())) {
+        if (dto.getImageAssetId() == null) {
             throw new ParamException("请选择轮播图图片");
-        }
-        if (dto.getImageAssetId() != null) {
-            banner.setImgUrl(null);
         }
         LocalDateTime now = LocalDateTime.now();//获取当前时间
         Long adminId = BaseContext.getCurrentId();//获取当前管理员id
@@ -82,17 +73,15 @@ public class AdminBannerServiceImpl implements AdminBannerService {
         banner.setDeleted(DeleteConstant.UN_DELETED);
 
         bannerMapper.insert(banner);
-        if (dto.getImageAssetId() != null) {
-            mediaAssetService.replaceBinding(
-                    List.of(dto.getImageAssetId()),
-                    MediaPurpose.BANNER.name(),
-                    MediaAssetConstant.OWNER_ADMIN,
-                    adminId,
-                    MediaAssetConstant.BOUND_BANNER,
-                    banner.getId(),
-                    1,
-                    Duration.ofDays(7));
-        }
+        mediaAssetService.replaceBinding(
+                List.of(dto.getImageAssetId()),
+                MediaPurpose.BANNER.name(),
+                MediaAssetConstant.OWNER_ADMIN,
+                adminId,
+                MediaAssetConstant.BOUND_BANNER,
+                banner.getId(),
+                1,
+                Duration.ofDays(7));
     }
 
     /**
@@ -152,8 +141,6 @@ public class AdminBannerServiceImpl implements AdminBannerService {
         if (!images.isEmpty()) {
             banner.setImageAssetId(images.get(0).getMediaId());
             banner.setImgUrl(images.get(0).getUrl());
-        } else {
-            fallbackMonitor.record(LegacyMediaSource.BANNER, banner.getId(), banner.getImgUrl());
         }
     }
 }

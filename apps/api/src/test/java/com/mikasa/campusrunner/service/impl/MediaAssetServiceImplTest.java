@@ -3,6 +3,7 @@ package com.mikasa.campusrunner.service.impl;
 import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
 import com.mikasa.campusrunner.common.exception.UploadException;
 import com.mikasa.campusrunner.common.utils.AliOSSUtil;
+import com.mikasa.campusrunner.common.utils.ImageProcessingService;
 import com.mikasa.campusrunner.mapper.MediaAssetMapper;
 import com.mikasa.campusrunner.pojo.entity.MediaAsset;
 import com.mikasa.campusrunner.pojo.vo.MediaUploadVO;
@@ -40,12 +41,14 @@ class MediaAssetServiceImplTest {
     private MediaAssetMapper mediaAssetMapper;
     @Mock
     private AliOSSUtil aliOSSUtil;
+    @Mock
+    private ImageProcessingService imageProcessingService;
 
     private MediaAssetServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new MediaAssetServiceImpl(mediaAssetMapper, aliOSSUtil);
+        service = new MediaAssetServiceImpl(mediaAssetMapper, aliOSSUtil, imageProcessingService);
     }
 
     @Test
@@ -55,6 +58,17 @@ class MediaAssetServiceImplTest {
                 "operator-controlled-name.png",
                 "image/png",
                 imageBytes());
+        byte[] processedBytes = "processed-image".getBytes();
+        when(imageProcessingService.process(
+                any(byte[].class),
+                org.mockito.ArgumentMatchers.eq(
+                        com.mikasa.campusrunner.common.constant.MediaPurpose.SECOND_HAND_CATEGORY_ICON)))
+                .thenReturn(new ImageProcessingService.ProcessedImage(
+                        processedBytes,
+                        "image/png",
+                        "png",
+                        8,
+                        8));
         when(mediaAssetMapper.countActiveTemporary("ADMIN", 9L)).thenReturn(0);
         doAnswer(invocation -> {
             MediaAsset asset = invocation.getArgument(0);
@@ -81,7 +95,8 @@ class MediaAssetServiceImplTest {
         MediaAsset stored = assetCaptor.getValue();
         assertEquals(MediaAssetConstant.STATUS_UPLOADING, stored.getStatus());
         assertFalse(stored.getObjectKey().contains("operator-controlled-name"));
-        verify(aliOSSUtil).uploadObject(stored.getObjectKey(), file.getBytes());
+        assertEquals((long) processedBytes.length, stored.getFileSize());
+        verify(aliOSSUtil).uploadObject(stored.getObjectKey(), processedBytes);
     }
 
     @Test

@@ -136,14 +136,14 @@ function confirmOrder(orderId) {
 
 function mockPaySuccess(orderId) {
   return request({
-    url: `${url}/api/dev-payment/second-hand/orders/${orderId}/mock-pay-success`,
+    url: `${url}/api/dev/second-hand/orders/${orderId}/mock-pay-success`,
     method: 'POST',
   }).then((res) => unwrapData(res));
 }
 
 function mockReceiveSuccess(orderId) {
   return request({
-    url: `${url}/api/dev-payment/second-hand/orders/${orderId}/mock-receive-success`,
+    url: `${url}/api/dev/second-hand/orders/${orderId}/mock-receive-success`,
     method: 'POST',
   }).then((res) => unwrapData(res));
 }

@@ -4,7 +4,6 @@ import com.mikasa.campusrunner.common.json.JacksonObjectMapper;
 import com.mikasa.campusrunner.filter.SystemConfigFilter;
 import com.mikasa.campusrunner.interceptor.JwtTokenAdminUserInterceptor;
 import com.mikasa.campusrunner.interceptor.JwtTokenUserInterceptor;
-import com.mikasa.campusrunner.interceptor.UploadFileInterceptor;
 import jakarta.servlet.FilterRegistration;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.annotations.Select;
@@ -81,9 +80,6 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
     @Autowired
     private JwtTokenAdminUserInterceptor jwtTokenAdminUserInterceptor;
 
-    @Autowired
-    private UploadFileInterceptor uploadFileInterceptor;
-
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         log.info("Registering interceptors...");
@@ -97,20 +93,14 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
                         "/api/second-hand/pay/notify",
                         "/api/second-hand/refunds/notify",
                         "/api/second-hand/transfer/notify",
-                        "/api/wx-transfer/notify",
-                        "/api/upload");
+                        "/api/wx-transfer/notify");
 
         //注册管理员端拦截器
         registry.addInterceptor(jwtTokenAdminUserInterceptor)
                 .addPathPatterns("/admin/**")
                 .excludePathPatterns(
                         "/admin/api/login",
-                        "/admin/api/register",
                         "/admin/api/banner/getList/{schoolId}");
-
-        //注册拦截upload请求的拦截器
-        registry.addInterceptor(uploadFileInterceptor)
-                .addPathPatterns("/api/upload");
 
     }
 

@@ -20,13 +20,12 @@
 ## 管理后台
 
 - [管理后台页面设计](admin/admin-pages-design.md)
-- [管理后台页面计划](admin/admin-pages-plan.md)
 - [管理后台 API 设计](admin/admin-api-design.md)
-- [管理后台 API 计划](admin/admin-api-plan.md)
 
 ## 数据库和部署
 
 - [数据库表结构](database/schema.txt)
+- [旧兼容链路清理发布说明](database/legacy-compatibility-cleanup.md)
 - [生产服务器部署与更新](deployment/server-operations.md)
 - [Nginx 部署](deployment/nginx-deployment.md)
 

@@ -1,7 +1,6 @@
 package com.mikasa.campusrunner.service.admin;
 
 import com.mikasa.campusrunner.pojo.dto.admin.AdminLoginDTO;
-import com.mikasa.campusrunner.pojo.dto.admin.AdminRegisterDTO;
 import com.mikasa.campusrunner.pojo.entity.Admin;
 
 /**
@@ -15,10 +14,4 @@ public interface AdminService {
      * @return
      */
     Admin login(AdminLoginDTO adminLoginDTO);
-
-    /**
-     * 管理员用户注册
-     * @param adminRegisterDTO
-     */
-    void register(AdminRegisterDTO adminRegisterDTO);
 }

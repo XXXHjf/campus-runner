@@ -41,11 +41,8 @@ Page({
     radio: ["自食其力，暂不需要", "信息有误，重新下单", "不知道为什么，但是不用了"],
     buttonText: '',
     buttonDisabled: false,
-    weChatPaymentCode: null,
-    ifIKnow: false,
     dltDialogVisable: false,
     visible: false,
-    visibleConfirm: false,
     unpaidRemainTime: 0,
     unpaidDeleteProcessing: false,
   },
@@ -191,45 +188,18 @@ Page({
     this.setData({ note: e.detail.value });
   },
 
-  tpopVisibleChange(e) {
-    this.tbtnTapConfirm();
-  },
-
-  // 确认订单按钮（使用封装的 service）
-  async confirmOrder() {
-    try {
-      const result = await userOrderService.getTakerPaymentCode(this.data.id);
-      this.setData({
-        weChatPaymentCode: result.weChatPaymentCode,
-        visibleConfirm: true
-      });
-    } catch (err) {
-      showErrorToast(this, "获取支付码失败");
-    }
-  },
-
-  // 我已付款（使用封装的 service）
+  // 确认收货
   async tbtnTapConfirm() {
     try {
       showLoading('确认中');
       await userOrderService.confirmOrder(this.data.id);
       await this._loadOrderInfo();
-      this.setData({ visibleConfirm: false });
       showSuccessToast(this, "确认成功");
     } catch (err) {
       showErrorToast(this, "确认失败");
     } finally {
       hideLoading();
     }
-  },
-
-  tbtnTapIKnow() {
-    this.setData({ ifIKnow: true });
-  },
-
-  timgClickView(res) {
-    const imageUrl = res.target.dataset.src;
-    wx.previewImage({ urls: [imageUrl], showmenu: true });
   },
 
   // 待支付订单去支付

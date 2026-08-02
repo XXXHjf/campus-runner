@@ -8,7 +8,6 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import Login from '../pages/Login/Login'
 import MainLayout from '../layouts/MainLayout/MainLayout'
 import DashboardNew from '../pages/Dashboard/DashboardNew'
-import ComingSoon from '../pages/ComingSoon/ComingSoon'
 import CategoryManagement from '../pages/CategoryManagement/CategoryManagement'
 import UserManagement from '../pages/UserManagement/UserManagement'
 import OrderManagement from '../pages/OrderManagement/OrderManagement'
@@ -141,30 +140,6 @@ export const router = createBrowserRouter([
         element: <SecondHandManagement />,
       },
 
-      // 财务管理
-      {
-        path: 'finance/overview',
-        element: <ComingSoon />,
-      },
-      {
-        path: 'finance/income',
-        element: <ComingSoon />,
-      },
-      {
-        path: 'finance/withdraw',
-        element: <ComingSoon />,
-      },
-
-      // 消息管理
-      {
-        path: 'message/subscribe',
-        element: <ComingSoon />,
-      },
-      {
-        path: 'message/template',
-        element: <ComingSoon />,
-      },
-
       // 系统设置
       {
         path: 'system/config',
@@ -173,14 +148,6 @@ export const router = createBrowserRouter([
       {
         path: 'banners',
         element: <BannerManagement />,
-      },
-      {
-        path: 'system/admin',
-        element: <ComingSoon />,
-      },
-      {
-        path: 'system/logs',
-        element: <ComingSoon />,
       },
     ],
   },

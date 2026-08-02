@@ -74,8 +74,6 @@ public interface TakeOrderMapper {
      * @param orderId
      * @return
      */
-    String getImageByOrderId(@Param("orderId") Long orderId);
-
     /**
      * 根据订单id和接单人id查询接单信息
      * @param orderId

@@ -20,10 +20,6 @@ public class AdminUserDetailVO {
     private Integer studentIdCardReview;
     private Integer score;
     private BigDecimal money;
-    private String alipayPaymentCode;
-    private Long alipayPaymentCodeAssetId;
-    private String weChatPaymentCode;
-    private Long weChatPaymentCodeAssetId;
     private Integer isManager;
     private Integer orderCount;
     private Integer takeOrderCount;

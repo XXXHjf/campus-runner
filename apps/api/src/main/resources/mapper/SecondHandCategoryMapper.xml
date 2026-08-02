@@ -17,21 +17,14 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into tb_second_hand_category(id, name, image, image_asset_id, sort, deleted)
-        values(null, #{name}, #{image}, #{imageAssetId}, #{sort}, 0)
+        insert into tb_second_hand_category(id, name, sort, deleted)
+        values(null, #{name}, #{sort}, 0)
     </insert>
 
     <update id="update">
         update tb_second_hand_category
         <set>
             <if test="name != null and name != ''">name = #{name},</if>
-            <if test="imageAssetId != null">
-                image_asset_id = #{imageAssetId},
-                image = null,
-            </if>
-            <if test="imageAssetId == null and image != null and image != ''">
-                image = #{image},
-            </if>
             <if test="sort != null">sort = #{sort},</if>
             <if test="deleted != null">deleted = #{deleted},</if>
         </set>

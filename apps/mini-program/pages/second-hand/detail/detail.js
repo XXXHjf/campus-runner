@@ -53,10 +53,8 @@ Page({
   },
 
   decorateProduct(product) {
-    const pickupAddressText = product.pickupAddressSnapshot || product.pickupLocation || '';
-    const pickupOnly = product.pickupOnly == null
-      ? (Number(product.supportDelivery) === 1 ? 0 : 1)
-      : Number(product.pickupOnly);
+    const pickupAddressText = product.pickupAddressSnapshot || '';
+    const pickupOnly = Number(product.pickupOnly ?? 1);
     return {
       ...product,
       pickupOnly,

@@ -26,11 +26,6 @@ App({
 
   onLaunch() {
     console.log('=== 小程序启动 ===');
-    
-    // 展示本地存储能力
-    const logs = wx.getStorageSync('logs') || []
-    logs.unshift(Date.now())
-    wx.setStorageSync('logs', logs)
 
     // *** 使用同步方法初始化 token ***
     // 这样可以确保在页面/组件加载前 token 已经准备好

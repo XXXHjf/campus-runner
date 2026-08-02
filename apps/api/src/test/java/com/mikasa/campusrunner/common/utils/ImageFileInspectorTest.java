@@ -10,6 +10,7 @@ import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ImageFileInspectorTest {
     @Test
@@ -30,6 +31,11 @@ class ImageFileInspectorTest {
         assertThrows(
                 UploadException.class,
                 () -> ImageFileInspector.inspect("not-an-image".getBytes(), 100));
+
+        byte[] fakeWebp = "RIFF0000WEBPVP8X".getBytes();
+        assertThrows(
+                UploadException.class,
+                () -> ImageFileInspector.inspect(fakeWebp, 100));
     }
 
     @Test
@@ -42,18 +48,22 @@ class ImageFileInspectorTest {
     }
 
     @Test
-    void readsWebpExtendedHeaderDimensions() {
-        byte[] webp = new byte[30];
-        writeAscii(webp, 0, "RIFF");
-        writeLittleEndian32(webp, 4, 22);
-        writeAscii(webp, 8, "WEBP");
-        writeAscii(webp, 12, "VP8X");
-        writeLittleEndian32(webp, 16, 10);
-        writeLittleEndian24(webp, 24, 31);
-        writeLittleEndian24(webp, 27, 15);
+    void rejectsImagePixelCountAboveLimit() throws IOException {
+        byte[] png = imageBytes("png", 20, 10);
+
+        assertThrows(
+                UploadException.class,
+                () -> ImageFileInspector.inspect(png, 100, 100));
+    }
+
+    @Test
+    void decodesWebpContentInsteadOfTrustingItsHeader() throws IOException {
+        BufferedImage image = new BufferedImage(32, 16, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        assertTrue(ImageIO.write(image, "webp", output));
 
         ImageFileInspector.ImageInfo result =
-                ImageFileInspector.inspect(webp, 100);
+                ImageFileInspector.inspect(output.toByteArray(), 100);
 
         assertEquals("image/webp", result.mimeType());
         assertEquals(32, result.width());
@@ -71,22 +81,4 @@ class ImageFileInspectorTest {
         return output.toByteArray();
     }
 
-    private void writeAscii(byte[] target, int offset, String value) {
-        for (int i = 0; i < value.length(); i++) {
-            target[offset + i] = (byte) value.charAt(i);
-        }
-    }
-
-    private void writeLittleEndian24(byte[] target, int offset, int value) {
-        target[offset] = (byte) (value & 0xff);
-        target[offset + 1] = (byte) ((value >> 8) & 0xff);
-        target[offset + 2] = (byte) ((value >> 16) & 0xff);
-    }
-
-    private void writeLittleEndian32(byte[] target, int offset, int value) {
-        target[offset] = (byte) (value & 0xff);
-        target[offset + 1] = (byte) ((value >> 8) & 0xff);
-        target[offset + 2] = (byte) ((value >> 16) & 0xff);
-        target[offset + 3] = (byte) ((value >> 24) & 0xff);
-    }
 }

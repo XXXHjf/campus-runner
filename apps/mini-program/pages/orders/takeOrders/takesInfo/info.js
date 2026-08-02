@@ -204,15 +204,8 @@ Page({
     });
 
     try {
-      let filePath = file.url;
-      try {
-        const { compressImageSmart } = require('../../../../utils/commonJs');
-        filePath = await compressImageSmart(file.url);
-      } catch (error) {
-        console.warn('图片压缩失败，使用原图', error);
-      }
       const uploaded = await mediaService.uploadImage(
-        filePath,
+        file.url,
         'DELIVERY_PROOF',
         (progress) => {
           this.setData({ [`fileList[${index}].percent`]: progress });
@@ -247,7 +240,7 @@ Page({
 
   // 已取件2->已派送3（使用封装的 service）
   async statusTo3() {
-    if (!this.data.imageAssetId && !this.data.image) {
+    if (!this.data.imageAssetId) {
       errorCilcleToast(this, "未上传图片");
       this._loadOrderInfo();
       return;
@@ -258,7 +251,6 @@ Page({
       await takeOrderService.updateTakeOrderStatus({
         id: this.data.taker.id,
         status: 2,
-        image: this.data.imageAssetId ? null : this.data.image,
         imageAssetId: this.data.imageAssetId
       });
       this.setData({ imageAssetId: null, fileList: [] });
