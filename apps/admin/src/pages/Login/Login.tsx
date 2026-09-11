@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Form, Input } from 'antd'
 import { useAuthContext } from '../../contexts/AuthContext'
 import { userService } from '../../services'
@@ -14,6 +14,7 @@ import './Login.css'
 
 export default function Login() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { setUserInfo } = useAuthContext()
 
   const [formData, setFormData] = useState({
@@ -86,7 +87,7 @@ export default function Login() {
       }
 
       setUserInfo(adminInfo)
-      navigate('/dashboard')
+      navigate(searchParams.get('returnTo') === 'pending-auth' ? '/users/pending-auth' : '/dashboard')
     } catch (err: unknown) {
       console.error('登录失败:', err)
       setError(getErrorMessage(err, '登录失败，请重试'))

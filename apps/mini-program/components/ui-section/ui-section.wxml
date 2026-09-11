@@ -1,0 +1,13 @@
+<view class="ui-section {{plain ? 'ui-section--plain' : ''}}">
+  <view wx:if="{{title || description}}" class="ui-section__header">
+    <view class="ui-section__heading">
+      <t-icon wx:if="{{icon}}" name="{{icon}}" size="20" color="var(--cr-color-primary, #0052d9)" />
+      <view class="ui-section__title">{{title}}</view>
+      <slot name="extra" />
+    </view>
+    <view wx:if="{{description}}" class="ui-section__description">{{description}}</view>
+  </view>
+  <view class="ui-section__content">
+    <slot />
+  </view>
+</view>

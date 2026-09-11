@@ -18,6 +18,7 @@ public class SecondHandMessage {
     private Long senderId;
     private Long receiverId;
     private String content;
+    private LocalDateTime readTime;
     private Integer deleted;
     private LocalDateTime createTime;
 }

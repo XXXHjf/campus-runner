@@ -1,116 +1,176 @@
+@import "../../../styles/second-hand-card.wxss";
+
 page {
   background: #f6f8f7;
 }
 
 .my-products-page {
+  display: block;
   min-height: 100vh;
-  padding: 28rpx 24rpx 48rpx;
+}
+
+.my-products-page__body {
+  padding: 0 24rpx calc(48rpx + env(safe-area-inset-bottom));
+}
+
+.my-products-page__list {
+  --cr-section-gap: 20rpx;
+}
+
+.my-products-page__card {
+  padding: 24rpx;
   box-sizing: border-box;
 }
 
-.page-head {
+.my-products-page__main {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
   gap: 20rpx;
-  padding: 16rpx 4rpx 22rpx;
 }
 
-.page-title {
-  color: #17231d;
-  font-size: 44rpx;
-  font-weight: 800;
-}
-
-.page-subtitle {
-  margin-top: 10rpx;
-  color: #7a867f;
-  font-size: 24rpx;
-}
-
-.product-card,
-.empty {
-  background: #ffffff;
-  border-radius: 16rpx;
-  box-shadow: 0 10rpx 28rpx rgba(24, 57, 42, 0.06);
-}
-
-.product-card {
-  margin-bottom: 18rpx;
-  padding: 18rpx;
-}
-
-.product-main {
-  display: flex;
-  gap: 18rpx;
-}
-
-.cover {
-  width: 154rpx;
-  height: 154rpx;
-  flex: 0 0 154rpx;
+.my-products-page__cover {
+  flex: 0 0 168rpx;
+  width: 168rpx;
+  height: 168rpx;
   background: #edf2ee;
-  border-radius: 12rpx;
+  border-radius: var(--cr-radius-medium, 20rpx);
   overflow: hidden;
+  --td-image-round-radius: var(--cr-radius-medium, 20rpx);
 }
 
-.info {
+.my-products-page__info {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
+  min-height: 168rpx;
 }
 
-.row-top {
+.my-products-page__top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12rpx;
 }
 
-.title {
+.my-products-page__title {
+  display: -webkit-box;
   flex: 1;
   min-width: 0;
-  color: #17231d;
+  overflow: hidden;
+  color: var(--cr-color-text, #1d2129);
   font-size: 28rpx;
-  font-weight: 800;
-  line-height: 1.35;
+  font-weight: 700;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.meta {
-  margin-top: 12rpx;
-  color: #7a867f;
+.my-products-page__status {
+  flex: none;
+}
+
+.my-products-page__meta {
+  margin-top: 10rpx;
+  overflow: hidden;
+  color: var(--cr-color-text-secondary, #6b778c);
   font-size: 24rpx;
+  line-height: 36rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.price {
-  margin-top: 14rpx;
+.my-products-page__price {
+  margin-top: auto;
+  padding-top: 14rpx;
   color: #ff6a3d;
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: 800;
+  line-height: 1.2;
 }
 
-.actions {
+.my-products-page__actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
-  gap: 14rpx;
-  margin-top: 18rpx;
-  padding-top: 18rpx;
-  border-top: 1rpx solid #eef2ef;
+  gap: 16rpx;
+  margin-top: 20rpx;
 }
 
-.empty {
+.my-products-page__action-slot {
+  display: flex;
+  flex: none;
+}
+
+.my-products-page__price-popup {
+  --td-popup-border-radius: 32rpx;
+}
+
+.my-products-page__price-sheet {
+  padding: 32rpx;
+}
+
+.my-products-page__sheet-title {
+  padding-right: 64rpx;
+  color: var(--cr-color-text, #1d2129);
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 44rpx;
+}
+
+.my-products-page__sheet-product {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
   margin-top: 28rpx;
-  padding: 64rpx 24rpx;
-  text-align: center;
 }
 
-.empty-title {
-  color: #17231d;
-  font-size: 30rpx;
-  font-weight: 800;
+.my-products-page__sheet-cover {
+  flex: 0 0 104rpx;
+  width: 104rpx;
+  height: 104rpx;
+  overflow: hidden;
+  border-radius: var(--cr-radius-medium, 20rpx);
+  --td-image-round-radius: var(--cr-radius-medium, 20rpx);
 }
 
-.empty-desc {
-  margin: 12rpx 0 24rpx;
-  color: #7a867f;
+.my-products-page__sheet-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.my-products-page__sheet-current {
+  margin-top: 8rpx;
+  color: var(--cr-color-text-secondary, #6b778c);
   font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.my-products-page__price-field {
+  margin-top: 28rpx;
+  overflow: hidden;
+  border-radius: var(--cr-radius-medium, 20rpx);
+}
+
+.my-products-page__price-input {
+  --td-input-bg-color: #f6f8f7;
+  --td-input-vertical-padding: 24rpx;
+}
+
+.my-products-page__price-hint {
+  min-height: 34rpx;
+  margin: 12rpx 0 28rpx;
+  color: var(--cr-color-text-secondary, #6b778c);
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.my-products-page__price-hint--error {
+  color: #c94b44;
+}
+
+.my-products-page__price-confirm {
+  --td-button-font-weight: 400;
+  --td-button-medium-font-size: 28rpx;
 }

@@ -38,6 +38,22 @@ page {
   box-shadow: 0 10rpx 28rpx rgba(24, 57, 42, 0.06);
 }
 
+.detail-primary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.detail-primary-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.favorite-action {
+  flex: 0 0 auto;
+}
+
 .price {
   color: #ff6a3d;
   font-size: 52rpx;
@@ -50,6 +66,12 @@ page {
   font-size: 36rpx;
   font-weight: 800;
   line-height: 1.35;
+}
+
+.favorite-count {
+  margin-top: 12rpx;
+  color: #7a867f;
+  font-size: 23rpx;
 }
 
 .tag-row {

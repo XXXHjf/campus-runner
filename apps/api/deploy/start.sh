@@ -40,6 +40,7 @@ nohup "$JAVA_BIN" -jar "$APP_JAR" \
     --spring.servlet.multipart.max-file-size=10MB \
     --spring.servlet.multipart.max-request-size=20MB \
     --com.mikasa.campus-runner.dev.mock-payment-enabled=false \
+    --com.mikasa.campus-runner.wechat.second-hand-transfer-scene-id=1010 \
     --logging.level.com.mikasa.campusrunner.mapper=INFO \
     --logging.level.com.wechat.pay.contrib.apache.httpclient.SignatureExec=OFF \
     > "$APP_LOG" 2>&1 &

@@ -1,0 +1,91 @@
+page {
+  background: #f6f8f7;
+}
+
+.conversations-page {
+  min-height: 100vh;
+}
+
+.conversations-page__body {
+  padding: 0 24rpx 48rpx;
+}
+
+.conversations-page__list {
+  overflow: hidden;
+  border-radius: var(--cr-radius-medium, 20rpx);
+}
+
+.conversations-page__row {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  min-height: 154rpx;
+  padding: 24rpx 28rpx;
+  background: var(--cr-color-surface, #ffffff);
+  border-bottom: 1rpx solid var(--cr-color-border, #e7eaf0);
+  box-sizing: border-box;
+}
+
+.conversations-page__row:last-child {
+  border-bottom: 0;
+}
+
+.conversations-page__cover {
+  flex: none;
+  width: 112rpx;
+  height: 112rpx;
+  overflow: hidden;
+  background: #edf2ee;
+  border-radius: var(--cr-radius-small, 12rpx);
+}
+
+.conversations-page__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversations-page__name {
+  overflow: hidden;
+  color: var(--cr-color-text, #1d2129);
+  font-size: 30rpx;
+  font-weight: 800;
+  line-height: 42rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversations-page__product,
+.conversations-page__preview {
+  overflow: hidden;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversations-page__product {
+  margin-top: 2rpx;
+  color: var(--cr-color-text-secondary, #6b778c);
+}
+
+.conversations-page__preview {
+  margin-top: 2rpx;
+  color: var(--cr-color-placeholder, #a8b0bd);
+}
+
+.conversations-page__aside {
+  display: flex;
+  align-self: stretch;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  min-width: 64rpx;
+  padding: 4rpx 0;
+}
+
+.conversations-page__time {
+  color: var(--cr-color-text-secondary, #6b778c);
+  font-size: 22rpx;
+  line-height: 34rpx;
+}

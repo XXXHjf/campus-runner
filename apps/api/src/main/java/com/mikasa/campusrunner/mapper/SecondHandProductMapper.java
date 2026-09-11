@@ -16,12 +16,15 @@ public interface SecondHandProductMapper {
 
     SecondHandProduct getById(@Param("id") Long id);
 
-    SecondHandProductVO detail(@Param("id") Long id);
+    SecondHandProductVO detail(@Param("id") Long id,
+                               @Param("userId") Long userId);
 
     List<SecondHandProductVO> list(@Param("query") SecondHandProductQueryDTO query,
                                    @Param("schoolId") Long schoolId);
 
     List<SecondHandProductVO> listBySeller(@Param("sellerId") Long sellerId);
+
+    List<SecondHandProductVO> listFavorites(@Param("userId") Long userId);
 
     int lockOnSaleProduct(@Param("id") Long id);
 
@@ -36,4 +39,7 @@ public interface SecondHandProductMapper {
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 
     void increaseViewCount(@Param("id") Long id);
+
+    int changeFavoriteCount(@Param("id") Long id,
+                            @Param("delta") int delta);
 }

@@ -1,0 +1,11 @@
+{
+  "navigationBarTitleText": "",
+  "navigationBarBackgroundColor": "#ffffff",
+  "backgroundColor": "#f6f8f7",
+  "usingComponents": {
+    "ui-page-header": "/components/ui-page-header/ui-page-header",
+    "t-image": "tdesign-miniprogram/image/image",
+    "t-badge": "tdesign-miniprogram/badge/badge"
+  },
+  "enablePullDownRefresh": true
+}

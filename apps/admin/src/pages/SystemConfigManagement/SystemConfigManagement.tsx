@@ -1,6 +1,6 @@
 /**
  * 系统配置管理
- * 当前支持：服务费率、最低服务费
+ * 当前展示跑腿服务费配置；二手交易服务费配置保留兼容但在线下模式中隐藏。
  * 采用配置项驱动渲染，便于后续扩展更多系统配置项
  */
 
@@ -30,22 +30,34 @@ import './SystemConfigManagement.css'
 const configFields: SystemConfigFieldDefinition[] = [
   {
     key: 'serviceFeeRate',
-    label: '服务费率',
-    description: '用于计算订单服务费，例如 0.05 代表 5% 的服务费率。',
-    placeholder: '请输入服务费率，例如 0.05',
+    label: '跑腿订单服务费率',
+    description: '用于计算跑腿订单服务费，例如 0.05 代表 5%。',
+    placeholder: '请输入跑腿服务费率，例如 0.05',
     min: 0,
+    max: 1,
     step: '0.01',
   },
   {
     key: 'serviceFeeMin',
-    label: '最低服务费',
-    description: '当按费率计算结果低于该值时，按此最低服务费收取。',
+    label: '跑腿订单最低服务费',
+    description: '跑腿订单按费率计算结果低于该值时，按此金额收取。',
     placeholder: '请输入最低服务费，例如 0.5',
     unit: '元',
     min: 0,
     step: '0.01',
   },
+  {
+    key: 'secondHandServiceFeeRate',
+    label: '二手交易服务费率',
+    description: '由卖家承担，订单创建时保存费率快照；0 代表暂不收取。',
+    placeholder: '请输入二手交易服务费率，例如 0.03',
+    min: 0,
+    max: 1,
+    step: '0.01',
+  },
 ]
+
+const visibleConfigFields = configFields.filter((field) => field.key !== 'secondHandServiceFeeRate')
 
 function getErrorMessage(err: unknown, fallback: string) {
   if (err instanceof Error) return err.message
@@ -91,10 +103,12 @@ export default function SystemConfigManagement() {
   const [currentValues, setCurrentValues] = useState<Record<SystemConfigKey, string>>({
     serviceFeeRate: '',
     serviceFeeMin: '',
+    secondHandServiceFeeRate: '',
   })
   const [editValues, setEditValues] = useState<Record<SystemConfigKey, string>>({
     serviceFeeRate: '',
     serviceFeeMin: '',
+    secondHandServiceFeeRate: '',
   })
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<SystemConfigKey, string>>>({})
   const [successKey, setSuccessKey] = useState<SystemConfigKey | null>(null)
@@ -126,6 +140,7 @@ export default function SystemConfigManagement() {
       const nextValues: Record<SystemConfigKey, string> = {
         serviceFeeRate: '',
         serviceFeeMin: '',
+        secondHandServiceFeeRate: '',
       }
 
       values.forEach(([key, value]) => {
@@ -148,7 +163,7 @@ export default function SystemConfigManagement() {
   }, [])
 
   const changedKeys = useMemo(() => {
-    return configFields
+    return visibleConfigFields
       .filter((field) => editValues[field.key].trim() !== currentValues[field.key].trim())
       .map((field) => field.key)
   }, [editValues, currentValues])
@@ -158,6 +173,9 @@ export default function SystemConfigManagement() {
     if (parsed === null) return '请输入有效数字'
     if (typeof field.min === 'number' && parsed < field.min) {
       return `数值不能小于 ${field.min}`
+    }
+    if (typeof field.max === 'number' && parsed > field.max) {
+      return `数值不能大于 ${field.max}`
     }
     return null
   }
@@ -284,7 +302,7 @@ export default function SystemConfigManagement() {
       <Row gutter={16}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic title="配置项数量" value={configFields.length} />
+            <Statistic title="配置项数量" value={visibleConfigFields.length} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -305,7 +323,7 @@ export default function SystemConfigManagement() {
       )}
 
       <div className="config-list">
-        {configFields.map((field) => {
+        {visibleConfigFields.map((field) => {
           const isSaving = savingKey === field.key
           const changed = editValues[field.key].trim() !== currentValues[field.key].trim()
           const fieldError = fieldErrors[field.key]
@@ -345,6 +363,7 @@ export default function SystemConfigManagement() {
                       stringMode
                       step={field.step ?? '0.01'}
                       min={typeof field.min === 'number' ? String(field.min) : undefined}
+                      max={typeof field.max === 'number' ? String(field.max) : undefined}
                       placeholder={field.placeholder}
                       value={editValues[field.key] || null}
                       onChange={(value) => handleInputChange(field.key, String(value ?? ''))}

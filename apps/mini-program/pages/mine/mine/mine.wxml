@@ -32,6 +32,7 @@
           <view class="menu-badge" wx:if="{{menu.value==='label_2' && notReceiveOrderList.length>0}}">{{notReceiveOrderList.length}}</view>
           <view class="menu-badge" wx:if="{{menu.value==='label_8' && secondHandOrderCount>0}}">{{secondHandOrderCount}}</view>
           <view class="menu-badge" wx:if="{{menu.value==='label_9' && bargainPendingCount>0}}">{{bargainPendingCount}}</view>
+          <view class="menu-badge" wx:if="{{menu.value==='label_10' && privateUnreadCount>0}}">{{privateUnreadCount}}</view>
         </view>
         <view class="menu-copy">
           <view class="menu-label">{{menu.label}}</view>
@@ -40,9 +41,9 @@
     </view>
   </view>
 
-  <view class="task-center-heading" wx:if="{{unpaidOrderList.length > 0 || notReceiveOrderList.length > 0 || secondHandOrderCount > 0 || bargainPendingCount > 0}}">
+  <view class="task-center-heading" wx:if="{{unpaidOrderList.length > 0 || notReceiveOrderList.length > 0 || secondHandOrderCount > 0 || bargainPendingCount > 0 || privateUnreadCount > 0}}">
     <text>待办事项</text>
-    <text class="task-center-count">{{unpaidOrderList.length + notReceiveOrderList.length + secondHandOrderCount + bargainPendingCount}}项</text>
+    <text class="task-center-count">{{unpaidOrderList.length + notReceiveOrderList.length + secondHandOrderCount + bargainPendingCount + privateUnreadCount}}项</text>
   </view>
 
   <!-- 待支付提醒 -->
@@ -130,33 +131,6 @@
 
 <!-- 微信授权登录弹窗 -->
 <t-dialog id="t-dialog" />
-
-<!-- 新用户信息完善引导弹窗 -->
-<t-dialog 
-  visible="{{showCompleteInfoDialog}}" 
-  title="完善个人信息" 
-  confirm-btn="去完善"
-  cancel-btn="稍后再说"
-  bind:confirm="handleCompleteInfo"
-  bind:cancel="handleCancelCompleteInfo"
->
-  <view style="padding: 20rpx;">
-    <view style="margin-bottom: 20rpx; color: #666; font-size: 28rpx;">
-      <text>欢迎使用帮帮校园送！</text>
-    </view>
-    <view style="color: #999; font-size: 26rpx; line-height: 1.6;">
-      <text>为了更好地为您服务，请先完善以下信息：</text>
-    </view>
-    <view style="margin-top: 20rpx; padding-left: 20rpx;">
-      <view style="color: #666; font-size: 26rpx; margin-bottom: 10rpx;" wx:if="{{!userInfo.phone}}">
-        <text>• 手机号码（必填）</text>
-      </view>
-      <view style="color: #666; font-size: 26rpx;" wx:if="{{userInfo.authentication!=1}}">
-        <text>• 校园认证（必填）</text>
-      </view>
-    </view>
-  </view>
-</t-dialog>
 
 <!-- 登录加载动画 -->
 <t-overlay class="loadingBox" visible="{{loginLoadShow}}" duration="{{500}}" backgroundColor="rgb(255,255,255,0.5)">

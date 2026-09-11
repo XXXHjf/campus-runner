@@ -7,9 +7,9 @@ Page({
     buyerOrders: [],
     sellerOrders: [],
     summary: {
-      waitingPay: 0,
       waitingDelivery: 0,
       waitingConfirm: 0,
+      completed: 0,
     },
   },
 
@@ -30,9 +30,9 @@ Page({
         buyerOrders: decoratedBuyer,
         sellerOrders: decoratedSeller,
         summary: {
-          waitingPay: all.filter((item) => Number(item.status) === 0).length,
           waitingDelivery: all.filter((item) => Number(item.status) === 1).length,
           waitingConfirm: all.filter((item) => Number(item.status) === 2).length,
+          completed: all.filter((item) => [3, 9].includes(Number(item.status))).length,
         },
       });
     } catch (error) {
@@ -46,9 +46,12 @@ Page({
     return {
       ...order,
       coverImage: this.firstImage(order.productImages),
-      statusText: orderStatus(order.status).text,
-      statusTheme: orderStatus(order.status).theme,
-      payRemainText: Number(order.status) === 0 ? formatRemain(order.payRemainSeconds) : '',
+      isOffline: String(order.tradeMode || '').toUpperCase() === 'OFFLINE',
+      statusText: orderStatus(order.status, order.tradeMode).text,
+      statusTheme: orderStatus(order.status, order.tradeMode).theme,
+      payRemainText: String(order.tradeMode || '').toUpperCase() !== 'OFFLINE' && Number(order.status) === 0
+        ? formatRemain(order.payRemainSeconds)
+        : '',
     };
   },
 

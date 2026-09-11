@@ -121,7 +121,8 @@ instance.interceptors.response.use(
       tokenManager.clearAuth()
 
       // 跳转到登录页
-      window.location.href = '/login'
+      window.location.href = window.location.pathname === '/users/pending-auth'
+        ? '/login?returnTo=pending-auth' : '/login'
 
       return Promise.reject({
         code: HTTP_STATUS.UNAUTHORIZED,

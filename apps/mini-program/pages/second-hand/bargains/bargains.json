@@ -1,6 +1,9 @@
 {
-  "navigationBarTitleText": "议价记录",
+  "navigationBarTitleText": "",
+  "navigationBarBackgroundColor": "#ffffff",
+  "backgroundColor": "#f6f8f7",
   "usingComponents": {
+    "ui-page-header": "/components/ui-page-header/ui-page-header",
     "t-button": "tdesign-miniprogram/button/button",
     "t-tabs": "tdesign-miniprogram/tabs/tabs",
     "t-tab-panel": "tdesign-miniprogram/tab-panel/tab-panel",

@@ -79,18 +79,32 @@ async function prepareImage(filePath, purpose) {
 }
 
 function parseUploadResponse(response) {
+  // Nginx can reject an upload before it reaches the API and return HTML.
+  // Check the HTTP status first; never expose that response body to users.
+  if (response.statusCode !== 200) {
+    console.error('[图片上传] 请求失败', response.statusCode);
+    if (response.statusCode === 413) {
+      throw new Error('图片过大，请压缩后重试');
+    }
+    if (response.statusCode === 401) {
+      throw new Error('登录已失效，请重新登录');
+    }
+    throw new Error('图片上传失败，请稍后重试');
+  }
+
   let body = response.data;
   if (typeof body === 'string') {
     try {
       body = JSON.parse(body);
     } catch (error) {
-      console.error('[图片上传] 无法解析服务响应', error);
+      console.error('[图片上传] 响应格式异常', response.statusCode);
       throw new Error('图片上传失败，请重试');
     }
   }
-  if (response.statusCode !== 200 || !body || body.code !== 1 || !body.data) {
-    console.error('[图片上传] 请求失败', response.statusCode, body);
-    throw new Error((body && body.msg) || '图片上传失败，请重试');
+  if (!body || body.code !== 1 || !body.data) {
+    console.error('[图片上传] 上传未成功', response.statusCode);
+    const message = body && typeof body.msg === 'string' && body.msg.trim();
+    throw new Error(message || '图片上传失败，请重试');
   }
   return body.data;
 }

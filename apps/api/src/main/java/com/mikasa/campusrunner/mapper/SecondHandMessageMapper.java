@@ -14,6 +14,16 @@ public interface SecondHandMessageMapper {
     List<SecondHandMessageVO> listByProductForUser(@Param("productId") Long productId,
                                                    @Param("userId") Long userId);
 
+    List<SecondHandMessageVO> listForUser(@Param("userId") Long userId);
+
+    List<SecondHandMessageVO> listConversation(@Param("productId") Long productId,
+                                               @Param("userId") Long userId,
+                                               @Param("counterpartyId") Long counterpartyId);
+
+    void markConversationRead(@Param("productId") Long productId,
+                              @Param("userId") Long userId,
+                              @Param("counterpartyId") Long counterpartyId);
+
     int countProductParticipant(@Param("productId") Long productId,
                                 @Param("sellerId") Long sellerId,
                                 @Param("userId") Long userId);

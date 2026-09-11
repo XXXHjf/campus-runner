@@ -1,0 +1,48 @@
+<view class="conversation-page">
+  <view class="conversation-product" bindtap="gotoProduct">
+    <t-image class="conversation-product-cover" src="{{product.coverImage}}" mode="aspectFill" />
+    <view class="conversation-product-main">
+      <view class="conversation-product-title">{{product.title || '商品'}}</view>
+      <view class="conversation-product-price">¥{{product.price || 0}}</view>
+    </view>
+    <view class="conversation-product-link">查看商品</view>
+  </view>
+
+  <view wx:if="{{counterpartyPhone}}" class="conversation-contact">
+    <view>
+      <view class="conversation-contact-title">交易联系方式</view>
+      <view class="conversation-contact-desc">下单后提供，交付联系不上时可拨打</view>
+    </view>
+    <t-button size="small" variant="outline" bind:tap="callCounterparty">{{counterpartyPhoneMasked}}</t-button>
+  </view>
+
+  <scroll-view
+    class="conversation-messages"
+    scroll-y="{{true}}"
+    scroll-into-view="{{lastMessageAnchor}}"
+    enhanced="{{true}}"
+    show-scrollbar="{{false}}"
+  >
+    <view wx:if="{{messages.length==0}}" class="conversation-empty">可以先询问商品成色、交付时间和地点。</view>
+    <view
+      wx:for="{{messages}}"
+      wx:key="id"
+      id="message-{{item.id}}"
+      class="conversation-message {{item.isMine?'is-mine':''}}"
+    >
+      <view class="conversation-message-name">{{item.isMine?'我':(item.senderName || '同学')}} · {{item.timeText}}</view>
+      <view class="conversation-bubble">{{item.content}}</view>
+    </view>
+  </scroll-view>
+
+  <view class="conversation-composer">
+    <t-textarea
+      value="{{messageContent}}"
+      placeholder="输入消息"
+      maxlength="200"
+      autosize="{{true}}"
+      bind:change="setMessage"
+    />
+    <t-button theme="primary" loading="{{sending}}" disabled="{{sending}}" bind:tap="sendMessage">发送</t-button>
+  </view>
+</view>

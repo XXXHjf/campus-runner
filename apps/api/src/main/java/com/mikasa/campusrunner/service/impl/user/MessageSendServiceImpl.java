@@ -1,13 +1,10 @@
 package com.mikasa.campusrunner.service.impl.user;
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.mikasa.campusrunner.common.constant.MessageConstant;
-import com.mikasa.campusrunner.common.constant.MessageSendConstant;
 import com.mikasa.campusrunner.common.constant.OrderStatusConstant;
 import com.mikasa.campusrunner.common.exception.MessageSendException;
 import com.mikasa.campusrunner.common.properties.WeChatProperties;
-import com.mikasa.campusrunner.common.utils.HttpClientUtil;
 import com.mikasa.campusrunner.mapper.AddressBookMapper;
 import com.mikasa.campusrunner.mapper.OrderMapper;
 import com.mikasa.campusrunner.mapper.TakeOrderMapper;
@@ -24,7 +21,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -42,6 +38,9 @@ public class MessageSendServiceImpl implements MessageSendService {
 
     @Autowired
     private WeChatProperties weChatProperties;
+
+    @Autowired
+    private SubscriptionSender subscriptionSender;
 
     @Autowired
     private UserMapper userMapper;
@@ -62,10 +61,6 @@ public class MessageSendServiceImpl implements MessageSendService {
      */
     @Override
     public String sendTakeOrder(MessageTakeOrderDTO messageTakeOrderDTO) {
-        //获得accessToken参数
-//        String accessToken = getAccessToken();
-//        //获得请求的url
-//        String sendMessageUrl = MessageSendConstant.SEND_MESSAGE_URL + "?access_token=" + accessToken;
 
         //获得接单人信息
         UserVO takeOrderUser = userMapper.getById(messageTakeOrderDTO.getTakeOrderUserId());
@@ -88,29 +83,11 @@ public class MessageSendServiceImpl implements MessageSendService {
         param.put("thing3", takeOrderUser.getRealname());
         param.put("phone_number4", takeOrderUser.getPhone());
         param.put("time2", time);
-        param.put("thing5", "Please keep your phone available");
-//        param.put("thing5", "这是pages/index/index");
-//        param.put("thing5", "这是正式版，跳转index，路径page");
+        param.put("thing5", "请保持电话畅通");
 
         JSONObject data = getData(param);
 
-        //填充参数
-//        Map<String, String> param = new HashMap<>();
-//        param.put("template_id", weChatProperties.getTakeOrderTemplateId());
-//        param.put("page", "orders/myOrders/ordersInfo/info?id=" + order.getId());
-//        param.put("touser", takeOrderUser.getOpenid());
-//        param.put("data", data);
-//        param.put("miniprogram_state", "formal");
-//        param.put("lang", "zh_CN");
-//
-//        String result = null;
-//        try {
-//            result = HttpClientUtil.doPost4Json(sendMessageUrl, param);
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
 
-//        System.out.println(result);
 
         String result = sendMessage(weChatProperties.getTakeOrderTemplateId(),
                                     order.getId(), user.getOpenid(),
@@ -143,7 +120,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         Map<String, String> param = new HashMap<>();
         param.put("character_string1", order.getOrderNumber());
         param.put("time3", time);
-        param.put("thing4", "Rider has picked up the item");
+        param.put("thing4", "跑腿员已取货，请留意配送进度");
         JSONObject data = getData(param);
 
         String result = sendMessage(weChatProperties.getPickUpTemplateId(),
@@ -188,7 +165,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         param.put("thing12", takeOrderUser.getRealname());
         param.put("phone_number13", takeOrderUser.getPhone());
         param.put("time2", time);
-        param.put("thing3", "Please log in to the mini-program for details");
+        param.put("thing3", "订单已送达，点击查看详情");
         JSONObject data = getData(param);
 
         //发送消息
@@ -201,29 +178,8 @@ public class MessageSendServiceImpl implements MessageSendService {
 
     //辅助方法，发送通用消息的
     private String sendMessage(String templateId, Long orderId, String openid, JSONObject data){
-        //获得accessToken参数
-        String accessToken = getAccessToken();
-        //获得请求的url
-        String sendMessageUrl = MessageSendConstant.SEND_MESSAGE_URL + "?access_token=" + accessToken;
-
-        //填充参数
-        Map<String, Object> param = new HashMap<>();
-        param.put("template_id", templateId);
-        param.put("page", "pages/orders/myOrders/ordersInfo/info?id=" + orderId);
-//        param.put("page", "pages/index/index");
-        param.put("touser", openid);
-        param.put("data", data);
-        param.put("miniprogram_state", "formal");
-        param.put("lang", "zh_CN");
-
-        String result = null;
-        try {
-            result = HttpClientUtil.doPost4Json(sendMessageUrl, param);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        log.info("Message send callback result: {}", result);
-        return result;
+        return subscriptionSender.send(templateId, openid,
+                "pages/orders/myOrders/ordersInfo/info?id=" + orderId, data);
     }
 
     //辅助方法，获取通用data参数
@@ -233,57 +189,12 @@ public class MessageSendServiceImpl implements MessageSendService {
         for (Map.Entry<String, String> entry : param.entrySet()){
             String key = entry.getKey();
             String value = entry.getValue();
+            if (key.startsWith("thing")) value = SecondHandSubscriptionService.text(value, 20, "点击查看详情");
             JSONObject jsonObject = new JSONObject();
             jsonObject.put("value", value);
             res.put(key, jsonObject);
         }
         return res;
 
-//        StringBuilder res = new StringBuilder("{");
-//        boolean flag = false;
-//        for (Map.Entry<String, String> entry : param.entrySet()){
-//            String key = entry.getKey();
-//            String value = entry.getValue();
-//            if (!flag){
-//                flag = true;
-//            }else{
-//                res.append(",");
-//            }
-//            res.append(getMiniParam(key, value));
-//        }
-//        res.append("}");
-//        return res.toString();
-    }
-
-    //辅助方法，获取 订单已接单 中data参数
-//    private String getTakeOrderData(Order order, UserVO user, String time){
-//        String res = "{"
-//                + getMiniParam("character_string1", order.getOrderNumber()) + ","
-//                + getMiniParam("thing3", user.getRealname()) + ","
-//                + getMiniParam("phone_number4", user.getPhone()) + ","
-//                + getMiniParam("time2", time) + ","
-//                + getMiniParam("thing5", "请保持电话畅通")
-//                + "}";
-//        return res;
-//    }
-
-    //辅助方法的辅助方法，生成形如 "name01": {"value": "某某"} 的字符串
-//    private String getMiniParam(String key, String value){
-//        String res = "\"" + key + "\": {\"value\": \"" + value + "\"}";
-//        return res;
-//    }
-
-    //辅助方法，获取access_token
-    private String getAccessToken() {
-        Map<String, String> param = new HashMap<>();
-        param.put("grant_type", "client_credential");
-        param.put("appid", weChatProperties.getAppid());
-        param.put("secret", weChatProperties.getSecret());
-
-        String result = HttpClientUtil.doGet(MessageSendConstant.ACCESS_TOKEN_URL, param);
-        log.info("Access token callback result: {}", result);
-        JSONObject json = JSON.parseObject(result);
-        String accessToken = (String) json.get("access_token");
-        return accessToken;
     }
 }

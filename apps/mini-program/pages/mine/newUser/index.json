@@ -3,6 +3,8 @@
   "navigationBarBackgroundColor": "#ffffff",
   "navigationBarTextStyle": "black",
   "usingComponents": {
+    "t-input": "tdesign-miniprogram/input/input",
+    "t-button": "tdesign-miniprogram/button/button",
     "t-radio": "tdesign-miniprogram/radio/radio",
     "t-toast": "tdesign-miniprogram/toast/toast"
   }

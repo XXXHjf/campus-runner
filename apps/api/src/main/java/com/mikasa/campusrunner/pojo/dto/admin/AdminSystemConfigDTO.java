@@ -12,4 +12,5 @@ import java.math.BigDecimal;
 public class AdminSystemConfigDTO {
     public BigDecimal serviceFeeRate;
     public BigDecimal serviceFeeMin;
+    public BigDecimal secondHandServiceFeeRate;
 }

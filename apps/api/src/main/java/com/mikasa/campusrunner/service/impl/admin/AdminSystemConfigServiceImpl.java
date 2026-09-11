@@ -1,5 +1,7 @@
 package com.mikasa.campusrunner.service.impl.admin;
 
+import com.mikasa.campusrunner.common.constant.SecondHandConstant;
+import com.mikasa.campusrunner.common.exception.ParamException;
 import com.mikasa.campusrunner.common.properties.SystemConfigProperties;
 import com.mikasa.campusrunner.mapper.AdminSystemConfigMapper;
 import com.mikasa.campusrunner.pojo.entity.SystemConfig;
@@ -43,12 +45,21 @@ public class AdminSystemConfigServiceImpl implements AdminSystemConfigService {
         return systemConfig.getConfigValue();
     }
 
+    @Override
+    public String getSecondHandServiceFeeRate() {
+        SystemConfig config = adminSystemConfigMapper.getByConfigKey(SecondHandConstant.CONFIG_SERVICE_FEE_RATE);
+        return config == null || config.getConfigValue() == null
+                ? SecondHandConstant.DEFAULT_SERVICE_FEE_RATE
+                : config.getConfigValue();
+    }
+
     /**
      * 修改服务费率
      * @param rate
      */
     @Override
     public void updateServiceFeeRate(BigDecimal rate) {
+        validateRate(rate);
         adminSystemConfigMapper.updateByConfigKey(systemConfigProperties.getServiceFeeRate(), rate.toString());
     }
 
@@ -58,6 +69,21 @@ public class AdminSystemConfigServiceImpl implements AdminSystemConfigService {
      */
     @Override
     public void updateServiceFeeMin(BigDecimal serviceFeeMin) {
+        if (serviceFeeMin == null || serviceFeeMin.signum() < 0) {
+            throw new ParamException("最低服务费不能小于0");
+        }
         adminSystemConfigMapper.updateByConfigKey(systemConfigProperties.getServiceFeeMin(), serviceFeeMin.toString());
+    }
+
+    @Override
+    public void updateSecondHandServiceFeeRate(BigDecimal rate) {
+        validateRate(rate);
+        adminSystemConfigMapper.updateByConfigKey(SecondHandConstant.CONFIG_SERVICE_FEE_RATE, rate.toString());
+    }
+
+    private void validateRate(BigDecimal rate) {
+        if (rate == null || rate.signum() < 0 || rate.compareTo(BigDecimal.ONE) > 0) {
+            throw new ParamException("服务费率应在0到1之间");
+        }
     }
 }

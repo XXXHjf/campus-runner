@@ -4,18 +4,22 @@
 <mapper namespace="com.mikasa.campusrunner.mapper.SecondHandOrderMapper">
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into tb_second_hand_order(
-            id, order_number, product_id, bargain_id, buyer_id, seller_id,
+            id, order_number, product_id, bargain_id, buyer_id, seller_id, trade_mode,
             product_amount, pay_amount, service_fee_rate, service_fee, seller_income,
             delivery_mode, pickup_address_snapshot, buyer_delivery_address_id,
             buyer_delivery_address_snapshot, delivery_remark, status, pay_time, cancel_time, cancel_reason,
-            delivered_time, confirm_deadline, finish_time, transfer_time, transfer_fail_reason,
+            delivered_time, confirm_deadline, finish_time, transfer_time,
+            transfer_out_bill_no, transfer_attempt, transfer_bill_no, transfer_state,
+            transfer_package_info, transfer_fail_reason,
             deleted, create_time, update_time
         ) values(
-            null, #{orderNumber}, #{productId}, #{bargainId}, #{buyerId}, #{sellerId},
+            null, #{orderNumber}, #{productId}, #{bargainId}, #{buyerId}, #{sellerId}, #{tradeMode},
             #{productAmount}, #{payAmount}, #{serviceFeeRate}, #{serviceFee}, #{sellerIncome},
             #{deliveryMode}, #{pickupAddressSnapshot}, #{buyerDeliveryAddressId},
             #{buyerDeliveryAddressSnapshot}, #{deliveryRemark}, #{status}, #{payTime}, #{cancelTime}, #{cancelReason},
-            #{deliveredTime}, #{confirmDeadline}, #{finishTime}, #{transferTime}, #{transferFailReason},
+            #{deliveredTime}, #{confirmDeadline}, #{finishTime}, #{transferTime},
+            #{transferOutBillNo}, COALESCE(#{transferAttempt}, 0), #{transferBillNo}, #{transferState},
+            #{transferPackageInfo}, #{transferFailReason},
             #{deleted}, #{createTime}, #{updateTime}
         )
     </insert>
@@ -25,6 +29,7 @@
         <set>
             <if test="orderNumber != null and orderNumber != ''">order_number = #{orderNumber},</if>
             <if test="bargainId != null">bargain_id = #{bargainId},</if>
+            <if test="tradeMode != null and tradeMode != ''">trade_mode = #{tradeMode},</if>
             <if test="productAmount != null">product_amount = #{productAmount},</if>
             <if test="payAmount != null">pay_amount = #{payAmount},</if>
             <if test="serviceFeeRate != null">service_fee_rate = #{serviceFeeRate},</if>
@@ -43,6 +48,11 @@
             <if test="confirmDeadline != null">confirm_deadline = #{confirmDeadline},</if>
             <if test="finishTime != null">finish_time = #{finishTime},</if>
             <if test="transferTime != null">transfer_time = #{transferTime},</if>
+            <if test="transferOutBillNo != null">transfer_out_bill_no = #{transferOutBillNo},</if>
+            <if test="transferAttempt != null">transfer_attempt = #{transferAttempt},</if>
+            <if test="transferBillNo != null">transfer_bill_no = #{transferBillNo},</if>
+            <if test="transferState != null">transfer_state = #{transferState},</if>
+            <if test="transferPackageInfo != null">transfer_package_info = #{transferPackageInfo},</if>
             <if test="transferFailReason != null">transfer_fail_reason = #{transferFailReason},</if>
             <if test="deleted != null">deleted = #{deleted},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
@@ -58,6 +68,11 @@
         select * from tb_second_hand_order where order_number = #{orderNumber} and deleted = 0
     </select>
 
+    <select id="getByTransferOutBillNo" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
+        select * from tb_second_hand_order
+        where transfer_out_bill_no = #{transferOutBillNo} and deleted = 0
+    </select>
+
     <select id="getActiveByProductId" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
         select * from tb_second_hand_order
         where product_id = #{productId}
@@ -70,12 +85,13 @@
     <sql id="orderVoSelect">
         o.id, o.order_number, o.product_id, o.bargain_id, o.buyer_id,
         buyer.username as buyer_name, o.seller_id, seller.username as seller_name,
-        p.title as product_title,
+        o.trade_mode, p.title as product_title,
         o.product_amount, o.pay_amount, o.service_fee_rate, o.service_fee, o.seller_income,
         o.delivery_mode, o.pickup_address_snapshot, o.buyer_delivery_address_id,
         o.buyer_delivery_address_snapshot, o.delivery_remark, o.status, o.pay_time, o.cancel_time,
         o.cancel_reason, o.delivered_time, o.confirm_deadline, o.finish_time,
-        o.transfer_time, o.transfer_fail_reason, o.create_time, o.update_time
+        o.transfer_time, o.transfer_state, o.transfer_fail_reason,
+        o.create_time, o.update_time
     </sql>
 
     <select id="detail" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandOrderVO">
@@ -122,11 +138,18 @@
 
     <select id="listUnpaidTimeout" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
         select * from tb_second_hand_order
-        where deleted = 0 and status = 0 and create_time &lt; #{time}
+        where deleted = 0 and trade_mode = 'ONLINE' and status = 0 and create_time &lt; #{time}
     </select>
 
     <select id="listAutoConfirm" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
         select * from tb_second_hand_order
-        where deleted = 0 and status = 2 and confirm_deadline &lt;= #{now}
+        where deleted = 0 and trade_mode = 'ONLINE' and status = 2 and confirm_deadline &lt;= #{now}
+    </select>
+
+    <select id="listTransferring" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
+        select * from tb_second_hand_order
+        where deleted = 0 and trade_mode = 'ONLINE' and status = 8 and transfer_out_bill_no is not null
+        order by update_time asc
+        limit 100
     </select>
 </mapper>

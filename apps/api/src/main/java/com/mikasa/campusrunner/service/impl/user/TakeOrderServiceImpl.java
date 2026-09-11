@@ -48,6 +48,9 @@ public class TakeOrderServiceImpl implements TakeOrderService {
     @Autowired
     private MediaAssetService mediaAssetService;
 
+    @Autowired
+    private com.mikasa.campusrunner.service.user.MessageSendService messages;
+
     /**
      * 接单
      * @param id
@@ -90,6 +93,10 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         int row1 = orderMapper.update(order);
 
         int row2 = takeOrderMapper.save(takeOrder);
+        var notification = new com.mikasa.campusrunner.pojo.dto.MessageTakeOrderDTO();
+        notification.setOrderId(id);
+        notification.setTakeOrderUserId(takeOrder.getUserId());
+        SecondHandSubscriptionService.afterCommit(() -> messages.sendTakeOrder(notification));
     }
 
 
@@ -117,6 +124,15 @@ public class TakeOrderServiceImpl implements TakeOrderService {
 
         //status为我要修改成的状态
         Integer status = takeOrderUpdateStatusDTO.getStatus();
+        if (Objects.equals(status, takeOrder.getStatus())) return;
+        boolean canPickUp = Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.ALREADY_TAKE_ORDER)
+                && Objects.equals(status, TakeOrderStatusConstant.DELIVERYING);
+        boolean canDeliver = Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.DELIVERYING)
+                && Objects.equals(status, TakeOrderStatusConstant.ORDER_FINISH);
+        boolean canCancel = (Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.ALREADY_TAKE_ORDER)
+                || Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.DELIVERYING))
+                && Objects.equals(status, TakeOrderStatusConstant.CANCELED);
+        if (!canPickUp && !canDeliver && !canCancel) throw new TakeOrderException("订单状态已变化，请刷新后重试");
         LocalDateTime now = LocalDateTime.now();
         if (status.equals(TakeOrderStatusConstant.DELIVERYING)){
             //将接单状态修改为派送中
@@ -160,6 +176,13 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         //更新
         int row1 = takeOrderMapper.update(takeOrder);
         int row2 = orderMapper.update(order);
+        if (canPickUp) SecondHandSubscriptionService.afterCommit(() -> messages.sendPickUp(order.getId()));
+        if (canDeliver) {
+            var notification = new com.mikasa.campusrunner.pojo.dto.MessageDeliveredDTO();
+            notification.setOrderId(order.getId());
+            notification.setTakeOrderUserId(takeOrder.getUserId());
+            SecondHandSubscriptionService.afterCommit(() -> messages.sendDelivered(notification));
+        }
         if (status.equals(TakeOrderStatusConstant.ORDER_FINISH)
                 && takeOrderUpdateStatusDTO.getImageAssetId() != null) {
             mediaAssetService.replaceBinding(

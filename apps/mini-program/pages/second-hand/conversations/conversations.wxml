@@ -1,0 +1,38 @@
+<ui-page class="conversations-page" compact>
+  <ui-page-header title="私信" subtitle="按商品与联系人沟通" />
+
+  <view class="conversations-page__body">
+    <ui-section plain>
+      <view wx:if="{{conversations.length>0}}" class="conversations-page__list">
+        <view
+          wx:for="{{conversations}}"
+          wx:key="key"
+          class="conversations-page__row"
+          data-index="{{index}}"
+          bindtap="gotoConversation"
+        >
+          <t-image class="conversations-page__cover" src="{{item.coverImage}}" mode="aspectFill" />
+          <view class="conversations-page__main">
+            <view class="conversations-page__name">{{item.counterpartyName || '同学'}}</view>
+            <view class="conversations-page__product">{{item.productTitle || '商品'}}</view>
+            <view class="conversations-page__preview">{{item.lastMessage}}</view>
+          </view>
+          <view class="conversations-page__aside">
+            <view class="conversations-page__time">{{item.timeText}}</view>
+            <t-badge
+              wx:if="{{item.unreadCount>0}}"
+              count="{{item.unreadCount}}"
+              max-count="99"
+              color="#0052d9"
+            />
+          </view>
+        </view>
+      </view>
+      <ui-empty-state
+        wx:if="{{!loading && conversations.length==0}}"
+        title="还没有私信"
+        description="在商品详情点击“联系卖家”后，会话会显示在这里"
+      />
+    </ui-section>
+  </view>
+</ui-page>

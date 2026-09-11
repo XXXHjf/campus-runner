@@ -76,7 +76,7 @@ Page({
     if (!bargain) return;
     wx.showModal({
       title: '接受议价',
-      content: `接受 ¥${bargain.offerPrice} 后，买家即可按该价格下单支付。`,
+      content: `接受 ¥${bargain.offerPrice} 后，将按该价格创建订单，商品进入交易中。`,
       confirmText: '接受',
       success: async (res) => {
         if (!res.confirm) return;

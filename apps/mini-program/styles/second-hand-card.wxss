@@ -1,0 +1,35 @@
+/* 收藏和闲置管理共用；通过 TDesign 外部样式类作用于按钮本体。 */
+.cr-secondhand-capsule {
+  width: auto;
+  min-width: 130rpx;
+  margin: 0;
+  --td-button-border-radius: 999rpx;
+  --td-button-border-width: 2rpx;
+  --td-button-font-weight: 400;
+  --td-button-small-font-size: 26rpx;
+  --td-button-small-height: 52rpx;
+  --td-button-small-padding-horizontal: 36rpx;
+}
+
+/* 搭配 theme="primary" variant="base"，按压和禁用态也保持低饱和度。 */
+.cr-secondhand-capsule--highlight {
+  --td-button-primary-bg-color: #e8edf3;
+  --td-button-primary-border-color: #e8edf3;
+  --td-button-primary-color: var(--cr-color-text, #1d2129);
+  --td-button-primary-active-bg-color: #dce3eb;
+  --td-button-primary-active-border-color: #dce3eb;
+  --td-button-primary-disabled-bg: #f0f2f5;
+  --td-button-primary-disabled-border-color: #f0f2f5;
+  --td-button-primary-disabled-color: #9299a3;
+}
+
+/* 搭配 theme="default" variant="outline"，由 TDesign 提供透明背景。 */
+.cr-secondhand-capsule--outline {
+  --td-button-default-outline-color: var(--cr-color-text, #1d2129);
+  --td-button-default-outline-border-color: #d4d8de;
+  --td-button-default-outline-active-bg-color: #f4f5f7;
+  --td-button-default-outline-active-border-color: #bdc3cb;
+  --td-button-default-active-border-color: #bdc3cb;
+  --td-button-default-disabled-bg: transparent;
+  --td-button-default-outline-disabled-color: #bdc3cb;
+}

@@ -18,6 +18,8 @@ public interface SecondHandOrderMapper {
 
     SecondHandOrder getByOrderNumber(@Param("orderNumber") String orderNumber);
 
+    SecondHandOrder getByTransferOutBillNo(@Param("transferOutBillNo") String transferOutBillNo);
+
     SecondHandOrder getActiveByProductId(@Param("productId") Long productId);
 
     SecondHandOrderVO detail(@Param("id") Long id);
@@ -31,4 +33,6 @@ public interface SecondHandOrderMapper {
     List<SecondHandOrder> listUnpaidTimeout(@Param("time") LocalDateTime time);
 
     List<SecondHandOrder> listAutoConfirm(@Param("now") LocalDateTime now);
+
+    List<SecondHandOrder> listTransferring();
 }

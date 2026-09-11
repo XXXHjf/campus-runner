@@ -1,0 +1,114 @@
+page {
+  background: var(--cr-color-background);
+}
+
+.conversation-page {
+  min-height: 100vh;
+  padding: 20rpx 20rpx calc(180rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.conversation-product,
+.conversation-contact {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 20rpx;
+  background: var(--cr-color-surface);
+  border: 1rpx solid var(--cr-color-border);
+  border-radius: var(--cr-radius-medium);
+}
+
+.conversation-product-cover {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.conversation-product-main,
+.conversation-contact > view:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.conversation-product-title,
+.conversation-contact-title {
+  color: var(--cr-color-text);
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.conversation-product-price,
+.conversation-product-link,
+.conversation-contact-desc {
+  margin-top: 6rpx;
+  color: var(--cr-color-text-secondary);
+  font-size: 22rpx;
+}
+
+.conversation-contact {
+  margin-top: 16rpx;
+}
+
+.conversation-messages {
+  height: calc(100vh - 390rpx - env(safe-area-inset-bottom));
+  margin-top: 18rpx;
+}
+
+.conversation-empty {
+  padding: 64rpx 24rpx;
+  color: var(--cr-color-placeholder);
+  font-size: 24rpx;
+  text-align: center;
+}
+
+.conversation-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 20rpx 0;
+}
+
+.conversation-message.is-mine {
+  align-items: flex-end;
+}
+
+.conversation-message-name {
+  margin: 0 8rpx 8rpx;
+  color: var(--cr-color-placeholder);
+  font-size: 20rpx;
+}
+
+.conversation-bubble {
+  max-width: 76%;
+  padding: 18rpx 22rpx;
+  color: var(--cr-color-text);
+  font-size: 26rpx;
+  line-height: 1.55;
+  background: #ffffff;
+  border-radius: 8rpx 22rpx 22rpx;
+  box-shadow: var(--cr-shadow-card);
+  overflow-wrap: anywhere;
+}
+
+.conversation-message.is-mine .conversation-bubble {
+  color: #ffffff;
+  background: var(--cr-color-primary);
+  border-radius: 22rpx 8rpx 22rpx 22rpx;
+}
+
+.conversation-composer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140rpx;
+  align-items: end;
+  gap: 14rpx;
+  padding: 16rpx 20rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.98);
+  border-top: 1rpx solid var(--cr-color-border);
+}

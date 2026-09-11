@@ -23,6 +23,12 @@ public class AdminKPIController {
     @Autowired
     private AdminKPIService adminKPIService;
 
+    @GetMapping("/pending-auth")
+    @Operation(summary = "查询待审核认证人数")
+    public Result<Long> getPendingAuthCount() {
+        return Result.success(adminKPIService.getPendingAuthCount());
+    }
+
     @GetMapping("/orders")
     @Operation(summary = "获取所有订单总数量")
     public Result<Long> getAllOrders() {

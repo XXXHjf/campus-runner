@@ -157,6 +157,7 @@ public class OrderTask {
         log.info("Processing second-hand timeout jobs, current time: {}", now);
         secondHandService.processUnpaidTimeouts();
         secondHandService.processAutoConfirm();
+        secondHandService.processTransferQueries();
     }
 
 

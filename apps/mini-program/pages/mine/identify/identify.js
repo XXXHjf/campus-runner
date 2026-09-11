@@ -5,6 +5,7 @@ const userService = require('../../../services/userService');
 const mediaService = require('../../../services/mediaService');
 const tokenManager = require('../../../utils/tokenManager');
 const { showLoading, hideLoading, showError } = require('../../../utils/transformers');
+const { PROFILE_PAGE, isProfileComplete } = require('../../../utils/profileStatus');
 const {
   showSuccessToast
 } = require('../../../utils/commonJs');
@@ -377,7 +378,14 @@ Page({
   async refreshStatus() {
     try {
       showLoading('刷新中');
-      await this.getGlobalData();
+      const userInfo = await this.getGlobalData();
+      if (!isProfileComplete(userInfo)) {
+        showError('请先完善头像、昵称和手机号');
+        setTimeout(() => {
+          wx.redirectTo({ url: PROFILE_PAGE });
+        }, 500);
+        return;
+      }
       showSuccessToast(this, '已刷新');
     } catch (error) {
       console.error('刷新认证状态失败:', error);
@@ -560,7 +568,14 @@ Page({
       
       // 强制刷新用户数据（避免从 reIdentify 返回后显示旧数据）
       console.log('[identify] 页面显示，刷新用户数据...');
-      await this.getGlobalData();
+      const userInfo = await this.getGlobalData();
+      if (!isProfileComplete(userInfo)) {
+        showError('请先完善头像、昵称和手机号');
+        setTimeout(() => {
+          wx.redirectTo({ url: PROFILE_PAGE });
+        }, 500);
+        return;
+      }
       console.log('[identify] 用户数据刷新成功');
       console.log('[identify] authentication:', this.data.userInfo?.authentication);
       console.log('[identify] studentIdCard:', this.data.userInfo?.studentIdCard);

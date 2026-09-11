@@ -2,6 +2,18 @@
 const tokenManager = require('./utils/tokenManager');
 
 App({
+  async refreshMineTabRedDot(options = {}) {
+    if (!tokenManager.hasToken() && this.globalData.silentLoginPromise) {
+      try {
+        await this.globalData.silentLoginPromise;
+      } catch (error) {
+        // 红点刷新失败不影响主流程
+      }
+    }
+    const mineTabBadgeService = require('./services/mineTabBadgeService');
+    return mineTabBadgeService.refreshMineTabRedDot(options);
+  },
+
   // 认证成功后更新全局 userInfo
   onUserInfoUpdated(userInfo) {
     // 使用 tokenManager 统一管理
@@ -22,6 +34,7 @@ App({
         }
       });
     }
+    this.refreshMineTabRedDot({ force: true, userInfo }).catch(() => {});
   },
 
   onLaunch() {
@@ -36,6 +49,10 @@ App({
     if (!tokenManager.hasToken()) {
       this.globalData.silentLoginPromise = this.silentLogin();
     }
+  },
+
+  onShow() {
+    this.refreshMineTabRedDot().catch(() => {});
   },
   // 静默登录，用于启动时无感刷新 token
   silentLogin() {

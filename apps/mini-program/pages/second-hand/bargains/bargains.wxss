@@ -4,119 +4,151 @@ page {
 
 .bargains-page {
   min-height: 100vh;
-  padding: 28rpx 24rpx 48rpx;
-  box-sizing: border-box;
 }
 
-.page-head {
-  padding: 16rpx 4rpx 22rpx;
+.bargains-page__body {
+  padding: 0 24rpx 48rpx;
 }
 
-.page-title {
-  color: #17231d;
-  font-size: 44rpx;
-  font-weight: 800;
-}
-
-.page-subtitle {
-  margin-top: 10rpx;
-  color: #7a867f;
-  font-size: 24rpx;
-}
-
-.summary {
+.bargains-page__summary {
   display: flex;
-  margin-bottom: 18rpx;
-  padding: 22rpx 10rpx;
-  background: #ffffff;
-  border-radius: 16rpx;
-  box-shadow: 0 10rpx 28rpx rgba(24, 57, 42, 0.06);
+  padding: 28rpx 12rpx;
 }
 
-.summary-item {
+.bargains-page__summary-item {
+  position: relative;
+  display: flex;
   flex: 1;
-  display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6rpx;
 }
 
-.summary-value {
-  color: #17231d;
+.bargains-page__summary-item::after {
+  position: absolute;
+  top: 12rpx;
+  right: 0;
+  width: 1rpx;
+  height: 48rpx;
+  background: var(--cr-color-border, #e7eaf0);
+  content: '';
+}
+
+.bargains-page__summary-item:last-child::after {
+  display: none;
+}
+
+.bargains-page__summary-value {
+  color: var(--cr-color-text, #1d2129);
   font-size: 34rpx;
   font-weight: 800;
+  line-height: 42rpx;
 }
 
-.summary-label,
-.meta,
-.attempt {
-  color: #7a867f;
+.bargains-page__summary-label,
+.bargains-page__meta,
+.bargains-page__attempt {
+  color: var(--cr-color-text-secondary, #6b778c);
   font-size: 24rpx;
+  line-height: 36rpx;
 }
 
-.bargain-list {
-  margin-top: 20rpx;
+.bargains-page__tabs {
+  padding: 0 20rpx;
+  border-bottom: 1rpx solid var(--cr-color-border, #e7eaf0);
+  --td-tab-border-color: transparent;
+  --td-tab-item-active-color: var(--cr-color-primary, #0052d9);
+  --td-tab-item-color: var(--cr-color-text, #1d2129);
+  --td-tab-item-height: 88rpx;
+  --td-tab-nav-bg-color: var(--cr-color-surface, #ffffff);
+  --td-tab-track-thickness: 4rpx;
+  --td-tab-track-width: 36rpx;
 }
 
-.bargain-card {
-  margin-bottom: 18rpx;
-  padding: 22rpx;
-  background: #ffffff;
-  border-radius: 16rpx;
-  box-shadow: 0 10rpx 28rpx rgba(24, 57, 42, 0.06);
+.bargains-page__list {
+  background: var(--cr-color-surface, #ffffff);
 }
 
-.row-top,
-.price-line,
-.actions {
+.bargains-page__row {
+  padding: 26rpx 28rpx;
+  border-bottom: 1rpx solid var(--cr-color-border, #e7eaf0);
+}
+
+.bargains-page__row:last-child {
+  border-bottom: 0;
+}
+
+.bargains-page__top,
+.bargains-page__price-line,
+.bargains-page__actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14rpx;
+  gap: 16rpx;
 }
 
-.title {
+.bargains-page__title {
   flex: 1;
   min-width: 0;
-  color: #17231d;
+  overflow: hidden;
+  color: var(--cr-color-text, #1d2129);
   font-size: 28rpx;
   font-weight: 800;
-  line-height: 1.35;
+  line-height: 40rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.price-line {
-  margin-top: 18rpx;
+.bargains-page__price-line {
+  align-items: baseline;
+  margin-top: 12rpx;
 }
 
-.price {
+.bargains-page__price {
   color: #ff6a3d;
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 800;
+  line-height: 44rpx;
 }
 
-.meta {
+.bargains-page__attempt {
+  flex: none;
+}
+
+.bargains-page__meta {
+  margin-top: 4rpx;
+}
+
+.bargains-page__footer {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
   margin-top: 14rpx;
 }
 
-.message {
-  margin-top: 14rpx;
-  padding: 18rpx;
+.bargains-page__message {
+  flex: 1;
+  min-width: 0;
+  padding: 14rpx 16rpx;
+  overflow: hidden;
   color: #344139;
-  background: #f6f8f7;
-  border-radius: 12rpx;
-  font-size: 25rpx;
-  line-height: 1.5;
+  background: #f5f7fa;
+  border-radius: var(--cr-radius-small, 12rpx);
+  font-size: 24rpx;
+  line-height: 36rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.actions {
+.bargains-page__footer-action {
+  flex: none;
+}
+
+.bargains-page__compact-button {
+  width: auto;
+}
+
+.bargains-page__actions {
   justify-content: flex-end;
-  margin-top: 18rpx;
-}
-
-.empty {
-  margin-top: 28rpx;
-  padding: 54rpx 0;
-  color: #8a958f;
-  text-align: center;
-  font-size: 26rpx;
+  margin-top: 16rpx;
 }

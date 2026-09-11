@@ -114,16 +114,6 @@ Page({
       await takeOrderService.acceptOrderById(this.data.id);
       checkCilcleToast(this, "接单成功");
       
-      // 发送订阅消息
-      try {
-        await takeOrderService.sendTakeOrderMessage(
-          this.data.orderInfo.id, 
-          userInfo.id
-        );
-        console.log("成功调用发送接单的订阅消息");
-      } catch (err) {
-        console.log("发送订阅消息失败:", err.message);
-      }
       
       await this._loadOrderInfo();
     } catch (error) {
@@ -145,12 +135,6 @@ Page({
       });
       checkCilcleToast(this, "取件成功");
       
-      // 发送订阅消息
-      try {
-        await takeOrderService.sendPickupMessage(this.data.orderInfo.id);
-      } catch (err) {
-        console.log("发送取件订阅消息失败:", err.message);
-      }
       
       await this._loadOrderInfo();
     } catch (error) {
@@ -256,15 +240,6 @@ Page({
       this.setData({ imageAssetId: null, fileList: [] });
       checkCilcleToast(this, "派送成功");
       
-      // 发送订阅消息
-      try {
-        await takeOrderService.sendDeliveredMessage(
-          this.data.orderInfo.id, 
-          this.data.userInfo.id
-        );
-      } catch (err) {
-        console.log("发送派送订阅消息失败:", err.message);
-      }
       
       await this._loadOrderInfo();
     } catch (error) {

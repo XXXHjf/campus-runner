@@ -1,0 +1,16 @@
+.ui-empty-state {
+  box-sizing: border-box;
+  padding: 72rpx 32rpx;
+  text-align: center;
+}
+
+.ui-empty-state__description {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 36rpx;
+  color: var(--cr-color-text-secondary, #6b778c);
+}
+
+.ui-empty-state__action {
+  margin-top: 24rpx;
+}

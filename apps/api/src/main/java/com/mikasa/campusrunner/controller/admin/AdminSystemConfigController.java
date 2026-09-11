@@ -38,6 +38,12 @@ public class AdminSystemConfigController {
         return Result.success(str);
     }
 
+    @GetMapping("/second_hand_service_fee_rate")
+    @Operation(summary = "获取二手交易服务费率")
+    public Result<String> getSecondHandServiceFeeRate() {
+        return Result.success(adminSystemConfigService.getSecondHandServiceFeeRate());
+    }
+
     @PutMapping("/service_fee_rate")
     @Operation(summary = "修改服务费率")
     public Result updateServiceFeeRate(@RequestBody AdminSystemConfigDTO dto) {
@@ -51,6 +57,13 @@ public class AdminSystemConfigController {
     public Result updateServiceFeeMin(@RequestBody AdminSystemConfigDTO dto) {
         log.info("Update minimum service fee, {}", dto);
         adminSystemConfigService.updateServiceFeeMin(dto.getServiceFeeMin());
+        return Result.success();
+    }
+
+    @PutMapping("/second_hand_service_fee_rate")
+    @Operation(summary = "修改二手交易服务费率")
+    public Result<Void> updateSecondHandServiceFeeRate(@RequestBody AdminSystemConfigDTO dto) {
+        adminSystemConfigService.updateSecondHandServiceFeeRate(dto.getSecondHandServiceFeeRate());
         return Result.success();
     }
 

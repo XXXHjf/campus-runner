@@ -77,6 +77,7 @@ type Order = {
   productImages?: string
   buyerName?: string
   sellerName?: string
+  tradeMode?: 'ONLINE' | 'OFFLINE'
   productAmount?: number
   payAmount: number
   serviceFeeRate?: number
@@ -133,7 +134,7 @@ type DetailState =
 
 const productStatus: Record<number, { label: string; color: string }> = {
   0: { label: '在售', color: 'green' },
-  1: { label: '待支付', color: 'gold' },
+  1: { label: '已锁定', color: 'gold' },
   2: { label: '交易中', color: 'blue' },
   3: { label: '已售出', color: 'default' },
   4: { label: '已下架', color: 'red' },
@@ -171,6 +172,11 @@ const orderStatusOptions = Object.entries(orderStatus).map(([value, item]) => ({
   value: Number(value),
 }))
 
+const offlineOrderStatusOptions = [1, 2, 3, 4, 11].map((value) => ({
+  label: orderStatus[value].label,
+  value,
+}))
+
 const bargainStatusOptions = Object.entries(bargainStatus).map(([value, item]) => ({
   label: item.label,
   value: Number(value),
@@ -183,6 +189,10 @@ function statusTag(map: Record<number, { label: string; color: string }>, status
 
 function money(value?: number) {
   return `¥${Number(value || 0).toFixed(2)}`
+}
+
+function isOfflineOrder(order: Order) {
+  return order.tradeMode === 'OFFLINE'
 }
 
 function dateTime(value?: string) {
@@ -583,20 +593,21 @@ export default function SecondHandManagement() {
         <Descriptions.Item label="商品">{data.productTitle}</Descriptions.Item>
         <Descriptions.Item label="买家">{compactText(data.buyerName)}</Descriptions.Item>
         <Descriptions.Item label="卖家">{compactText(data.sellerName)}</Descriptions.Item>
-        <Descriptions.Item label="成交金额">{money(data.payAmount)}</Descriptions.Item>
-        <Descriptions.Item label="服务费">{money(data.serviceFee)}</Descriptions.Item>
-        <Descriptions.Item label="卖家收入">{money(data.sellerIncome)}</Descriptions.Item>
+        <Descriptions.Item label="交易方式">{isOfflineOrder(data) ? '线下自行交易' : '历史线上交易'}</Descriptions.Item>
+        <Descriptions.Item label="约定金额">{money(data.payAmount)}</Descriptions.Item>
+        {!isOfflineOrder(data) && <Descriptions.Item label="服务费">{money(data.serviceFee)}</Descriptions.Item>}
+        {!isOfflineOrder(data) && <Descriptions.Item label="卖家收入">{money(data.sellerIncome)}</Descriptions.Item>}
         <Descriptions.Item label="交付方式">{data.deliveryMode === 1 ? '配送' : '自提'}</Descriptions.Item>
         <Descriptions.Item label="自提地点">{compactText(data.pickupAddressSnapshot)}</Descriptions.Item>
         <Descriptions.Item label="配送地址">{compactText(data.buyerDeliveryAddressSnapshot)}</Descriptions.Item>
         <Descriptions.Item label="交付备注">{compactText(data.deliveryRemark)}</Descriptions.Item>
         <Descriptions.Item label="取消/处理原因">{compactText(data.cancelReason)}</Descriptions.Item>
-        <Descriptions.Item label="收款异常原因">{compactText(data.transferFailReason)}</Descriptions.Item>
+        {!isOfflineOrder(data) && <Descriptions.Item label="收款异常原因">{compactText(data.transferFailReason)}</Descriptions.Item>}
         <Descriptions.Item label="创建时间">{dateTime(data.createTime)}</Descriptions.Item>
-        <Descriptions.Item label="支付时间">{dateTime(data.payTime)}</Descriptions.Item>
+        {!isOfflineOrder(data) && <Descriptions.Item label="支付时间">{dateTime(data.payTime)}</Descriptions.Item>}
         <Descriptions.Item label="交付时间">{dateTime(data.deliveredTime)}</Descriptions.Item>
         <Descriptions.Item label="完成时间">{dateTime(data.finishTime)}</Descriptions.Item>
-        <Descriptions.Item label="收款时间">{dateTime(data.transferTime)}</Descriptions.Item>
+        {!isOfflineOrder(data) && <Descriptions.Item label="收款时间">{dateTime(data.transferTime)}</Descriptions.Item>}
       </Descriptions>
     )
   }
@@ -605,7 +616,7 @@ export default function SecondHandManagement() {
     <AdminPage className="second-hand-management">
       <AdminPageHeader
         title="二手交易管理"
-        description="处理商品、订单、分类、议价与留言记录"
+        description="处理商品、线下交易记录、分类、议价与私信"
         actions={
           <Button onClick={loadAll} loading={loading}>
             刷新
@@ -631,7 +642,7 @@ export default function SecondHandManagement() {
         </Col>
         <Col xs={24} md={6}>
           <Card>
-            <Statistic title="已成交金额" value={stats.turnover} precision={2} prefix="¥" />
+            <Statistic title="已完成约定金额" value={stats.turnover} precision={2} prefix="¥" />
           </Card>
         </Col>
       </Row>
@@ -751,9 +762,10 @@ export default function SecondHandManagement() {
                     { title: '商品', dataIndex: 'productTitle', width: 220 },
                     { title: '买家', dataIndex: 'buyerName', width: 120, render: compactText },
                     { title: '卖家', dataIndex: 'sellerName', width: 120, render: compactText },
-                    { title: '成交金额', dataIndex: 'payAmount', width: 120, render: money },
-                    { title: '服务费', dataIndex: 'serviceFee', width: 110, render: money },
-                    { title: '卖家收入', dataIndex: 'sellerIncome', width: 120, render: money },
+                    { title: '交易方式', width: 130, render: (_, record) => (isOfflineOrder(record) ? '线下自行交易' : '历史线上交易') },
+                    { title: '约定金额', dataIndex: 'payAmount', width: 120, render: money },
+                    { title: '服务费', dataIndex: 'serviceFee', width: 110, render: (value, record) => (isOfflineOrder(record) ? '-' : money(value)) },
+                    { title: '卖家收入', dataIndex: 'sellerIncome', width: 120, render: (value, record) => (isOfflineOrder(record) ? '-' : money(value)) },
                     { title: '状态', dataIndex: 'status', width: 120, render: (value: number) => statusTag(orderStatus, value) },
                     { title: '创建时间', dataIndex: 'createTime', width: 170, render: dateTime },
                     {
@@ -768,10 +780,13 @@ export default function SecondHandManagement() {
                           <Button type="link" onClick={() => openOrderModal(record)}>
                             处理
                           </Button>
-                          {[8, 10].includes(record.status) && (
-                            <Popconfirm title="确认重试卖家收款？" onConfirm={() => retryTransfer(record.id)}>
+                          {!isOfflineOrder(record) && [8, 10].includes(record.status) && (
+                            <Popconfirm
+                              title={record.status === 8 ? '确认同步微信收款状态？' : '确认重新发起卖家收款？'}
+                              onConfirm={() => retryTransfer(record.id)}
+                            >
                               <Button type="link" loading={actionLoading}>
-                                重试收款
+                                {record.status === 8 ? '同步收款状态' : '重新发起收款'}
                               </Button>
                             </Popconfirm>
                           )}
@@ -992,7 +1007,7 @@ export default function SecondHandManagement() {
       >
         <Form form={orderForm} layout="vertical">
           <Form.Item name="status" label="订单状态" rules={[{ required: true, message: '请选择订单状态' }]}>
-            <Select options={orderStatusOptions} />
+            <Select options={orderModal.order && isOfflineOrder(orderModal.order) ? offlineOrderStatusOptions : orderStatusOptions} />
           </Form.Item>
           <Form.Item name="reason" label="处理备注">
             <Input.TextArea rows={4} placeholder="需要人工说明时填写" />

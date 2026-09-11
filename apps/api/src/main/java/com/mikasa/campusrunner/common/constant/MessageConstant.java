@@ -44,6 +44,9 @@ public class MessageConstant {
     public static final String ORDER_NOT_FINISHED = "Order is not finished yet, photo not available";
 
     public static final String USER_NOT_AUTHEN = "User not authenticated";
+    public static final String USER_PROFILE_INCOMPLETE = "请先完善头像、昵称和手机号";
+    public static final String INVALID_USER_PHONE = "请输入正确的手机号";
+    public static final String INVALID_USERNAME = "请输入有效的昵称";
 
     public static final String NO_NOT_PAY_ORDER_WITH_ORDERID = "No unpaid order found for this order ID";
     public static final String ORDER_NOT_PAY = "Order not paid, cannot withdraw";

@@ -33,6 +33,12 @@ public interface SecondHandService {
 
     SecondHandProductVO productDetail(Long id);
 
+    List<SecondHandProductVO> listFavoriteProducts();
+
+    void favoriteProduct(Long id);
+
+    void unfavoriteProduct(Long id);
+
     SecondHandBargainVO createBargain(SecondHandBargainDTO dto);
 
     SecondHandOrderVO acceptBargain(Long bargainId, SecondHandOrderCreateDTO dto);
@@ -63,6 +69,12 @@ public interface SecondHandService {
 
     List<SecondHandMessageVO> listProductMessages(Long productId);
 
+    List<SecondHandConversationVO> listConversations();
+
+    List<SecondHandMessageVO> listConversationMessages(Long productId, Long counterpartyId);
+
+    SecondHandTransferClaimVO getTransferClaim(Long orderId);
+
     List<SecondHandProductVO> adminListProducts(SecondHandProductQueryDTO query);
 
     SecondHandProductVO adminProductDetail(Long id);
@@ -86,6 +98,8 @@ public interface SecondHandService {
     void processUnpaidTimeouts();
 
     void processAutoConfirm();
+
+    void processTransferQueries();
 
     WeChatPrePayVO jsapiPay(Long orderId) throws Exception;
 

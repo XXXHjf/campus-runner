@@ -1,5 +1,7 @@
+const subscriptions = require('../../../services/subscriptionService');
 const secondHandService = require('../../../services/secondHandService');
 const deliveryAddressService = require('../../../services/deliveryAddressService');
+const userService = require('../../../services/userService');
 const { friendlyError } = require('../../../utils/secondHandStatus');
 
 Page({
@@ -7,21 +9,19 @@ Page({
     id: null,
     product: {},
     images: [],
-    messages: [],
+    currentUserId: null,
     addressBook: [],
     showBargain: false,
-    showMessage: false,
     showBuySheet: false,
     selectedDeliveryMode: 0,
     selectedBuyerAddressId: null,
     selectedBuyerAddressText: '',
     bargainPrice: '',
     bargainMessage: '',
-    messageContent: '',
     loading: false,
+    favoriteSubmitting: false,
     buySubmitting: false,
     bargainSubmitting: false,
-    messageSubmitting: false,
   },
 
   onLoad(options) {
@@ -38,12 +38,14 @@ Page({
   async loadDetail() {
     this.setData({ loading: true });
     try {
-      const product = await secondHandService.getProduct(this.data.id);
-      const messages = await secondHandService.listProductMessages(this.data.id);
+      const [product, user] = await Promise.all([
+        secondHandService.getProduct(this.data.id),
+        this.getCurrentUser(),
+      ]);
       this.setData({
-        product: this.decorateProduct(product),
+        product: this.decorateProduct(product, user),
         images: this.parseImages(product.images),
-        messages,
+        currentUserId: user.id || null,
       });
     } catch (error) {
       wx.showToast({ title: this.errorText(error, '详情加载失败'), icon: 'none' });
@@ -52,18 +54,37 @@ Page({
     }
   },
 
-  decorateProduct(product) {
+  decorateProduct(product, user = {}) {
     const pickupAddressText = product.pickupAddressSnapshot || '';
     const pickupOnly = Number(product.pickupOnly ?? 1);
+    const isOwner = user.id != null && Number(user.id) === Number(product.sellerId);
     return {
       ...product,
       pickupOnly,
       pickupAddressText,
       deliveryText: pickupOnly === 1 ? '仅支持买家自提' : '可选自提或卖家配送',
       statusText: this.statusText(product.status),
-      canBuy: Number(product.status) === 0,
-      canBargain: Number(product.status) === 0 && Number(product.negotiable) === 1,
+      isOwner,
+      isFavorited: product.favorited === true || Number(product.favorited) === 1,
+      favoriteCount: Math.max(0, Number(product.favoriteCount) || 0),
+      canBuy: !isOwner && Number(product.status) === 0,
+      canBargain: !isOwner && Number(product.status) === 0 && Number(product.negotiable) === 1,
+      canContact: !isOwner,
     };
+  },
+
+  async getCurrentUser() {
+    const app = getApp();
+    const cached = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
+    if (cached.id != null) return cached;
+    try {
+      const fresh = await userService.getUserInfo();
+      app.globalData.userInfo = { ...cached, ...fresh };
+      wx.setStorageSync('userInfo', app.globalData.userInfo);
+      return app.globalData.userInfo;
+    } catch (error) {
+      return cached;
+    }
   },
 
   parseImages(images) {
@@ -83,7 +104,7 @@ Page({
     const product = this.data.product;
     if (!product.id) return;
     if (!product.canBuy) {
-      wx.showToast({ title: '商品当前不可购买', icon: 'none' });
+      wx.showToast({ title: '商品当前不可下单', icon: 'none' });
       return;
     }
     this.setData({
@@ -153,16 +174,16 @@ Page({
     const addressText = deliveryMode === 1 ? this.data.selectedBuyerAddressText : product.pickupAddressText;
     wx.showModal({
       title: '确认下单',
-      content: `${deliveryMode === 1 ? '卖家配送到' : '买家自提于'}：${addressText}\n成交价 ¥${product.price}，支付后将为你保留商品。`,
+      content: `${deliveryMode === 1 ? '卖家配送到' : '买家自提于'}：${addressText}\n约定价格 ¥${product.price}。下单后商品将进入交易中，请与卖家自行协商付款和交付。`,
       confirmText: '创建订单',
       success: async (res) => {
         if (!res.confirm) return;
-        await this.createOrderAndPay();
+        await this.createOrder();
       },
     });
   },
 
-  async createOrderAndPay() {
+  async createOrder() {
     const product = this.data.product;
     const deliveryMode = Number(this.data.selectedDeliveryMode);
     const payload = {
@@ -175,14 +196,12 @@ Page({
     this.setData({ buySubmitting: true });
     try {
       const order = await secondHandService.createOrder(payload);
-      if (getApp().globalData.MOCK_PAYMENT) {
-        await secondHandService.mockPaySuccess(order.id);
-        wx.showToast({ title: '支付成功', icon: 'success' });
-      }
+      await subscriptions.requestSecondHandOrder();
       this.setData({ showBuySheet: false });
+      wx.showToast({ title: '下单成功', icon: 'success' });
       wx.navigateTo({ url: `/pages/second-hand/order-detail/order-detail?id=${order.id}` });
     } catch (error) {
-      wx.showToast({ title: this.errorText(error, '购买失败'), icon: 'none' });
+      wx.showToast({ title: this.errorText(error, '下单失败'), icon: 'none' });
     } finally {
       this.setData({ buySubmitting: false });
     }
@@ -232,6 +251,7 @@ Page({
             offerPrice: price,
             message: this.data.bargainMessage,
           });
+          await subscriptions.requestSecondHandOrder();
           this.setData({ showBargain: false, bargainPrice: '', bargainMessage: '' });
           wx.showToast({ title: '已发送议价', icon: 'success' });
         } catch (error) {
@@ -243,42 +263,70 @@ Page({
     });
   },
 
-  openMessage() {
-    this.setData({ showMessage: true });
-  },
-
-  closeMessage() {
-    this.setData({ showMessage: false });
-  },
-
   noop() {},
 
-  setMessage(e) {
-    this.setData({ messageContent: e.detail.value });
+  async toggleFavorite() {
+    const product = this.data.product;
+    if (!product.id || product.isOwner || this.data.favoriteSubmitting) return;
+    const nextFavorited = !product.isFavorited;
+    this.setData({ favoriteSubmitting: true });
+    try {
+      if (nextFavorited) {
+        await secondHandService.favoriteProduct(product.id);
+      } else {
+        await secondHandService.unfavoriteProduct(product.id);
+      }
+      this.setData({
+        product: {
+          ...product,
+          isFavorited: nextFavorited,
+          favoriteCount: Math.max(0, product.favoriteCount + (nextFavorited ? 1 : -1)),
+        },
+      });
+      wx.showToast({ title: nextFavorited ? '已收藏' : '已取消收藏', icon: 'success' });
+    } catch (error) {
+      wx.showToast({ title: this.errorText(error, '操作失败'), icon: 'none' });
+    } finally {
+      this.setData({ favoriteSubmitting: false });
+    }
   },
 
-  async submitMessage() {
-    if (this.data.messageSubmitting) return;
-    const content = this.data.messageContent.trim();
-    if (!content) {
-      wx.showToast({ title: '请输入留言', icon: 'none' });
-      return;
-    }
-    try {
-      this.setData({ messageSubmitting: true });
-      await secondHandService.sendMessage({
-        productId: this.data.product.id,
-        receiverId: this.data.product.sellerId,
-        content,
-      });
-      this.setData({ showMessage: false, messageContent: '' });
-      wx.showToast({ title: '已留言', icon: 'success' });
-      this.loadDetail();
-    } catch (error) {
-      wx.showToast({ title: this.errorText(error, '留言失败'), icon: 'none' });
-    } finally {
-      this.setData({ messageSubmitting: false });
-    }
+  gotoConversation() {
+    const product = this.data.product;
+    if (!product.id || !product.sellerId || product.isOwner) return;
+    wx.navigateTo({
+      url: `/pages/second-hand/conversation/conversation?productId=${product.id}&counterpartyId=${product.sellerId}`,
+    });
+  },
+
+  gotoConversations() {
+    wx.navigateTo({ url: '/pages/second-hand/conversations/conversations' });
+  },
+
+  editProduct() {
+    wx.navigateTo({ url: `/pages/second-hand/publish/publish?id=${this.data.product.id}` });
+  },
+
+  toggleProductStatus() {
+    const product = this.data.product;
+    if (!product.isOwner || ![0, 4].includes(Number(product.status))) return;
+    const nextStatus = Number(product.status) === 4 ? 0 : 4;
+    const actionText = nextStatus === 0 ? '上架' : '下架';
+    wx.showModal({
+      title: `${actionText}商品`,
+      content: `${actionText}后将${nextStatus === 0 ? '重新对同校买家展示' : '暂停买家下单'}，确认继续？`,
+      confirmText: actionText,
+      success: async (res) => {
+        if (!res.confirm) return;
+        try {
+          await secondHandService.updateProductStatus(product.id, nextStatus);
+          wx.showToast({ title: `已${actionText}`, icon: 'success' });
+          this.loadDetail();
+        } catch (error) {
+          wx.showToast({ title: this.errorText(error, '操作失败'), icon: 'none' });
+        }
+      },
+    });
   },
 
   formatAddress(address) {
@@ -293,7 +341,7 @@ Page({
   statusText(status) {
     return {
       0: '在售',
-      1: '待支付',
+      1: '已锁定',
       2: '交易中',
       3: '已售出',
       4: '已下架',
@@ -302,5 +350,36 @@ Page({
 
   errorText(error, fallback) {
     return friendlyError(error, fallback);
+  },
+
+  // 右上角分享--好友、朋友圈
+  onShareAppMessage() {
+    const product = this.data.product || {};
+    const id = this.data.id || product.id;
+    const title = product.title
+      ? `${product.title} · ¥${product.price}`
+      : '帮帮校园送 · 校园二手好物';
+    const cover = this.data.images && this.data.images[0];
+    if (!id) {
+      return { title, path: '/pages/second-hand/index/index' };
+    }
+    return {
+      title,
+      path: `/pages/second-hand/detail/detail?id=${id}`,
+      ...(cover ? { imageUrl: cover } : {}),
+    };
+  },
+  onShareTimeline() {
+    const product = this.data.product || {};
+    const id = this.data.id || product.id;
+    const title = product.title
+      ? `${product.title} · ¥${product.price}`
+      : '帮帮校园送 · 校园二手好物';
+    const cover = this.data.images && this.data.images[0];
+    return {
+      title,
+      query: id ? `id=${id}` : '',
+      ...(cover ? { imageUrl: cover } : {}),
+    };
   },
 });

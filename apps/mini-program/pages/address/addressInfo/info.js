@@ -6,6 +6,7 @@ const { showLoading, hideLoading, showError, showSuccess } = require('../../../u
 import Toast from 'tdesign-miniprogram/toast/index';
 
 const url = getApp().globalData.API_URL;
+const ADDRESS_SAVE_NOT_APPLIED = 'ADDRESS_SAVE_NOT_APPLIED';
 
 // 选择器方法
 const getOptions = (obj, filter) => {
@@ -67,12 +68,14 @@ Page({
       }
 
       const id = this.data.addressInfo.id;
+      const requestedDetails = this.data.upDetails;
+      const requestedLabel = this.data.upLabel;
 
       // 动态构建数据对象
       let data = {
         'id': id,
-        'details': this.data.upDetails,
-        'label': this.data.upLabel,
+        'details': requestedDetails,
+        'label': requestedLabel,
       };
 
       if (this.data.upCompusNum != null) {
@@ -86,6 +89,19 @@ Page({
       }
 
       await addressService.updateUserAddressDetail(data);
+
+      if (requestedDetails === '' || requestedLabel === '') {
+        const savedAddress = await addressService.getUserAddressDetail(id);
+        const detailsNotCleared = requestedDetails === '' && (savedAddress.details || '') !== '';
+        const labelNotCleared = requestedLabel === '' && (savedAddress.label || '') !== '';
+
+        if (detailsNotCleared || labelNotCleared) {
+          const error = new Error('地址修改未生效');
+          error.code = ADDRESS_SAVE_NOT_APPLIED;
+          throw error;
+        }
+      }
+
       showSuccess('更新成功');
 
       setTimeout(() => {
@@ -93,7 +109,7 @@ Page({
       }, 1500);
     } catch (error) {
       console.error('更新地址失败:', error);
-      showError('更新失败');
+      showError(error && error.code === ADDRESS_SAVE_NOT_APPLIED ? '保存未生效，请稍后重试' : '更新失败');
     } finally {
       hideLoading();
     }
@@ -116,7 +132,9 @@ Page({
   // 详细地址输入框失去焦点（在这里限制长度）
   handleDetailsBlur(e) {
     const maxLength = 30;
-    let value = e.detail.value || this.data.upDetails;
+    let value = e.detail && typeof e.detail.value === 'string'
+      ? e.detail.value
+      : this.data.upDetails;
     
     // 限制字数
     if (value.length > maxLength) {
@@ -158,7 +176,9 @@ Page({
   
   // 标签输入框失去焦点（在这里限制长度）
   handleLabelBlur(e) {
-    let value = e.detail.value || this.data.upLabel;
+    let value = e.detail && typeof e.detail.value === 'string'
+      ? e.detail.value
+      : this.data.upLabel;
     
     // 限制最多3个字符
     if (value.length > 3) {
@@ -181,6 +201,18 @@ Page({
     
     this.setData({
       showLabelTip: false
+    });
+  },
+  clearDetails() {
+    this.setData({
+      upDetails: '',
+      showDetailsTip: false,
+    });
+  },
+  clearLabel() {
+    this.setData({
+      upLabel: '',
+      showLabelTip: false,
     });
   },
   // 设置为默认地址

@@ -4,15 +4,15 @@
 <mapper namespace="com.mikasa.campusrunner.mapper.SecondHandMessageMapper">
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into tb_second_hand_message(
-            id, product_id, order_id, sender_id, receiver_id, content, deleted, create_time
+            id, product_id, order_id, sender_id, receiver_id, content, read_time, deleted, create_time
         ) values(
-            null, #{productId}, #{orderId}, #{senderId}, #{receiverId}, #{content}, #{deleted}, #{createTime}
+            null, #{productId}, #{orderId}, #{senderId}, #{receiverId}, #{content}, #{readTime}, #{deleted}, #{createTime}
         )
     </insert>
 
     <sql id="messageVoSelect">
         m.id, m.product_id, m.order_id, m.sender_id, sender.username as sender_name,
-        m.receiver_id, receiver.username as receiver_name, m.content, m.create_time
+        m.receiver_id, receiver.username as receiver_name, m.content, m.read_time, m.create_time
     </sql>
 
     <select id="listByProductForUser" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandMessageVO">
@@ -25,6 +25,40 @@
           and (m.sender_id = #{userId} or m.receiver_id = #{userId})
         order by m.create_time asc
     </select>
+
+    <select id="listForUser" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandMessageVO">
+        select <include refid="messageVoSelect"/>
+        from tb_second_hand_message m
+        left join tb_user sender on m.sender_id = sender.id
+        left join tb_user receiver on m.receiver_id = receiver.id
+        where m.deleted = 0
+          and (m.sender_id = #{userId} or m.receiver_id = #{userId})
+        order by m.create_time desc, m.id desc
+    </select>
+
+    <select id="listConversation" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandMessageVO">
+        select <include refid="messageVoSelect"/>
+        from tb_second_hand_message m
+        left join tb_user sender on m.sender_id = sender.id
+        left join tb_user receiver on m.receiver_id = receiver.id
+        where m.deleted = 0
+          and m.product_id = #{productId}
+          and (
+            (m.sender_id = #{userId} and m.receiver_id = #{counterpartyId})
+            or (m.sender_id = #{counterpartyId} and m.receiver_id = #{userId})
+          )
+        order by m.create_time asc, m.id asc
+    </select>
+
+    <update id="markConversationRead">
+        update tb_second_hand_message
+        set read_time = now()
+        where deleted = 0
+          and product_id = #{productId}
+          and sender_id = #{counterpartyId}
+          and receiver_id = #{userId}
+          and read_time is null
+    </update>
 
     <select id="countProductParticipant" resultType="int">
         select count(1)

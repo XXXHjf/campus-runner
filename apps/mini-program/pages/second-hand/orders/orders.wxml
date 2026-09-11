@@ -1,14 +1,9 @@
 <view class="orders-page">
   <view class="page-head">
     <view class="page-title">我的买卖</view>
-    <!-- <view class="page-subtitle">支付、交付、确认收货都在订单详情里完成</view> -->
   </view>
 
   <view class="summary">
-    <view class="summary-item">
-      <text class="summary-value">{{summary.waitingPay}}</text>
-      <text class="summary-label">待支付</text>
-    </view>
     <view class="summary-item">
       <text class="summary-value">{{summary.waitingDelivery}}</text>
       <text class="summary-label">待交付</text>
@@ -16,6 +11,10 @@
     <view class="summary-item">
       <text class="summary-value">{{summary.waitingConfirm}}</text>
       <text class="summary-label">待确认</text>
+    </view>
+    <view class="summary-item">
+      <text class="summary-value">{{summary.completed}}</text>
+      <text class="summary-label">已完成</text>
     </view>
   </view>
 
@@ -32,9 +31,9 @@
           <view class="title">{{item.productTitle}}</view>
           <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
         </view>
-        <view class="meta">卖家：{{item.sellerName || '同学'}}<text wx:if="{{item.payRemainText}}"> · 剩余 {{item.payRemainText}}</text></view>
+        <view class="meta">卖家：{{item.sellerName || '同学'}}</view>
         <view class="bottom">
-          <text class="price">¥{{item.payAmount}}</text>
+          <text class="price">约定价 ¥{{item.payAmount}}</text>
           <text class="hint">查看详情</text>
         </view>
       </view>
@@ -50,9 +49,9 @@
           <view class="title">{{item.productTitle}}</view>
           <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
         </view>
-        <view class="meta">买家：{{item.buyerName || '同学'}}<text wx:if="{{item.payRemainText}}"> · 剩余 {{item.payRemainText}}</text></view>
+        <view class="meta">买家：{{item.buyerName || '同学'}}</view>
         <view class="bottom">
-          <text class="price">实收 ¥{{item.sellerIncome || 0}}</text>
+          <text class="price">约定价 ¥{{item.payAmount}}</text>
           <text class="hint">查看详情</text>
         </view>
       </view>

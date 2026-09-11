@@ -1,6 +1,13 @@
 package com.mikasa.campusrunner.common.constant;
 
 public class SecondHandConstant {
+    public static final String CONFIG_SERVICE_FEE_RATE = "second_hand_service_fee_rate";
+    public static final String CONFIG_TRADE_MODE = "second_hand_trade_mode";
+    public static final String DEFAULT_TRANSFER_SCENE_ID = "1010";
+    public static final String TRADE_MODE_OFFLINE = "OFFLINE";
+    public static final String TRADE_MODE_ONLINE = "ONLINE";
+    public static final String DEFAULT_TRADE_MODE = TRADE_MODE_OFFLINE;
+
     public static final int PRODUCT_ON_SALE = 0;
     public static final int PRODUCT_LOCKED = 1;
     public static final int PRODUCT_TRADING = 2;
@@ -14,6 +21,7 @@ public class SecondHandConstant {
 
     public static final int ORDER_PENDING_PAY = 0;
     public static final int ORDER_PAID_WAIT_DELIVERY = 1;
+    public static final int ORDER_OFFLINE_WAIT_DELIVERY = ORDER_PAID_WAIT_DELIVERY;
     public static final int ORDER_DELIVERED_WAIT_CONFIRM = 2;
     public static final int ORDER_COMPLETED = 3;
     public static final int ORDER_CANCELED = 4;

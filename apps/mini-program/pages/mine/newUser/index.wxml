@@ -1,67 +1,31 @@
-<!-- 新用户注册页面 -->
-<view class="container">
-  <!-- 标题 -->
-  <view class="title-section">
-    <!-- <view class="main-title">新用户注册</view> -->
-    <view class="sub-title">完善信息，开启校园跑腿之旅</view>
+<ui-page>
+  <view class="registration-intro">
+    <view class="registration-intro__title">完善个人信息</view>
+    <view class="registration-intro__description">填写常用信息，开始使用校园跑腿服务</view>
   </view>
 
-  <!-- 注册表单 -->
-  <view class="form-card">
-    <!-- 头像 -->
-    <view class="form-item">
-      <view class="label">头像</view>
-      <button open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar" class="avatar-btn">
-        <image class="avatar" src="{{userInfo.avatarUrl}}"></image>
+  <ui-section title="基本信息" icon="user-circle">
+    <view class="registration-avatar">
+      <button class="registration-avatar__button" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
+        <image class="registration-avatar__image" src="{{userInfo.avatarUrl}}" mode="aspectFill" />
       </button>
-      <view class="tip">点击上传头像</view>
+      <view class="registration-avatar__tip">点击选择常用头像</view>
     </view>
-
-    <!-- 昵称 -->
-    <view class="form-item">
-      <view class="label">昵称</view>
-      <input 
-        type="nickname" 
-        bind:change="iptInputNickName" 
-        placeholder="请输入昵称" 
-        maxlength="20" 
-        class="input"
-        placeholder-class="placeholder"
-      />
-    </view>
-
-    <!-- 手机号 -->
-    <view class="form-item">
-      <view class="label">手机号</view>
-      <input 
-        type="number" 
-        bind:input="iptInputPhone" 
-        placeholder="请输入手机号" 
-        maxlength="11" 
-        class="input"
-        placeholder-class="placeholder"
-        value="{{phone}}"
-      />
-    </view>
-
-    <!-- 用户协议 -->
-    <view class="agreement">
+    <t-input label="昵称" type="nickname" bind:change="iptInputNickName" placeholder="请输入昵称" maxlength="20" align="right" value="{{userInfo.nickName}}" clearable />
+    <t-input label="手机号" type="number" bind:change="iptInputPhone" placeholder="请输入手机号" maxlength="11" align="right" value="{{phone}}" clearable />
+    <view class="registration-agreement">
       <t-radio value="{{radio}}" bind:change="onChange" borderless>
-        <view class="agreement-text">
-          我已阅读并同意<text class="link" bind:tap="openPrivacyContract">《帮帮校园送用户协议》</text>
+        <view class="registration-agreement__text">
+          我已阅读并同意<text class="registration-agreement__link" bind:tap="openPrivacyContract">《帮帮校园送用户协议》</text>
         </view>
       </t-radio>
     </view>
+  </ui-section>
 
-    <!-- 注册按钮 -->
-    <button class="submit-btn" bind:tap="confirmRegister">立即注册</button>
-  </view>
+  <ui-action-bar>
+    <t-button class="registration-submit" block theme="primary" loading="{{isSubmitting}}" disabled="{{isSubmitting}}" bind:tap="confirmRegister">立即注册</t-button>
+  </ui-action-bar>
 
-  <!-- 底部版权 -->
-  <view class="footer">
-    <text class="copyright">{{text}}</text>
-  </view>
-</view>
+</ui-page>
 
-<!-- 提示组件 -->
 <t-toast id="t-toast" />

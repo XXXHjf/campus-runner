@@ -15,6 +15,9 @@ import {
   Descriptions,
   Tag,
   Avatar,
+  Image,
+  Empty,
+  Alert,
   Card,
   Statistic,
   Row,
@@ -22,6 +25,7 @@ import {
   App,
 } from 'antd'
 import type { AdminUserItem, AdminUserDetail, AdminUserStatistics } from '../../types/admin'
+import { AuthReviewStatus } from '../../types/auth'
 import { userService } from '../../services'
 import { GENDER_LABELS } from '../../constants'
 import { formatDateTime, formatPhone, formatPrice } from '../../utils/format'
@@ -55,6 +59,13 @@ type TabKey = 'all' | 'authenticated' | 'pending-auth' | 'stats'
 
 const PAGE_SIZE = 20
 
+const REVIEW_STATUS = {
+  [AuthReviewStatus.UNREVIEWED]: { label: '未审核', color: 'default' },
+  [AuthReviewStatus.REVIEWING]: { label: '审核中', color: 'processing' },
+  [AuthReviewStatus.APPROVED]: { label: '已通过', color: 'success' },
+  [AuthReviewStatus.REJECTED]: { label: '未通过', color: 'error' },
+}
+
 export default function UserManagement() {
   const { message } = App.useApp()
   const navigate = useNavigate()
@@ -75,6 +86,7 @@ export default function UserManagement() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detail, setDetail] = useState<AdminUserDetail | null>(null)
+  const [studentCardError, setStudentCardError] = useState(false)
 
   // Stats state
   const [statsLoading, setStatsLoading] = useState(false)
@@ -152,6 +164,7 @@ export default function UserManagement() {
     setDrawerOpen(true)
     setDetailLoading(true)
     setDetail(null)
+    setStudentCardError(false)
     try {
       const data = await userService.userDetail(id)
       setDetail(data)
@@ -318,6 +331,9 @@ export default function UserManagement() {
       {isListTab ? (
         <>
           <AdminFilterBar extra={<AdminCount>共 {total} 条</AdminCount>}>
+            {tabKey === 'pending-auth' && (
+              <Button type="primary" onClick={() => navigate('/auth')}>处理认证审核</Button>
+            )}
             <Input.Search
               placeholder="搜索用户昵称、姓名、手机号、学校或 ID"
               value={keyword}
@@ -422,7 +438,32 @@ export default function UserManagement() {
                 {renderAuthTag(detail.authentication, '已认证', '未认证')}
               </Descriptions.Item>
               <Descriptions.Item label="学生证审核">
-                {renderAuthTag(detail.studentIdCardReview, '已通过', '未审核')}
+                <Tag color={REVIEW_STATUS[detail.studentIdCardReview as AuthReviewStatus]?.color ?? 'default'}>
+                  {REVIEW_STATUS[detail.studentIdCardReview as AuthReviewStatus]?.label ?? '未知状态'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="学生证照片" span={2}>
+                {detail.studentIdCard ? (
+                  studentCardError ? (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      title="照片加载失败，请刷新后重试"
+                      action={<Button size="small" onClick={() => openDetail(detail.id)}>刷新</Button>}
+                    />
+                  ) : (
+                    <Image
+                      src={detail.studentIdCard}
+                      alt="学生证照片"
+                      width="100%"
+                      styles={{ image: { maxHeight: 240, objectFit: 'contain' } }}
+                      preview={{ mask: '查看大图' }}
+                      onError={() => setStudentCardError(true)}
+                    />
+                  )
+                ) : (
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无学生证照片" />
+                )}
               </Descriptions.Item>
             </Descriptions>
 

@@ -50,7 +50,17 @@
     </sql>
 
     <select id="detail" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandProductVO">
-        select <include refid="productVoSelect"/>
+        select <include refid="productVoSelect"/>,
+        <choose>
+            <when test="userId != null">
+                exists(
+                select 1
+                from tb_second_hand_favorite f
+                where f.user_id = #{userId} and f.product_id = p.id
+                )
+            </when>
+            <otherwise>false</otherwise>
+        </choose> as favorited
         from tb_second_hand_product p
         left join tb_user u on p.seller_id = u.id
         left join tb_school s on p.school_id = s.id
@@ -73,6 +83,12 @@
             <if test="query.status == null and schoolId != null">and p.status = 0</if>
             <if test="query.categoryId != null">and p.category_id = #{query.categoryId}</if>
             <if test="query.compusId != null">and p.compus_id = #{query.compusId}</if>
+            <if test="query.pickupAddressPrefix != null and query.pickupAddressPrefix != ''">
+                and (
+                    p.pickup_address_snapshot = #{query.pickupAddressPrefix}
+                    or p.pickup_address_snapshot like concat(#{query.pickupAddressPrefix}, ' %')
+                )
+            </if>
             <if test="query.conditionLevel != null and query.conditionLevel != ''">and p.condition_level = #{query.conditionLevel}</if>
             <if test="query.minPrice != null">and p.price &gt;= #{query.minPrice}</if>
             <if test="query.maxPrice != null">and p.price &lt;= #{query.maxPrice}</if>
@@ -92,6 +108,18 @@
         left join tb_second_hand_category c on p.category_id = c.id
         where p.deleted = 0 and p.seller_id = #{sellerId}
         order by p.create_time desc
+    </select>
+
+    <select id="listFavorites" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandProductVO">
+        select <include refid="productVoSelect"/>, true as favorited
+        from tb_second_hand_favorite f
+        inner join tb_second_hand_product p on f.product_id = p.id
+        left join tb_user u on p.seller_id = u.id
+        left join tb_school s on p.school_id = s.id
+        left join tb_compus cp on p.compus_id = cp.id
+        left join tb_second_hand_category c on p.category_id = c.id
+        where f.user_id = #{userId} and p.deleted = 0
+        order by f.create_time desc, f.id desc
     </select>
 
     <update id="lockOnSaleProduct">
@@ -133,6 +161,12 @@
     <update id="increaseViewCount">
         update tb_second_hand_product
         set view_count = view_count + 1
+        where id = #{id} and deleted = 0
+    </update>
+
+    <update id="changeFavoriteCount">
+        update tb_second_hand_product
+        set favorite_count = greatest(coalesce(favorite_count, 0) + #{delta}, 0)
         where id = #{id} and deleted = 0
     </update>
 </mapper>

@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "私信",
+  "usingComponents": {
+    "t-button": "tdesign-miniprogram/button/button",
+    "t-image": "tdesign-miniprogram/image/image",
+    "t-textarea": "tdesign-miniprogram/textarea/textarea"
+  },
+  "enablePullDownRefresh": true
+}

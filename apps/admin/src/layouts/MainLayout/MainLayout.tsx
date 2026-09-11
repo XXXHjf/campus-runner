@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Avatar, Button } from 'antd'
+import { Avatar, Badge, Button } from 'antd'
 import {
   AppstoreOutlined,
   AuditOutlined,
@@ -25,6 +25,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons'
 import { useAuthContext } from '../../contexts/AuthContext'
+import { usePendingAuthCount } from '../../hooks/usePendingAuthCount'
 import './MainLayout.css'
 
 type MenuLeaf = {
@@ -133,6 +134,7 @@ const menuItems: MenuItem[] = [
 ]
 
 export default function MainLayout() {
+  const pendingAuthCount = usePendingAuthCount()
   const navigate = useNavigate()
   const location = useLocation()
   const { userInfo, logout } = useAuthContext()
@@ -244,6 +246,7 @@ export default function MainLayout() {
                           onClick={() => navigate(child.path)}
                         >
                           <span className="menu-label">{child.label}</span>
+                          {child.key === 'users-pending-auth' && <Badge count={pendingAuthCount} overflowCount={99} />}
                         </button>
                       ))}
                     </div>
@@ -281,6 +284,9 @@ export default function MainLayout() {
             <h2 className="page-title">中后台管理系统</h2>
           </div>
           <div className="navbar-right">
+            <Button icon={<AuditOutlined />} onClick={() => navigate('/users/pending-auth')}>
+              待审核认证 <Badge count={pendingAuthCount} overflowCount={99} />
+            </Button>
             <div className="user-info">
               <Avatar
                 src={userInfo?.headImg || undefined}

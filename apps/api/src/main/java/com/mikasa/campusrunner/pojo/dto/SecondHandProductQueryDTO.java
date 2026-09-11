@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 public class SecondHandProductQueryDTO {
     private Long categoryId;
     private Long compusId;
+    private String pickupAddressPrefix;
     private String keyword;
     private String conditionLevel;
     private BigDecimal minPrice;

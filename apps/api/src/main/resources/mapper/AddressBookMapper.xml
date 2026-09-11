@@ -124,8 +124,8 @@
             <if test="compusId != null">compus_id = #{compusId}, </if>
             <if test="buildCategoryId != null">build_category_id = #{buildCategoryId}, </if>
             <if test="buildingId != null">building_id = #{buildingId}, </if>
-            <if test="details != null and details != ''">details = #{details}, </if>
-            <if test="label != null and label != ''">label = #{label}, </if>
+            <if test="details != null">details = #{details}, </if>
+            <if test="label != null">label = #{label}, </if>
             <if test="userId != null">user_id = #{userId}, </if>
             <if test="isDefault != null">is_default = #{isDefault}, </if>
             <if test="deleted != null">deleted = #{deleted}, </if>

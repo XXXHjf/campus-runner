@@ -1,0 +1,14 @@
+.ui-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: var(--cr-page-padding, 30rpx);
+}
+
+.ui-page--compact {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.ui-page--safe-bottom {
+  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+}

@@ -1,0 +1,53 @@
+<ui-page class="favorites-page" compact>
+  <ui-page-header
+    title="我的收藏"
+    subtitle="{{loading ? '正在加载收藏' : favoriteCount + ' 件收藏'}}"
+  />
+
+  <view class="favorites-page__body">
+    <ui-section wx:if="{{products.length>0}}" plain>
+      <view class="favorites-page__list">
+        <view
+          wx:for="{{products}}"
+          wx:key="id"
+          class="favorites-page__row"
+          data-id="{{item.id}}"
+          bindtap="gotoDetail"
+        >
+          <t-image class="favorites-page__cover" src="{{item.coverImage}}" mode="aspectFill" shape="round" />
+          <view class="favorites-page__info">
+            <view class="favorites-page__top">
+              <view class="favorites-page__product-title">{{item.title}}</view>
+              <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
+            </view>
+            <view class="favorites-page__meta">{{item.categoryName || '闲置好物'}} · {{item.conditionLevel || '成色良好'}}</view>
+            <view class="favorites-page__bottom">
+              <text class="favorites-page__price">¥{{item.price}}</text>
+              <view class="favorites-page__favorite-action">
+                <t-button
+                  t-class="cr-secondhand-capsule {{item.isFavorited ? 'cr-secondhand-capsule--highlight' : 'cr-secondhand-capsule--outline'}}"
+                  size="small"
+                  shape="round"
+                  theme="{{item.isFavorited ? 'primary' : 'default'}}"
+                  variant="{{item.isFavorited ? 'base' : 'outline'}}"
+                  data-id="{{item.id}}"
+                  disabled="{{loading}}"
+                  catch:tap="toggleFavorite"
+                >{{item.isFavorited ? '取消收藏' : '收藏'}}</t-button>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </ui-section>
+
+    <ui-section wx:if="{{!loading && products.length==0}}" plain>
+      <ui-empty-state
+        title="还没有收藏商品"
+        description="看到喜欢的校园闲置，可以先收藏再慢慢比较"
+        action-text="去逛逛"
+        bind:action="gotoMarket"
+      />
+    </ui-section>
+  </view>
+</ui-page>

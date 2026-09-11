@@ -1,17 +1,13 @@
-import Toast from 'tdesign-miniprogram/toast/index';
-
 // 引入服务和工具
 const userService = require('../../../services/userService');
 const mediaService = require('../../../services/mediaService');
 const tokenManager = require('../../../utils/tokenManager');
 const { showLoading, hideLoading, showError } = require('../../../utils/transformers');
+const { isProfileComplete } = require('../../../utils/profileStatus');
 const {
   containsEmoji,
-  _getUserInfo,
   checkCilcleToast,
-  errorCilcleToast,
-  showErrorToast,
-  showSuccessToast
+  errorCilcleToast
 } = require('../../../utils/commonJs');
 
 Page({
@@ -178,6 +174,10 @@ Page({
   },
   // 界面跳转
   toIdentify() {
+    if (!isProfileComplete(this.data.userInfo)) {
+      errorCilcleToast(this, '请先保存完整的头像、昵称和手机号');
+      return;
+    }
     wx.navigateTo({
       url: '/pages/mine/identify/identify',
     })

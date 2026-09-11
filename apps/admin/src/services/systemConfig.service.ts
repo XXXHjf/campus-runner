@@ -23,6 +23,11 @@ const configEndpointMap: Record<SystemConfigKey, ConfigEndpoint> = {
     putPath: '/admin/api/config/service_fee_min',
     payloadKey: 'serviceFeeMin',
   },
+  secondHandServiceFeeRate: {
+    getPath: '/admin/api/config/second_hand_service_fee_rate',
+    putPath: '/admin/api/config/second_hand_service_fee_rate',
+    payloadKey: 'secondHandServiceFeeRate',
+  },
 }
 
 function normalizeConfigValue(value: unknown): string {
@@ -81,6 +86,16 @@ export async function updateServiceFeeMin(value: number): Promise<Record<string,
   return updateConfigValue('serviceFeeMin', value)
 }
 
+export async function getSecondHandServiceFeeRate(): Promise<string> {
+  return getConfigValue('secondHandServiceFeeRate')
+}
+
+export async function updateSecondHandServiceFeeRate(
+  value: number,
+): Promise<Record<string, never>> {
+  return updateConfigValue('secondHandServiceFeeRate', value)
+}
+
 export default {
   getConfigValue,
   updateConfigValue,
@@ -88,4 +103,6 @@ export default {
   updateServiceFeeRate,
   getServiceFeeMin,
   updateServiceFeeMin,
+  getSecondHandServiceFeeRate,
+  updateSecondHandServiceFeeRate,
 }

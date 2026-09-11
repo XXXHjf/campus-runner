@@ -19,6 +19,7 @@ public class SecondHandOrder {
     private Long bargainId;
     private Long buyerId;
     private Long sellerId;
+    private String tradeMode;
     private BigDecimal productAmount;
     private BigDecimal payAmount;
     private BigDecimal serviceFeeRate;
@@ -37,6 +38,11 @@ public class SecondHandOrder {
     private LocalDateTime confirmDeadline;
     private LocalDateTime finishTime;
     private LocalDateTime transferTime;
+    private String transferOutBillNo;
+    private Integer transferAttempt;
+    private String transferBillNo;
+    private String transferState;
+    private String transferPackageInfo;
     private String transferFailReason;
     private Integer deleted;
     private LocalDateTime createTime;

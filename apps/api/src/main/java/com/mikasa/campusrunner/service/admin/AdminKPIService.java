@@ -5,6 +5,7 @@ package com.mikasa.campusrunner.service.admin;
  * created  2025/12/16 19:54
  */
 public interface AdminKPIService {
+    Long getPendingAuthCount();
     /**
      * 获取所有订单总数量
      * @return

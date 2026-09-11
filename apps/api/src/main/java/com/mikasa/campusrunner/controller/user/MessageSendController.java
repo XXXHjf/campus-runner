@@ -25,32 +25,28 @@ public class MessageSendController {
 
 
 
-    @Autowired
-    private MessageSendService messageSendService;
+
 
 
     @PostMapping("/alreadyTakeOrder")
     @Operation(summary = "发送订单已接单通知")
     public Result<String> sendTakeOrder(@RequestBody MessageTakeOrderDTO messageTakeOrderDTO){
-        log.info("Send order-taken notification, {}", messageTakeOrderDTO);
-        String res = messageSendService.sendTakeOrder(messageTakeOrderDTO);
-        return Result.success(res);
+        // Compatibility for older clients: state transitions now send the notification.
+        return Result.success();
     }
 
     @PostMapping("/pickUp")
     @Operation(summary = "发送接单人已取货消息")
     public Result<String> sendPickUp(Long orderId){
-        log.info("Send order-picked notification, orderId: {}", orderId);
-        String res = messageSendService.sendPickUp(orderId);
-        return Result.success(res);
+        // Compatibility for older clients: state transitions now send the notification.
+        return Result.success();
     }
 
     @PostMapping("/delivered")
     @Operation(summary = "发送订单已送达消息")
     public Result<String> sendDelivered(@RequestBody MessageDeliveredDTO messageDeliveredDTO){
-        log.info("Send order-delivered notification, {}", messageDeliveredDTO);
-        String res = messageSendService.sendDelivered(messageDeliveredDTO);
-        return Result.success(res);
+        // Compatibility for older clients: state transitions now send the notification.
+        return Result.success();
     }
 
 }

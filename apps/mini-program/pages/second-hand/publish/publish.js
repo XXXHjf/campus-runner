@@ -1,3 +1,4 @@
+const subscriptions = require('../../../services/subscriptionService');
 const secondHandService = require('../../../services/secondHandService');
 const deliveryAddressService = require('../../../services/deliveryAddressService');
 const mediaService = require('../../../services/mediaService');
@@ -305,6 +306,8 @@ Page({
         await secondHandService.updateProduct(this.data.id, payload);
       } else {
         await secondHandService.publishProduct(payload);
+        this.submitted = true;
+        await subscriptions.requestSecondHandOrder();
       }
       this.submitted = true;
       wx.showToast({ title: this.data.isEdit ? '已保存' : '已发布', icon: 'success' });

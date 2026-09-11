@@ -71,6 +71,26 @@ public class SecondHandController {
         return Result.success(secondHandService.listMyProducts());
     }
 
+    @GetMapping("/favorites")
+    @Operation(summary = "我的商品收藏")
+    public Result<List<SecondHandProductVO>> favorites() {
+        return Result.success(secondHandService.listFavoriteProducts());
+    }
+
+    @PostMapping("/products/{id}/favorite")
+    @Operation(summary = "收藏商品")
+    public Result<Void> favorite(@PathVariable Long id) {
+        secondHandService.favoriteProduct(id);
+        return Result.success();
+    }
+
+    @DeleteMapping("/products/{id}/favorite")
+    @Operation(summary = "取消收藏商品")
+    public Result<Void> unfavorite(@PathVariable Long id) {
+        secondHandService.unfavoriteProduct(id);
+        return Result.success();
+    }
+
     @GetMapping("/products/{id}")
     @Operation(summary = "商品详情")
     public Result<SecondHandProductVO> detail(@PathVariable Long id) {
@@ -160,15 +180,35 @@ public class SecondHandController {
     }
 
     @PostMapping("/messages")
-    @Operation(summary = "发送商品私密留言")
+    @Operation(summary = "发送二手商品私信")
     public Result<SecondHandMessageVO> message(@RequestBody SecondHandMessageDTO dto) {
         return Result.success(secondHandService.createMessage(dto));
     }
 
     @GetMapping("/products/{id}/messages")
-    @Operation(summary = "商品私密留言")
+    @Operation(summary = "商品私信兼容列表")
     public Result<List<SecondHandMessageVO>> messages(@PathVariable Long id) {
         return Result.success(secondHandService.listProductMessages(id));
+    }
+
+    @GetMapping("/conversations")
+    @Operation(summary = "二手私信会话列表")
+    public Result<List<SecondHandConversationVO>> conversations() {
+        return Result.success(secondHandService.listConversations());
+    }
+
+    @GetMapping("/conversations/{productId}/{counterpartyId}/messages")
+    @Operation(summary = "二手私信会话消息")
+    public Result<List<SecondHandMessageVO>> conversationMessages(
+            @PathVariable Long productId,
+            @PathVariable Long counterpartyId) {
+        return Result.success(secondHandService.listConversationMessages(productId, counterpartyId));
+    }
+
+    @GetMapping("/orders/{id}/transfer-claim")
+    @Operation(summary = "卖家获取微信确认收款参数")
+    public Result<SecondHandTransferClaimVO> transferClaim(@PathVariable Long id) {
+        return Result.success(secondHandService.getTransferClaim(id));
     }
 
     @PostMapping("/pay/notify")
@@ -241,6 +281,7 @@ public class SecondHandController {
         SecondHandProductQueryDTO query = new SecondHandProductQueryDTO();
         query.setCategoryId(parseLong(params.get("categoryId")));
         query.setCompusId(parseLong(params.get("compusId")));
+        query.setPickupAddressPrefix(blankToNull(params.get("pickupAddressPrefix")));
         query.setKeyword(blankToNull(params.get("keyword")));
         query.setConditionLevel(blankToNull(params.get("conditionLevel")));
         query.setMinPrice(parseBigDecimal(params.get("minPrice")));

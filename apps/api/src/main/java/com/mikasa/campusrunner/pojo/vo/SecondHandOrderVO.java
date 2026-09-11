@@ -16,6 +16,7 @@ public class SecondHandOrderVO {
     private String buyerName;
     private Long sellerId;
     private String sellerName;
+    private String tradeMode;
     private String productTitle;
     private String productImages;
     private List<Long> productImageAssetIds;
@@ -37,7 +38,9 @@ public class SecondHandOrderVO {
     private LocalDateTime confirmDeadline;
     private LocalDateTime finishTime;
     private LocalDateTime transferTime;
+    private String transferState;
     private String transferFailReason;
+    private String counterpartyPhone;
     private LocalDateTime payDeadline;
     private Long payRemainSeconds;
     private LocalDateTime createTime;

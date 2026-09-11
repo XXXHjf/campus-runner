@@ -1,0 +1,4 @@
+<view class="ui-page-header">
+  <view class="ui-page-header__title">{{title}}</view>
+  <view wx:if="{{subtitle}}" class="ui-page-header__subtitle">{{subtitle}}</view>
+</view>

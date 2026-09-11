@@ -14,5 +14,6 @@ public class SecondHandMessageVO {
     private Long receiverId;
     private String receiverName;
     private String content;
+    private LocalDateTime readTime;
     private LocalDateTime createTime;
 }

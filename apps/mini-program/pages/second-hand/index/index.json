@@ -1,12 +1,17 @@
 {
   "navigationBarTitleText": "校园二手",
+  "navigationStyle": "custom",
+  "navigationBarTextStyle": "white",
+  "navigationBarBackgroundColor": "#0052d9",
   "usingComponents": {
     "t-button": "tdesign-miniprogram/button/button",
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-search": "tdesign-miniprogram/search/search",
     "t-tag": "tdesign-miniprogram/tag/tag",
     "t-image": "tdesign-miniprogram/image/image",
-    "t-toast": "tdesign-miniprogram/toast/toast"
+    "t-toast": "tdesign-miniprogram/toast/toast",
+    "t-popup": "tdesign-miniprogram/popup/popup",
+    "triple-address-pricker": "/components/triple-address-pricker/triple-address-pricker"
   },
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": false
 }

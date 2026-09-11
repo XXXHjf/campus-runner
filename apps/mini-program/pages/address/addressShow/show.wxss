@@ -121,39 +121,6 @@ page {
   min-width: 0;
 }
 
-.address-empty {
-  margin-top: 22rpx;
-  padding: 96rpx 32rpx;
-  background: #ffffff;
-  border: 1rpx solid #edf1f6;
-  border-radius: 20rpx;
-  text-align: center;
-}
-
-.empty-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 120rpx;
-  height: 120rpx;
-  margin: 0 auto;
-  background: #edf4ff;
-  border-radius: 60rpx;
-}
-
-.empty-title {
-  margin-top: 28rpx;
-  color: #182230;
-  font-size: 30rpx;
-  font-weight: 700;
-}
-
-.empty-desc {
-  margin-top: 12rpx;
-  color: #667085;
-  font-size: 24rpx;
-}
-
 .bottom-placeholder {
   height: calc(150rpx + env(safe-area-inset-bottom));
 }

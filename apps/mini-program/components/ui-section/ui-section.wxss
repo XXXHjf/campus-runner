@@ -1,0 +1,43 @@
+.ui-section {
+  box-sizing: border-box;
+  margin-bottom: var(--cr-section-gap, 24rpx);
+  overflow: hidden;
+  background: var(--cr-color-surface, #ffffff);
+  border: 1rpx solid var(--cr-color-border, #e7eaf0);
+  border-radius: var(--cr-radius-medium, 20rpx);
+  box-shadow: var(--cr-shadow-card, 0 4rpx 18rpx rgba(31, 35, 41, 0.05));
+}
+
+.ui-section--plain {
+  border: 0;
+  box-shadow: none;
+}
+
+.ui-section__header {
+  padding: 28rpx 30rpx 20rpx;
+}
+
+.ui-section__heading {
+  display: flex;
+  gap: 14rpx;
+  align-items: center;
+}
+
+.ui-section__title {
+  flex: 1;
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 44rpx;
+  color: var(--cr-color-text, #1d2129);
+}
+
+.ui-section__description {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 36rpx;
+  color: var(--cr-color-text-secondary, #6b778c);
+}
+
+.ui-section__content {
+  min-width: 0;
+}

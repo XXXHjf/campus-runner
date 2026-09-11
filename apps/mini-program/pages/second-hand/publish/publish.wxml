@@ -1,93 +1,91 @@
-<view class="publish-page">
-  <view class="publish-head">
-    <view class="title">{{isEdit?'编辑闲置':'发布闲置'}}</view>
-    <view class="subtitle">上传清晰图片，填写交接地点，清楚描述闲置物品信息</view>
+<ui-page safe-bottom>
+  <view class="secondhand-publish__header">
+    <view class="secondhand-publish__title">{{isEdit ? '编辑闲置' : '发布闲置'}}</view>
+    <view class="secondhand-publish__subtitle">上传清晰图片，并填写物品信息和交接地点</view>
   </view>
 
-  <view class="section">
-    <view class="section-title">商品信息</view>
+  <ui-section title="商品信息" icon="shop">
     <t-input label="标题" value="{{form.title}}" placeholder="例如：九成新罗技键盘" data-field="title" bind:change="setField" />
-    <view class="select-row" bindtap="chooseCategory">
-      <text class="select-label">分类</text>
-      <text class="select-value {{categoryName?'':'muted'}}">{{categoryName || '请选择分类'}}</text>
+    <view class="secondhand-publish__select-row" bind:tap="chooseCategory">
+      <text class="secondhand-publish__label">分类</text>
+      <text class="secondhand-publish__value {{categoryName ? '' : 'secondhand-publish__value--muted'}}">{{categoryName || '请选择分类'}}</text>
     </view>
-    <view class="select-row" bindtap="chooseCondition">
-      <text class="select-label">成色</text>
-      <text class="select-value">{{form.conditionLevel}}</text>
+    <view class="secondhand-publish__select-row" bind:tap="chooseCondition">
+      <text class="secondhand-publish__label">成色</text>
+      <text class="secondhand-publish__value">{{form.conditionLevel}}</text>
     </view>
     <t-input label="售价" type="digit" value="{{form.price}}" placeholder="请输入成交价" data-field="price" bind:change="setField" />
-    <t-textarea value="{{form.description}}" placeholder="描述成色、配件、使用情况、瑕疵等" maxlength="600" data-field="description" bind:change="setField" />
-  </view>
+    <view class="secondhand-publish__textarea">
+      <t-textarea value="{{form.description}}" placeholder="描述成色、配件、使用情况、瑕疵等" maxlength="600" data-field="description" bind:change="setField" />
+    </view>
+  </ui-section>
 
-  <view class="section">
-    <view class="section-title">商品图片</view>
-    <view class="hint">至少 1 张，建议包含整体、细节、瑕疵位置</view>
-    <t-upload mediaType="{{['image']}}" max="{{6}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" />
-  </view>
+  <ui-section title="商品图片" icon="image" description="至少上传1张，建议包含整体、细节和瑕疵位置">
+    <view class="secondhand-publish__upload">
+      <t-upload mediaType="{{['image']}}" max="{{6}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" />
+    </view>
+  </ui-section>
 
-  <view class="section">
-    <view class="section-title">交付设置</view>
-    <view class="select-row address-select" bindtap="choosePickupAddress">
-      <text class="select-label">自提点</text>
-      <view class="select-content">
-        <text class="select-value {{pickupAddressText?'':'muted'}}">{{pickupAddressText || '从地址簿选择'}}</text>
-        <text class="select-tip">默认交货地点</text>
+  <ui-section title="交付设置" icon="location">
+    <view class="secondhand-publish__select-row secondhand-publish__select-row--address" bind:tap="choosePickupAddress">
+      <text class="secondhand-publish__label">自提点</text>
+      <view class="secondhand-publish__select-content">
+        <text class="secondhand-publish__value {{pickupAddressText ? '' : 'secondhand-publish__value--muted'}}">{{pickupAddressText || '从地址簿选择'}}</text>
+        <text class="secondhand-publish__hint">默认交货地点</text>
       </view>
     </view>
-    <view class="switch-row">
+    <view class="secondhand-publish__switch-row">
       <view>
-        <view class="switch-title">仅支持自提</view>
-        <view class="hint">{{form.pickupOnly==1?'买家将于自提点取货':'下单后买家填写配送地址'}}</view>
+        <view class="secondhand-publish__label">仅支持自提</view>
+        <view class="secondhand-publish__hint">{{form.pickupOnly == 1 ? '买家将于自提点取货' : '下单后买家填写配送地址'}}</view>
       </view>
-      <t-switch value="{{form.pickupOnly==1}}" bind:change="setPickupOnly" />
+      <t-switch value="{{form.pickupOnly == 1}}" bind:change="setPickupOnly" />
     </view>
-    <view class="switch-row">
+    <view class="secondhand-publish__switch-row">
       <view>
-        <view class="switch-title">允许议价</view>
-        <view class="hint">开启后，买家可以向你发送报价</view>
+        <view class="secondhand-publish__label">允许议价</view>
+        <view class="secondhand-publish__hint">开启后，买家可以向你发送报价</view>
       </view>
-      <t-switch value="{{form.negotiable==1}}" data-field="negotiable" bind:change="setSwitch" />
+      <t-switch value="{{form.negotiable == 1}}" data-field="negotiable" bind:change="setSwitch" />
     </view>
-  </view>
+  </ui-section>
 
-  <view class="submit-bar">
-    <t-button block theme="primary" loading="{{submitting || uploading}}" disabled="{{submitting || uploading}}" bind:tap="submit">
-      {{isEdit?'保存修改':'发布闲置'}}
-    </t-button>
-  </view>
-
-  <view wx:if="{{showCategorySheet}}" class="sheet-mask" bindtap="closeCategorySheet">
-    <view class="sheet" catchtap="noop">
-      <view class="sheet-title">选择分类</view>
-      <scroll-view scroll-y class="category-sheet-list">
-        <view wx:for="{{categories}}" wx:key="id" class="category-option {{form.categoryId==item.id?'active':''}}" data-id="{{item.id}}" bindtap="selectCategory">
-          <text>{{item.name}}</text>
-          <text wx:if="{{form.categoryId==item.id}}" class="selected-mark">已选</text>
-        </view>
-      </scroll-view>
+  <ui-action-bar fixed>
+    <view class="secondhand-publish__action">
+      <t-button block theme="primary" loading="{{submitting || uploading}}" disabled="{{submitting || uploading}}" bind:tap="submit">
+        {{isEdit ? '保存修改' : '发布闲置'}}
+      </t-button>
     </view>
-  </view>
+  </ui-action-bar>
+</ui-page>
 
-  <view wx:if="{{showPickupAddressSheet}}" class="sheet-mask" bindtap="closePickupAddressSheet">
-    <view class="sheet" catchtap="noop">
-      <view class="sheet-header">
-        <view>
-          <view class="sheet-title">选择自提点</view>
-          <view class="sheet-subtitle">选择你方便交接的地点。</view>
-        </view>
-        <text class="sheet-link" bindtap="gotoAddPickupAddress">新增</text>
+<view wx:if="{{showCategorySheet}}" class="secondhand-sheet-mask" bind:tap="closeCategorySheet">
+  <view class="secondhand-sheet" catchtap="noop">
+    <view class="secondhand-sheet__title">选择分类</view>
+    <scroll-view scroll-y class="secondhand-sheet__category-list">
+      <view wx:for="{{categories}}" wx:key="id" class="secondhand-sheet__option {{form.categoryId == item.id ? 'secondhand-sheet__option--active' : ''}}" data-id="{{item.id}}" bind:tap="selectCategory">
+        <text>{{item.name}}</text>
+        <text wx:if="{{form.categoryId == item.id}}" class="secondhand-sheet__selected">已选</text>
       </view>
-      <scroll-view scroll-y class="address-sheet-list">
-        <view wx:for="{{addressBook}}" wx:key="id" class="address-option {{form.pickupAddressId==item.id?'active':''}}" data-id="{{item.id}}" bindtap="selectPickupAddress">
-          <view class="address-main">{{item.addressText}}</view>
-          <view class="address-meta">{{item.isDefault==1?'默认地址 · ':''}}{{item.label || '常用地址'}}</view>
-        </view>
-        <view wx:if="{{addressBook.length==0}}" class="empty-address">
-          <view class="empty-title">还没有可选地址</view>
-          <view class="hint">先新增一个地址，再回来发布闲置。</view>
-          <t-button size="small" theme="primary" bind:tap="gotoAddPickupAddress">新增地址</t-button>
-        </view>
-      </scroll-view>
+    </scroll-view>
+  </view>
+</view>
+
+<view wx:if="{{showPickupAddressSheet}}" class="secondhand-sheet-mask" bind:tap="closePickupAddressSheet">
+  <view class="secondhand-sheet" catchtap="noop">
+    <view class="secondhand-sheet__header">
+      <view>
+        <view class="secondhand-sheet__title">选择自提点</view>
+        <view class="secondhand-sheet__subtitle">选择方便交接的地点</view>
+      </view>
+      <text class="secondhand-sheet__link" bind:tap="gotoAddPickupAddress">新增</text>
     </view>
+    <scroll-view scroll-y class="secondhand-sheet__address-list">
+      <view wx:for="{{addressBook}}" wx:key="id" class="secondhand-sheet__address {{form.pickupAddressId == item.id ? 'secondhand-sheet__address--active' : ''}}" data-id="{{item.id}}" bind:tap="selectPickupAddress">
+        <view class="secondhand-sheet__address-main">{{item.addressText}}</view>
+        <view class="secondhand-sheet__subtitle">{{item.isDefault == 1 ? '默认地址 · ' : ''}}{{item.label || '常用地址'}}</view>
+      </view>
+      <ui-empty-state wx:if="{{addressBook.length == 0}}" title="还没有可选地址" description="新增一个常用地址后即可选择" action-text="新增地址" bind:action="gotoAddPickupAddress" />
+    </scroll-view>
   </view>
 </view>

@@ -4,6 +4,7 @@
  */
 
 import { get, put } from './request'
+import { AUTH_REVIEW_CHANGED } from '../hooks/usePendingAuthCount'
 import type { PendingAuthUser, ReviewAuthRequest } from '../types'
 
 /**
@@ -18,6 +19,8 @@ export async function getPendingList(): Promise<PendingAuthUser[]> {
  * 0未审核 1审核中 2审核通过 3审核不通过
  */
 export async function reviewAuth(data: ReviewAuthRequest): Promise<Record<string, never>> {
-  return put('/admin/api/auth/review', data)
+  const result = await put<Record<string, never>>('/admin/api/auth/review', data)
+  window.dispatchEvent(new Event(AUTH_REVIEW_CHANGED))
+  return result
 }
 

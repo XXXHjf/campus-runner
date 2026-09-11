@@ -1,63 +1,38 @@
-<view class="address">
-
-  <view class="box">
-    <t-cell-group theme="card">
-      <view style="background-color: white; padding: 10rpx 0;display: flex; align-items: center;">
-        <t-icon class="icon" name="map-location" size="16" />
-        <view class="title">地址</view>
+<ui-page safe-bottom>
+  <ui-section title="地址信息" icon="map-location">
+    <view class="address-info__group">
+      <view bind:tap="showAddressPicker">
+        <t-cell title="校区楼栋" hover arrow note="{{upCompus || '请选择校区'}} {{upCategory || ''}} {{upBuilding || ''}}" />
       </view>
-      <view bindtap="showAddressPicker">
-        <t-cell title="校区楼栋" hover note="{{upCompus||'请选择校区'}} {{upCategory||''}} {{upBuilding||''}}" />
+      <view class="address-info__input-wrap">
+        <t-input label="详细地址" placeholder="如506室" value="{{upDetails}}" align="right" maxlength="30" bind:change="handleDetails" bind:blur="handleDetailsBlur" bind:clear="clearDetails" clearable borderless />
+        <view class="address-info__counter" wx:if="{{showDetailsTip}}">{{upDetails.length}}/30</view>
       </view>
-      <view style="margin-right: 660rpx;background: white;">
-        <t-divider style="margin:0;" />
+    </view>
+
+    <view class="address-info__group address-info__group--divided">
+      <view class="address-info__input-wrap">
+        <t-input label="地址标签" placeholder="如宿舍、家" value="{{upLabel}}" align="right" maxlength="3" bind:change="handleLabel" bind:blur="handleLabelBlur" bind:clear="clearLabel" clearable borderless />
+        <view class="address-info__counter" wx:if="{{showLabelTip}}">{{upLabel.length}}/3</view>
       </view>
-      <view style="position: relative;">
-        <t-input class="details" label="详细地址" placeholder="如：506室" value="{{upDetails}}" align="right" bind:change="handleDetails" bind:blur="handleDetailsBlur" borderless />
-        <view class="details-tip" wx:if="{{showDetailsTip}}">{{upDetails.length}}/30</view>
+    </view>
+
+    <view class="address-info__group address-info__group--divided">
+      <view class="address-info__default">
+        <t-radio block="{{false}}" custom-style="width: 100%;" value="radio" label="设为默认地址" placement="right" bind:tap="changeDefault" checked="{{upDefault == 1}}" borderless />
       </view>
-    </t-cell-group>
-  </view>
+    </view>
+  </ui-section>
 
-  <view class="box">
-    <t-cell-group theme="card">
-      <view style="background-color: white; padding: 10rpx 0;display: flex; align-items: center;">
-        <t-icon class="icon" name="map-marked" size="16" />
-        <view class="title">属性</view>
-      </view>
+  <ui-action-bar fixed>
+    <view class="address-info__action">
+      <t-button theme="danger" variant="outline" block bind:tap="b1">删除地址</t-button>
+    </view>
+    <view class="address-info__action">
+      <t-button theme="primary" block bind:tap="b2">保存修改</t-button>
+    </view>
+  </ui-action-bar>
+</ui-page>
 
-      <view style="position: relative;">
-        <t-input label="地址标签" placeholder="如：宿舍、家" value="{{upLabel}}" align="right" bind:change="handleLabel" bind:blur="handleLabelBlur" borderless />
-        <view class="label-tip" wx:if="{{showLabelTip}}">{{upLabel.length}}/3</view>
-      </view>
-      <view style="margin-right: 660rpx;background: white;">
-        <t-divider style="margin:0;" />
-      </view>
-    </t-cell-group>
-  </view>
-
-  <view class="box">
-    <t-cell-group theme="card">
-      <view style="background-color: white; padding: 10rpx 0;display: flex; align-items: center;">
-        <t-icon class="icon" name="map-collection" size="16" />
-        <view class="title">收藏</view>
-      </view>
-
-      <t-radio value="radio" label="设置为默认地址" placement="right" bind:tap="changeDefault" checked="{{upDefault==1?true:false}}" borderless />
-
-    </t-cell-group>
-  </view>
-
-  <view class="button">
-    <t-button theme="danger" variant="outline" block size="large" t-class="group-btn" bind:tap="b1">删除</t-button>
-    <view style="width: 100rpx;"></view>
-    <t-button theme="primary" variant="outline" block size="large" t-class="group-btn" bind:tap="b2">保存</t-button>
-  </view>
-
-</view>
-
-<!-- 刷新轻提示 -->
 <t-toast id="t-toast" />
-
-<!-- 三级地址选择器组件 -->
 <triple-address-pricker id="triplePicker" bind:confirmSelection="handleConfirmSelection" />

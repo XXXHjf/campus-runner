@@ -5,6 +5,7 @@
 export interface AdminSystemConfigDTO {
   serviceFeeRate: number
   serviceFeeMin: number
+  secondHandServiceFeeRate: number
 }
 
 export type SystemConfigKey = keyof AdminSystemConfigDTO
@@ -16,5 +17,6 @@ export interface SystemConfigFieldDefinition {
   placeholder: string
   unit?: string
   min?: number
+  max?: number
   step?: string
 }

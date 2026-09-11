@@ -38,9 +38,9 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_category` (
 -- - 下单后锁定商品，交易完成后标记售出。
 --
 -- 商品状态 status：
--- 0 在售：买家可浏览、购买、议价。
--- 1 待支付锁定：已有买家创建待支付订单，30分钟未支付会释放。
--- 2 交易中：买家已支付，等待卖家交付或买家确认。
+-- 0 在售：买家可浏览、下单、议价。
+-- 1 历史线上锁定：仅保留给 ONLINE 存量待支付订单。
+-- 2 交易中：OFFLINE 已下单，或 ONLINE 买家已支付；等待卖家交付或买家确认。
 -- 3 已售出：交易已完成。
 -- 4 已下架：卖家或后台主动下架，前台不展示。
 --
@@ -70,9 +70,9 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_product` (
   `pickup_address_snapshot` VARCHAR(500) NULL COMMENT '自提点地址快照，如南校区 宿舍楼 弘毅楼 506室',
   `pickup_only` INT NULL DEFAULT 1 COMMENT '是否仅自提：1仅自提，0买家可选自提或卖家配送',
   `negotiable` INT NULL DEFAULT 1 COMMENT '是否允许议价：0否，1是',
-  `status` INT NULL DEFAULT 0 COMMENT '商品状态：0在售，1待支付锁定，2交易中，3已售出，4已下架',
+  `status` INT NULL DEFAULT 0 COMMENT '商品状态：0在售，1历史线上锁定，2交易中，3已售出，4已下架',
   `view_count` INT NULL DEFAULT 0 COMMENT '浏览次数，用于后续热度排序或数据统计',
-  `favorite_count` INT NULL DEFAULT 0 COMMENT '收藏次数，预留字段，当前V1未实现收藏功能',
+  `favorite_count` INT NULL DEFAULT 0 COMMENT '当前有效收藏次数，由收藏关系增删时同步维护',
   `deleted` INT NULL DEFAULT 0 COMMENT '逻辑删除字段：0未删除，1已删除',
   `create_time` DATETIME NULL COMMENT '商品创建时间',
   `update_time` DATETIME NULL COMMENT '商品最后更新时间',
@@ -83,16 +83,36 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_product` (
 ) ENGINE=InnoDB COMMENT='二手商品表';
 
 -- ============================================================
+-- 表：tb_second_hand_favorite
+-- 说明：用户收藏二手商品的关系表。
+-- 使用场景：
+-- - 商品详情收藏和取消收藏。
+-- - “我的收藏”按最近收藏时间展示商品。
+-- - 商品即使已售出或下架，收藏关系仍保留并展示当前状态。
+-- 同一用户只能收藏同一商品一次；商品逻辑删除后列表自动隐藏该商品。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `tb_second_hand_favorite` (
+  `id` BIGINT AUTO_INCREMENT NOT NULL COMMENT '收藏关系主键id',
+  `user_id` BIGINT NOT NULL COMMENT '收藏用户id，关联 tb_user.id',
+  `product_id` BIGINT NOT NULL COMMENT '商品id，关联 tb_second_hand_product.id',
+  `create_time` DATETIME NOT NULL COMMENT '收藏时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_second_hand_favorite_user_product` (`user_id`, `product_id`),
+  KEY `idx_second_hand_favorite_user_time` (`user_id`, `create_time`),
+  KEY `idx_second_hand_favorite_product` (`product_id`)
+) ENGINE=InnoDB COMMENT='二手商品收藏关系表';
+
+-- ============================================================
 -- 表：tb_second_hand_bargain
 -- 说明：二手商品议价记录表。
 -- 使用场景：
 -- - 买家对商品发起报价。
--- - 卖家接受议价后生成待支付二手订单。
+-- - 卖家接受议价后按报价生成二手订单；当前为线下交易订单。
 -- - 卖家拒绝后，买家仍可在次数限制内重新议价。
 --
 -- 议价状态 status：
 -- 0 待回复：卖家尚未处理。
--- 1 已接受：卖家接受该报价，并生成待支付订单。
+-- 1 已接受：卖家接受该报价，并生成订单。
 -- 2 已拒绝：卖家拒绝该报价。
 -- 3 已失效：商品已被其他订单锁定/成交，或其他议价被接受。
 --
@@ -120,18 +140,17 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_bargain` (
 -- ============================================================
 -- 表：tb_second_hand_order
 -- 说明：二手交易订单表，独立于跑腿订单 tb_orders。
--- 使用场景：
--- - 买家直接购买生成待支付订单。
--- - 卖家接受议价后，按议价金额生成待支付订单。
--- - 买家付款后平台托管资金。
--- - 买家确认收货或超时自动确认后，平台扣服务费并转账给卖家。
+-- 当前使用场景：
+-- - 买家直接下单，或卖家接受议价后生成 OFFLINE 订单。
+-- - 商品立即进入交易中，双方自行协商付款和交付。
+-- - 卖家标记交付、买家确认完成后留下交易记录。
+-- - 存量 ONLINE 订单保留旧支付、退款和转账字段，仅用于历史订单善后。
 --
 -- 金额字段：
 -- product_amount：商品成交价。
--- pay_amount：买家实际支付金额，V1 等于 product_amount。
--- service_fee_rate：服务费率快照，如 0.0300。
--- service_fee：卖家承担的平台服务费。
--- seller_income：卖家实收金额 = product_amount - service_fee。
+-- pay_amount：兼容金额字段；OFFLINE 模式等于双方约定价，不表示平台已收款。
+-- service_fee_rate / service_fee：OFFLINE 模式固定为 0；ONLINE 历史订单保留原快照。
+-- seller_income：兼容字段；OFFLINE 模式等于约定价，不表示平台已结算。
 --
 -- delivery_mode：
 -- 0 买家自提。
@@ -145,11 +164,12 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_bargain` (
 -- 买家选择卖家配送时保存的收货地址来源和快照。
 -- 自提订单这两个字段为空。
 --
--- 订单状态 status：
+-- OFFLINE 订单状态：1待交付、2待买家确认完成、3已完成、4已取消、11协商中。
+-- ONLINE 历史订单状态：
 -- 0 待支付：商品已锁定，30分钟未支付自动关闭并释放商品。
 -- 1 已支付待交付：买家已付款，等待卖家自提交付或配送。
 -- 2 已交付待确认：卖家已标记交付，等待买家确认收货。
--- 3 已完成：业务完成态，当前实现完成后会进入转账中/转账结果态。
+-- 3 已完成：旧业务完成态。
 -- 4 已取消：未支付订单取消或超时关闭。
 -- 5 退款中：买家付款后、卖家交付前取消，等待微信退款结果。
 -- 6 退款成功：微信退款成功，商品可重新释放为在售。
@@ -161,22 +181,23 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_bargain` (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `tb_second_hand_order` (
   `id` BIGINT AUTO_INCREMENT NOT NULL COMMENT '二手订单主键id',
-  `order_number` VARCHAR(64) NOT NULL COMMENT '二手交易订单号，也是微信支付/退款/转账关联编号',
+  `order_number` VARCHAR(64) NOT NULL COMMENT '二手交易订单号；ONLINE历史订单同时用于支付关联',
   `product_id` BIGINT NOT NULL COMMENT '商品id，关联 tb_second_hand_product.id',
-  `bargain_id` BIGINT NULL COMMENT '议价记录id；直接购买时为空，议价成交时关联 tb_second_hand_bargain.id',
+  `bargain_id` BIGINT NULL COMMENT '议价记录id；直接下单时为空，议价成交时关联 tb_second_hand_bargain.id',
   `buyer_id` BIGINT NOT NULL COMMENT '买家用户id，关联 tb_user.id',
   `seller_id` BIGINT NOT NULL COMMENT '卖家用户id，关联 tb_user.id',
+  `trade_mode` VARCHAR(16) NOT NULL DEFAULT 'OFFLINE' COMMENT '交易模式：ONLINE历史线上交易，OFFLINE线下自行交易',
   `product_amount` DECIMAL(10,2) NOT NULL COMMENT '商品成交价，直接购买为商品售价，议价成交为卖家接受的报价',
-  `pay_amount` DECIMAL(10,2) NOT NULL COMMENT '买家支付金额，V1等于商品成交价',
-  `service_fee_rate` DECIMAL(10,4) NULL COMMENT '服务费率快照，默认0.0300，来源于系统配置 second_hand_service_fee_rate',
-  `service_fee` DECIMAL(10,2) NULL COMMENT '卖家承担服务费，按商品成交价乘以服务费率计算',
-  `seller_income` DECIMAL(10,2) NULL COMMENT '卖家实收金额，商品成交价减服务费',
+  `pay_amount` DECIMAL(10,2) NOT NULL COMMENT '兼容金额字段；OFFLINE模式表示双方约定价',
+  `service_fee_rate` DECIMAL(10,4) NULL COMMENT '服务费率快照；OFFLINE模式固定为0',
+  `service_fee` DECIMAL(10,2) NULL COMMENT '平台服务费；OFFLINE模式固定为0',
+  `seller_income` DECIMAL(10,2) NULL COMMENT '兼容金额字段；OFFLINE模式等于双方约定价',
   `delivery_mode` INT NULL DEFAULT 0 COMMENT '交付方式：0买家自提，1卖家配送',
   `pickup_address_snapshot` VARCHAR(500) NULL COMMENT '订单自提点快照，来源于商品发布时的自提点',
   `buyer_delivery_address_id` BIGINT NULL COMMENT '买家配送地址簿id，关联 tb_address_book.id，仅配送订单使用',
   `buyer_delivery_address_snapshot` VARCHAR(500) NULL COMMENT '买家配送地址快照，仅配送订单使用',
   `delivery_remark` VARCHAR(255) NULL COMMENT '交付备注，如双方协商的配送地点或自提补充说明',
-  `status` INT NULL DEFAULT 0 COMMENT '订单状态：0待支付，1已支付待交付，2已交付待确认，3已完成，4已取消，5退款中，6退款成功，7退款异常，8转账中，9转账成功，10转账失败，11纠纷中',
+  `status` INT NULL DEFAULT 0 COMMENT 'OFFLINE：1待交付，2待确认完成，3已完成，4已取消，11协商中；ONLINE保留旧支付状态',
   `pay_time` DATETIME NULL COMMENT '买家支付成功时间，以微信支付回调或查询确认为准',
   `cancel_time` DATETIME NULL COMMENT '订单取消时间',
   `cancel_reason` VARCHAR(255) NULL COMMENT '订单取消原因或退款原因',
@@ -184,12 +205,18 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_order` (
   `confirm_deadline` DATETIME NULL COMMENT '自动确认收货截止时间，默认卖家交付后24小时',
   `finish_time` DATETIME NULL COMMENT '交易完成时间，即确认收货或自动确认时间',
   `transfer_time` DATETIME NULL COMMENT '卖家微信零钱转账成功时间',
-  `transfer_fail_reason` VARCHAR(255) NULL COMMENT '卖家微信零钱转账失败原因',
+  `transfer_out_bill_no` VARCHAR(32) NULL COMMENT '当前微信商家转账商户单号；每次明确失败后重试必须生成新单号',
+  `transfer_attempt` INT NOT NULL DEFAULT 0 COMMENT '卖家收款发起次数',
+  `transfer_bill_no` VARCHAR(64) NULL COMMENT '微信转账单号',
+  `transfer_state` VARCHAR(32) NULL COMMENT '微信转账状态，如WAIT_USER_CONFIRM、SUCCESS、FAIL',
+  `transfer_package_info` VARCHAR(1024) NULL COMMENT '卖家拉起微信确认收款页面所需package_info',
+  `transfer_fail_reason` VARCHAR(500) NULL COMMENT '卖家微信零钱转账失败或待核对原因，仅供后台处理',
   `deleted` INT NULL DEFAULT 0 COMMENT '逻辑删除字段：0未删除，1已删除',
   `create_time` DATETIME NULL COMMENT '订单创建时间',
   `update_time` DATETIME NULL COMMENT '订单最后更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_second_hand_order_number` (`order_number`),
+  UNIQUE KEY `uk_second_hand_transfer_out_bill_no` (`transfer_out_bill_no`),
   KEY `idx_second_hand_order_product` (`product_id`),
   KEY `idx_second_hand_order_buyer` (`buyer_id`),
   KEY `idx_second_hand_order_seller` (`seller_id`),
@@ -215,11 +242,14 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_message` (
   `sender_id` BIGINT NOT NULL COMMENT '发送人用户id，关联 tb_user.id',
   `receiver_id` BIGINT NOT NULL COMMENT '接收人用户id，关联 tb_user.id',
   `content` VARCHAR(500) NOT NULL COMMENT '私密留言内容',
+  `read_time` DATETIME NULL COMMENT '接收人阅读时间；为空表示未读',
   `deleted` INT NULL DEFAULT 0 COMMENT '逻辑删除字段：0未删除，1已删除',
   `create_time` DATETIME NULL COMMENT '留言创建时间',
   PRIMARY KEY (`id`),
   KEY `idx_second_hand_message_product` (`product_id`),
-  KEY `idx_second_hand_message_user` (`sender_id`, `receiver_id`)
+  KEY `idx_second_hand_message_user` (`sender_id`, `receiver_id`),
+  KEY `idx_second_hand_message_conversation` (`product_id`, `sender_id`, `receiver_id`, `deleted`, `create_time`),
+  KEY `idx_second_hand_message_unread` (`receiver_id`, `read_time`, `deleted`, `create_time`)
 ) ENGINE=InnoDB COMMENT='二手私密留言表';
 
 -- ============================================================
@@ -286,11 +316,29 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+SET @ddl = IF(
+  (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tb_second_hand_order' AND COLUMN_NAME = 'trade_mode') = 0,
+  'ALTER TABLE tb_second_hand_order ADD COLUMN trade_mode VARCHAR(16) NOT NULL DEFAULT ''ONLINE'' COMMENT ''交易模式：ONLINE历史线上交易，OFFLINE线下自行交易'' AFTER seller_id',
+  'SELECT 1'
+);
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- ============================================================
--- 系统配置：二手交易服务费率
+-- 系统配置：当前二手交易模式
+-- 新安装和当前生产均使用 OFFLINE；已有订单通过 trade_mode 保留为 ONLINE。
+-- ============================================================
+INSERT INTO tb_system_config(config_key, config_value, description)
+SELECT 'second_hand_trade_mode', 'OFFLINE', '二手交易模式：当前仅提供信息撮合和线下自行交易'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM tb_system_config WHERE config_key = 'second_hand_trade_mode');
+
+-- ============================================================
+-- 系统配置：二手交易服务费率（仅供 ONLINE 历史流程兼容）
 -- config_key：second_hand_service_fee_rate
 -- 默认值：0.03
--- 说明：卖家承担服务费率，0.03 表示按成交价 3% 扣服务费。
+-- 说明：OFFLINE 模式不读取该值，服务费固定为 0。
 -- 示例：商品成交价 100 元，服务费 3 元，卖家实收 97 元。
 -- ============================================================
 INSERT INTO tb_system_config(config_key, config_value, description)
@@ -302,7 +350,7 @@ WHERE NOT EXISTS (SELECT 1 FROM tb_system_config WHERE config_key = 'second_hand
 -- 系统配置：待支付锁货超时时间
 -- config_key：second_hand_payment_timeout_minutes
 -- 默认值：30
--- 说明：二手订单创建后商品会进入“待支付锁定”状态。
+-- 说明：仅用于 ONLINE 历史订单的待支付锁定。
 --      若买家在配置时间内未支付，定时任务会取消订单并释放商品。
 -- ============================================================
 INSERT INTO tb_system_config(config_key, config_value, description)
@@ -314,7 +362,7 @@ WHERE NOT EXISTS (SELECT 1 FROM tb_system_config WHERE config_key = 'second_hand
 -- 系统配置：自动确认收货时间
 -- config_key：second_hand_auto_confirm_hours
 -- 默认值：24
--- 说明：卖家标记已交付后，买家可手动确认收货。
+-- 说明：仅用于 ONLINE 历史订单；OFFLINE 订单不会自动确认。
 --      若买家超过配置时间未确认，定时任务会自动确认并进入卖家结算。
 -- ============================================================
 INSERT INTO tb_system_config(config_key, config_value, description)

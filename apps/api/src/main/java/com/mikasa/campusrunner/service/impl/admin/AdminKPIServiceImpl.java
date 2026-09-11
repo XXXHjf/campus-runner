@@ -19,6 +19,11 @@ import java.time.Month;
 @Slf4j
 public class AdminKPIServiceImpl implements AdminKPIService {
 
+    @Override
+    public Long getPendingAuthCount() {
+        return userMapper.countByReviewStatus(com.mikasa.campusrunner.common.constant.StudentIdCardReviewConstant.DOING_REVIEW);
+    }
+
     @Autowired
     private OrderMapper orderMapper;
 

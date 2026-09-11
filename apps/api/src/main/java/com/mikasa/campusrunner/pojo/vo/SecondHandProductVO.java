@@ -30,6 +30,7 @@ public class SecondHandProductVO {
     private Integer status;
     private Integer viewCount;
     private Integer favoriteCount;
+    private Boolean favorited;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

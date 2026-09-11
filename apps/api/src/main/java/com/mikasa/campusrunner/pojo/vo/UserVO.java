@@ -39,4 +39,5 @@ public class UserVO {
     private Integer deleted;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    private Boolean profileCompleted;
 }

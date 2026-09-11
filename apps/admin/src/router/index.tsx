@@ -4,7 +4,7 @@
 
 /* eslint-disable react-refresh/only-export-components */
 
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom'
 import Login from '../pages/Login/Login'
 import MainLayout from '../layouts/MainLayout/MainLayout'
 import DashboardNew from '../pages/Dashboard/DashboardNew'
@@ -21,8 +21,11 @@ import { tokenManager } from '../utils/token'
 
 // 路由守卫：需要登录才能访问
 function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
   const isAuthenticated = tokenManager.hasToken()
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
+  const loginPath = location.pathname === '/users/pending-auth'
+    ? '/login?returnTo=pending-auth' : '/login'
+  return isAuthenticated ? <>{children}</> : <Navigate to={loginPath} replace />
 }
 
 // 路由守卫：已登录则跳转到首页

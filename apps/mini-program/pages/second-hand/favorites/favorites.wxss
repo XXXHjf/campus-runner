@@ -1,0 +1,99 @@
+@import "../../../styles/second-hand-card.wxss";
+
+page {
+  background: #f6f8f7;
+}
+
+.favorites-page {
+  display: block;
+  min-height: 100vh;
+}
+
+.favorites-page__body {
+  padding: 0 24rpx 48rpx;
+}
+
+.favorites-page__list {
+  overflow: hidden;
+  border-radius: var(--cr-radius-medium, 20rpx);
+}
+
+.favorites-page__row {
+  display: flex;
+  gap: 20rpx;
+  padding: 24rpx;
+  background: var(--cr-color-surface, #ffffff);
+  border-bottom: 1rpx solid var(--cr-color-border, #e7eaf0);
+  box-sizing: border-box;
+}
+
+.favorites-page__row:last-child {
+  border-bottom: 0;
+}
+
+.favorites-page__cover {
+  flex: 0 0 168rpx;
+  width: 168rpx;
+  height: 168rpx;
+  overflow: hidden;
+  background: #edf2ee;
+  border-radius: var(--cr-radius-medium, 20rpx);
+  --td-image-round-radius: var(--cr-radius-medium, 20rpx);
+}
+
+.favorites-page__info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.favorites-page__top,
+.favorites-page__bottom {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.favorites-page__product-title {
+  display: -webkit-box;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cr-color-text, #1d2129);
+  font-size: 28rpx;
+  font-weight: 800;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.favorites-page__meta {
+  margin-top: 10rpx;
+  overflow: hidden;
+  color: var(--cr-color-text-secondary, #6b778c);
+  font-size: 24rpx;
+  line-height: 36rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favorites-page__bottom {
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: auto;
+  padding-top: 16rpx;
+}
+
+.favorites-page__price {
+  color: #ff6a3d;
+  font-size: 34rpx;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.favorites-page__favorite-action {
+  flex: none;
+  margin-left: auto;
+}

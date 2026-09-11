@@ -1,0 +1,3 @@
+<view class="ui-page {{compact ? 'ui-page--compact' : ''}} {{safeBottom ? 'ui-page--safe-bottom' : ''}}">
+  <slot />
+</view>

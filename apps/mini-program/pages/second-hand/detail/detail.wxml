@@ -9,20 +9,36 @@
   </view>
 
   <view class="main-card">
-    <view class="price">¥{{product.price}}</view>
-    <view class="title">{{product.title}}</view>
+    <view class="detail-primary">
+      <view class="detail-primary-copy">
+        <view class="price">¥{{product.price}}</view>
+        <view class="title">{{product.title}}</view>
+      </view>
+      <t-button
+        wx:if="{{!product.isOwner}}"
+        class="favorite-action"
+        size="small"
+        theme="{{product.isFavorited?'primary':'default'}}"
+        variant="{{product.isFavorited?'base':'outline'}}"
+        icon="star"
+        loading="{{favoriteSubmitting}}"
+        disabled="{{favoriteSubmitting}}"
+        bind:tap="toggleFavorite"
+      >{{product.isFavorited?'已收藏':'收藏'}}</t-button>
+    </view>
+    <view wx:if="{{!product.isOwner}}" class="favorite-count">{{product.favoriteCount}} 人收藏</view>
     <view class="tag-row">
       <t-tag size="small" variant="light">{{product.statusText}}</t-tag>
       <t-tag size="small" theme="success" variant="light">{{product.conditionLevel || '成色良好'}}</t-tag>
       <t-tag wx:if="{{product.negotiable==1}}" size="small" theme="warning" variant="light">可议价</t-tag>
     </view>
-    <view class="guarantee">平台保障交易，确认收货后卖家收款</view>
+    <view class="guarantee">平台仅提供信息撮合，付款和交付由双方自行协商。请先验货再付款。</view>
   </view>
 
   <view class="section">
     <view class="section-title">交付方式</view>
     <view class="info-line">{{product.deliveryText}}</view>
-    <view class="info-muted">自提点：{{product.pickupAddressText || '卖家暂未填写具体地点，购买前可留言确认'}}</view>
+    <view class="info-muted">自提点：{{product.pickupAddressText || '卖家暂未填写具体地点，购买前可私信确认'}}</view>
   </view>
 
   <view class="section">
@@ -36,19 +52,8 @@
       <view class="info-line">{{product.sellerName || '同学'}}</view>
       <view class="info-muted">{{product.compusName || '同校'}} · {{product.categoryName || '闲置好物'}}</view>
     </view>
-    <t-button size="small" variant="outline" bind:tap="openMessage">私密留言</t-button>
-  </view>
-
-  <view class="section">
-    <view class="section-head">
-      <view class="section-title">私密留言</view>
-      <view class="message-count">{{messages.length}} 条</view>
-    </view>
-    <view wx:for="{{messages}}" wx:key="id" class="message-row">
-      <view class="message-name">{{item.senderName || '同学'}}</view>
-      <view class="message-content">{{item.content}}</view>
-    </view>
-    <view wx:if="{{messages.length==0}}" class="info-muted">购买前可以先确认成色、时间和地点。</view>
+    <t-button wx:if="{{!product.isOwner}}" size="small" variant="outline" bind:tap="gotoConversation">联系卖家</t-button>
+    <t-button wx:else size="small" variant="outline" bind:tap="gotoConversations">查看咨询</t-button>
   </view>
 
   <view wx:if="{{showBargain}}" class="sheet-mask" bindtap="closeBargain">
@@ -59,17 +64,6 @@
       <view class="sheet-actions">
         <t-button variant="outline" bind:tap="closeBargain">取消</t-button>
         <t-button theme="primary" loading="{{bargainSubmitting}}" disabled="{{bargainSubmitting}}" bind:tap="submitBargain">发送议价</t-button>
-      </view>
-    </view>
-  </view>
-
-  <view wx:if="{{showMessage}}" class="sheet-mask" bindtap="closeMessage">
-    <view class="sheet" catchtap="noop">
-      <view class="sheet-title">私密留言</view>
-      <t-textarea value="{{messageContent}}" placeholder="比如：今晚图书馆门口方便自提吗？" maxlength="200" bind:change="setMessage" />
-      <view class="sheet-actions">
-        <t-button variant="outline" bind:tap="closeMessage">取消</t-button>
-        <t-button theme="primary" loading="{{messageSubmitting}}" disabled="{{messageSubmitting}}" bind:tap="submitMessage">发送</t-button>
       </view>
     </view>
   </view>
@@ -111,10 +105,15 @@
     </view>
   </view>
 
-  <view class="bottom-bar">
-    <t-button variant="outline" bind:tap="openMessage">留言</t-button>
-    <t-button wx:if="{{product.canBargain}}" variant="outline" theme="warning" disabled="{{buySubmitting}}" bind:tap="openBargain">议价</t-button>
-    <t-button wx:if="{{product.canBuy}}" theme="primary" loading="{{buySubmitting}}" disabled="{{buySubmitting}}" bind:tap="buyNow">立即购买</t-button>
-    <t-button wx:if="{{!product.canBuy}}" disabled>商品不可购买</t-button>
+  <view wx:if="{{!product.isOwner || product.status==0 || product.status==4}}" class="bottom-bar">
+    <block wx:if="{{product.isOwner}}">
+      <t-button wx:if="{{product.status==0 || product.status==4}}" variant="outline" bind:tap="toggleProductStatus">{{product.status==4?'上架':'下架'}}</t-button>
+      <t-button wx:if="{{product.status==0 || product.status==4}}" theme="primary" bind:tap="editProduct">编辑商品</t-button>
+    </block>
+    <block wx:else>
+      <t-button wx:if="{{product.canContact}}" variant="outline" bind:tap="gotoConversation">联系卖家</t-button>
+      <t-button wx:if="{{product.canBargain}}" variant="outline" theme="warning" disabled="{{buySubmitting}}" bind:tap="openBargain">议价</t-button>
+      <t-button wx:if="{{product.canBuy}}" theme="primary" loading="{{buySubmitting}}" disabled="{{buySubmitting}}" bind:tap="buyNow">立即下单</t-button>
+    </block>
   </view>
 </view>

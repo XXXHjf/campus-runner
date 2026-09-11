@@ -1201,20 +1201,7 @@ Page({
   },
   // wx.requestSubscribeMessage 获取订阅的消息通知权限
   _getSubscribeMessage() {
-    return new Promise((resolve, reject) => {
-      wx.requestSubscribeMessage({
-        tmplIds: SUBSCRIBE_TEMPLATE_IDS,
-        success: (res) => {
-          console.log('[订阅消息] 用户订阅结果:', res);
-          resolve(res);
-        },
-        fail: (err) => {
-          console.warn('[订阅消息] 用户拒绝订阅:', err);
-          // 用户拒绝订阅不应该影响订单发布流程
-          resolve({ errMsg: 'requestSubscribeMessage:ok' });
-        }
-      });
-    });
+    return require('../../../../services/subscriptionService').requestTemplates(SUBSCRIBE_TEMPLATE_IDS);
   },
   // 获取用户数据（使用封装的 service）
   async getGlobalData() {

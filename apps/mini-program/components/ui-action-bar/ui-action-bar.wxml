@@ -1,0 +1,5 @@
+<view class="ui-action-bar {{fixed ? 'ui-action-bar--fixed' : ''}}">
+  <view class="ui-action-bar__inner">
+    <slot />
+  </view>
+</view>

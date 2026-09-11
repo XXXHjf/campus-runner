@@ -3,9 +3,22 @@ const { request, safeList } = require('./request');
 const app = getApp();
 const url = app.globalData.API_URL;
 
+// Keep writes alive after a page unloads and let subsequent reads wait for them.
+// A failed write must not prevent later favorite changes from being submitted.
+let favoriteUpdates = Promise.resolve();
+
+function updateFavorite(id, method) {
+  const update = favoriteUpdates.then(() => request({
+    url: `${url}/api/second-hand/products/${id}/favorite`,
+    method,
+  })).then((res) => unwrapData(res));
+  favoriteUpdates = update.catch(() => {});
+  return update;
+}
+
 function unwrapData(res, fallback = {}) {
   if (res && res.data && res.data.code !== undefined && res.data.code !== 1) {
-    throw new Error(res.data.msg || '接口返回异常');
+    throw new Error(res.data.msg || '操作失败，请稍后重试');
   }
   if (res && res.data && res.data.data !== undefined && res.data.data !== null) {
     return res.data.data;
@@ -40,10 +53,10 @@ function listProducts(query = {}) {
 }
 
 function getProduct(id) {
-  return request({
+  return favoriteUpdates.then(() => request({
     url: `${url}/api/second-hand/products/${id}`,
     method: 'GET',
-  }).then((res) => unwrapData(res));
+  })).then((res) => unwrapData(res));
 }
 
 function publishProduct(data) {
@@ -74,6 +87,21 @@ function listMyProducts() {
     url: `${url}/api/second-hand/products/my`,
     method: 'GET',
   }).then(safeList);
+}
+
+function listFavoriteProducts() {
+  return favoriteUpdates.then(() => request({
+    url: `${url}/api/second-hand/favorites`,
+    method: 'GET',
+  })).then(safeList);
+}
+
+function favoriteProduct(id) {
+  return updateFavorite(id, 'POST');
+}
+
+function unfavoriteProduct(id) {
+  return updateFavorite(id, 'DELETE');
 }
 
 function createOrder(data) {
@@ -200,6 +228,27 @@ function listProductMessages(productId) {
   }).then(safeList);
 }
 
+function listConversations() {
+  return request({
+    url: `${url}/api/second-hand/conversations`,
+    method: 'GET',
+  }).then(safeList);
+}
+
+function listConversationMessages(productId, counterpartyId) {
+  return request({
+    url: `${url}/api/second-hand/conversations/${productId}/${counterpartyId}/messages`,
+    method: 'GET',
+  }).then(safeList);
+}
+
+function getTransferClaim(orderId) {
+  return request({
+    url: `${url}/api/second-hand/orders/${orderId}/transfer-claim`,
+    method: 'GET',
+  }).then((res) => unwrapData(res));
+}
+
 module.exports = {
   listCategories,
   listProducts,
@@ -208,6 +257,9 @@ module.exports = {
   updateProduct,
   updateProductStatus,
   listMyProducts,
+  listFavoriteProducts,
+  favoriteProduct,
+  unfavoriteProduct,
   createOrder,
   listBuyerOrders,
   listSellerOrders,
@@ -225,4 +277,7 @@ module.exports = {
   rejectBargain,
   sendMessage,
   listProductMessages,
+  listConversations,
+  listConversationMessages,
+  getTransferClaim,
 };

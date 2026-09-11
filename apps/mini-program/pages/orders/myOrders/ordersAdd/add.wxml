@@ -1,3 +1,4 @@
+<ui-page safe-bottom>
 <!-- 步骤栏 -->
 <view class="step">
   <t-steps theme="dot" current="{{count - 1}}">
@@ -8,14 +9,7 @@
 </view>
 
 <!-- 地址 -->
-<view class="card" hidden="{{!(count==1)}}">
-  <!-- 卡片名 -->
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="map" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">取件与收件地址</view>
-  </view>
-  <!-- 分割线 -->
-  <t-divider class="drvider" />
+<ui-section title="取件与收件地址" icon="map" wx:if="{{count == 1}}">
   <!-- 取件地址 -->
   <view class="box1" bind:tap="tapOnPickAddr">
     <view class="text-address">取件地址</view>
@@ -70,7 +64,7 @@
       <t-icon name="edit" bind:click="onIconTap" />
     </view>
   </view>
-</view>
+</ui-section>
 
 <!-- 联系方式 -->
 <!-- <view class="card" hidden="{{!(count==1)}}">
@@ -92,14 +86,7 @@
 </view> -->
 
 <!-- 跑腿类型 -->
-<view class="card" hidden="{{!(count==1)}}">
-  <!-- 卡片名 -->
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="send" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">跑腿类型</view>
-  </view>
-  <!-- 分割线 -->
-  <t-divider class="drvider" />
+<ui-section title="跑腿类型" icon="send" wx:if="{{count == 1}}">
   <!-- 跑腿类型  -->
   <view bind:tap="upCategory">
     <view class="box1">
@@ -109,7 +96,7 @@
       <t-image wx:else class="categoryImage" src="{{showCategory.image || '/images/tabBar/orderAdd-selected.png'}}" loading="slot" error="slot" mode="widthFix" height="48rpx" width="48rpx" style="margin-right: 40rpx;" />
     </view>
   </view>
-</view>
+</ui-section>
 
 <!-- 门禁情况说明 -->
 <!-- <view class="card" hidden="{{!(count==1)}}"> -->
@@ -132,14 +119,7 @@
 <!-- </view> -->
 
 <!-- 跑腿内容说明 -->
-<view class="card" hidden="{{!(count==2)}}">
-  <!-- 卡片名 -->
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="attach" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">内容说明</view>
-  </view>
-  <!-- 分割线 -->
-  <t-divider class="drvider" />
+<ui-section title="内容说明" icon="attach" description="说明越清楚，接单人越容易准确完成任务" wx:if="{{count == 2}}">
   <view class="content-field">
     <text class="text-address">一句话需求</text>
     <t-input
@@ -172,7 +152,7 @@
     <view class="address" style="margin-top: 20rpx;"> （选填）请选择一张图片：取件码等 </view>
     <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{1}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="margin: 20rpx 30rpx" />
   </view>
-</view>
+</ui-section>
 
 <!--
 <view class="card" hidden="{{!(count==3)}}">
@@ -193,14 +173,7 @@
 -->
 
 <!-- 任务时间 -->
-<view class="card" hidden="{{!(count==3)}}">
-  <!-- 卡片名 -->
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="user-time" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">任务时间</view>
-  </view>
-  <!-- 分割线 -->
-  <t-divider class="drvider" />
+<ui-section title="任务时间" icon="user-time" wx:if="{{count == 3}}">
   <!-- 任务说明  -->
   <!-- <view>
     <view class="box1">
@@ -225,17 +198,10 @@
     </view>
     <view class="address" style="margin-top: 4rpx;">送达时间可能随接单人情况波动</view>
   </view>
-</view>
+</ui-section>
 
 <!-- 付费信息 -->
-<view class="card" hidden="{{!(count==3)}}">
-  <!-- 卡片名 -->
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="user-vip" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">跑腿付费</view>
-  </view>
-  <!-- 分割线 -->
-  <t-divider class="drvider" />
+<ui-section title="跑腿付费" icon="user-vip" wx:if="{{count == 3}}">
   <!-- 付费信息  -->
   <view>
     <view class="box1">
@@ -250,22 +216,17 @@
     <view hidden="{{(priceAccess==0)}}" class="address" style="margin-top: 10rpx;color: #ed5126;"> 发布价格为骑手可得金额。 </view>
     <view hidden="{{(priceAccess==0)}}" class="address" style="margin-top: 6rpx;color:#0052d9;font-weight:600;">预计实付金额：¥{{payAmount || 0}}</view>
   </view>
-</view>
+</ui-section>
 
-<!-- 按钮 -->
-<view class="button" style="background-color: #F5F5F5;border-radius: 20rpx;">
-  <view class="button-row">
-    <view class="button-item">
-      <t-button block variant="outline" theme="default" disabled="{{count==1}}" bind:tap="toPrev">上一步</t-button>
-    </view>
-    <view class="button-item">
-      <t-button block variant="{{variant}}" theme="{{theme}}" open-type="agreePrivacyAuthorization" bind:tap="{{count==3?'order':'toNext'}}"> {{count==3?'发布跑腿':'下一步'}}</t-button>
-    </view>
+<ui-action-bar fixed>
+  <view class="order-add__action">
+    <t-button block variant="outline" theme="default" disabled="{{count==1}}" bind:tap="toPrev">上一步</t-button>
   </view>
-</view>
-
-<!-- 空白填充 -->
-<view style="height: 50rpx;" />
+  <view class="order-add__action">
+    <t-button block variant="{{variant}}" theme="{{theme}}" open-type="agreePrivacyAuthorization" bind:tap="{{count==3?'order':'toNext'}}">{{count==3?'发布跑腿':'下一步'}}</t-button>
+  </view>
+</ui-action-bar>
+</ui-page>
 
 <!-- 发布订单确认弹窗 -->
 <t-dialog 

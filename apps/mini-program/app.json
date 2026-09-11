@@ -1,14 +1,17 @@
 {
   "pages": [
-    "pages/index/index",
     "pages/second-hand/index/index",
+    "pages/index/index",
     "pages/mine/mine/mine",
     "pages/second-hand/detail/detail",
     "pages/second-hand/publish/publish",
     "pages/second-hand/orders/orders",
+    "pages/second-hand/conversations/conversations",
+    "pages/second-hand/conversation/conversation",
     "pages/second-hand/bargains/bargains",
     "pages/second-hand/order-detail/order-detail",
     "pages/second-hand/my-products/my-products",
+    "pages/second-hand/favorites/favorites",
     "pages/mine/newUser/index",
     "pages/address/addressShow/show",
     "pages/address/addressAdd/add",
@@ -35,16 +38,16 @@
     "borderStyle": "white",
     "list": [
       {
-        "pagePath": "pages/index/index",
-        "text": "跑腿",
-        "iconPath": "/images/tabBar/tab-runner.png",
-        "selectedIconPath": "/images/tabBar/tab-runner-selected.png"
-      },
-      {
         "pagePath": "pages/second-hand/index/index",
         "text": "二手",
         "iconPath": "/images/tabBar/tab-second-hand.png",
         "selectedIconPath": "/images/tabBar/tab-second-hand-selected.png"
+      },
+      {
+        "pagePath": "pages/index/index",
+        "text": "跑腿",
+        "iconPath": "/images/tabBar/tab-runner.png",
+        "selectedIconPath": "/images/tabBar/tab-runner-selected.png"
       },
       {
         "pagePath": "pages/mine/mine/mine",
@@ -55,6 +58,12 @@
     ]
   },
   "componentFramework": "glass-easel",
+  "usingComponents": {
+    "ui-page": "/components/ui-page/ui-page",
+    "ui-section": "/components/ui-section/ui-section",
+    "ui-action-bar": "/components/ui-action-bar/ui-action-bar",
+    "ui-empty-state": "/components/ui-empty-state/ui-empty-state"
+  },
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"
 }

@@ -1,0 +1,20 @@
+.ui-page-header {
+  box-sizing: border-box;
+  padding: 16rpx 28rpx 28rpx;
+  background: transparent;
+}
+
+.ui-page-header__title {
+  color: var(--cr-color-text, #1d2129);
+  font-size: 44rpx;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -1rpx;
+}
+
+.ui-page-header__subtitle {
+  margin-top: 8rpx;
+  color: var(--cr-color-text-secondary, #6b778c);
+  font-size: 24rpx;
+  line-height: 36rpx;
+}

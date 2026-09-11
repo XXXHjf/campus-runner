@@ -42,7 +42,15 @@ java -version
 - [ ] `server.port` 为 `8080`，`server.ssl.enabled` 为 `false`。
 - [ ] 图片上传的 multipart 单文件上限为 `10MB`、单请求上限为 `20MB`；生产
       `campus-runner-start.sh` 已更新为仓库当前版本。
+- [ ] HTTPS 站点显式设置 `client_max_body_size 20m;`，且 `/api/`、`/admin/api/`
+      没有更小的覆盖值，避免 Nginx 默认 `1m` 限制在 API 前拦截图片上传。配置修改前
+      已备份，修改后先通过 `nginx -t` 再平滑重载；验证及回滚见
+      [Nginx 图片上传大小限制](nginx-deployment.md#图片上传大小限制)。
 - [ ] 生产模拟支付已关闭，微信支付商户号、回调地址和私钥均为生产配置。
+- [ ] 当前二手交易配置 `second_hand_trade_mode` 为 `OFFLINE`，新订单不发起支付、退款或
+      卖家收款；发布前已逐单核对存量线上订单。
+- [ ] 只有将来重新发布二手线上收款功能时，才核对微信正式准入和对应场景；不得把旧的
+      `1010` 实现直接恢复为普通学生 C2C 收款。
 - [ ] `application.yaml` 和 `apiclient_key.pem` 存在，并确认它们将被打入本次 JAR。
 - [ ] 本次代码要求的数据库迁移已在备份后执行。
 - [ ] admin 的 `VITE_API_BASE_URL` 符合当前部署拓扑；当前同域部署应保持为空。
@@ -79,6 +87,8 @@ com:
     campus-runner:
       dev:
         mock-payment-enabled: false
+      wechat:
+        second-hand-transfer-scene-id: 1010
 ```
 
 数据库配置必须使用生产凭据，不能沿用本地开发配置。当前 YAML 使用
@@ -244,7 +254,22 @@ chmod +x /root/start.sh /root/stop.sh /root/run.sh
 ```text
 docs/database/second-hand-schema.sql
 docs/database/second-hand-delivery-migration.sql
+docs/database/second-hand-conversation-transfer-migration.sql
+docs/database/second-hand-offline-trade-migration.sql
+docs/database/second-hand-favorite-migration.sql
 ```
+
+二手私信和卖家收款升级先执行
+`second-hand-conversation-transfer-migration.sql`，再启动新版 API。完整验证和回滚方法见
+`docs/database/second-hand-conversation-transfer-migration.md`。
+
+切换为线下交易模式时，再执行 `second-hand-offline-trade-migration.sql`，然后部署同时支持
+`ONLINE` 历史订单和 `OFFLINE` 新订单的 API。存量资金订单核对、验证和回滚方法见
+`docs/database/second-hand-offline-trade-migration.md`。
+
+发布二手商品收藏功能时，先备份数据库并执行
+`second-hand-favorite-migration.sql`，验证收藏表和唯一索引后再启动新版 API。完整验证和
+回滚方法见 `docs/database/second-hand-favorite-migration.md`。
 
 统一图片资源使用：
 
@@ -278,6 +303,15 @@ mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
 
 mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
   < docs/database/second-hand-delivery-migration.sql
+
+mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
+  < docs/database/second-hand-conversation-transfer-migration.sql
+
+mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
+  < docs/database/second-hand-offline-trade-migration.sql
+
+mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
+  < docs/database/second-hand-favorite-migration.sql
 
 mysql -h 数据库地址 -u 数据库用户名 -p 数据库名 \
   < docs/database/media-asset-phase2-migration.sql
@@ -382,17 +416,19 @@ errorCode 1045
 先验证服务器内部服务：
 
 ```bash
-curl -i http://127.0.0.1:8080/admin/api/banner/getList/1
+curl -i http://127.0.0.1:8080/admin/api/banner/getList/0
 ```
 
 再验证 Nginx 和 HTTPS：
 
 ```bash
-curl -i https://www.campusrunner.top/admin/api/banner/getList/1
+curl -i https://www.campusrunner.top/admin/api/banner/getList/0
 curl -I https://www.campusrunner.top/
 ```
 
-轮播图列表接口允许匿名访问并会查询数据库，适合作为发布探针。当前
+通用轮播图列表 `/admin/api/banner/getList/0` 允许匿名访问并会查询数据库，适合作为
+发布探针；必须同时确认 HTTP 200 和业务 `code=1`。不要假设学校 ID `1` 永久存在：
+学校被删除时 `/getList/1` 会返回业务失败，但不代表数据库连接故障。当前
 `/api/second-hand/categories` 受鉴权保护，未携带 token 时返回 `401` 属于预期行为；
 不要使用 `curl -f` 将该 `401` 误判为后端启动失败。
 
@@ -621,3 +657,54 @@ sudo systemctl status nginx --no-pager -l
 ```
 
 完整 Nginx 配置见 [Nginx 部署](nginx-deployment.md)。
+
+## 待审核认证群通知
+
+当前实现是单 API 实例的待办汇总提醒，默认关闭，无数据库迁移。后台人数角标独立工作。
+当前生产已通过服务器环境变量启用加签机器人，并验证发送返回成功；代码默认仍保持关闭，
+避免开发环境或其他实例意外向同一群发送。发布后需同时核对通知日志和待审核接口，
+平台接收成功不等于每位管理员已读。
+不用提交后内存事件作为唯一通知来源，是为了让进程重启后仍能发现未处理的认证，
+并使外部网络故障完全脱离学生提交事务。通知在独立线程运行，不占用订单定时任务线程。
+
+启用后启动约 30 秒开始检查；没有待办时每 30 秒检查一次。首次发现待办即尝试发送，
+成功后冷却 30 分钟，冷却结束重新查询，只在仍有待办时提醒。因此冷却期内的新提交会合并，
+最长约 30 分钟后提醒；并非逐条实时通知。全部审核完成后不再发送。
+失败按 1、2、4、8、10 分钟退避，之后最多每 10 分钟重试，每次重读人数，
+避免继续通知已处理的申请。HTTP 连接超时 3 秒、请求超时 5 秒，同时检查 HTTP 状态及业务 errcode。
+日志只记录人数或重试次数，不打印 URL、密钥、响应正文或异常详情。
+
+冷却状态只保留在当前进程：重启可能再发一次待办汇总；超时但平台实际已接收也可能重复。
+此提醒不承诺恰好一次或 3 秒送达。多实例部署前必须增加共享冷却/分布式互斥，不能同时启用多个发送实例。
+
+### 渠道前置与配置
+
+钉钉官方开发者百科提示自定义机器人下线、已创建的机器人不受影响：
+<https://open-dingtalk.github.io/developerpedia/docs/learn/bot/webhook/overview/>。
+不能以“零资质、所有账号均可新建”作为上线前提。此实现仅适用于已确认可用的加签自定义机器人；
+没有可用机器人时保持关闭，根据组织实际权限另接应用机器人或其他渠道，不能只换一个开关便视为接入完成。
+
+在服务器权限为 `600` 的 `/root/campus-runner.env` 中配置以下变量，沿用仓库启动脚本加载：
+
+| 环境变量 | 值/用途 |
+| --- | --- |
+| `NOTIFY_DINGTALK_ENABLED` | 默认 false，完成渠道核验后设 true |
+| `NOTIFY_DINGTALK_WEBHOOK` | 已有机器人的 HTTPS Webhook，秘密，不写进仓库或聊天 |
+| `NOTIFY_DINGTALK_SECRET` | 已开启的加签密钥，秘密，不写进仓库或聊天 |
+| `NOTIFY_DINGTALK_REVIEW_URL` | 可选，默认 `https://www.campusrunner.top/users/pending-auth` |
+
+对应 Spring 属性为 `notify.dingtalk.enabled/webhook/secret/review-url`。
+启用但配置无效会拒绝启动；禁用时不创建通知组件、不读取待办或发送群消息。
+Webhook 仅允许 `https://oapi.dingtalk.com/robot/send?access_token=...`，禁止重定向。
+审核地址须是无查询参数的 HTTPS 页面地址，不得包含任何登录凭据。
+
+### 验证与回滚
+
+发布前执行本文生产必检清单，确认机器人仍可用、加签已启用、管理员群成员正确，秘密仅报告已确认/未确认。
+启用会向所配置群发送真实待办提醒，首次应在授权测试群验证：有待办能收到汇总、多人可见；
+未登录点击链接能登录后返回待审核页；审核通过/驳回后人数刷新；全部处理后不再提醒；
+外部发送故障不影响认证提交。配置校验失败时不要替换线上版本，应修复配置或关闭通知后再发布。
+静态检查与单元测试不代替实际群消息联调。
+
+紧急关闭只需把 `NOTIFY_DINGTALK_ENABLED` 设为 false，再按仓库脚本重启 API，后台角标仍可用。
+没有迁移需撤销；版本回滚按常规恢复 JAR 和管理端静态文件，不删除学生认证记录。

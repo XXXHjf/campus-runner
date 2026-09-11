@@ -27,6 +27,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * author  Edith
@@ -35,6 +37,8 @@ import java.util.Map;
 @Service
 public class UserServiceImpl implements UserService {
     private static final String WX_LOGIN = "https://api.weixin.qq.com/sns/jscode2session";
+    private static final Pattern PHONE_PATTERN = Pattern.compile("^1[3-9]\\d{9}$");
+    private static final Set<String> PLACEHOLDER_USERNAMES = Set.of("微信用户");
 
     @Autowired
     private WeChatProperties weChatProperties;
@@ -101,6 +105,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void save(UserSaveDTO userSaveDTO) {
+        validateProfileUpdate(userSaveDTO);
         //TODO 考虑用户的update_time是否需要在用户每次进行不论什么操作时都要更新？还是就更新修改操作？
         User user = new User();
         BeanUtils.copyProperties(userSaveDTO, user);
@@ -128,6 +133,11 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void userAuthen(UserAuthenDTO userAuthenDTO) {
+
+        UserVO currentUser = getCurrentUser();
+        if (!isProfileComplete(currentUser)) {
+            throw new UserException(MessageConstant.USER_PROFILE_INCOMPLETE);
+        }
 
         User user = new User();
         BeanUtils.copyProperties(userAuthenDTO, user);
@@ -164,7 +174,36 @@ public class UserServiceImpl implements UserService {
     public UserVO getCurrentUser() {
         UserVO user = userMapper.getById(BaseContext.getCurrentId());
         resolveUserMedia(user);
+        if (user != null) {
+            user.setProfileCompleted(isProfileComplete(user));
+        }
         return user;
+    }
+
+    private void validateProfileUpdate(UserSaveDTO userSaveDTO) {
+        if (userSaveDTO.getPhone() != null
+                && !PHONE_PATTERN.matcher(userSaveDTO.getPhone().trim()).matches()) {
+            throw new UserException(MessageConstant.INVALID_USER_PHONE);
+        }
+
+        if (userSaveDTO.getUsername() != null) {
+            String username = userSaveDTO.getUsername().trim();
+            if (username.isEmpty() || PLACEHOLDER_USERNAMES.contains(username)) {
+                throw new UserException(MessageConstant.INVALID_USERNAME);
+            }
+        }
+    }
+
+    private boolean isProfileComplete(UserVO user) {
+        if (user == null) {
+            return false;
+        }
+        String username = StringUtils.trimToEmpty(user.getUsername());
+        String phone = StringUtils.trimToEmpty(user.getPhone());
+        return !username.isEmpty()
+                && !PLACEHOLDER_USERNAMES.contains(username)
+                && PHONE_PATTERN.matcher(phone).matches()
+                && user.getHeadImgAssetId() != null;
     }
 
     private void resolveUserMedia(UserVO user) {

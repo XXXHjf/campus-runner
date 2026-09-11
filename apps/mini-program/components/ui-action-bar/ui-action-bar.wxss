@@ -1,0 +1,27 @@
+.ui-action-bar {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 32rpx;
+}
+
+.ui-action-bar--fixed {
+  position: fixed;
+  z-index: 50;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1rpx solid var(--cr-color-border, #e7eaf0);
+  backdrop-filter: blur(16rpx);
+}
+
+.ui-action-bar__inner {
+  box-sizing: border-box;
+  display: flex;
+  gap: 20rpx;
+  align-items: center;
+  width: 100%;
+  padding: 22rpx var(--cr-page-padding, 30rpx);
+}

@@ -1,0 +1,5 @@
+<view class="ui-empty-state">
+  <t-empty description="{{title}}" />
+  <view wx:if="{{description}}" class="ui-empty-state__description">{{description}}</view>
+  <t-button wx:if="{{actionText}}" class="ui-empty-state__action" theme="primary" variant="outline" size="small" bind:tap="handleAction">{{actionText}}</t-button>
+</view>

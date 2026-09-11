@@ -585,6 +585,7 @@ Page({
   // 生命周期函数--监听页面显示
   onShow() {
     this.checkPrivacyAcknowledged();
+    getApp().refreshMineTabRedDot().catch(() => {});
     this.setData({ isLoginChecking: true });
     tokenManager.waitForToken().then(() => {
       if (!tokenManager.hasToken()) {

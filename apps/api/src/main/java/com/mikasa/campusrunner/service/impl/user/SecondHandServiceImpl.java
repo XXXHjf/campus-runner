@@ -24,6 +24,7 @@ import com.mikasa.campusrunner.service.MediaAssetService;
 import com.wechat.pay.contrib.apache.httpclient.util.AesUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -42,6 +43,7 @@ import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
@@ -52,7 +54,11 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Autowired
     private SecondHandCategoryMapper categoryMapper;
     @Autowired
+    private SecondHandSubscriptionService subscriptions;
+    @Autowired
     private SecondHandProductMapper productMapper;
+    @Autowired
+    private SecondHandFavoriteMapper favoriteMapper;
     @Autowired
     private SecondHandOrderMapper orderMapper;
     @Autowired
@@ -202,7 +208,7 @@ public class SecondHandServiceImpl implements SecondHandService {
                     6,
                     Duration.ofDays(7));
         }
-        return resolveProductImages(productMapper.detail(product.getId()));
+        return resolveProductImages(productMapper.detail(product.getId(), BaseContext.getCurrentId()));
     }
 
     @Override
@@ -287,11 +293,43 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Override
     public SecondHandProductVO productDetail(Long id) {
         productMapper.increaseViewCount(id);
-        SecondHandProductVO detail = productMapper.detail(id);
+        SecondHandProductVO detail = productMapper.detail(id, BaseContext.getCurrentId());
         if (detail == null) {
             throw new SecondHandException("商品不存在");
         }
         return resolveProductImages(detail);
+    }
+
+    @Override
+    public List<SecondHandProductVO> listFavoriteProducts() {
+        ensureAuthenticated();
+        List<SecondHandProductVO> products = productMapper.listFavorites(BaseContext.getCurrentId());
+        products.forEach(this::resolveProductImages);
+        return products;
+    }
+
+    @Override
+    @Transactional
+    public void favoriteProduct(Long id) {
+        ensureAuthenticated();
+        SecondHandProduct product = requireProduct(id);
+        Long userId = BaseContext.getCurrentId();
+        if (product.getSellerId().equals(userId)) {
+            throw new SecondHandException("不能收藏自己的商品");
+        }
+        if (favoriteMapper.insertIgnore(userId, id, LocalDateTime.now()) > 0) {
+            productMapper.changeFavoriteCount(id, 1);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void unfavoriteProduct(Long id) {
+        ensureAuthenticated();
+        requireProduct(id);
+        if (favoriteMapper.delete(BaseContext.getCurrentId(), id) > 0) {
+            productMapper.changeFavoriteCount(id, -1);
+        }
     }
 
     @Override
@@ -331,6 +369,7 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .updateTime(now)
                 .build();
         bargainMapper.insert(bargain);
+        subscriptions.bargain(product.getSellerId(), product.getId(), "买家出价 ¥" + bargain.getOfferPrice().stripTrailingZeros().toPlainString() + " 元", now);
         return bargainMapper.listByProduct(product.getId()).stream()
                 .filter(item -> item.getId().equals(bargain.getId()))
                 .findFirst()
@@ -350,7 +389,7 @@ public class SecondHandServiceImpl implements SecondHandService {
         SecondHandOrderCreateDTO orderDTO = dto == null ? new SecondHandOrderCreateDTO() : dto;
         orderDTO.setProductId(product.getId());
         orderDTO.setBargainId(bargain.getId());
-        SecondHandOrderVO order = createOrderInternal(product, bargain.getBuyerId(), bargain.getOfferPrice(), orderDTO);
+        SecondHandOrderVO order = createOrderInternal(product, bargain.getBuyerId(), bargain.getOfferPrice(), orderDTO, true);
         bargain.setStatus(SecondHandConstant.BARGAIN_ACCEPTED);
         bargain.setUpdateTime(LocalDateTime.now());
         bargainMapper.update(bargain);
@@ -392,7 +431,7 @@ public class SecondHandServiceImpl implements SecondHandService {
     public SecondHandOrderVO createOrder(SecondHandOrderCreateDTO dto) {
         ensureAuthenticated();
         SecondHandProduct product = requireProduct(dto.getProductId());
-        return createOrderInternal(product, BaseContext.getCurrentId(), product.getPrice(), dto);
+        return createOrderInternal(product, BaseContext.getCurrentId(), product.getPrice(), dto, false);
     }
 
     @Override
@@ -421,14 +460,25 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (!order.getBuyerId().equals(userId) && !order.getSellerId().equals(userId)) {
             throw new SecondHandException("无权查看该订单");
         }
-        return enrichOrder(orderMapper.detail(id));
+        SecondHandOrderVO enriched = enrichOrder(orderMapper.detail(id));
+        if (isOfflineTradeMode(enriched.getTradeMode()) || enriched.getPayTime() != null) {
+            Long counterpartyId = enriched.getBuyerId().equals(userId)
+                    ? enriched.getSellerId()
+                    : enriched.getBuyerId();
+            UserVO counterparty = userMapper.getById(counterpartyId);
+            if (counterparty != null) {
+                enriched.setCounterpartyPhone(trimToNull(counterparty.getPhone()));
+            }
+        }
+        return enriched;
     }
 
     @Override
     @Transactional
     public void markPaid(String orderNumber) {
         SecondHandOrder order = orderMapper.getByOrderNumber(orderNumber);
-        if (order == null || !isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)) {
+        if (order == null || isOfflineOrder(order) ||
+                !isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)) {
             return;
         }
         order.setStatus(SecondHandConstant.ORDER_PAID_WAIT_DELIVERY);
@@ -444,6 +494,10 @@ public class SecondHandServiceImpl implements SecondHandService {
         ensureAuthenticated();
         refreshUnpaidTimeouts();
         SecondHandOrder order = requireOrder(id);
+        if (isOfflineOrder(order)) {
+            cancelOfflineOrder(order, reason);
+            return;
+        }
         if (!order.getBuyerId().equals(BaseContext.getCurrentId())) {
             throw new SecondHandException("只有买家可以取消订单");
         }
@@ -501,15 +555,18 @@ public class SecondHandServiceImpl implements SecondHandService {
             return;
         }
         if (!isStatus(order.getStatus(), SecondHandConstant.ORDER_PAID_WAIT_DELIVERY)) {
-            throw new SecondHandException("订单未付款或不可交付");
+            throw new SecondHandException("订单当前不可标记交付");
         }
         LocalDateTime now = LocalDateTime.now();
-        int hours = getIntConfig("second_hand_auto_confirm_hours", SecondHandConstant.DEFAULT_AUTO_CONFIRM_HOURS);
         order.setStatus(SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM);
         order.setDeliveredTime(now);
-        order.setConfirmDeadline(now.plusHours(hours));
+        if (!isOfflineOrder(order)) {
+            int hours = getIntConfig("second_hand_auto_confirm_hours", SecondHandConstant.DEFAULT_AUTO_CONFIRM_HOURS);
+            order.setConfirmDeadline(now.plusHours(hours));
+        }
         order.setUpdateTime(now);
         orderMapper.update(order);
+        if (isOfflineOrder(order)) subscriptions.order(order, order.getBuyerId(), "待确认", "卖家已交付，请确认收货", now);
     }
 
     @Override
@@ -519,7 +576,9 @@ public class SecondHandServiceImpl implements SecondHandService {
         refreshUnpaidTimeouts();
         SecondHandOrder order = requireOrder(id);
         if (!order.getBuyerId().equals(BaseContext.getCurrentId())) {
-            throw new SecondHandException("只有买家可以确认收货");
+            throw new SecondHandException(isOfflineOrder(order)
+                    ? "只有买家可以确认交易完成"
+                    : "只有买家可以确认收货");
         }
         if (isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING) ||
                 isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFER_SUCCESS) ||
@@ -528,6 +587,40 @@ public class SecondHandServiceImpl implements SecondHandService {
             return;
         }
         completeOrder(order);
+        if (isOfflineOrder(order)) subscriptions.order(order, order.getSellerId(), "已完成", "交易已完成，感谢使用", order.getFinishTime());
+    }
+
+    @Override
+    @Transactional
+    public SecondHandTransferClaimVO getTransferClaim(Long orderId) {
+        ensureAuthenticated();
+        SecondHandOrder order = requireOrder(orderId);
+        if (!order.getSellerId().equals(BaseContext.getCurrentId())) {
+            throw new SecondHandException("只有卖家可以确认收款");
+        }
+        if (isOfflineOrder(order)) {
+            throw new SecondHandException("线下交易无需在平台确认收款");
+        }
+        if (isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING)) {
+            querySellerTransfer(order);
+            order = requireOrder(orderId);
+        }
+        if (isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFER_SUCCESS)) {
+            return SecondHandTransferClaimVO.builder().state("SUCCESS").build();
+        }
+        if (!isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING)) {
+            throw new SecondHandException("当前无需确认收款");
+        }
+        if (!"WAIT_USER_CONFIRM".equals(order.getTransferState()) ||
+                trimToNull(order.getTransferPackageInfo()) == null) {
+            throw new SecondHandException("收款正在处理中，请稍后刷新");
+        }
+        return SecondHandTransferClaimVO.builder()
+                .state(order.getTransferState())
+                .mchId(weChatProperties.getMchid())
+                .appId(weChatProperties.getAppid())
+                .packageInfo(order.getTransferPackageInfo())
+                .build();
     }
 
     @Override
@@ -535,7 +628,7 @@ public class SecondHandServiceImpl implements SecondHandService {
     public SecondHandMessageVO createMessage(SecondHandMessageDTO dto) {
         ensureAuthenticated();
         if (dto.getContent() == null || dto.getContent().isBlank()) {
-            throw new ParamException("留言内容不能为空");
+            throw new ParamException("消息内容不能为空");
         }
         SecondHandProduct product = requireProduct(dto.getProductId());
         Long senderId = BaseContext.getCurrentId();
@@ -550,17 +643,17 @@ public class SecondHandServiceImpl implements SecondHandService {
             boolean receiverInOrder = receiverId != null &&
                     (order.getBuyerId().equals(receiverId) || order.getSellerId().equals(receiverId));
             if (!senderInOrder || !receiverInOrder) {
-                throw new SecondHandException("无权在该订单留言");
+                throw new SecondHandException("无法在该订单中发送消息");
             }
         }
         if (receiverId == null) {
             receiverId = product.getSellerId().equals(senderId) ? null : product.getSellerId();
         }
         if (receiverId == null || receiverId.equals(senderId)) {
-            throw new SecondHandException("请选择正确的留言对象");
+            throw new SecondHandException("不能给自己发送消息");
         }
         if (!product.getSellerId().equals(senderId) && !product.getSellerId().equals(receiverId)) {
-            throw new SecondHandException("只能向卖家留言");
+            throw new SecondHandException("该商品暂不支持向此用户发送消息");
         }
         if (product.getSellerId().equals(senderId) &&
                 messageMapper.countProductParticipant(product.getId(), senderId, receiverId) <= 0) {
@@ -576,16 +669,67 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .createTime(LocalDateTime.now())
                 .build();
         messageMapper.insert(message);
+        subscriptions.message(message);
         return messageMapper.listByProductForUser(dto.getProductId(), senderId).stream()
                 .filter(item -> item.getId().equals(message.getId()))
                 .findFirst()
-                .orElseThrow(() -> new SecondHandException("留言创建失败"));
+                .orElseThrow(() -> new SecondHandException("消息发送失败"));
     }
 
     @Override
     public List<SecondHandMessageVO> listProductMessages(Long productId) {
         ensureAuthenticated();
         return messageMapper.listByProductForUser(productId, BaseContext.getCurrentId());
+    }
+
+    @Override
+    public List<SecondHandConversationVO> listConversations() {
+        ensureAuthenticated();
+        Long userId = BaseContext.getCurrentId();
+        Map<String, SecondHandConversationVO> conversations = new LinkedHashMap<>();
+        Map<Long, SecondHandProductVO> products = new HashMap<>();
+        for (SecondHandMessageVO message : messageMapper.listForUser(userId)) {
+            boolean sentByCurrentUser = userId.equals(message.getSenderId());
+            Long counterpartyId = sentByCurrentUser ? message.getReceiverId() : message.getSenderId();
+            String counterpartyName = sentByCurrentUser ? message.getReceiverName() : message.getSenderName();
+            String key = message.getProductId() + ":" + counterpartyId;
+            SecondHandConversationVO conversation = conversations.get(key);
+            if (conversation == null) {
+                SecondHandProductVO product = products.computeIfAbsent(
+                        message.getProductId(),
+                        productId -> resolveProductImages(productMapper.detail(productId, userId))
+                );
+                conversation = SecondHandConversationVO.builder()
+                        .productId(message.getProductId())
+                        .productTitle(product == null ? "商品" : product.getTitle())
+                        .productImages(product == null ? "" : product.getImages())
+                        .counterpartyId(counterpartyId)
+                        .counterpartyName(firstNotBlank(counterpartyName, "同学"))
+                        .orderId(message.getOrderId())
+                        .lastMessage(message.getContent())
+                        .lastMessageTime(message.getCreateTime())
+                        .unreadCount(0)
+                        .build();
+                conversations.put(key, conversation);
+            } else if (conversation.getOrderId() == null && message.getOrderId() != null) {
+                conversation.setOrderId(message.getOrderId());
+            }
+            if (userId.equals(message.getReceiverId()) && message.getReadTime() == null) {
+                conversation.setUnreadCount(conversation.getUnreadCount() + 1);
+            }
+        }
+        return List.copyOf(conversations.values());
+    }
+
+    @Override
+    @Transactional
+    public List<SecondHandMessageVO> listConversationMessages(Long productId, Long counterpartyId) {
+        ensureAuthenticated();
+        SecondHandProduct product = requireProduct(productId);
+        Long userId = BaseContext.getCurrentId();
+        validateConversationCounterparty(product, userId, counterpartyId);
+        messageMapper.markConversationRead(productId, userId, counterpartyId);
+        return messageMapper.listConversation(productId, userId, counterpartyId);
     }
 
     @Override
@@ -600,7 +744,7 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     @Override
     public SecondHandProductVO adminProductDetail(Long id) {
-        SecondHandProductVO detail = productMapper.detail(id);
+        SecondHandProductVO detail = productMapper.detail(id, null);
         if (detail == null) {
             throw new SecondHandException("商品不存在");
         }
@@ -648,6 +792,10 @@ public class SecondHandServiceImpl implements SecondHandService {
         Integer status = dto.getStatus();
         String reason = trimToNull(dto.getReason());
         LocalDateTime now = LocalDateTime.now();
+        if (isOfflineOrder(order)) {
+            adminUpdateOfflineOrderStatus(order, status, reason, now);
+            return;
+        }
         order.setStatus(status);
         order.setUpdateTime(now);
 
@@ -688,14 +836,13 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Transactional
     public void adminRetryTransfer(Long id) {
         SecondHandOrder order = requireOrder(id);
+        if (isOfflineOrder(order)) {
+            throw new SecondHandException("线下交易订单没有平台收款流程");
+        }
         if (!isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFER_FAILED) &&
                 !isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING)) {
             throw new SecondHandException("当前订单状态不可重试收款");
         }
-        order.setStatus(SecondHandConstant.ORDER_TRANSFERING);
-        order.setTransferFailReason("");
-        order.setUpdateTime(LocalDateTime.now());
-        orderMapper.update(order);
         if (Boolean.TRUE.equals(mockPaymentEnabled)) {
             order.setStatus(SecondHandConstant.ORDER_TRANSFER_SUCCESS);
             order.setTransferTime(LocalDateTime.now());
@@ -703,6 +850,20 @@ public class SecondHandServiceImpl implements SecondHandService {
             orderMapper.update(order);
             return;
         }
+        if (isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING)) {
+            querySellerTransfer(order);
+            return;
+        }
+        int nextAttempt = (order.getTransferAttempt() == null ? 0 : order.getTransferAttempt()) + 1;
+        order.setStatus(SecondHandConstant.ORDER_TRANSFERING);
+        order.setTransferAttempt(nextAttempt);
+        order.setTransferOutBillNo(SecondHandTransferSupport.nextOutBillNo(order.getOrderNumber(), nextAttempt));
+        order.setTransferBillNo("");
+        order.setTransferState("CREATED");
+        order.setTransferPackageInfo("");
+        order.setTransferFailReason("");
+        order.setUpdateTime(LocalDateTime.now());
+        orderMapper.update(order);
         requestSellerTransfer(order);
     }
 
@@ -758,10 +919,27 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     @Override
     @Transactional
+    public void processTransferQueries() {
+        if (Boolean.TRUE.equals(mockPaymentEnabled)) {
+            return;
+        }
+        for (SecondHandOrder order : orderMapper.listTransferring()) {
+            querySellerTransfer(order);
+        }
+    }
+
+    @Override
+    @Transactional
     public WeChatPrePayVO jsapiPay(Long orderId) throws Exception {
         ensureAuthenticated();
+        if (!SecondHandConstant.TRADE_MODE_ONLINE.equals(currentTradeMode())) {
+            throw new SecondHandException("当前仅支持线下交易，请与卖家协商完成付款");
+        }
         refreshUnpaidTimeouts();
         SecondHandOrder order = requireOrder(orderId);
+        if (isOfflineOrder(order)) {
+            throw new SecondHandException("线下交易订单无需在平台支付");
+        }
         if (!order.getBuyerId().equals(BaseContext.getCurrentId())) {
             throw new SecondHandException("只能支付自己的订单");
         }
@@ -833,7 +1011,8 @@ public class SecondHandServiceImpl implements SecondHandService {
         }
         try {
             SecondHandOrder order = orderMapper.getByOrderNumber(orderNumber);
-            if (order == null || !isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)) {
+            if (order == null || isOfflineOrder(order) ||
+                    !isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)) {
                 return;
             }
             markPaid(orderNumber);
@@ -843,12 +1022,12 @@ public class SecondHandServiceImpl implements SecondHandService {
         }
     }
 
-    private SecondHandOrderVO createOrderInternal(SecondHandProduct product, Long buyerId, BigDecimal amount, SecondHandOrderCreateDTO dto) {
+    private SecondHandOrderVO createOrderInternal(SecondHandProduct product, Long buyerId, BigDecimal amount, SecondHandOrderCreateDTO dto, boolean negotiated) {
         if (dto == null) {
             dto = new SecondHandOrderCreateDTO();
         }
         if (!isSelfTradeAllowed() && product.getSellerId().equals(buyerId)) {
-            throw new SecondHandException("不能购买自己的商品");
+            throw new SecondHandException("不能给自己发布的商品下单");
         }
         Integer deliveryMode = dto.getDeliveryMode() == null ? 0 : dto.getDeliveryMode();
         if (deliveryMode != 0 && deliveryMode != 1) {
@@ -866,7 +1045,7 @@ public class SecondHandServiceImpl implements SecondHandService {
             throw new ParamException("请选择配送地址");
         }
         if (!isStatus(product.getStatus(), SecondHandConstant.PRODUCT_ON_SALE)) {
-            throw new SecondHandException("商品当前不可购买");
+            throw new SecondHandException("商品当前不可下单");
         }
         if (orderMapper.getActiveByProductId(product.getId()) != null) {
             throw new SecondHandException("商品已有进行中的订单");
@@ -874,16 +1053,25 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (productMapper.lockOnSaleProduct(product.getId()) == 0) {
             throw new SecondHandException("商品已被锁定或售出");
         }
-        BigDecimal feeRate = getDecimalConfig("second_hand_service_fee_rate", new BigDecimal(SecondHandConstant.DEFAULT_SERVICE_FEE_RATE));
-        BigDecimal serviceFee = amount.multiply(feeRate).setScale(2, RoundingMode.HALF_UP);
+        String tradeMode = currentTradeMode();
+        boolean offline = SecondHandConstant.TRADE_MODE_OFFLINE.equals(tradeMode);
+        BigDecimal feeRate = offline
+                ? BigDecimal.ZERO
+                : getDecimalConfig(
+                        SecondHandConstant.CONFIG_SERVICE_FEE_RATE,
+                        new BigDecimal(SecondHandConstant.DEFAULT_SERVICE_FEE_RATE));
+        BigDecimal serviceFee = offline
+                ? BigDecimal.ZERO.setScale(2)
+                : amount.multiply(feeRate).setScale(2, RoundingMode.HALF_UP);
         BigDecimal sellerIncome = amount.subtract(serviceFee).setScale(2, RoundingMode.HALF_UP);
         LocalDateTime now = LocalDateTime.now();
         SecondHandOrder order = SecondHandOrder.builder()
                 .orderNumber("SH" + System.currentTimeMillis())
                 .productId(product.getId())
-                .bargainId(dto.getBargainId())
+                .bargainId(negotiated ? dto.getBargainId() : null)
                 .buyerId(buyerId)
                 .sellerId(product.getSellerId())
+                .tradeMode(tradeMode)
                 .productAmount(amount)
                 .payAmount(amount)
                 .serviceFeeRate(feeRate)
@@ -894,20 +1082,40 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .buyerDeliveryAddressId(deliveryMode == 1 ? dto.getBuyerDeliveryAddressId() : null)
                 .buyerDeliveryAddressSnapshot(deliveryMode == 1 ? buyerDeliverySnapshot : null)
                 .deliveryRemark(firstNotBlank(dto.getDeliveryRemark(), deliveryMode == 1 ? buyerDeliverySnapshot : pickupSnapshot))
-                .status(SecondHandConstant.ORDER_PENDING_PAY)
+                .status(offline
+                        ? SecondHandConstant.ORDER_OFFLINE_WAIT_DELIVERY
+                        : SecondHandConstant.ORDER_PENDING_PAY)
+                .transferAttempt(0)
                 .deleted(DeleteConstant.UN_DELETED)
                 .createTime(now)
                 .updateTime(now)
                 .build();
         orderMapper.insert(order);
+        if (offline) {
+            subscriptions.order(order, negotiated ? buyerId : product.getSellerId(), negotiated ? "待交付" : "新订单",
+                    negotiated ? "议价已接受，¥" + amount.stripTrailingZeros().toPlainString() + " 元" : "买家已下单，请及时处理", now);
+        }
+        if (offline) {
+            productMapper.markTrading(product.getId());
+        }
         return orderMapper.detail(order.getId());
     }
 
     private void completeOrder(SecondHandOrder order) {
         if (!isStatus(order.getStatus(), SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM)) {
-            throw new SecondHandException("订单不可确认收货");
+            throw new SecondHandException(isOfflineOrder(order)
+                    ? "订单当前不可确认完成"
+                    : "订单不可确认收货");
         }
         LocalDateTime now = LocalDateTime.now();
+        if (isOfflineOrder(order)) {
+            order.setStatus(SecondHandConstant.ORDER_COMPLETED);
+            order.setFinishTime(now);
+            order.setUpdateTime(now);
+            orderMapper.update(order);
+            productMapper.markSold(order.getProductId());
+            return;
+        }
         order.setStatus(SecondHandConstant.ORDER_TRANSFERING);
         order.setFinishTime(now);
         order.setUpdateTime(now);
@@ -917,6 +1125,14 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (Boolean.TRUE.equals(mockPaymentEnabled)) {
             log.info("开发模拟支付已开启，跳过二手订单真实微信转账请求, orderNumber={}", order.getOrderNumber());
             return;
+        }
+        int attempt = order.getTransferAttempt() == null ? 1 : Math.max(1, order.getTransferAttempt());
+        if (trimToNull(order.getTransferOutBillNo()) == null) {
+            order.setTransferAttempt(attempt);
+            order.setTransferOutBillNo(SecondHandTransferSupport.nextOutBillNo(order.getOrderNumber(), attempt));
+            order.setTransferState("CREATED");
+            order.setUpdateTime(LocalDateTime.now());
+            orderMapper.update(order);
         }
         requestSellerTransfer(order);
     }
@@ -945,31 +1161,34 @@ public class SecondHandServiceImpl implements SecondHandService {
     }
 
     private void requestSellerTransfer(SecondHandOrder order) {
+        String sellerOpenid = userMapper.getOpenidById(order.getSellerId());
+        int transferAmount = order.getSellerIncome().multiply(BigDecimal.valueOf(100)).intValue();
+        if (trimToNull(sellerOpenid) == null) {
+            markTransferFailed(order, "卖家尚未完成微信账号绑定");
+            return;
+        }
+        if (transferAmount <= 0) {
+            markTransferFailed(order, "卖家实收金额必须大于0");
+            return;
+        }
         try {
             String transferUrl = weChatProperties.getWxDomain().concat(WeChatTransferConstant.WX_TRANSFER);
             String notifyUrl = weChatProperties.getNotifyUrl().concat("/api/second-hand/transfer/notify");
-            String sellerOpenid = userMapper.getOpenidById(order.getSellerId());
-            int transferAmount = order.getSellerIncome().multiply(BigDecimal.valueOf(100)).intValue();
+            SecondHandProduct product = requireProduct(order.getProductId());
 
             Map<String, Object> paramsMap = new HashMap<>();
             paramsMap.put("appid", weChatProperties.getAppid());
-            paramsMap.put("out_bill_no", order.getOrderNumber());
-            paramsMap.put("transfer_scene_id", weChatProperties.getTransferSceneId());
+            paramsMap.put("out_bill_no", order.getTransferOutBillNo());
+            paramsMap.put("transfer_scene_id", firstNotBlank(
+                    weChatProperties.getSecondHandTransferSceneId(),
+                    SecondHandConstant.DEFAULT_TRANSFER_SCENE_ID));
             paramsMap.put("openid", sellerOpenid);
             paramsMap.put("transfer_amount", transferAmount);
             paramsMap.put("transfer_remark", "校园二手交易结算");
             paramsMap.put("notify_url", notifyUrl);
-
-            HashMap<String, String>[] sceneReportInfos = new HashMap[2];
-            HashMap<String, String> info = new HashMap<>();
-            info.put("info_type", "Transaction Type");
-            info.put("info_content", "Campus Used Goods");
-            sceneReportInfos[0] = info;
-            info = new HashMap<>();
-            info.put("info_type", "Settlement Description");
-            info.put("info_content", "Second-hand goods seller settlement");
-            sceneReportInfos[1] = info;
-            paramsMap.put("transfer_scene_report_infos", sceneReportInfos);
+            paramsMap.put("user_recv_perception", "二手回收货款");
+            paramsMap.put("transfer_scene_report_infos",
+                    SecondHandTransferSupport.buildSceneReportInfos(product.getTitle()));
 
             HttpPost httpPost = new HttpPost(transferUrl);
             StringEntity entity = new StringEntity(JSONObject.toJSONString(paramsMap), "utf-8");
@@ -982,33 +1201,89 @@ public class SecondHandServiceImpl implements SecondHandService {
                 String bodyAsString = EntityUtils.toString(response.getEntity());
                 int statusCode = response.getStatusLine().getStatusCode();
                 if (statusCode != 200 && statusCode != 204) {
-                    markTransferFailed(order, "微信转账请求失败: " + bodyAsString);
-                    saveTransferLog(order, sellerOpenid, transferAmount, "FAIL", null, bodyAsString);
-                    return;
-                }
-                Map<String, String> resultMap = JSONObject.parseObject(bodyAsString, HashMap.class);
-                String state = resultMap.get(WeChatTransferConstant.STATE);
-                String transferBillNo = resultMap.get(WeChatTransferConstant.TRANSFER_BILL_NO);
-                saveTransferLog(order, sellerOpenid, transferAmount, state, transferBillNo, bodyAsString);
-                if (WeChatTransferConstant.SUCCESS_TRAD.equals(state)) {
-                    order.setStatus(SecondHandConstant.ORDER_TRANSFER_SUCCESS);
-                    order.setTransferTime(LocalDateTime.now());
+                    order.setTransferState("QUERY_REQUIRED");
+                    order.setTransferFailReason(readWechatError(bodyAsString));
                     order.setUpdateTime(LocalDateTime.now());
                     orderMapper.update(order);
-                } else if (WeChatTransferConstant.FAIL_TRAD.equals(state)) {
-                    markTransferFailed(order, resultMap.get("fail_reason"));
+                    saveTransferLog(order, sellerOpenid, transferAmount, "QUERY_REQUIRED", null, bodyAsString);
+                    return;
                 }
+                Map<String, Object> resultMap = JSONObject.parseObject(bodyAsString, HashMap.class);
+                if (resultMap == null) {
+                    resultMap = new HashMap<>();
+                }
+                String state = (String) resultMap.get(WeChatTransferConstant.STATE);
+                String transferBillNo = (String) resultMap.get(WeChatTransferConstant.TRANSFER_BILL_NO);
+                saveTransferLog(order, sellerOpenid, transferAmount, state, transferBillNo, bodyAsString);
+                applyTransferResult(order, resultMap);
             } finally {
                 response.close();
             }
         } catch (Exception e) {
-            log.error("二手订单转账失败, orderNumber={}", order.getOrderNumber(), e);
-            markTransferFailed(order, e.getMessage());
+            log.error("二手订单收款请求结果不确定, orderNumber={}", order.getOrderNumber(), e);
+            order.setTransferState("QUERY_REQUIRED");
+            order.setTransferFailReason("收款结果待同步");
+            order.setUpdateTime(LocalDateTime.now());
+            orderMapper.update(order);
         }
+    }
+
+    private void querySellerTransfer(SecondHandOrder order) {
+        if (trimToNull(order.getTransferOutBillNo()) == null) {
+            return;
+        }
+        String queryPath = String.format(
+                WeChatTransferConstant.WX_QUERY_TRANSFER_BY_NO,
+                order.getTransferOutBillNo());
+        HttpGet httpGet = new HttpGet(weChatProperties.getWxDomain().concat(queryPath));
+        httpGet.setHeader("Accept", "application/json");
+        try (CloseableHttpResponse response = wxPayClient.execute(httpGet)) {
+            String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
+            if (response.getStatusLine().getStatusCode() != 200) {
+                log.warn("二手订单收款状态同步未成功, orderNumber={}, statusCode={}",
+                        order.getOrderNumber(), response.getStatusLine().getStatusCode());
+                return;
+            }
+            Map<String, Object> result = JSONObject.parseObject(body, HashMap.class);
+            if (result == null) {
+                return;
+            }
+            applyTransferResult(order, result);
+            String sellerOpenid = userMapper.getOpenidById(order.getSellerId());
+            int amount = order.getSellerIncome().multiply(BigDecimal.valueOf(100)).intValue();
+            saveTransferLog(order, sellerOpenid, amount,
+                    (String) result.get(WeChatTransferConstant.STATE),
+                    (String) result.get(WeChatTransferConstant.TRANSFER_BILL_NO), body);
+        } catch (Exception e) {
+            log.warn("二手订单收款状态同步异常, orderNumber={}", order.getOrderNumber(), e);
+        }
+    }
+
+    private void applyTransferResult(SecondHandOrder order, Map<String, Object> result) {
+        String state = (String) result.get(WeChatTransferConstant.STATE);
+        order.setTransferState(state);
+        order.setTransferBillNo((String) result.get(WeChatTransferConstant.TRANSFER_BILL_NO));
+        if (result.get("package_info") instanceof String packageInfo) {
+            order.setTransferPackageInfo(packageInfo);
+        }
+        if (SecondHandTransferSupport.isSuccess(state)) {
+            order.setStatus(SecondHandConstant.ORDER_TRANSFER_SUCCESS);
+            order.setTransferTime(LocalDateTime.now());
+            order.setTransferFailReason("");
+        } else if (SecondHandTransferSupport.isFailure(state)) {
+            order.setStatus(SecondHandConstant.ORDER_TRANSFER_FAILED);
+            order.setTransferFailReason(friendlyTransferFailure((String) result.get("fail_reason")));
+        } else {
+            order.setStatus(SecondHandConstant.ORDER_TRANSFERING);
+            order.setTransferFailReason("");
+        }
+        order.setUpdateTime(LocalDateTime.now());
+        orderMapper.update(order);
     }
 
     private void markTransferFailed(SecondHandOrder order, String reason) {
         order.setStatus(SecondHandConstant.ORDER_TRANSFER_FAILED);
+        order.setTransferState("FAIL");
         order.setTransferFailReason(reason);
         order.setUpdateTime(LocalDateTime.now());
         orderMapper.update(order);
@@ -1027,7 +1302,38 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .updateTime(LocalDateTime.now().toString())
                 .deleted(DeleteConstant.UN_DELETED)
                 .build();
-        wxTransferLogMapper.insert(log);
+        if (wxTransferLogMapper.getByOrderNumber(order.getOrderNumber()) == null) {
+            wxTransferLogMapper.insert(log);
+        } else {
+            wxTransferLogMapper.updateByOrderNumber(log);
+        }
+    }
+
+    private String readWechatError(String body) {
+        try {
+            Map<String, Object> error = JSONObject.parseObject(body, HashMap.class);
+            String message = error == null ? null : (String) error.get("message");
+            String value = firstNotBlank(message, "微信暂未受理收款请求");
+            return value.length() > 500 ? value.substring(0, 500) : value;
+        } catch (Exception ignored) {
+            return "微信收款请求未受理";
+        }
+    }
+
+    private String friendlyTransferFailure(String reason) {
+        if (reason == null) {
+            return "卖家未完成收款，请同步状态后重试";
+        }
+        return switch (reason) {
+            case "ACCOUNT_FROZEN" -> "卖家微信账户暂时无法收款";
+            case "REAL_NAME_CHECK_FAIL", "NAME_NOT_CORRECT" -> "卖家微信实名信息校验未通过";
+            case "OPENID_INVALID" -> "卖家微信账号信息已失效，请重新登录后再试";
+            case "TRANSFER_QUOTA_EXCEED", "DAY_RECEIVED_QUOTA_EXCEED",
+                 "MONTH_RECEIVED_QUOTA_EXCEED", "DAY_RECEIVED_COUNT_EXCEED" ->
+                    "卖家微信收款额度已达上限，请稍后再试";
+            case "PRODUCT_AUTH_CHECK_FAIL" -> "当前商户暂时无法完成该笔收款";
+            default -> "卖家未完成收款，请同步状态后重试";
+        };
     }
 
     private void requestRefund(SecondHandOrder order) {
@@ -1141,28 +1447,20 @@ public class SecondHandServiceImpl implements SecondHandService {
     public void processTransferNotify(Map<String, Object> bodyMap) throws GeneralSecurityException {
         String plainText = decryptFromResource(bodyMap);
         Map plainTextMap = JSONObject.parseObject(plainText, HashMap.class);
-        String orderNumber = (String) plainTextMap.get(WeChatTransferConstant.OUT_BILL_NO);
+        String transferOutBillNo = (String) plainTextMap.get(WeChatTransferConstant.OUT_BILL_NO);
         if (!transferNotifyLock.tryLock()) {
             return;
         }
         try {
-            SecondHandOrder order = orderMapper.getByOrderNumber(orderNumber);
+            SecondHandOrder order = orderMapper.getByTransferOutBillNo(transferOutBillNo);
             if (order == null || !isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING)) {
                 return;
             }
-            String state = (String) plainTextMap.get(WeChatTransferConstant.STATE);
-            if (WeChatTransferConstant.SUCCESS_TRAD.equals(state)) {
-                order.setStatus(SecondHandConstant.ORDER_TRANSFER_SUCCESS);
-                order.setTransferTime(LocalDateTime.now());
-                order.setUpdateTime(LocalDateTime.now());
-                orderMapper.update(order);
-            } else if (WeChatTransferConstant.FAIL_TRAD.equals(state)) {
-                markTransferFailed(order, (String) plainTextMap.get("fail_reason"));
-            }
+            applyTransferResult(order, plainTextMap);
             WxTransferLog log = WxTransferLog.builder()
-                    .orderNumber(orderNumber)
+                    .orderNumber(order.getOrderNumber())
                     .transferBillNo((String) plainTextMap.get(WeChatTransferConstant.TRANSFER_BILL_NO))
-                    .state(state)
+                    .state((String) plainTextMap.get(WeChatTransferConstant.STATE))
                     .mchId((String) plainTextMap.get(WeChatTransferConstant.MCH_ID))
                     .content(plainText)
                     .updateTime(LocalDateTime.now().toString())
@@ -1216,6 +1514,24 @@ public class SecondHandServiceImpl implements SecondHandService {
     private void ensureOwner(Long ownerId) {
         if (!ownerId.equals(BaseContext.getCurrentId())) {
             throw new SecondHandException("无权操作该资源");
+        }
+    }
+
+    private void validateConversationCounterparty(
+            SecondHandProduct product,
+            Long userId,
+            Long counterpartyId) {
+        if (counterpartyId == null || counterpartyId.equals(userId)) {
+            throw new SecondHandException("请选择正确的联系人");
+        }
+        if (product.getSellerId().equals(userId)) {
+            if (messageMapper.countProductParticipant(product.getId(), userId, counterpartyId) <= 0) {
+                throw new SecondHandException("暂时无法联系该买家");
+            }
+            return;
+        }
+        if (!product.getSellerId().equals(counterpartyId)) {
+            throw new SecondHandException("只能联系该商品卖家");
         }
     }
 
@@ -1289,6 +1605,79 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     private String resolvePickupSnapshot(SecondHandProductDTO dto) {
         return trimToNull(dto.getPickupAddressSnapshot());
+    }
+
+    private void cancelOfflineOrder(SecondHandOrder order, String reason) {
+        Long userId = BaseContext.getCurrentId();
+        boolean isBuyer = order.getBuyerId().equals(userId);
+        boolean isSeller = order.getSellerId().equals(userId);
+        if (!isBuyer && !isSeller) {
+            throw new SecondHandException("只有交易双方可以取消订单");
+        }
+        if (isStatus(order.getStatus(), SecondHandConstant.ORDER_CANCELED)) {
+            return;
+        }
+        if (!isStatus(order.getStatus(), SecondHandConstant.ORDER_OFFLINE_WAIT_DELIVERY)) {
+            throw new SecondHandException("卖家标记交付后不可自行取消，请先与对方沟通");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        String defaultReason = isBuyer ? "买家取消线下交易" : "卖家取消线下交易";
+        order.setStatus(SecondHandConstant.ORDER_CANCELED);
+        order.setCancelReason(firstNotBlank(reason, defaultReason));
+        order.setCancelTime(now);
+        order.setUpdateTime(now);
+        orderMapper.update(order);
+        productMapper.releaseRefundedProduct(order.getProductId());
+        subscriptions.order(order, isBuyer ? order.getSellerId() : order.getBuyerId(), "已取消",
+                isBuyer ? "买家已取消订单" : "卖家已取消订单", now);
+    }
+
+    private void adminUpdateOfflineOrderStatus(
+            SecondHandOrder order,
+            Integer status,
+            String reason,
+            LocalDateTime now) {
+        if (!isStatus(status, SecondHandConstant.ORDER_OFFLINE_WAIT_DELIVERY) &&
+                !isStatus(status, SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM) &&
+                !isStatus(status, SecondHandConstant.ORDER_COMPLETED) &&
+                !isStatus(status, SecondHandConstant.ORDER_CANCELED) &&
+                !isStatus(status, SecondHandConstant.ORDER_DISPUTE)) {
+            throw new SecondHandException("线下交易订单不支持支付、退款或收款状态");
+        }
+        order.setStatus(status);
+        order.setUpdateTime(now);
+        if (isStatus(status, SecondHandConstant.ORDER_OFFLINE_WAIT_DELIVERY)) {
+            productMapper.markTrading(order.getProductId());
+        } else if (isStatus(status, SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM)) {
+            order.setDeliveredTime(order.getDeliveredTime() == null ? now : order.getDeliveredTime());
+            productMapper.markTrading(order.getProductId());
+        } else if (isStatus(status, SecondHandConstant.ORDER_COMPLETED)) {
+            order.setFinishTime(order.getFinishTime() == null ? now : order.getFinishTime());
+            productMapper.markSold(order.getProductId());
+        } else if (isStatus(status, SecondHandConstant.ORDER_CANCELED)) {
+            order.setCancelTime(order.getCancelTime() == null ? now : order.getCancelTime());
+            order.setCancelReason(reason == null ? "管理员取消线下交易" : reason);
+            productMapper.releaseRefundedProduct(order.getProductId());
+        } else {
+            order.setCancelReason(reason == null ? "管理员标记协商中" : reason);
+        }
+        orderMapper.update(order);
+    }
+
+    private String currentTradeMode() {
+        SystemConfig config = configMapper.getByConfigKey(SecondHandConstant.CONFIG_TRADE_MODE);
+        String configured = config == null ? null : trimToNull(config.getConfigValue());
+        return SecondHandConstant.TRADE_MODE_ONLINE.equalsIgnoreCase(configured)
+                ? SecondHandConstant.TRADE_MODE_ONLINE
+                : SecondHandConstant.DEFAULT_TRADE_MODE;
+    }
+
+    private boolean isOfflineOrder(SecondHandOrder order) {
+        return order != null && isOfflineTradeMode(order.getTradeMode());
+    }
+
+    private boolean isOfflineTradeMode(String tradeMode) {
+        return SecondHandConstant.TRADE_MODE_OFFLINE.equalsIgnoreCase(tradeMode);
     }
 
     private String firstNotBlank(String first, String second) {
@@ -1386,7 +1775,9 @@ public class SecondHandServiceImpl implements SecondHandService {
         } else {
             order.setProductImages("");
         }
-        if (isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY) && order.getCreateTime() != null) {
+        if (!isOfflineTradeMode(order.getTradeMode()) &&
+                isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY) &&
+                order.getCreateTime() != null) {
             int minutes = getIntConfig("second_hand_payment_timeout_minutes", SecondHandConstant.DEFAULT_PAYMENT_TIMEOUT_MINUTES);
             LocalDateTime deadline = order.getCreateTime().plusMinutes(minutes);
             long remainSeconds = Math.max(0, Duration.between(LocalDateTime.now(), deadline).getSeconds());

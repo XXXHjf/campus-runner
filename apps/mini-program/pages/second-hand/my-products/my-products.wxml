@@ -1,37 +1,136 @@
-<view class="my-products-page">
-  <view class="page-head">
-    <view>
-      <view class="page-title">我的发布</view>
-      <view class="page-subtitle">管理上架、下架和商品信息</view>
-    </view>
-    <t-button theme="primary" size="small" bind:tap="gotoPublish">发布</t-button>
-  </view>
+<ui-page class="my-products-page" compact>
+  <ui-page-header title="我的闲置" subtitle="{{loading ? '正在加载闲置' : products.length + ' 件闲置'}}" />
 
-  <view wx:if="{{products.length>0}}" class="product-list">
-    <view wx:for="{{products}}" wx:key="id" class="product-card">
-      <view class="product-main" data-id="{{item.id}}" bindtap="gotoDetail">
-        <t-image class="cover" src="{{item.coverImage}}" mode="aspectFill" />
-        <view class="info">
-          <view class="row-top">
-            <view class="title">{{item.title}}</view>
-            <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
+  <view class="my-products-page__body">
+    <view wx:if="{{products.length>0}}" class="my-products-page__list">
+      <ui-section wx:for="{{products}}" wx:key="id" plain>
+        <view class="my-products-page__card">
+          <view class="my-products-page__main" data-id="{{item.id}}" bindtap="gotoDetail">
+            <t-image
+              class="my-products-page__cover"
+              src="{{item.coverImage}}"
+              mode="aspectFill"
+              shape="round"
+              width="168rpx"
+              height="168rpx"
+            />
+            <view class="my-products-page__info">
+              <view class="my-products-page__top">
+                <view class="my-products-page__title">{{item.title}}</view>
+                <view class="my-products-page__status">
+                  <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
+                </view>
+              </view>
+              <view class="my-products-page__meta">{{item.categoryName || '闲置好物'}} · {{item.conditionLevel || '成色良好'}}</view>
+              <view class="my-products-page__price">¥{{item.price}}</view>
+            </view>
           </view>
-          <view class="meta">{{item.categoryName || '未分类'}} · {{item.conditionLevel || '成色良好'}}</view>
-          <view class="price">¥{{item.price}}</view>
+          <view class="my-products-page__actions">
+            <view wx:if="{{item.status==0 || item.status==4}}" class="my-products-page__action-slot">
+              <t-button
+                t-class="cr-secondhand-capsule cr-secondhand-capsule--outline"
+                size="small"
+                shape="round"
+                theme="default"
+                variant="outline"
+                data-id="{{item.id}}"
+                bind:tap="toggleStatus"
+              >{{item.status==4?'上架':'下架'}}</t-button>
+            </view>
+            <view wx:if="{{item.canChangePrice}}" class="my-products-page__action-slot">
+              <t-button
+                t-class="cr-secondhand-capsule cr-secondhand-capsule--outline"
+                size="small"
+                shape="round"
+                theme="default"
+                variant="outline"
+                data-id="{{item.id}}"
+                bind:tap="openPriceSheet"
+              >改价</t-button>
+            </view>
+            <view class="my-products-page__action-slot">
+              <t-button
+                t-class="cr-secondhand-capsule cr-secondhand-capsule--outline"
+                size="small"
+                shape="round"
+                theme="default"
+                variant="outline"
+                data-id="{{item.id}}"
+                bind:tap="editProduct"
+              >编辑</t-button>
+            </view>
+          </view>
         </view>
-      </view>
-      <view class="actions">
-        <t-button size="small" variant="outline" data-id="{{item.id}}" bind:tap="editProduct">编辑</t-button>
-        <t-button wx:if="{{item.status==0 || item.status==4}}" size="small" variant="outline" theme="{{item.status==4?'success':'danger'}}" data-id="{{item.id}}" bind:tap="toggleStatus">
-          {{item.status==4?'上架':'下架'}}
-        </t-button>
+      </ui-section>
+    </view>
+
+    <ui-section wx:if="{{!loading && products.length==0}}" plain>
+      <ui-empty-state
+        title="还没有发布闲置"
+        description="把用不上的东西交给同校需要的人"
+        action-text="发布第一件"
+        bind:action="gotoPublish"
+      />
+    </ui-section>
+  </view>
+</ui-page>
+
+<t-popup
+  visible="{{pricePopupVisible}}"
+  placement="bottom"
+  t-class="my-products-page__price-popup"
+  custom-style="bottom: {{priceKeyboardHeight}}px"
+  close-on-overlay-click="{{!priceSubmitting}}"
+  bind:visible-change="onPricePopupChange"
+>
+  <t-icon slot="close-btn" name="close" size="36rpx" color="#6b778c" aria-label="关闭改价" />
+  <view class="my-products-page__price-sheet">
+    <view class="my-products-page__sheet-title">快捷改价</view>
+    <view class="my-products-page__sheet-product">
+      <t-image
+        class="my-products-page__sheet-cover"
+        src="{{priceProduct.coverImage}}"
+        mode="aspectFill"
+        shape="round"
+        width="104rpx"
+        height="104rpx"
+      />
+      <view class="my-products-page__sheet-info">
+        <view class="my-products-page__title">{{priceProduct.title}}</view>
+        <view class="my-products-page__sheet-current">当前价格 ¥{{currentPriceText}}</view>
       </view>
     </view>
+    <view class="my-products-page__price-field">
+      <t-input
+        t-class="my-products-page__price-input"
+        label="新价格"
+        suffix="元"
+        type="digit"
+        align="right"
+        value="{{priceInput}}"
+        placeholder="输入新价格"
+        maxlength="8"
+        borderless
+        disabled="{{priceSubmitting}}"
+        adjust-position="{{false}}"
+        confirm-type="done"
+        bind:change="onPriceInput"
+        bind:enter="submitPriceChange"
+        bind:keyboardheightchange="onPriceKeyboardHeightChange"
+      />
+    </view>
+    <view class="my-products-page__price-hint {{priceError ? 'my-products-page__price-hint--error' : ''}}">
+      {{priceError || '请输入大于 0 的价格，最多两位小数'}}
+    </view>
+    <t-button
+      t-class="cr-secondhand-capsule--highlight my-products-page__price-confirm"
+      block
+      theme="primary"
+      variant="base"
+      shape="round"
+      loading="{{priceSubmitting}}"
+      disabled="{{priceSubmitting || !priceInput}}"
+      bind:tap="submitPriceChange"
+    >确认改价</t-button>
   </view>
-
-  <view wx:if="{{!loading && products.length==0}}" class="empty">
-    <view class="empty-title">还没有发布闲置</view>
-    <view class="empty-desc">把用不上的东西交给同校需要的人。</view>
-    <t-button theme="primary" size="small" bind:tap="gotoPublish">发布第一件</t-button>
-  </view>
-</view>
+</t-popup>

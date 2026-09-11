@@ -3,9 +3,16 @@ const userService = require('../../../services/userService');
 const takeOrderService = require('../../../services/takeOrderService');
 const userOrderService = require('../../../services/userOrderService');
 const secondHandService = require('../../../services/secondHandService');
+const mineTabBadgeService = require('../../../services/mineTabBadgeService');
 const tokenManager = require('../../../utils/tokenManager');
 const { maskPhone } = require('../../../utils/privacy');
-const { showLoading, hideLoading, showError } = require('../../../utils/transformers');
+const { showError } = require('../../../utils/transformers');
+const {
+  PROFILE_PAGE,
+  CAMPUS_AUTH_PAGE,
+  isProfileComplete,
+  getRequiredOnboardingRoute,
+} = require('../../../utils/profileStatus');
 
 import Dialog from 'tdesign-miniprogram/dialog/index'; //对话框
 import Toast from 'tdesign-miniprogram/toast/index'; // 轻提示
@@ -16,14 +23,12 @@ const UNPAID_TIMEOUT_MS = 30 * 60 * 1000;
 
 Page({
   data: {
-    wxInfo: null,
     userInfo: null,
     displayPhone: '',
     loginLoadShow: false,
     defaultAvatarUrl: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
     shareFlag: false,
     feedbackFlag: false,
-    showCompleteInfoDialog: false, // 控制信息完善弹窗
 
     menuSections: [{
         title: '跑腿服务',
@@ -52,9 +57,19 @@ Page({
             icon: 'order-ascending',
           },
           {
+            value: 'label_11',
+            label: '我的收藏',
+            icon: 'star',
+          },
+          {
             value: 'label_9',
             label: '议价记录',
             icon: 'chat-message',
+          },
+          {
+            value: 'label_10',
+            label: '私信',
+            icon: 'chat',
           },
         ],
       },
@@ -77,7 +92,7 @@ Page({
     unpaidOrderList: [],
     secondHandOrderCount: 0,
     bargainPendingCount: 0,
-    hasShownCompleteInfoDialog: false, // 标记是否已显示过弹窗（本次会话）
+    privateUnreadCount: 0,
   },
 
   onMenuTap(e) {
@@ -126,78 +141,54 @@ Page({
       url: '/pages/second-hand/bargains/bargains',
     })
   },
-  // 点击头像登陆，读取缓存里的用户信息
-  loginTap() {
-    wx.getStorage({
-      key: "userInfo",
-      success: (res) => {
-        if (res.data == null) {
-          // 有缓存，但是null：弹出微信授权登陆
-          const dialogConfig = {
-            context: this,
-            title: '登录',
-            content: '使用微信授权登录',
-            confirmBtn: '确定',
-            cancelBtn: '取消',
-          };
-          Dialog.confirm(dialogConfig)
-            .then(async () => {
-              this.setData({
-                loginLoadShow: true
-              })
-              const userInfo = await this._getUserProfile()
-              this.setData({
-                wxInfo: userInfo
-              })
-              this._login()
-              console.log('点击了确定')
-            })
-            .catch(() => console.log('点击了取消'))
-            .finally(() => Dialog.close());
-        } else {
-          // 有缓存，不为null：跳转认证
-          console.log('已登录', res);
-          wx.navigateTo({
-            url: '/pages/mine/identify/identify',
-          });
-        }
-      },
-      fail: () => {
-        // 没有缓存：弹出微信授权登陆
-        const dialogConfig = {
-          context: this,
-          title: '登录',
-          content: '使用微信授权登录',
-          confirmBtn: '确定',
-          cancelBtn: '取消',
-        };
-        Dialog.confirm(dialogConfig)
-          .then(async () => {
-            this.setData({
-              loginLoadShow: true
-            })
-            const userInfo = await this._getUserProfile()
-            this.setData({
-              wxInfo: userInfo
-            })
-            this._login()
-            console.log('点击了确定')
-          })
-          .catch(() => console.log('点击了取消'))
-          .finally(() => Dialog.close());
-      }
+  label_10() {
+    wx.navigateTo({
+      url: '/pages/second-hand/conversations/conversations',
     })
   },
-  // 微信提供的getUserProfile接口，获取微信用户的信息，将此方法promise化
-  _getUserProfile() {
-    return new Promise((resolve, reject) => {
-      wx.getUserProfile({
-        desc: '微信授权登陆',
-        success: (res) => {
-          resolve(res.userInfo)
-        }
-      })
+  label_11() {
+    wx.navigateTo({
+      url: '/pages/second-hand/favorites/favorites',
     })
+  },
+  async _waitForStartupLogin() {
+    if (!tokenManager.hasToken() && app.globalData.silentLoginPromise) {
+      try {
+        await app.globalData.silentLoginPromise;
+      } catch (error) {
+        console.error('启动登录未完成:', error);
+      }
+    }
+  },
+  // 点击头像登陆，读取缓存里的用户信息
+  async loginTap() {
+    await this._waitForStartupLogin();
+    if (tokenManager.hasToken()) {
+      try {
+        const userInfo = await this.getGlobalData();
+        const route = getRequiredOnboardingRoute(userInfo) || CAMPUS_AUTH_PAGE;
+        wx.navigateTo({ url: route });
+      } catch (error) {
+        console.error('读取用户资料失败:', error);
+        showError('资料加载失败，请重试');
+      }
+      return;
+    }
+
+    const dialogConfig = {
+      context: this,
+      title: '登录',
+      content: '登录后请先完善头像、昵称和手机号',
+      confirmBtn: '确定',
+      cancelBtn: '取消',
+    };
+    Dialog.confirm(dialogConfig)
+      .then(async () => {
+        this.setData({ loginLoadShow: true });
+        await this._login();
+      })
+      .catch(() => console.log('取消登录'))
+      .finally(() => Dialog.close());
   },
   // 调用用户登陆的接口
   async _login() {
@@ -256,12 +247,11 @@ Page({
           },
           displayPhone: maskPhone(userInfo.phone),
         });
+        app.refreshMineTabRedDot({ force: true, userInfo }).catch(() => {});
 
-        // 判断是否为新用户并进行初始化
-        if (userInfo.createTime == userInfo.updateTime) {
-          wx.navigateTo({
-            url: '/pages/mine/newUser/index',
-          });
+        const onboardingRoute = getRequiredOnboardingRoute(userInfo);
+        if (onboardingRoute) {
+          wx.navigateTo({ url: onboardingRoute });
         } else {
           wx.showToast({
             title: '登录成功',
@@ -333,7 +323,9 @@ Page({
           unpaidOrderList: [],
           secondHandOrderCount: 0,
           bargainPendingCount: 0,
+          privateUnreadCount: 0,
         });
+        mineTabBadgeService.clearMineTabRedDot();
         
         // 清除全局数据
         app.globalData.userInfo = null;
@@ -431,19 +423,6 @@ Page({
     }
   },
   
-  // 检查用户信息是否完整
-  checkUserInfoComplete(userInfo) {
-    if (!userInfo) return false;
-    
-    // 检查是否有手机号
-    const hasPhone = userInfo.phone && userInfo.phone.trim() !== '';
-    
-    // 检查是否已认证（authentication === 1 表示已认证）
-    const isAuthenticated = userInfo.authentication === 1;
-    
-    return hasPhone && isAuthenticated;
-  },
-
   _parseDateTime(dateStr) {
     if (!dateStr) return null;
     const normalized = String(dateStr).replace(/-/g, '/');
@@ -494,28 +473,38 @@ Page({
 
   async _getSecondHandTaskCounts() {
     try {
-      const [buyerOrders, sellerOrders, bargains] = await Promise.all([
+      const [buyerOrders, sellerOrders, bargains, conversations] = await Promise.all([
         secondHandService.listBuyerOrders(),
         secondHandService.listSellerOrders(),
         secondHandService.listMyBargains(),
+        secondHandService.listConversations(),
       ]);
       const buyerActionCount = buyerOrders.filter((item) => [0, 2].includes(Number(item.status))).length;
-      const sellerActionCount = sellerOrders.filter((item) => Number(item.status) === 1).length;
+      const sellerActionCount = sellerOrders.filter((item) => (
+        Number(item.status) === 1
+        || (Number(item.status) === 8 && item.transferState === 'WAIT_USER_CONFIRM')
+      )).length;
       const userId = this.data.userInfo && this.data.userInfo.id;
       const bargainPendingCount = bargains.filter((item) => (
         Number(item.status) === 0
         && userId != null
         && Number(item.sellerId) === Number(userId)
       )).length;
+      const privateUnreadCount = conversations.reduce(
+        (sum, item) => sum + Math.max(0, Number(item.unreadCount) || 0),
+        0,
+      );
       return {
         secondHandOrderCount: buyerActionCount + sellerActionCount,
         bargainPendingCount,
+        privateUnreadCount,
       };
     } catch (error) {
       console.error('获取二手待办失败:', error);
       return {
         secondHandOrderCount: 0,
         bargainPendingCount: 0,
+        privateUnreadCount: 0,
       };
     }
   },
@@ -538,46 +527,9 @@ Page({
     });
   },
   
-  // 显示信息完善引导弹窗
-  showCompleteInfoDialog() {
-    // 如果本次会话已经显示过，不再重复显示
-    if (this.data.hasShownCompleteInfoDialog) {
-      return;
-    }
-    
-    const userInfo = this.data.userInfo;
-    if (!userInfo) return;
-    
-    // 检查是否是新用户刚注册（昵称已填，但信息未完善）
-    const hasUsername = userInfo.username && userInfo.username.trim() !== '' && userInfo.username !== '微信用户';
-    const isInfoIncomplete = !this.checkUserInfoComplete(userInfo);
-    
-    // 如果有昵称但信息不完整，显示弹窗
-    if (hasUsername && isInfoIncomplete) {
-      this.setData({ 
-        showCompleteInfoDialog: true,
-        hasShownCompleteInfoDialog: true // 标记已显示
-      });
-      console.log('[信息完善提示] 显示引导弹窗');
-    }
-  },
-  
-  // 点击"去完善"按钮
-  handleCompleteInfo() {
-    this.setData({ showCompleteInfoDialog: false });
-    // 跳转到个人信息页面
-    wx.navigateTo({
-      url: '/pages/mine/userInfo/info',
-    });
-  },
-  
-  // 点击"稍后再说"按钮
-  handleCancelCompleteInfo() {
-    this.setData({ showCompleteInfoDialog: false });
-    console.log('[信息完善提示] 用户选择稍后再说');
-  },
   // 生命周期函数--监听页面显示
   async onShow() {
+    await this._waitForStartupLogin();
     // 检查是否已登录（有 token）
     const hasToken = tokenManager.hasToken();
     
@@ -591,13 +543,19 @@ Page({
         unpaidOrderList: [],
         secondHandOrderCount: 0,
         bargainPendingCount: 0,
+        privateUnreadCount: 0,
       });
+      mineTabBadgeService.clearMineTabRedDot();
       return;
     }
 
     // 已登录状态，加载用户数据
     try {
-      await this.getGlobalData();
+      const userInfo = await this.getGlobalData();
+      if (!isProfileComplete(userInfo)) {
+        wx.navigateTo({ url: PROFILE_PAGE });
+        return;
+      }
       
       const [notReceiveOrders, unpaidOrders, secondHandTasks] = await Promise.all([
         this._getOrderWithNotReceive(),
@@ -609,9 +567,14 @@ Page({
         unpaidOrderList: unpaidOrders,
         ...secondHandTasks,
       });
+      mineTabBadgeService.setMineTabRedDot(
+        notReceiveOrders.length
+        + unpaidOrders.length
+        + secondHandTasks.secondHandOrderCount
+        + secondHandTasks.bargainPendingCount
+        + secondHandTasks.privateUnreadCount,
+      );
       
-      // 检查是否需要显示信息完善引导弹窗
-      this.showCompleteInfoDialog();
     } catch (err) {
       console.error('页面数据加载失败:', err);
       // 如果是 401 错误，说明 token 已失效，清空登录状态
@@ -622,7 +585,9 @@ Page({
         unpaidOrderList: [],
         secondHandOrderCount: 0,
         bargainPendingCount: 0,
+        privateUnreadCount: 0,
       });
+      mineTabBadgeService.clearMineTabRedDot();
     }
   },
   // 轻展示的方法
