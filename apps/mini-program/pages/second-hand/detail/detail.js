@@ -9,6 +9,7 @@ Page({
     id: null,
     product: {},
     images: [],
+    galleryIndex: 0,
     currentUserId: null,
     addressBook: [],
     showBargain: false,
@@ -45,6 +46,7 @@ Page({
       this.setData({
         product: this.decorateProduct(product, user),
         images: this.parseImages(product.images),
+        galleryIndex: 0,
         currentUserId: user.id || null,
       });
     } catch (error) {
@@ -62,7 +64,7 @@ Page({
       ...product,
       pickupOnly,
       pickupAddressText,
-      deliveryText: pickupOnly === 1 ? '仅支持买家自提' : '可选自提或卖家配送',
+      deliveryText: pickupOnly === 1 ? '仅自提' : '支持配送',
       statusText: this.statusText(product.status),
       isOwner,
       isFavorited: product.favorited === true || Number(product.favorited) === 1,
@@ -90,6 +92,10 @@ Page({
   parseImages(images) {
     if (!images) return [];
     return String(images).split(',').filter(Boolean);
+  },
+
+  onGalleryChange(e) {
+    this.setData({ galleryIndex: e.detail.current });
   },
 
   previewImage(e) {

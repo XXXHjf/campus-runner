@@ -1,9 +1,8 @@
 <ui-page class="bargains-page" compact>
-  <ui-page-header title="议价记录" subtitle="报价不会公开，只有买卖双方可见" />
+  <view class="bargains-page__subtitle">报价仅买卖双方可见</view>
 
   <view class="bargains-page__body">
-    <ui-section plain>
-      <view class="bargains-page__summary">
+    <view class="bargains-page__summary">
         <view class="bargains-page__summary-item">
           <text class="bargains-page__summary-value">{{summary.pending}}</text>
           <text class="bargains-page__summary-label">待回复</text>
@@ -16,8 +15,7 @@
           <text class="bargains-page__summary-value">{{summary.rejected}}</text>
           <text class="bargains-page__summary-label">已拒绝</text>
         </view>
-      </view>
-    </ui-section>
+    </view>
 
     <ui-section plain>
       <view class="bargains-page__tabs">
@@ -28,25 +26,29 @@
       </view>
 
       <view wx:if="{{tab=='received' && received.length>0}}" class="bargains-page__list">
-        <view wx:for="{{received}}" wx:key="id" class="bargains-page__row">
-          <view class="bargains-page__top" data-product-id="{{item.productId}}" bindtap="gotoProduct">
-            <view class="bargains-page__title">{{item.productTitle}}</view>
-            <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
+        <view wx:for="{{received}}" wx:key="id" class="bargains-page__row" data-status="{{item.status}}" data-order-id="{{item.orderId}}" data-product-id="{{item.productId}}" bindtap="gotoRecord">
+          <view class="bargains-page__cover-link">
+            <t-image class="bargains-page__cover" src="{{item.coverImage}}" mode="aspectFill" shape="round" />
           </view>
-          <view class="bargains-page__price-line">
-            <text class="bargains-page__price">买家报价 ¥{{item.offerPrice}}</text>
-            <text class="bargains-page__attempt">第 {{item.attemptNo}} 次</text>
-          </view>
-          <view class="bargains-page__meta">买家：{{item.buyerName || '同学'}}</view>
-          <view class="bargains-page__footer">
-            <view class="bargains-page__message">{{item.message || '买家没有留言'}}</view>
-            <view wx:if="{{item.status==1}}" class="bargains-page__footer-action">
-              <t-button t-class="bargains-page__compact-button" size="small" variant="outline" theme="primary" data-order-id="{{item.orderId}}" bind:tap="gotoOrder">查看订单</t-button>
+          <view class="bargains-page__content">
+            <view class="bargains-page__top">
+              <view class="bargains-page__title">{{item.productTitle}}</view>
+              <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
             </view>
-          </view>
-          <view wx:if="{{item.status==0}}" class="bargains-page__actions">
-            <t-button t-class="bargains-page__compact-button" size="small" theme="primary" loading="{{actionLoadingId==item.id}}" disabled="{{actionLoadingId!=null}}" data-id="{{item.id}}" bind:tap="accept">接受</t-button>
-            <t-button t-class="bargains-page__compact-button" size="small" variant="outline" theme="danger" disabled="{{actionLoadingId!=null}}" data-id="{{item.id}}" bind:tap="reject">拒绝</t-button>
+            <view class="bargains-page__meta">买家：{{item.buyerName || '同学'}} · 第{{item.attemptNo}}次</view>
+            <view wx:if="{{item.message}}" class="bargains-page__message">{{item.message}}</view>
+            <view class="bargains-page__bottom">
+              <view class="bargains-page__price-line">
+                <text class="bargains-page__price-label">报价</text>
+                <text class="bargains-page__price">¥{{item.offerPrice}}</text>
+              </view>
+              <view wx:if="{{item.status==0}}" class="bargains-page__actions" catchtap="noop">
+                <block wx:if="{{item.status==0}}">
+                  <t-button t-class="cr-secondhand-capsule cr-secondhand-capsule--outline bargains-page__button" size="small" shape="round" variant="outline" disabled="{{actionLoadingId!=null}}" data-id="{{item.id}}" catch:tap="reject">拒绝</t-button>
+                  <t-button t-class="cr-secondhand-capsule bargains-page__button" size="small" shape="round" theme="primary" loading="{{actionLoadingId==item.id}}" disabled="{{actionLoadingId!=null}}" data-id="{{item.id}}" catch:tap="accept">接受</t-button>
+                </block>
+              </view>
+            </view>
           </view>
         </view>
       </view>
@@ -58,22 +60,22 @@
       />
 
       <view wx:if="{{tab=='issued' && issued.length>0}}" class="bargains-page__list">
-        <view wx:for="{{issued}}" wx:key="id" class="bargains-page__row">
-          <view class="bargains-page__top" data-product-id="{{item.productId}}" bindtap="gotoProduct">
-            <view class="bargains-page__title">{{item.productTitle}}</view>
-            <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
+        <view wx:for="{{issued}}" wx:key="id" class="bargains-page__row" data-status="{{item.status}}" data-order-id="{{item.orderId}}" data-product-id="{{item.productId}}" bindtap="gotoRecord">
+          <view class="bargains-page__cover-link">
+            <t-image class="bargains-page__cover" src="{{item.coverImage}}" mode="aspectFill" shape="round" />
           </view>
-          <view class="bargains-page__price-line">
-            <text class="bargains-page__price">我的报价 ¥{{item.offerPrice}}</text>
-            <text class="bargains-page__attempt">第 {{item.attemptNo}} 次</text>
-          </view>
-          <view class="bargains-page__meta">卖家：{{item.sellerName || '同学'}}</view>
-          <view class="bargains-page__footer">
-            <view class="bargains-page__message">{{item.message || '未填写留言'}}</view>
-            <view class="bargains-page__footer-action">
-              <t-button wx:if="{{item.status==1}}" t-class="bargains-page__compact-button" size="small" theme="primary" data-order-id="{{item.orderId}}" bind:tap="gotoOrder">查看订单</t-button>
-              <t-button wx:if="{{item.status==2}}" t-class="bargains-page__compact-button" size="small" variant="outline" theme="primary" data-product-id="{{item.productId}}" bind:tap="gotoProduct">继续议价</t-button>
-              <t-button wx:if="{{item.status==0 || item.status==3}}" t-class="bargains-page__compact-button" size="small" variant="outline" data-product-id="{{item.productId}}" bind:tap="gotoProduct">查看商品</t-button>
+          <view class="bargains-page__content">
+            <view class="bargains-page__top">
+              <view class="bargains-page__title">{{item.productTitle}}</view>
+              <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
+            </view>
+            <view class="bargains-page__meta">卖家：{{item.sellerName || '同学'}} · 第{{item.attemptNo}}次</view>
+            <view wx:if="{{item.message}}" class="bargains-page__message">{{item.message}}</view>
+            <view class="bargains-page__bottom">
+              <view class="bargains-page__price-line">
+                <text class="bargains-page__price-label">报价</text>
+                <text class="bargains-page__price">¥{{item.offerPrice}}</text>
+              </view>
             </view>
           </view>
         </view>

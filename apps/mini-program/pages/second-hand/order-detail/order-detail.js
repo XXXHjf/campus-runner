@@ -18,6 +18,10 @@ Page({
     counterpartyPhone: '',
     counterpartyPhoneMasked: '',
     steps: [],
+    progressIndex: 0,
+    progressDescription: '',
+    progressDanger: false,
+    progressComplete: false,
     canPay: false,
     canCancel: false,
     canDeliver: false,
@@ -49,6 +53,8 @@ Page({
       const counterpartyPhone = order.counterpartyPhone ? String(order.counterpartyPhone) : '';
       const isOffline = String(order.tradeMode || '').toUpperCase() === 'OFFLINE';
       const status = Number(order.status);
+      const steps = this.buildSteps(order);
+      const progressIndex = Math.max(0, steps.reduce((last, step, index) => step.active ? index : last, 0));
       this.setData({
         order: this.decorateOrder(order, role),
         role,
@@ -56,7 +62,11 @@ Page({
         counterpartyName: counterpartyName || '同学',
         counterpartyPhone,
         counterpartyPhoneMasked: this.maskPhone(counterpartyPhone),
-        steps: this.buildSteps(order),
+        steps,
+        progressIndex,
+        progressDescription: steps[progressIndex]?.desc || '',
+        progressDanger: steps[progressIndex]?.danger === true,
+        progressComplete: isOffline ? status === 3 : status === 9,
         canPay: SECOND_HAND_ONLINE_PAYMENT_ENABLED && !isOffline && role === 'buyer' && status === 0,
         canCancel: isOffline
           ? (role === 'buyer' || role === 'seller') && status === 1
@@ -86,6 +96,7 @@ Page({
       coverImage: this.firstImage(order.productImages),
       statusText: orderStatus(order.status, order.tradeMode).text,
       statusTheme: orderStatus(order.status, order.tradeMode).theme,
+      statusIcon: Number(order.status) === 4 ? 'close-circle' : [3, 9].includes(Number(order.status)) ? 'check-circle' : 'undertake-delivery',
       statusDesc: this.statusDesc(order, role),
       deliveryText: deliveryMode === 1 ? '卖家配送' : '买家自提',
       deliveryAddressTitle: deliveryMode === 1 ? '配送到' : '自提点',
@@ -138,9 +149,9 @@ Page({
         return [{ title: '双方协商中', desc: '请通过私信与对方沟通后续处理', active: true, danger: true }];
       }
       return [
-        { key: 1, title: '买家已下单', desc: '请双方联系并协商付款、交付方式' },
-        { key: 2, title: '卖家已交付', desc: '等待买家确认交易完成' },
-        { key: 3, title: '交易已完成', desc: '双方已完成线下付款和商品交接' },
+        { key: 1, title: '已下单', desc: '请双方联系并协商付款、交付方式' },
+        { key: 2, title: current >= 2 ? '已交付' : '待交付', desc: '等待买家确认交易完成' },
+        { key: 3, title: current >= 3 ? '已完成' : '待完成', desc: '双方已完成线下付款和商品交接' },
       ].map((item) => ({
         ...item,
         active: current >= item.key,

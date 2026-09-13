@@ -131,20 +131,28 @@ page {
   box-sizing: border-box;
 }
 
-.publish-entry {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  gap: 4rpx;
-  height: 64rpx;
-  padding: 0 18rpx;
-  color: #ffffff;
-  background: #0052d9;
-  border-radius: 32rpx;
-  font-size: 24rpx;
-  font-weight: 700;
-  box-sizing: border-box;
+.second-hand-page .market-publish-float {
+  position: fixed;
+  right: 28rpx;
+  /* 原生 tabBar 位于页面视口外，不重复叠加导航栏高度和安全区。 */
+  bottom: 28rpx;
+  z-index: 10;
+}
+
+.second-hand-page .market-publish-button {
+  margin: 0;
+  box-shadow: 0 8rpx 24rpx rgba(0, 82, 217, 0.24);
+  --td-button-medium-height: 84rpx;
+  --td-button-medium-font-size: 28rpx;
+  --td-button-medium-padding-horizontal: 28rpx;
+  --td-button-medium-icon-font-size: 34rpx;
+  --td-button-font-weight: 600;
+  --td-button-primary-bg-color: var(--cr-color-primary, #0052d9);
+  --td-button-primary-border-color: var(--cr-color-primary, #0052d9);
+}
+
+.second-hand-page .market-feed-bottom-space {
+  height: 140rpx;
 }
 
 .category-scroll {

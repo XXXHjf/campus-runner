@@ -51,6 +51,9 @@
 
     <select id="detail" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandProductVO">
         select <include refid="productVoSelect"/>,
+        (select count(*) from tb_second_hand_order sold
+         where sold.seller_id = p.seller_id and sold.deleted = 0
+           and sold.status in (3, 9)) as seller_sold_count,
         <choose>
             <when test="userId != null">
                 exists(

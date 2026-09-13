@@ -19,12 +19,8 @@ const {
   FILTER_TYPES,
   SWIPER_CONFIG,
   LOADING_MESSAGES,
-  ERROR_MESSAGES,
-  SUCCESS_MESSAGES
+  ERROR_MESSAGES
 } = require('../../utils/constants');
-
-// 轻提示
-import Toast from 'tdesign-miniprogram/toast/index';
 
 Page({
   data: {
@@ -32,6 +28,7 @@ Page({
     takes: [], // 订单列表（数组类型）
     visible: false,
     isLoginChecking: false,
+    ordersLoading: false,
     sortMode: 'time',
     priceSort: 0,
     filterVisible: false,
@@ -257,17 +254,37 @@ Page({
     }
     return this._sortTakes(this._decorateTakes(takes));
   },
-  async applyFilters() {
-    try {
-      showLoading(LOADING_MESSAGES.GETTING_ORDERS);
-      const takes = await this._loadFilteredTakes();
-      this.setData({ takes });
-    } catch (error) {
-      console.error('获取订单失败:', error);
-      showError(ERROR_MESSAGES.GET_ORDERS_FAILED);
-    } finally {
-      hideLoading();
-    }
+  applyFilters() {
+    const token = tokenManager.getToken();
+    if (!token) return Promise.resolve(false);
+    const key = JSON.stringify([token, this.data.userInfo.schoolId, this.data.upPickUp,
+      this.data.upRecive, this.data.selectedCategoryId, this.data.sortMode, this.data.priceSort]);
+    if (this._ordersPending?.key === key) return this._ordersPending.promise;
+    const version = (this._ordersVersion || 0) + 1;
+    this._ordersVersion = version;
+    const isCurrent = () => version === this._ordersVersion && token === tokenManager.getToken();
+    this.setData({ ordersLoading: true });
+    const promise = (async () => {
+      try {
+        const takes = await this._loadFilteredTakes();
+        if (!isCurrent()) return false;
+        this.setData({ takes });
+        return true;
+      } catch (error) {
+        if (isCurrent()) {
+          console.error('获取订单失败:', error);
+          showError(ERROR_MESSAGES.GET_ORDERS_FAILED);
+        }
+        return false;
+      } finally {
+        if (version === this._ordersVersion) {
+          this.setData({ ordersLoading: false });
+          this._ordersPending = null;
+        }
+      }
+    })();
+    this._ordersPending = { key, promise };
+    return promise;
   },
   getTakeByTime() {
     this.setData({ sortMode: 'time' });
@@ -447,37 +464,6 @@ Page({
       hideLoading();
     }
   },
-  // 刷新缓存信息
-  getGlobalData() {
-    const that = this;
-    return new Promise((resolve, reject) => {
-      // *** 改进：等待 token 就绪 ***
-      tokenManager.waitForToken().then(async () => {
-        // 检查是否有token
-        if (!tokenManager.hasToken()) {
-          console.log('没有token，显示登录提示');
-          reject(new Error('未登录'));
-          return;
-        }
-
-        try {
-          const userInfo = await userService.getUserInfo();
-          const token = tokenManager.getToken();
-          that.setData({
-            userInfo: {
-              ...userInfo,
-              token
-            }
-          });
-          console.log('系统返回用户数据', that.data.userInfo);
-          resolve(userInfo);
-        } catch (err) {
-          console.log('系统返回用户数据失败', err);
-          reject(err);
-        }
-      });
-    });
-  },
   // 首次使用（本地无缓存）提示
   onVisibleChange(e) {
     this.setData({
@@ -581,75 +567,76 @@ Page({
   //   const timeStr = _formatTime(expectTime);
   //   return timeStr;
   // },
-  onHide() {},
-  // 生命周期函数--监听页面显示
+  onHide() {
+    // 离页后丢弃旧结果；再次进入仍可发起新的静默刷新。
+    this._refreshVersion = (this._refreshVersion || 0) + 1;
+    this._ordersVersion = (this._ordersVersion || 0) + 1;
+    this._bannerRequestId = (this._bannerRequestId || 0) + 1;
+    this._refreshPending = null;
+    this._ordersPending = null;
+    this.setData({ isLoginChecking: false, ordersLoading: false });
+  },
+  onUnload() {
+    this.onHide();
+  },
   onShow() {
     this.checkPrivacyAcknowledged();
     getApp().refreshMineTabRedDot().catch(() => {});
-    this.setData({ isLoginChecking: true });
-    tokenManager.waitForToken().then(() => {
-      if (!tokenManager.hasToken()) {
-        const app = getApp();
-        const silentLogin = app.globalData?.silentLoginPromise || app.silentLogin?.();
-        Promise.resolve(silentLogin).then(() => {
-          if (!tokenManager.hasToken()) {
-            this.setData({
-              userInfo: {},
-              isLoginChecking: false
-            });
-            return;
-          }
-
-          const token = tokenManager.getToken();
-          this.setData({
-            userInfo: { token }
-          });
-
-          this.getGlobalData()
-            .then(() => {
-              this.applyFilters();
-              this.loadBanners(this.data.userInfo.schoolId);
-            })
-            .catch(() => {})
-            .finally(() => {
-              this.setData({ isLoginChecking: false });
-            });
-        });
-        return;
-      }
-
-      const token = tokenManager.getToken();
-      this.setData({
-        userInfo: { token }
-      });
-
-      this.getGlobalData()
-        .then(() => {
-          this.applyFilters();
-          this.loadBanners(this.data.userInfo.schoolId);
-        })
-        .catch(() => {})
-        .finally(() => {
+    return this.refreshRunner();
+  },
+  refreshRunner() {
+    const entryToken = tokenManager.getToken();
+    if (this._refreshPending?.token === entryToken) return this._refreshPending.promise;
+    const version = (this._refreshVersion || 0) + 1;
+    this._refreshVersion = version;
+    // 新一轮身份刷新使此前的订单请求失效，避免覆盖新账号或学校的列表。
+    this._ordersVersion = (this._ordersVersion || 0) + 1;
+    this._ordersPending = null;
+    if (!entryToken || (this.data.userInfo.token && this.data.userInfo.token !== entryToken)) {
+      this.setData({ userInfo: {}, takes: [] });
+    }
+    this.setData({ isLoginChecking: !this.data.userInfo.id, ordersLoading: false });
+    const promise = (async () => {
+      try {
+        await tokenManager.waitForToken();
+        if (version !== this._refreshVersion) return false;
+        if (!tokenManager.hasToken()) {
+          const app = getApp();
+          await (app.globalData?.silentLoginPromise || app.silentLogin?.());
+        }
+        if (version !== this._refreshVersion) return false;
+        const token = tokenManager.getToken();
+        if (!token) {
+          this.setData({ userInfo: {}, takes: [] });
+          return false;
+        }
+        const userInfo = await userService.getUserInfo();
+        if (version !== this._refreshVersion || token !== tokenManager.getToken()) return false;
+        if (this.data.userInfo.id !== userInfo.id || this.data.userInfo.schoolId !== userInfo.schoolId) {
+          this.setData({ takes: [] });
+        }
+        this.setData({ userInfo: { ...userInfo, token } });
+        const [loaded] = await Promise.all([this.applyFilters(), this.loadBanners(userInfo.schoolId)]);
+        return loaded;
+      } catch (error) {
+        if (version === this._refreshVersion) showError('刷新失败，请稍后重试');
+        return false;
+      } finally {
+        if (version === this._refreshVersion) {
           this.setData({ isLoginChecking: false });
-        });
-    });
+          this._refreshPending = null;
+        }
+      }
+    })();
+    this._refreshPending = { token: entryToken, promise };
+    return promise;
   },
-  // 下拉刷新事件
-  onPullDownRefresh() {
-    // 这里加上要刷新的逻辑
-    this.onShow();
-    // ------------
-    this.showHorizontalText()
-    wx.stopPullDownRefresh()
-  },
-  // 轻展示的方法
-  showHorizontalText() {
-    Toast({
-      context: this,
-      selector: '#t-toast',
-      message: SUCCESS_MESSAGES.REFRESH_SUCCESS,
-      icon: 'check-circle',
-    });
+  async onPullDownRefresh() {
+    try {
+      await this.refreshRunner();
+    } finally {
+      wx.stopPullDownRefresh();
+    }
   },
   // 右上角分享--好友、朋友圈
   onShareAppMessage() {

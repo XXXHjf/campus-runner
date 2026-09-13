@@ -73,6 +73,17 @@ class SecondHandProductMapperXmlTest {
     }
 
     @Test
+    void productDetailCountsOnlySellersCompletedOrders() throws IOException {
+        String sql = statement("detail").getBoundSql(Map.of("id", 10L, "userId", 100L))
+                .getSql().replaceAll("\\s+", " ").trim();
+        assertTrue(sql.contains("sold.seller_id = p.seller_id and sold.deleted = 0"));
+        assertTrue(sql.contains("sold.status in (3, 9)"));
+        assertTrue(sql.contains("as seller_sold_count"));
+        String listSql = listStatement().getBoundSql(parameters(new SecondHandProductQueryDTO())).getSql();
+        assertFalse(listSql.contains("seller_sold_count"));
+    }
+
+    @Test
     void favoriteListKeepsUnavailableProductsAndUsesFavoriteTimeOrder() throws IOException {
         String sql = statement("listFavorites")
                 .getBoundSql(Map.of("userId", 100L))

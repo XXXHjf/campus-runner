@@ -11,6 +11,8 @@ public class SecondHandProductVO {
     private Long id;
     private Long sellerId;
     private String sellerName;
+    private String sellerAvatar;
+    private Long sellerSoldCount;
     private Long schoolId;
     private String schoolName;
     private Long compusId;

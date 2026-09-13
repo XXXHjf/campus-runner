@@ -43,10 +43,6 @@
           <text>筛选</text>
           <view wx:if="{{filterCount>0}}" class="filter-entry-count">{{filterCount}}</view>
         </view>
-        <view class="publish-entry" bindtap="gotoPublish">
-          <t-icon name="add" size="28rpx" color="#ffffff" />
-          <text>发布</text>
-        </view>
       </view>
     </view>
 
@@ -95,7 +91,17 @@
         />
       </ui-section>
     </view>
+    <view class="market-feed-bottom-space" />
   </scroll-view>
+  <view wx:if="{{!filterVisible}}" class="market-publish-float">
+    <t-button
+      t-class="market-publish-button"
+      theme="primary"
+      shape="round"
+      icon="add"
+      bind:tap="gotoPublish"
+    >发布闲置</t-button>
+  </view>
 </view>
 
 <t-popup visible="{{filterVisible}}" placement="bottom" bind:visible-change="onFilterVisibleChange">

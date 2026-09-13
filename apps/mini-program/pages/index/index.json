@@ -10,9 +10,7 @@
     "t-picker-item": "tdesign-miniprogram/picker-item/picker-item",
     "t-popup": "tdesign-miniprogram/popup/popup",
     "t-button": "tdesign-miniprogram/button/button",
-    "t-overlay": "tdesign-miniprogram/overlay/overlay",
     "t-loading": "tdesign-miniprogram/loading/loading",
-    "t-toast": "tdesign-miniprogram/toast/toast",
     "triple-address-pricker": "../../components/triple-address-pricker/triple-address-pricker"
   },
   "enablePullDownRefresh": true

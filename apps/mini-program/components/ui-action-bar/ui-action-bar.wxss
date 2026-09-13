@@ -23,5 +23,5 @@
   gap: 20rpx;
   align-items: center;
   width: 100%;
-  padding: 22rpx var(--cr-page-padding, 30rpx);
+  padding: var(--cr-action-bar-padding-top, 22rpx) var(--cr-page-padding, 30rpx) 22rpx;
 }

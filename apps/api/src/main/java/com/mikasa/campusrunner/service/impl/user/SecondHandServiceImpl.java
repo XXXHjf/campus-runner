@@ -297,6 +297,13 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (detail == null) {
             throw new SecondHandException("商品不存在");
         }
+        var avatars = mediaAssetService.resolvePublicBinding(
+                MediaAssetConstant.BOUND_USER_AVATAR,
+                detail.getSellerId(),
+                MediaPurpose.AVATAR.name());
+        if (!avatars.isEmpty()) {
+            detail.setSellerAvatar(avatars.get(0).getUrl());
+        }
         return resolveProductImages(detail);
     }
 
@@ -410,7 +417,20 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Override
     public List<SecondHandBargainVO> listMyBargains() {
         ensureAuthenticated();
-        return bargainMapper.listMine(BaseContext.getCurrentId());
+        List<SecondHandBargainVO> bargains = bargainMapper.listMine(BaseContext.getCurrentId());
+        // 同一商品可能有多次报价，每次请求只解析一次公开封面。
+        Map<Long, String> covers = new HashMap<>();
+        for (SecondHandBargainVO bargain : bargains) {
+            if (bargain.getProductId() == null) continue;
+            bargain.setProductCoverImage(covers.computeIfAbsent(bargain.getProductId(), productId -> {
+                var images = mediaAssetService.resolvePublicBinding(
+                        MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
+                        productId,
+                        MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name());
+                return images.isEmpty() ? "" : images.get(0).getUrl();
+            }));
+        }
+        return bargains;
     }
 
     @Override

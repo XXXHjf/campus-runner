@@ -1,18 +1,21 @@
+@import "../../../styles/second-hand-card.wxss";
+
 page {
-  background: #f6f8f7;
+  background: #f3f4f5;
 }
 
 .bargains-page {
   min-height: 100vh;
+  --cr-radius-medium: 32rpx;
 }
 
 .bargains-page__body {
-  padding: 0 24rpx 48rpx;
+  padding: 0 0 48rpx;
 }
 
 .bargains-page__summary {
   display: flex;
-  padding: 28rpx 12rpx;
+  padding: 28rpx 12rpx 36rpx;
 }
 
 .bargains-page__summary-item {
@@ -70,85 +73,56 @@ page {
 }
 
 .bargains-page__row {
-  padding: 26rpx 28rpx;
-  border-bottom: 1rpx solid var(--cr-color-border, #e7eaf0);
-}
-
-.bargains-page__row:last-child {
-  border-bottom: 0;
-}
-
-.bargains-page__top,
-.bargains-page__price-line,
-.bargains-page__actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
+  align-items: flex-start;
+  gap: 24rpx;
+  padding: 30rpx 28rpx;
+  border-bottom: 1rpx solid var(--cr-color-border);
 }
-
+.bargains-page__row:last-child { border-bottom: 0; }
+.bargains-page__cover-link { flex: 0 0 160rpx; }
+.bargains-page__cover {
+  display: block;
+  width: 160rpx;
+  height: 160rpx;
+  --td-image-round-radius: 20rpx;
+}
+.bargains-page__content { flex: 1; min-width: 0; }
+.bargains-page__top { display: flex; align-items: flex-start; gap: 12rpx; }
+.bargains-page__top t-tag { flex: none; }
 .bargains-page__title {
   flex: 1;
   min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  color: var(--cr-color-text, #1d2129);
-  font-size: 28rpx;
-  font-weight: 800;
-  line-height: 40rpx;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bargains-page__price-line {
-  align-items: baseline;
-  margin-top: 12rpx;
-}
-
-.bargains-page__price {
-  color: #ff6a3d;
+  overflow-wrap: anywhere;
+  color: var(--cr-color-text);
   font-size: 30rpx;
-  font-weight: 800;
-  line-height: 44rpx;
+  font-weight: 600;
+  line-height: 40rpx;
 }
-
-.bargains-page__attempt {
-  flex: none;
-}
-
-.bargains-page__meta {
-  margin-top: 4rpx;
-}
-
-.bargains-page__footer {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  margin-top: 14rpx;
-}
-
+.bargains-page__meta { margin-top: 10rpx; overflow-wrap: anywhere; }
 .bargains-page__message {
-  flex: 1;
-  min-width: 0;
-  padding: 14rpx 16rpx;
-  overflow: hidden;
-  color: #344139;
-  background: #f5f7fa;
-  border-radius: var(--cr-radius-small, 12rpx);
+  margin-top: 12rpx;
+  color: var(--cr-color-text);
   font-size: 24rpx;
-  line-height: 36rpx;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
-
-.bargains-page__footer-action {
-  flex: none;
+.bargains-page__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-top: 18rpx;
 }
-
-.bargains-page__compact-button {
-  width: auto;
-}
-
-.bargains-page__actions {
-  justify-content: flex-end;
-  margin-top: 16rpx;
-}
+.bargains-page__price-line { display: flex; align-items: baseline; gap: 8rpx; }
+.bargains-page__price-label { color: var(--cr-color-text-secondary); font-size: 22rpx; }
+.bargains-page__price { color: #ff6a3d; font-size: 40rpx; font-weight: 600; line-height: 52rpx; }
+.bargains-page__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10rpx; margin-left: auto; }
+.bargains-page__button { --td-button-small-padding-horizontal: 22rpx; }
+.bargains-page__subtitle { text-align: center; color: var(--cr-color-text-secondary); font-size: 24rpx; margin-bottom: 14rpx; }

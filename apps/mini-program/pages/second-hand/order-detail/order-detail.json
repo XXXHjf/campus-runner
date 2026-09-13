@@ -1,8 +1,14 @@
 {
-  "navigationBarTitleText": "订单详情",
+  "navigationBarTitleText": "璁㈠崟璇︽儏",
   "usingComponents": {
     "t-button": "tdesign-miniprogram/button/button",
-    "t-image": "tdesign-miniprogram/image/image"
+    "t-image": "tdesign-miniprogram/image/image",
+    "ui-action-bar": "/components/ui-action-bar/ui-action-bar",
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "t-steps": "tdesign-miniprogram/steps/steps",
+    "t-step-item": "tdesign-miniprogram/step-item/step-item"
   },
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "navigationBarBackgroundColor": "#f3f4f5",
+  "backgroundColor": "#f3f4f5"
 }

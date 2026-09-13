@@ -1,59 +1,38 @@
 <view class="detail-page">
-  <view class="gallery">
-    <swiper wx:if="{{images.length>0}}" indicator-dots circular class="swiper">
-      <swiper-item wx:for="{{images}}" wx:key="*this">
-        <image class="gallery-image" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewImage" />
-      </swiper-item>
-    </swiper>
-    <view wx:if="{{images.length==0}}" class="gallery-empty">暂无图片</view>
+  <view wx:if="{{product.id}}" class="detail-seller-bar">
+    <t-avatar image="{{product.sellerAvatar || ''}}" icon="user" shape="circle" size="72rpx" />
+    <text class="detail-seller-name">{{product.sellerName || '同学'}}</text>
+    <text wx:if="{{product.sellerSoldCount > 0}}" class="detail-seller-sales">已卖出{{product.sellerSoldCount}}笔订单</text>
   </view>
-
   <view class="main-card">
     <view class="detail-primary">
-      <view class="detail-primary-copy">
-        <view class="price">¥{{product.price}}</view>
-        <view class="title">{{product.title}}</view>
-      </view>
-      <t-button
-        wx:if="{{!product.isOwner}}"
-        class="favorite-action"
-        size="small"
-        theme="{{product.isFavorited?'primary':'default'}}"
-        variant="{{product.isFavorited?'base':'outline'}}"
-        icon="star"
-        loading="{{favoriteSubmitting}}"
-        disabled="{{favoriteSubmitting}}"
-        bind:tap="toggleFavorite"
-      >{{product.isFavorited?'已收藏':'收藏'}}</t-button>
+      <view class="price">¥{{product.price}}</view>
+      <view wx:if="{{!product.isOwner}}" class="favorite-count">{{product.favoriteCount}} 人收藏</view>
     </view>
-    <view wx:if="{{!product.isOwner}}" class="favorite-count">{{product.favoriteCount}} 人收藏</view>
+    <view class="title">{{product.title}}</view>
     <view class="tag-row">
       <t-tag size="small" variant="light">{{product.statusText}}</t-tag>
       <t-tag size="small" theme="success" variant="light">{{product.conditionLevel || '成色良好'}}</t-tag>
       <t-tag wx:if="{{product.negotiable==1}}" size="small" theme="warning" variant="light">可议价</t-tag>
     </view>
-    <view class="guarantee">平台仅提供信息撮合，付款和交付由双方自行协商。请先验货再付款。</view>
-  </view>
-
-  <view class="section">
-    <view class="section-title">交付方式</view>
-    <view class="info-line">{{product.deliveryText}}</view>
-    <view class="info-muted">自提点：{{product.pickupAddressText || '卖家暂未填写具体地点，购买前可私信确认'}}</view>
-  </view>
-
-  <view class="section">
-    <view class="section-title">商品描述</view>
     <view class="description">{{product.description || '卖家暂未填写描述'}}</view>
-  </view>
-
-  <view class="section seller">
-    <view>
-      <view class="section-title">卖家</view>
-      <view class="info-line">{{product.sellerName || '同学'}}</view>
-      <view class="info-muted">{{product.compusName || '同校'}} · {{product.categoryName || '闲置好物'}}</view>
+    <view class="detail-delivery">
+      <view class="info-line">{{product.deliveryText}}</view>
+      <view class="info-muted">自提点：{{product.pickupAddressText || '卖家暂未填写具体地点，购买前可私信确认'}}</view>
     </view>
-    <t-button wx:if="{{!product.isOwner}}" size="small" variant="outline" bind:tap="gotoConversation">联系卖家</t-button>
-    <t-button wx:else size="small" variant="outline" bind:tap="gotoConversations">查看咨询</t-button>
+    <view class="gallery">
+      <swiper wx:if="{{images.length>0}}" current="{{galleryIndex}}" circular="{{images.length>1}}" class="swiper" bindchange="onGalleryChange">
+        <swiper-item wx:for="{{images}}" wx:key="*this">
+          <image class="gallery-image" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewImage" />
+        </swiper-item>
+      </swiper>
+      <view wx:else class="gallery-empty">暂无图片</view>
+      <view wx:if="{{images.length>0}}" class="detail-gallery-counter">{{galleryIndex + 1}}/{{images.length}}</view>
+    </view>
+    <view class="guarantee">平台仅提供信息撮合，付款和交付由双方自行协商。请先验货再付款。</view>
+    <view wx:if="{{product.isOwner}}" class="detail-seller-consultations">
+      <t-button size="small" shape="round" variant="outline" bind:tap="gotoConversations">查看咨询</t-button>
+    </view>
   </view>
 
   <view wx:if="{{showBargain}}" class="sheet-mask" bindtap="closeBargain">
@@ -105,15 +84,59 @@
     </view>
   </view>
 
-  <view wx:if="{{!product.isOwner || product.status==0 || product.status==4}}" class="bottom-bar">
-    <block wx:if="{{product.isOwner}}">
-      <t-button wx:if="{{product.status==0 || product.status==4}}" variant="outline" bind:tap="toggleProductStatus">{{product.status==4?'上架':'下架'}}</t-button>
-      <t-button wx:if="{{product.status==0 || product.status==4}}" theme="primary" bind:tap="editProduct">编辑商品</t-button>
-    </block>
-    <block wx:else>
-      <t-button wx:if="{{product.canContact}}" variant="outline" bind:tap="gotoConversation">联系卖家</t-button>
-      <t-button wx:if="{{product.canBargain}}" variant="outline" theme="warning" disabled="{{buySubmitting}}" bind:tap="openBargain">议价</t-button>
-      <t-button wx:if="{{product.canBuy}}" theme="primary" loading="{{buySubmitting}}" disabled="{{buySubmitting}}" bind:tap="buyNow">立即下单</t-button>
-    </block>
-  </view>
+  <ui-action-bar wx:if="{{!product.isOwner || product.status==0 || product.status==4}}" class="detail-action-bar" fixed>
+    <view class="detail-bottom-actions">
+      <block wx:if="{{product.isOwner}}">
+        <t-button
+          class="detail-owner-action"
+          shape="round"
+          variant="outline"
+          bind:tap="toggleProductStatus"
+        >{{product.status==4?'上架':'下架'}}</t-button>
+        <t-button
+          class="detail-owner-action"
+          shape="round"
+          theme="primary"
+          bind:tap="editProduct"
+        >编辑商品</t-button>
+      </block>
+      <block wx:else>
+        <view class="detail-secondary-actions">
+          <t-button t-class="detail-icon-button" theme="{{product.isFavorited?'primary':'default'}}" variant="text" disabled="{{favoriteSubmitting}}" bind:tap="toggleFavorite">
+            <view class="detail-icon-content">
+              <t-icon name="{{product.isFavorited?'star-filled':'star'}}" size="40rpx" />
+              <text>{{product.isFavorited?'已收藏':'收藏'}}</text>
+            </view>
+          </t-button>
+          <t-button wx:if="{{product.canBargain}}" t-class="detail-icon-button" variant="text" disabled="{{buySubmitting}}" bind:tap="openBargain">
+            <view class="detail-icon-content">
+              <t-icon name="discount" size="40rpx" />
+              <text>议价</text>
+            </view>
+          </t-button>
+        </view>
+        <view class="detail-primary-actions">
+          <t-button
+            wx:if="{{product.canContact}}"
+            class="detail-capsule-action"
+            t-class="cr-secondhand-capsule cr-secondhand-capsule--outline detail-bottom-capsule"
+            shape="round"
+            variant="outline"
+            icon="chat"
+            bind:tap="gotoConversation"
+          >私信</t-button>
+          <t-button
+            wx:if="{{product.canBuy}}"
+            class="detail-capsule-action"
+            t-class="cr-secondhand-capsule detail-bottom-capsule"
+            shape="round"
+            theme="primary"
+            loading="{{buySubmitting}}"
+            disabled="{{buySubmitting}}"
+            bind:tap="buyNow"
+          >立即下单</t-button>
+        </view>
+      </block>
+    </view>
+  </ui-action-bar>
 </view>

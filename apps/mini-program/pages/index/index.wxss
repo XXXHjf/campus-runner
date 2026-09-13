@@ -340,12 +340,11 @@
   text-decoration: underline;
 }
 
-/* 缺省 */
-.page-loading {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+/* 首次加载仅占用列表区域，不遮挡导航和已有订单。 */
+.show .runner-list-loading {
+  display: flex;
+  justify-content: center;
+  padding: 48rpx 24rpx;
 }
 /* 跑腿页主操作 */
 .runner-panel {

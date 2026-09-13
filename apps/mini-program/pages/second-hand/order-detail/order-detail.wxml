@@ -1,78 +1,81 @@
-<view class="order-detail-page {{canCancel || canPay || canDeliver || canConfirm || canReceive ? 'has-bottom-bar' : ''}}">
+<view class="order-detail-page">
   <view class="status-panel">
+    <t-icon name="{{order.statusIcon || 'undertake-delivery'}}" size="64rpx" color="{{order.statusTheme=='danger'?'#d54941':'#0052d9'}}" />
     <view class="status-title">{{order.statusText || '订单状态'}}</view>
-    <view class="status-desc">{{order.statusDesc}}</view>
-    <view wx:if="{{!order.isOffline && order.status==0}}" class="pay-countdown">剩余支付时间 {{payRemainText}}</view>
   </view>
-
-  <view class="product-row" bindtap="gotoProduct">
-    <t-image class="cover" src="{{order.coverImage}}" mode="aspectFill" />
-    <view class="product-info">
-      <view class="product-title">{{order.productTitle}}</view>
-      <view class="product-meta">{{counterpartyLabel}}：{{counterpartyName}}</view>
-      <view class="product-price">{{order.isOffline?'约定价':'金额'}} ¥{{order.payAmount}}</view>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section-title">交易进度</view>
-    <view class="step-list">
-      <view wx:for="{{steps}}" wx:key="title" class="step {{item.active?'active':''}} {{item.danger?'danger':''}}">
-        <view class="dot"></view>
-        <view class="step-content">
-          <view class="step-title">{{item.title}}</view>
-          <view class="step-desc">{{item.desc}}</view>
+  <view wx:if="{{!order.isOffline && order.status==0}}" class="pay-countdown">剩余支付时间 {{payRemainText}}</view>
+  <ui-section plain>
+    <view class="order-content">
+      <view class="product-row" bindtap="gotoProduct">
+        <t-image class="cover" src="{{order.coverImage}}" mode="aspectFill" shape="round" />
+        <view class="product-info">
+          <view class="product-title">{{order.productTitle}}</view>
+          <view class="product-meta">{{counterpartyLabel}}：{{counterpartyName}}</view>
         </view>
       </view>
-    </view>
-  </view>
+      <view class="order-section order-progress">
+        <t-steps current="{{progressIndex}}" current-status="{{progressDanger?'error':progressComplete?'finish':'process'}}" layout="{{order.isOffline?'horizontal':'vertical'}}" theme="dot" readonly>
+          <t-step-item wx:for="{{steps}}" wx:key="title" title="{{item.title}}" content="{{order.isOffline?'':item.desc}}" />
+        </t-steps>
+        <view wx:if="{{order.isOffline}}" class="progress-description">{{progressDescription}}</view>
+      </view>
+      <view class="order-section">
+        <view class="section-title">交付信息</view>
+        <view class="info-line">{{order.deliveryText}}</view>
+        <view class="delivery-card">
+          <t-icon name="location" size="32rpx" />
+      <view class="delivery-copy">
+          <view class="delivery-label">{{order.deliveryAddressTitle}}</view>
+          <view class="delivery-address">{{order.deliveryAddressText || '请双方通过私信确认具体时间和地点'}}</view>
+          </view>
+        </view>
+        <view wx:if="{{order.deliveryMode==1 && order.pickupAddressText}}" class="info-muted">取货参考：{{order.pickupAddressText}}</view>
+        <view wx:if="{{order.deliveryRemark && order.deliveryRemark!=order.deliveryAddressText}}" class="info-muted">备注：{{order.deliveryRemark}}</view>
+      </view>
+      <view wx:if="{{order.isOffline}}" class="order-section">
+        <view class="section-title">价格说明</view>
+        <view class="amount-row strong">
+          <text>双方约定价格</text>
+          <text class="order-amount">¥{{order.productAmount || order.payAmount}}</text>
+        </view>
+        <view class="info-muted">平台不代收款项，也不收取交易服务费。请双方自行协商付款方式，并在确认商品后付款。</view>
+      </view>
 
-  <view wx:if="{{order.isOffline}}" class="section">
-    <view class="section-title">价格说明</view>
-    <view class="amount-row strong">
-      <text>双方约定价格</text>
-      <text>¥{{order.productAmount || order.payAmount}}</text>
-    </view>
-    <view class="info-muted">平台不代收款项，也不收取交易服务费。请双方自行协商付款方式，并在确认商品后付款。</view>
-  </view>
+      <view wx:else class="order-section">
+        <view class="section-title">金额明细</view>
+        <view class="amount-row">
+          <text>成交价</text>
+          <text class="order-amount">¥{{order.productAmount || order.payAmount}}</text>
+        </view>
+        <view class="amount-row">
+          <text>平台服务费</text>
+          <text>卖家承担 ¥{{order.serviceFee || 0}}</text>
+        </view>
+        <view class="amount-row strong">
+          <text>卖家实收</text>
+          <text>¥{{order.sellerIncome || 0}}</text>
+        </view>
+      </view>
 
-  <view wx:else class="section">
-    <view class="section-title">金额明细</view>
-    <view class="amount-row">
-      <text>成交价</text>
-      <text>¥{{order.productAmount || order.payAmount}}</text>
     </view>
-    <view class="amount-row">
-      <text>平台服务费</text>
-      <text>卖家承担 ¥{{order.serviceFee || 0}}</text>
+  </ui-section>
+  <ui-action-bar wx:if="{{order.id}}" fixed>
+    <view class="order-bottom-actions">
+      <view class="order-contact-actions">
+        <t-button variant="text" t-class="order-icon-button" bind:tap="gotoConversation" aria-label="私信{{counterpartyLabel}}">
+          <view class="order-icon-content"><t-icon name="chat" size="40rpx" /><text>私信</text></view>
+        </t-button>
+        <t-button wx:if="{{counterpartyPhone}}" variant="text" t-class="order-icon-button" bind:tap="callCounterparty" aria-label="拨打{{counterpartyLabel}}电话">
+          <view class="order-icon-content"><t-icon name="call" size="40rpx" /><text>电话</text></view>
+        </t-button>
+      </view>
+      <view class="order-primary-actions">
+        <t-button t-class="cr-secondhand-capsule order-action-capsule" shape="round" size="small" wx:if="{{canCancel}}" variant="outline" loading="{{actionLoading=='cancel'}}" disabled="{{actionLoading!=''}}" bind:tap="cancelOrder">取消订单</t-button>
+        <t-button t-class="cr-secondhand-capsule order-action-capsule" shape="round" size="small" wx:if="{{canPay}}" theme="primary" loading="{{actionLoading=='pay'}}" disabled="{{actionLoading!='' || payRemainSeconds<=0}}" bind:tap="pay">去支付</t-button>
+        <t-button t-class="cr-secondhand-capsule order-action-capsule" shape="round" size="small" wx:if="{{canDeliver}}" theme="primary" loading="{{actionLoading=='deliver'}}" disabled="{{actionLoading!=''}}" bind:tap="markDelivered">标记交付</t-button>
+        <t-button t-class="cr-secondhand-capsule order-action-capsule" shape="round" size="small" wx:if="{{canConfirm}}" theme="primary" loading="{{actionLoading=='confirm'}}" disabled="{{actionLoading!=''}}" bind:tap="confirmReceipt">{{order.isOffline?'确认交易完成':'确认收货'}}</t-button>
+        <t-button t-class="cr-secondhand-capsule order-action-capsule" shape="round" size="small" wx:if="{{canReceive}}" theme="primary" loading="{{actionLoading=='receive'}}" disabled="{{actionLoading!=''}}" bind:tap="requestTransferClaim">确认收款</t-button>
+      </view>
     </view>
-    <view class="amount-row strong">
-      <text>卖家实收</text>
-      <text>¥{{order.sellerIncome || 0}}</text>
-    </view>
-  </view>
-
-  <view class="section">
-    <view class="section-title">交付信息</view>
-    <view class="info-line">{{order.deliveryText}}</view>
-    <view class="delivery-card">
-      <view class="delivery-label">{{order.deliveryAddressTitle}}</view>
-      <view class="delivery-address">{{order.deliveryAddressText || '请双方通过私信确认具体时间和地点'}}</view>
-    </view>
-    <view wx:if="{{order.deliveryMode==1 && order.pickupAddressText}}" class="info-muted">取货参考：{{order.pickupAddressText}}</view>
-    <view wx:if="{{order.deliveryRemark && order.deliveryRemark!=order.deliveryAddressText}}" class="info-muted">备注：{{order.deliveryRemark}}</view>
-    <view class="contact-actions">
-      <t-button variant="outline" theme="primary" bind:tap="gotoConversation">联系{{counterpartyLabel}}</t-button>
-      <t-button wx:if="{{counterpartyPhone}}" variant="outline" bind:tap="callCounterparty">拨打 {{counterpartyPhoneMasked}}</t-button>
-    </view>
-    <view wx:if="{{!counterpartyPhone}}" class="info-muted">对方尚未填写电话，请先通过私信联系。</view>
-  </view>
-
-  <view wx:if="{{canCancel || canPay || canDeliver || canConfirm || canReceive}}" class="bottom-bar">
-    <t-button wx:if="{{canCancel}}" variant="outline" theme="danger" loading="{{actionLoading=='cancel'}}" disabled="{{actionLoading!=''}}" bind:tap="cancelOrder">取消订单</t-button>
-    <t-button wx:if="{{canPay}}" theme="primary" loading="{{actionLoading=='pay'}}" disabled="{{actionLoading!='' || payRemainSeconds<=0}}" bind:tap="pay">去支付</t-button>
-    <t-button wx:if="{{canDeliver}}" theme="primary" loading="{{actionLoading=='deliver'}}" disabled="{{actionLoading!=''}}" bind:tap="markDelivered">标记交付</t-button>
-    <t-button wx:if="{{canConfirm}}" theme="primary" loading="{{actionLoading=='confirm'}}" disabled="{{actionLoading!=''}}" bind:tap="confirmReceipt">{{order.isOffline?'确认交易完成':'确认收货'}}</t-button>
-    <t-button wx:if="{{canReceive}}" theme="primary" loading="{{actionLoading=='receive'}}" disabled="{{actionLoading!=''}}" bind:tap="requestTransferClaim">确认收款</t-button>
-  </view>
+  </ui-action-bar>
 </view>

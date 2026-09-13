@@ -26,6 +26,7 @@ Page({
       const list = await secondHandService.listMyBargains();
       const mapped = list.map((item) => ({
         ...item,
+        coverImage: item.productCoverImage || '',
         statusText: bargainStatus(item.status).text,
         statusTheme: bargainStatus(item.status).theme,
         isBuyer: user.id != null && Number(item.buyerId) === Number(user.id),
@@ -122,6 +123,16 @@ Page({
         }
       },
     });
+  },
+
+  noop() {},
+
+  gotoRecord(e) {
+    if (Number(e.currentTarget.dataset.status) === 1) {
+      this.gotoOrder(e);
+      return;
+    }
+    this.gotoProduct(e);
   },
 
   gotoProduct(e) {

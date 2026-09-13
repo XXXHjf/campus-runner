@@ -36,6 +36,9 @@
       <text class="filter-summary-text">{{filterSummary}}</text>
       <text class="filter-summary-reset" bindtap="resetFilters">清除</text>
     </view>
+    <view wx:if="{{takes.length === 0 && (isLoginChecking || ordersLoading)}}" class="runner-list-loading">
+      <t-loading theme="dots" size="36rpx" text="加载中" />
+    </view>
     <!-- 订单展示 -->
     <view class="cart" croll-y>
       <block wx:for="{{takes}}" wx:key="id">
@@ -79,14 +82,14 @@
       </block>
     </view>
     <!-- 底部填充 -->
-    <view wx:if="{{userInfo.token!=null && !isLoginChecking}}">
-      <view wx:if="{{userInfo.authentication==1}}" style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">哇哦，已经到底了...QAQ</view>
+    <view wx:if="{{userInfo.token!=null && !isLoginChecking && !ordersLoading}}">
+      <view wx:if="{{userInfo.authentication==1}}" style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">{{takes.length > 0 ? '已显示全部订单' : '暂无可接订单'}}</view>
       <view wx:else style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">在"我的"认证后查看订单</view>
     </view>
-    <view wx:else style="position: relative;" hidden="{{isLoginChecking}}">
+    <view wx:else style="position: relative;" hidden="{{isLoginChecking || ordersLoading}}">
       <view style="position: absolute;  top: 50%;  left: 50%;  transform: translate(-50%, 150%);">
         <t-icon name="look-around" size="96rpx" color="darkgray;" />
-        <view style="margin: 20rpx; width: 500rpx; text-align: center;font-weight: bold;color: darkgray;">未登录，我还不知道你是谁哦~</view>
+        <view style="margin: 20rpx; width: 500rpx; text-align: center;font-weight: bold;color: darkgray;">登录后可查看跑腿订单</view>
       </view>
     </view>
   </view>
@@ -176,11 +179,4 @@
   <t-picker-item options="{{buildings}}"></t-picker-item>
 </t-picker>
 
-<!-- 刷新轻提示 -->
-<t-toast id="t-toast" />
-
 <triple-address-pricker id="triplePicker" bind:confirmSelection="handleConfirmSelection" />
-
-<t-overlay visible="{{isLoginChecking}}" duration="{{200}}" backgroundColor="rgb(255,255,255,0.6)">
-  <t-loading theme="dots" size="80rpx" class="page-loading" />
-</t-overlay>

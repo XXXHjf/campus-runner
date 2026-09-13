@@ -1,6 +1,11 @@
 {
   "navigationBarTitleText": "商品详情",
+  "navigationBarBackgroundColor": "#f3f4f5",
+  "backgroundColor": "#f3f4f5",
   "usingComponents": {
+    "ui-action-bar": "/components/ui-action-bar/ui-action-bar",
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "t-avatar": "tdesign-miniprogram/avatar/avatar",
     "t-button": "tdesign-miniprogram/button/button",
     "t-tag": "tdesign-miniprogram/tag/tag",
     "t-input": "tdesign-miniprogram/input/input",

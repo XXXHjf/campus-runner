@@ -1,213 +1,52 @@
-page {
-  background: #f6f8f7;
-}
+@import "../../../styles/second-hand-card.wxss";
 
+page { background: #f3f4f5; }
 .order-detail-page {
   min-height: 100vh;
-  padding: 24rpx 24rpx calc(32rpx + env(safe-area-inset-bottom));
+  padding: 24rpx 16rpx calc(180rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
+  --cr-radius-medium: 32rpx;
+  --cr-action-bar-padding-top: 12rpx;
 }
-
-.order-detail-page.has-bottom-bar {
-  padding-bottom: calc(188rpx + env(safe-area-inset-bottom));
-}
-
-.status-panel {
-  padding: 30rpx 28rpx;
-  color: #ffffff;
-  background: #17231d;
-  border-radius: 18rpx;
-}
-
-.status-title {
-  font-size: 42rpx;
-  font-weight: 800;
-}
-
-.status-desc {
-  margin-top: 10rpx;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 24rpx;
-}
-
-.pay-countdown {
-  display: inline-flex;
-  margin-top: 18rpx;
-  padding: 8rpx 14rpx;
-  color: #fff5e8;
-  background: rgba(255, 255, 255, 0.14);
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  font-weight: 700;
-}
-
-.product-row,
-.section {
-  margin-top: 18rpx;
-  padding: 22rpx;
-  background: #ffffff;
-  border-radius: 16rpx;
-  box-shadow: 0 10rpx 28rpx rgba(24, 57, 42, 0.06);
-}
-
-.product-row {
-  display: flex;
-  gap: 18rpx;
-}
-
-.cover {
-  width: 154rpx;
-  height: 154rpx;
-  flex: 0 0 154rpx;
-  background: #edf2ee;
-  border-radius: 12rpx;
-  overflow: hidden;
-}
-
-.product-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.product-title {
-  color: #17231d;
-  font-size: 30rpx;
-  font-weight: 800;
-  line-height: 1.35;
-}
-
-.product-meta,
-.info-muted {
-  margin-top: 10rpx;
-  color: #7a867f;
-  font-size: 24rpx;
-}
-
-.product-price {
-  margin-top: 16rpx;
-  color: #ff6a3d;
-  font-size: 34rpx;
-  font-weight: 800;
-}
-
-.section-title {
-  color: #17231d;
-  font-size: 30rpx;
-  font-weight: 800;
-}
-
-.step-list {
-  margin-top: 18rpx;
-}
-
-.step {
-  display: flex;
-  gap: 18rpx;
-  padding: 0 0 24rpx;
-  color: #9aa49e;
-}
-
-.step.active {
-  color: #17231d;
-}
-
-.step.danger {
-  color: #d54941;
-}
-
-.dot {
-  width: 18rpx;
-  height: 18rpx;
-  margin-top: 10rpx;
-  border: 4rpx solid currentColor;
-  border-radius: 50%;
-  box-sizing: border-box;
-}
-
-.step-content {
-  flex: 1;
-}
-
-.step-title {
-  font-size: 27rpx;
-  font-weight: 800;
-}
-
-.step-desc {
-  margin-top: 8rpx;
-  color: #7a867f;
-  font-size: 23rpx;
-  line-height: 1.45;
-}
-
-.amount-row {
+.order-detail-page .status-panel {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
-  padding: 18rpx 0;
-  color: #536058;
-  border-bottom: 1rpx solid #eef2ef;
-  font-size: 26rpx;
+  gap: 24rpx;
+  padding: 12rpx 20rpx 32rpx;
 }
-
-.amount-row.strong {
-  color: #17231d;
-  border-bottom: 0;
-  font-weight: 800;
+.order-detail-page .status-title { font-size: 40rpx; font-weight: 600; color: var(--cr-color-text); }
+.order-detail-page .pay-countdown { color: var(--cr-color-danger); font-size: 24rpx; margin: 0 20rpx 24rpx; }
+.order-detail-page .order-content { padding: 28rpx; }
+.order-detail-page .product-row { display: flex; align-items: center; gap: 28rpx; padding: 0 0 30rpx; }
+.order-detail-page .cover {
+  width: 166rpx; height: 166rpx; flex: 0 0 166rpx;
+  --td-image-round-radius: 20rpx;
 }
-
-.info-line {
-  margin-top: 16rpx;
-  color: #26332b;
-  font-size: 28rpx;
-  font-weight: 700;
+.order-detail-page .product-info { flex: 1; min-width: 0; }
+.order-detail-page .product-title { font-size: 32rpx; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.order-detail-page .product-meta,
+.order-detail-page .info-muted { margin-top: 14rpx; color: var(--cr-color-text-secondary); font-size: 24rpx; line-height: 1.6; }
+.order-detail-page .order-section { padding: 28rpx 0; border-top: 1rpx solid var(--cr-color-border); }
+.order-detail-page .order-section:last-child { padding-bottom: 8rpx; }
+.order-detail-page .section-title { color: var(--cr-color-text); font-size: 30rpx; font-weight: 600; }
+.order-detail-page .order-progress { padding: 30rpx 0; }
+.order-detail-page .progress-description { margin-top: 24rpx; text-align: center; color: var(--cr-color-text-secondary); font-size: 23rpx; line-height: 1.6; }
+.order-detail-page .info-line { margin-top: 22rpx; font-size: 27rpx; }
+.order-detail-page .delivery-card { display: flex; align-items: flex-start; gap: 14rpx; margin-top: 18rpx; color: var(--cr-color-text-secondary); }
+.order-detail-page .delivery-copy { flex: 1; min-width: 0; }
+.order-detail-page .delivery-label { font-size: 24rpx; line-height: 1.4; }
+.order-detail-page .delivery-address { color: var(--cr-color-text); font-size: 27rpx; line-height: 1.6; margin-top: 8rpx; overflow-wrap: anywhere; }
+.order-detail-page .amount-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; margin-top: 24rpx; font-size: 26rpx; }
+.order-detail-page .order-amount { color: #ff6a3d; font-size: 32rpx; font-weight: 600; }
+.order-detail-page .order-bottom-actions { display: flex; align-items: center; width: 100%; gap: 16rpx; }
+.order-detail-page .order-contact-actions { display: flex; flex: none; gap: 12rpx; }
+.order-detail-page .order-icon-button {
+  margin: 0; min-width: 64rpx;
+  --td-button-medium-height: 76rpx;
+  --td-button-medium-padding-horizontal: 4rpx;
+  --td-button-default-color: var(--cr-color-text-secondary);
+  --td-button-font-weight: 400;
 }
-
-.delivery-card {
-  margin-top: 16rpx;
-  padding: 18rpx;
-  border-radius: 14rpx;
-  background: #f4faf7;
-  border: 1rpx solid #dcebe4;
-}
-
-.delivery-label {
-  color: #5f6b64;
-  font-size: 23rpx;
-}
-
-.delivery-address {
-  margin-top: 8rpx;
-  color: #17231d;
-  font-size: 28rpx;
-  font-weight: 800;
-  line-height: 1.45;
-}
-
-.contact-actions {
-  display: flex;
-  gap: 12rpx;
-  margin-top: 18rpx;
-}
-
-.contact-actions t-button {
-  flex: 1;
-}
-
-.bottom-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 10;
-  display: flex;
-  gap: 16rpx;
-  padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom));
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 -10rpx 24rpx rgba(24, 57, 42, 0.08);
-}
-
-.bottom-bar t-button {
-  flex: 1;
-}
+.order-detail-page .order-icon-content { display: flex; flex-direction: column; align-items: center; gap: 4rpx; font-size: 20rpx; line-height: 1.2; }
+.order-detail-page .order-primary-actions { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; justify-content: flex-end; gap: 12rpx; }
+.order-detail-page .order-action-capsule { --td-button-small-height: 60rpx; --td-button-small-padding-horizontal: 24rpx; }
