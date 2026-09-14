@@ -11,13 +11,16 @@ function load(file, overrides) {
   return module.exports;
 }
 
-function guardHarness({ token = null, confirm = false, user = {} } = {}) {
+function guardHarness({ token = null, confirm = false, user = {}, profileError = false } = {}) {
   const state = { token, logins: 0, routes: [], modals: [] };
   const guard = load('utils/accessGuard.js', {
     require(id) {
       if (id.includes('tokenManager')) return { hasToken: () => !!state.token };
       if (id.includes('profileStatus')) return { PROFILE_PAGE: '/profile', CAMPUS_AUTH_PAGE: '/auth', isProfileComplete: (u) => !!u.profileCompleted };
-      if (id.includes('userService')) return { getUserInfo: async () => user };
+      if (id.includes('userService')) return { getUserInfo: async () => {
+        if (profileError) throw new Error('network');
+        return user;
+      } };
     },
     getApp: () => ({ silentLogin: async () => { state.logins++; state.token = 'new'; return true; } }),
     wx: {
@@ -39,7 +42,7 @@ test('取消登录不调用微信登录、不跳转、不继续身份操作', as
 });
 
 test('确认登录后才能进入已认证操作，重复点击合并登录弹窗', async () => {
-  const { guard, state } = guardHarness({ confirm: true, user: { authentication: 1 } });
+  const { guard, state } = guardHarness({ confirm: true, user: { authentication: 1, profileCompleted: true } });
   assert.deepEqual(await Promise.all([guard.ensureLogin(), guard.ensureLogin()]), [true, true]);
   assert.equal(state.logins, 1);
   assert.equal(state.modals.length, 1);
@@ -48,7 +51,7 @@ test('确认登录后才能进入已认证操作，重复点击合并登录弹�
 
 test('未认证、审核中、驳回分别指引，取消后无跳转', async () => {
   for (const [review, title] of [[0, '需要校园认证'], [1, '校园认证审核中'], [3, '校园认证未通过']]) {
-    const { guard, state } = guardHarness({ token: 'a', user: { authentication: 0, studentIdCardReview: review } });
+    const { guard, state } = guardHarness({ token: 'a', user: { authentication: 0, studentIdCardReview: review, profileCompleted: true } });
     assert.equal(await guard.ensureAuthenticated(), false);
     assert.equal(state.modals[0].title, title);
     assert.equal(state.routes.length, 0);
@@ -56,12 +59,92 @@ test('未认证、审核中、驳回分别指引，取消后无跳转', async ()
 });
 
 test('去认证按资料完整度分流，单页打开时返回浏览首页', async () => {
-  for (const [profileCompleted, route] of [[false, '/profile'], [true, '/auth']]) {
+  for (const [profileCompleted, route] of [[false, '/profile?after=login'], [true, '/auth']]) {
     const { guard, state } = guardHarness({ token: 'a', confirm: true, user: { profileCompleted } });
     await guard.ensureAuthenticated();
     assert.equal(state.routes[0], route);
     guard.returnToBrowse();
     assert.equal(state.routes[1], '/pages/second-hand/index/index');
+  }
+});
+
+test('新登录和已有凭证的缺资料账号均进入填写页，不继续原操作', async () => {
+  for (const token of [null, 'existing']) {
+    const user = { profileCompleted: false, authentication: 1 };
+    const { guard, state } = guardHarness({ token, confirm: true, user });
+    assert.deepEqual(await Promise.all([guard.ensureLogin(), guard.ensureLogin()]), [false, false]);
+    assert.equal(state.routes.length, 1);
+    assert.equal(state.routes[0], '/profile?after=login');
+    assert.equal(state.logins, token ? 0 : 1);
+    // 取消填写后，再次主动操作仍不可绕过；补齐资料后才允许继续。
+    assert.equal(await guard.ensureAuthenticated(), false);
+    user.profileCompleted = true;
+    assert.equal(await guard.ensureAuthenticated(), true);
+  }
+});
+
+test('资料加载失败不放行也不误跳注册页', async () => {
+  const { guard, state } = guardHarness({ token: 'existing', profileError: true });
+  assert.equal(await guard.ensureAuthenticated(), false);
+  assert.equal(state.routes.length, 0);
+});
+
+test('我的主动登录按资料完整度分流', async () => {
+  for (const profileCompleted of [false, true]) {
+    let page;
+    const routes = [];
+    const toasts = [];
+    const app = { globalData: {}, refreshMineTabRedDot: () => Promise.resolve() };
+    const source = fs.readFileSync(path.join(root, 'pages/mine/mine/mine.js'), 'utf8')
+      .replace(/^import .+;.*$/gm, '');
+    vm.runInNewContext(source, {
+      console, getApp: () => app,
+      require(id) {
+        if (id.endsWith('userService')) return { getUserInfo: async () => ({ profileCompleted }) };
+        if (id.endsWith('tokenManager')) return { updateToken() {} };
+        if (id.endsWith('privacy')) return { maskPhone: () => '' };
+        if (id.endsWith('profileStatus')) return require(path.join(root, 'utils/profileStatus'));
+        return {};
+      },
+      wx: {
+        login: ({ success }) => success({ code: 'test' }),
+        request: ({ success }) => success({ statusCode: 200, data: { code: 1, data: { token: 'test' } } }),
+        setStorage() {}, navigateTo: ({ url }) => routes.push(url),
+        showToast: ({ title }) => toasts.push(title),
+      },
+      Page(config) { page = { ...config, data: structuredClone(config.data), setData(data) { Object.assign(this.data, data); } }; },
+    });
+    await page._login();
+    assert.deepEqual(routes, profileCompleted ? [] : ['/pages/mine/newUser/index?after=login']);
+    assert.deepEqual(toasts, profileCompleted ? ['登录成功'] : []);
+    assert.equal(page.data.loginLoadShow, false);
+  }
+});
+
+test('注册保存经确认后，登录入口返回来源页、认证入口继续认证', async () => {
+  for (const after of ['login', undefined]) {
+    let page;
+    const routes = [];
+    load('pages/mine/newUser/index.js', {
+      require(id) {
+        if (id.endsWith('profileStatus')) return require(path.join(root, 'utils/profileStatus'));
+        if (id.endsWith('userService')) return { getUserInfo: async () => ({ profileCompleted: true }) };
+        if (id.endsWith('tokenManager')) return { waitForToken: async () => {}, getToken: () => 'test' };
+        if (id.endsWith('transformers')) return { showLoading() {}, hideLoading() {} };
+        if (id.endsWith('commonJs')) return { showSuccessToast() {}, errorCilcleToast() { assert.fail('保存不应失败'); } };
+        if (id.endsWith('accessGuard')) return { returnToBrowse: () => routes.push('back') };
+        return {};
+      },
+      getApp: () => ({ onUserInfoUpdated() {} }),
+      setTimeout: (callback) => callback(),
+      wx: { redirectTo: ({ url }) => routes.push(url) },
+      Page(config) { page = { ...config, data: structuredClone(config.data), setData(data) { Object.assign(this.data, data); } }; },
+    });
+    await page.onLoad({ after });
+    page.validateInput = () => true;
+    page.updateUser = async () => {};
+    await page.confirmRegister();
+    assert.deepEqual(routes, after === 'login' ? ['back'] : ['/pages/mine/identify/identify']);
   }
 });
 

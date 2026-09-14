@@ -43,6 +43,8 @@ import static org.mockito.Mockito.when;
 class SecondHandOfflineTradeServiceTest {
 
     @Mock
+    private com.mikasa.campusrunner.mapper.SecondHandBargainMapper bargainMapper;
+    @Mock
     private SecondHandProductMapper productMapper;
     @Mock
     private SecondHandOrderMapper orderMapper;
@@ -113,6 +115,7 @@ class SecondHandOfflineTradeServiceTest {
         assertEquals(0, saved.getSellerIncome().compareTo(new BigDecimal("88.00")));
         assertEquals(0, saved.getTransferAttempt());
         verify(productMapper).markTrading(10L);
+        verify(bargainMapper).expirePendingByProduct(10L);
         verify(wxPayClient, never()).execute(any(HttpUriRequest.class));
     }
 

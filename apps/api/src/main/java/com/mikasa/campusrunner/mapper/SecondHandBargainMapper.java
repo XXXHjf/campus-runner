@@ -13,6 +13,8 @@ public interface SecondHandBargainMapper {
 
     void update(SecondHandBargain bargain);
 
+    int updatePendingStatus(@Param("id") Long id, @Param("status") Integer status);
+
     SecondHandBargain getById(@Param("id") Long id);
 
     int countByBuyerAndProduct(@Param("buyerId") Long buyerId, @Param("productId") Long productId);

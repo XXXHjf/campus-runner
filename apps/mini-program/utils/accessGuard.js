@@ -9,15 +9,27 @@ function confirm(options) {
 }
 
 async function ensureLogin() {
-  if (tokenManager.hasToken()) return true;
   if (loginPrompt) return loginPrompt;
   loginPrompt = (async () => {
-    if (!await confirm({ title: '登录后继续',
-      content: '此操作需要登录。取消后仍可浏览商品和跑腿服务。',
-      confirmText: '去登录', cancelText: '取消' })) return false;
-    const ok = await getApp().silentLogin();
-    if (!ok) wx.showToast({ title: '登录失败，请稍后重试', icon: 'none' });
-    return !!ok;
+    if (!tokenManager.hasToken()) {
+      if (!await confirm({ title: '登录后继续',
+        content: '此操作需要登录。取消后仍可浏览商品和跑腿服务。',
+        confirmText: '去登录', cancelText: '取消' })) return false;
+      const ok = await getApp().silentLogin();
+      if (!ok) {
+        wx.showToast({ title: '登录失败，请稍后重试', icon: 'none' });
+        return false;
+      }
+    }
+    // 微信身份凭证不代表资料注册完成；历史未完成账号也必须检查。
+    try {
+      const user = await require('../services/userService').getUserInfo();
+      if (isProfileComplete(user)) return true;
+      wx.navigateTo({ url: `${PROFILE_PAGE}?after=login` });
+    } catch (error) {
+      wx.showToast({ title: '资料加载失败，请稍后重试', icon: 'none' });
+    }
+    return false;
   })();
   try { return await loginPrompt; } finally { loginPrompt = null; }
 }

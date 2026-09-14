@@ -252,7 +252,11 @@ Page({
         });
         app.refreshMineTabRedDot({ force: true, userInfo }).catch(() => {});
 
-        wx.showToast({ title: '登录成功', icon: 'success', duration: 2000 });
+        if (isProfileComplete(userInfo)) {
+          wx.showToast({ title: '登录成功', icon: 'success', duration: 2000 });
+        } else {
+          wx.navigateTo({ url: `${PROFILE_PAGE}?after=login` });
+        }
 
         // 关闭加载中的遮罩层
         this.setData({

@@ -14,6 +14,8 @@ public interface SecondHandProductMapper {
 
     void update(SecondHandProduct product);
 
+    SecondHandProduct getByIdForUpdate(@Param("id") Long id);
+
     SecondHandProduct getById(@Param("id") Long id);
 
     SecondHandProductVO detail(@Param("id") Long id,

@@ -38,7 +38,8 @@ Page({
   },
   
   // 生命周期 - 初始化 token
-  async onLoad() {
+  async onLoad(options = {}) {
+    this._afterLogin = options.after === 'login';
     try {
       await tokenManager.waitForToken();
       const token = tokenManager.getToken();
@@ -106,7 +107,11 @@ Page({
       showSuccessToast(this, "注册成功");
       
       setTimeout(() => {
-        wx.redirectTo({ url: CAMPUS_AUTH_PAGE });
+        if (this._afterLogin) {
+          require('../../../utils/accessGuard').returnToBrowse();
+        } else {
+          wx.redirectTo({ url: CAMPUS_AUTH_PAGE });
+        }
       }, 800);
     } catch (error) {
       if (this.data.headImgAssetId) {

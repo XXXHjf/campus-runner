@@ -36,6 +36,10 @@
         where id = #{id}
     </update>
 
+    <select id="getByIdForUpdate" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandProduct">
+        select * from tb_second_hand_product where id = #{id} and deleted = 0 for update
+    </select>
+
     <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandProduct">
         select * from tb_second_hand_product where id = #{id} and deleted = 0
     </select>

@@ -344,7 +344,7 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Transactional
     public SecondHandBargainVO createBargain(SecondHandBargainDTO dto) {
         ensureAuthenticated();
-        SecondHandProduct product = requireProduct(dto.getProductId());
+        SecondHandProduct product = requireProductForUpdate(dto.getProductId());
         Long buyerId = BaseContext.getCurrentId();
         if (!isSelfTradeAllowed() && product.getSellerId().equals(buyerId)) {
             throw new SecondHandException("不能向自己的商品议价");
@@ -391,28 +391,31 @@ public class SecondHandServiceImpl implements SecondHandService {
         SecondHandBargain bargain = requireBargain(bargainId);
         ensureOwner(bargain.getSellerId());
         if (!isStatus(bargain.getStatus(), SecondHandConstant.BARGAIN_PENDING)) {
-            throw new SecondHandException("议价状态不可接受");
+            throw new SecondHandException("该议价已处理或已失效，请刷新后查看");
         }
-        SecondHandProduct product = requireProduct(bargain.getProductId());
+        SecondHandProduct product = requireProductForUpdate(bargain.getProductId());
+        ensureBargainProductAvailable(product);
+        if (bargainMapper.updatePendingStatus(bargain.getId(), SecondHandConstant.BARGAIN_ACCEPTED) == 0) {
+            throw new SecondHandException("该议价已处理或已失效，请刷新后查看");
+        }
         SecondHandOrderCreateDTO orderDTO = dto == null ? new SecondHandOrderCreateDTO() : dto;
         orderDTO.setProductId(product.getId());
         orderDTO.setBargainId(bargain.getId());
         SecondHandOrderVO order = createOrderInternal(product, bargain.getBuyerId(), bargain.getOfferPrice(), orderDTO, true);
-        bargain.setStatus(SecondHandConstant.BARGAIN_ACCEPTED);
-        bargain.setUpdateTime(LocalDateTime.now());
-        bargainMapper.update(bargain);
-        bargainMapper.expirePendingByProduct(product.getId());
         return order;
     }
 
     @Override
+    @Transactional
     public void rejectBargain(Long bargainId) {
         ensureAuthenticated();
         SecondHandBargain bargain = requireBargain(bargainId);
         ensureOwner(bargain.getSellerId());
-        bargain.setStatus(SecondHandConstant.BARGAIN_REJECTED);
-        bargain.setUpdateTime(LocalDateTime.now());
-        bargainMapper.update(bargain);
+        SecondHandProduct product = requireProductForUpdate(bargain.getProductId());
+        ensureBargainProductAvailable(product);
+        if (bargainMapper.updatePendingStatus(bargain.getId(), SecondHandConstant.BARGAIN_REJECTED) == 0) {
+            throw new SecondHandException("该议价已处理或已失效，请刷新后查看");
+        }
     }
 
     @Override
@@ -1112,6 +1115,8 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .updateTime(now)
                 .build();
         orderMapper.insert(order);
+        // 与商品锁和订单共用事务；成交议价已先转为接受，其余待处理报价统一失效。
+        bargainMapper.expirePendingByProduct(product.getId());
         if (offline) {
             subscriptions.order(order, negotiated ? buyerId : product.getSellerId(), negotiated ? "待交付" : "新订单",
                     negotiated ? "议价已接受，¥" + amount.stripTrailingZeros().toPlainString() + " 元" : "买家已下单，请及时处理", now);
@@ -1501,6 +1506,25 @@ public class SecondHandServiceImpl implements SecondHandService {
             throw new SecondHandException("商品不存在");
         }
         return product;
+    }
+
+    private SecondHandProduct requireProductForUpdate(Long id) {
+        if (id == null) {
+            throw new ParamException(MessageConstant.NOT_FOUND_PARAM);
+        }
+        // 发起/处理议价与下单统一先锁商品，避免下单后又插入待处理报价。
+        SecondHandProduct product = productMapper.getByIdForUpdate(id);
+        if (product == null) {
+            throw new SecondHandException("商品不存在");
+        }
+        return product;
+    }
+
+    private void ensureBargainProductAvailable(SecondHandProduct product) {
+        if (!isStatus(product.getStatus(), SecondHandConstant.PRODUCT_ON_SALE)
+                || orderMapper.getActiveByProductId(product.getId()) != null) {
+            throw new SecondHandException("商品当前不可议价，请刷新后查看");
+        }
     }
 
     private SecondHandOrder requireOrder(Long id) {
