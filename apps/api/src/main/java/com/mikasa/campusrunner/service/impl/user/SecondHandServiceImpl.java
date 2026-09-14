@@ -269,7 +269,8 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     @Override
     public List<SecondHandProductVO> listProducts(SecondHandProductQueryDTO query) {
-        Long schoolId = userMapper.getSchoolId(BaseContext.getCurrentId());
+        Long userId = BaseContext.getCurrentId();
+        Long schoolId = userId == null ? null : userMapper.getSchoolId(userId);
         if (query == null) {
             query = new SecondHandProductQueryDTO();
         }

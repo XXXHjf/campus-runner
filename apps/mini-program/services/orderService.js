@@ -94,6 +94,9 @@ function getOrdersByDoubleAddress(pickupData, receiveData, userSchoolId) {
 }
 
 module.exports = {
+  getPublicOrders() {
+    return request({ url: `${url}/api/order/public` }).then(safeList).then(addExpectTime);
+  },
   getOrdersByTime,
   getOrdersByPrice,
   getOrdersByCategory,

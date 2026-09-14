@@ -1,142 +1,59 @@
-/**
- * 统一请求处理服务
- * 处理 token、401 重试、错误处理等通用逻辑
- */
-
 const tokenManager = require('../utils/tokenManager');
-const url = getApp().globalData.API_URL;
 
-/**
- * 安全获取列表数据，避免 null 错误
- * @param {Object} res - 响应对象
- * @returns {Array} 安全的数据数组
- */
 function safeList(res) {
   if (res && res.data && res.data.code !== undefined && res.data.code !== 1) {
     throw new Error(res.data.msg || '请求失败，请稍后重试');
   }
-  if (res && res.data && Array.isArray(res.data.data)) {
-    return res.data.data;
+  return Array.isArray(res?.data?.data) ? res.data.data : [];
+}
+
+function isPublicRead(options) {
+  if ((options.method || 'GET').toUpperCase() !== 'GET') return false;
+  const path = options.url.replace(/^https?:\/\/[^/]+/, '').split('?')[0];
+  return /^\/api\/second-hand\/(categories|products(?:\/[0-9]+)?)$/.test(path)
+    || /^\/api\/(school|category)(\/[0-9]+)?$/.test(path)
+    || path === '/api/address/three' || path === '/api/order/public'
+    || /^\/admin\/api\/banner\/getList\/[^/]+$/.test(path);
+}
+
+async function request(options) {
+  const publicRead = isPublicRead(options);
+  const token = options.skipTokenCheck ? null : tokenManager.getToken();
+  // Background reads never create accounts or open a login prompt.
+  if (!token && !publicRead && !options.skipTokenCheck) {
+    throw new Error('请先登录后再操作');
   }
-  return [];
-}
-
-/**
- * 统一请求方法
- * @param {Object} options - 请求配置
- * @param {string} options.url - 请求地址
- * @param {string} options.method - 请求方法
- * @param {Object} options.data - 请求数据
- * @param {Object} options.header - 请求头
- * @param {boolean} options.skipTokenCheck - 是否跳过token检查（默认false）
- * @returns {Promise} 请求 Promise
- */
-function request(options) {
-  return new Promise((resolve, reject) => {
-    // *** 改进：使用 tokenManager 统一获取 token ***
-    const token = options.skipTokenCheck ? null : tokenManager.getToken();
-    const requestUrl = options.url;
-    
-    wx.request({
-      url: requestUrl,
-      method: options.method || 'GET',
-      data: options.data,
-      header: {
-        'Content-Type': 'application/json',
-        ...(token ? { token } : {}),
-        ...options.header
-      },
-      timeout: options.timeout || 10000,
-      success: (res) => {
-        if (res.statusCode === 200) {
-          resolve(res);
-        } else if (res.statusCode === 401 && !options.skipTokenCheck) {
-          // 401 错误，尝试刷新 token
-          console.log('收到401响应，尝试刷新token');
-          refreshTokenAndRetry(options)
-            .then(resolve)
-            .catch(reject);
-        } else {
-          reject(new Error('请求失败，请稍后重试'));
+  return new Promise((resolve, reject) => wx.request({
+    ...options,
+    method: options.method || 'GET',
+    header: { 'Content-Type': 'application/json', ...(token ? { token } : {}), ...options.header },
+    timeout: options.timeout || 10000,
+    success: (res) => {
+      if (res.statusCode === 401) {
+        // Expired identity becomes a guest. Never retry orders/payments implicitly.
+        if (token && token === tokenManager.getToken()) tokenManager.clearToken();
+        reject(new Error('登录已失效，请重新登录'));
+        return;
+      }
+      if (res.statusCode !== 200) {
+        reject(new Error('请求失败，请稍后重试'));
+        return;
+      }
+      const msg = String(res.data?.msg || '');
+      if (res.data?.code !== 1 && (/User not authentic/i.test(msg) || msg.includes('完成校园认证后才能操作'))) {
+        // A background badge/list refresh must never reopen onboarding.
+        if ((options.method || 'GET').toUpperCase() !== 'GET') {
+          const guard = require('../utils/accessGuard');
+          require('./userService').getUserInfo()
+            .then((user) => guard.guideAuthentication(user))
+            .catch(() => guard.guideAuthentication());
         }
-      },
-      fail: (error) => {
-        console.error('网络请求失败:', requestUrl, error);
-        reject(error);
+        reject(new Error('完成校园认证后才能操作'));
+        return;
       }
-    });
-  });
+      resolve(res);
+    },
+    fail: () => reject(new Error('网络连接失败，请稍后重试')),
+  }));
 }
-
-/**
- * 刷新 token 并重试请求
- * @param {Object} originalOptions - 原始请求配置
- * @returns {Promise} 重试后的请求结果
- */
-function refreshTokenAndRetry(originalOptions) {
-  return new Promise((resolve, reject) => {
-    wx.login({
-      success: (loginRes) => {
-        console.log("code is " + loginRes.code);
-        wx.request({
-          url: `${url}/api/user/login`,
-          method: 'POST',
-          data: { code: loginRes.code },
-          header: { 'Content-Type': 'application/json' },
-          timeout: 10000,
-          success: (res) => {
-            if (res.statusCode === 200 && res.data.data) {
-              console.log('获取新token', res.data.data.token);
-              
-              // *** 改进：使用 tokenManager 统一更新 token ***
-              tokenManager.updateToken(res.data.data.token, res.data.data);
-              
-              // 重试原始请求
-              const retryOptions = {
-                ...originalOptions,
-                header: {
-                  ...originalOptions.header,
-                  'token': res.data.data.token
-                }
-              };
-              
-              wx.request({
-                ...retryOptions,
-                timeout: retryOptions.timeout || 10000,
-                success: resolve,
-                fail: reject
-              });
-            } else {
-              console.error('登录响应异常:', res);
-              reject(new Error('登录响应异常'));
-            }
-          },
-          fail: (res) => {
-            console.log('token刷新失败', res);
-            wx.showToast({
-              title: '验证失效，请重新登录',
-              duration: 2000
-            });
-            wx.switchTab({
-              url: '/pages/mine/mine/mine'
-            });
-            reject(new Error('登录请求失败'));
-          }
-        });
-      },
-      fail: (loginError) => {
-        console.log('微信登录失败', loginError);
-        wx.showToast({
-          title: '登录失败',
-          duration: 2000
-        });
-        reject(new Error('微信登录失败'));
-      }
-    });
-  });
-}
-
-module.exports = {
-  request,
-  safeList
-};
+module.exports = { request, safeList, isPublicRead };

@@ -22,6 +22,7 @@ function harness() {
         getToken: () => state.token, hasToken: () => !!state.token, waitForToken: async () => {},
       };
       if (id.endsWith('userService')) return { getUserInfo: async () => ({ id: 1, schoolId: 1, authentication: 1 }) };
+      if (id.endsWith('orderService')) return { getPublicOrders: async () => [{ id: 9, categoryId: 2, categoryName: '取件', price: 3 }] };
       if (id.endsWith('transformers')) return {
         showLoading() { state.loading++; }, hideLoading() {}, showError(message) { state.errors.push(message); },
       };
@@ -56,6 +57,7 @@ test('切页保留已有订单，合并刷新且下拉等待数据，不显示�
 });
 test('不同筛选的迟到结果不能覆盖新结果，离开页面后不更新', async () => {
   const { page } = harness();
+  page.data.userInfo = { authentication: 1 };
   const first = deferred();
   const second = deferred();
   page._loadFilteredTakes = () => first.promise;
@@ -95,5 +97,7 @@ test('首次加载与失败均结束加载状态，退出登录清空旧订单',
   assert.equal(page.data.ordersLoading, false);
   state.token = null;
   await page.refreshRunner();
-  assert.equal(page.data.takes.length, 0);
+  assert.equal(page.data.takes.length, 1);
+  assert.equal(page.data.takes[0].id, 9);
+  assert.equal(page.data.userInfo.token, undefined);
 });

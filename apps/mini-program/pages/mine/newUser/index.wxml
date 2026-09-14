@@ -1,7 +1,7 @@
 <ui-page>
   <view class="registration-intro">
     <view class="registration-intro__title">完善个人信息</view>
-    <view class="registration-intro__description">填写常用信息，开始使用校园跑腿服务</view>
+    <view class="registration-intro__description">下单、发布前请完善个人信息，也可以返回继续浏览</view>
   </view>
 
   <ui-section title="基本信息" icon="user-circle">
@@ -23,6 +23,7 @@
   </ui-section>
 
   <ui-action-bar>
+    <t-button variant="outline" disabled="{{isSubmitting}}" bind:tap="cancelRegister">返回浏览</t-button>
     <t-button class="registration-submit" block theme="primary" loading="{{isSubmitting}}" disabled="{{isSubmitting}}" bind:tap="confirmRegister">立即注册</t-button>
   </ui-action-bar>
 

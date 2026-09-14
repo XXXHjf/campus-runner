@@ -13,7 +13,8 @@
             name AS build_category_name,
             number_id
         from tb_build_category
-        where deleted = 0 AND school_id = #{schoolId}
+        where deleted = 0
+        <if test="schoolId != null">AND school_id = #{schoolId}</if>
     </select>
 
     <select id="getIdBySchoolIdAndCompusIdAndName" resultType="java.lang.Long">

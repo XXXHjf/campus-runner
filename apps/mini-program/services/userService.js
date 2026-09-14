@@ -16,6 +16,7 @@ function getUserInfo() {
     url: `${url}/api/user`,
     method: 'GET'
   }).then(res => {
+    if (res.data.code !== 1) throw new Error(res.data.msg || '资料加载失败，请稍后重试');
     return res.data.data || {};
   });
 }

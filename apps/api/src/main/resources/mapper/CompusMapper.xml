@@ -24,7 +24,8 @@
     <select id="getThree" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookThreeVO$Compus">
         SELECT compus_name,number_id
         FROM tb_compus
-        WHERE deleted = 0 AND school_id = #{schoolId}
+        WHERE deleted = 0
+        <if test="schoolId != null">AND school_id = #{schoolId}</if>
     </select>
 
 

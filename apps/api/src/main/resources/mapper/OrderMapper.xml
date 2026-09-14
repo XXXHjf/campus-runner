@@ -2,6 +2,27 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.mikasa.campusrunner.mapper.OrderMapper">
+    <!-- Public projection: never include phone, note, photos or address-book details. -->
+    <select id="listPublicOrders" resultType="com.mikasa.campusrunner.pojo.vo.PublicOrderVO">
+        select o.id, o.price, o.create_time, o.gap, o.category_id, c.category_name,
+               concat_ws(' ', ps.school_name, pc.compus_name, pbc.name, pb.building_name) as pick_up_address,
+               concat_ws(' ', rs.school_name, rc.compus_name, rbc.name, rb.building_name) as recive_address
+        from tb_orders o
+        join tb_category c on c.id = o.category_id
+        join tb_address_book p on p.id = o.pick_up_address
+        join tb_address_book r on r.id = o.recive_address
+        join tb_school ps on ps.id = p.school_id
+        join tb_school rs on rs.id = r.school_id
+        join tb_compus pc on pc.id = p.compus_id
+        join tb_compus rc on rc.id = r.compus_id
+        join tb_building pb on pb.id = p.building_id
+        join tb_building rb on rb.id = r.building_id
+        join tb_build_category pbc on pbc.id = p.build_category_id
+        join tb_build_category rbc on rbc.id = r.build_category_id
+        where o.deleted = 0 and o.status = 0 and p.deleted = 0 and r.deleted = 0
+        order by o.create_time desc
+        limit 100
+    </select>
 
 
 

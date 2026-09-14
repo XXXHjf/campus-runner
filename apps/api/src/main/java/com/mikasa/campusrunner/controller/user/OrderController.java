@@ -31,6 +31,15 @@ public class OrderController {
     @Autowired
     private OrderService orderService;
 
+    @Autowired
+    private com.mikasa.campusrunner.mapper.OrderMapper orderMapper;
+
+    @GetMapping("/public")
+    @Operation(summary = "公开跑腿预览，不包含联系人及取件说明")
+    public Result<List<com.mikasa.campusrunner.pojo.vo.PublicOrderVO>> publicOrders() {
+        return Result.success(orderMapper.listPublicOrders());
+    }
+
     @GetMapping("/showByPrice/{status}")
     @Operation(summary = "价格优先排序")
     public Result<List<OrderShowVO>> showByPrice(@PathVariable("status") Integer status){

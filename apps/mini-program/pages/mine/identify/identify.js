@@ -111,7 +111,7 @@ Page({
       showAuthNotice: false,
       hasAgreedNotice: false
     });
-    wx.navigateBack();
+    require('../../../utils/accessGuard').returnToBrowse();
   },
   closeDialog() {
     this.setData({ dialogVisable: false })

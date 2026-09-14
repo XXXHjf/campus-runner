@@ -266,7 +266,8 @@ Page({
     this.gotoPublish();
   },
 
-  gotoPublish() {
+  async gotoPublish() {
+    if (!await require('../../../utils/accessGuard').ensureAuthenticated()) return;
     wx.navigateTo({ url: '/pages/second-hand/publish/publish' });
   },
 

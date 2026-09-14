@@ -2,6 +2,8 @@ const subscriptions = require('../../../services/subscriptionService');
 const secondHandService = require('../../../services/secondHandService');
 const deliveryAddressService = require('../../../services/deliveryAddressService');
 const userService = require('../../../services/userService');
+const tokenManager = require('../../../utils/tokenManager');
+const { ensureAuthenticated } = require('../../../utils/accessGuard');
 const { friendlyError } = require('../../../utils/secondHandStatus');
 
 Page({
@@ -31,12 +33,17 @@ Page({
   },
 
   async onShow() {
+    if (this._detailToken !== undefined && this._detailToken !== tokenManager.getToken()) {
+      this.setData({ showBuySheet: false, showBargain: false, addressBook: [], currentUserId: null });
+      await this.loadDetail();
+    }
     if (this.data.showBuySheet) {
       await this.loadAddressBook(false);
     }
   },
 
   async loadDetail() {
+    this._detailToken = tokenManager.getToken();
     this.setData({ loading: true });
     try {
       const [product, user] = await Promise.all([
@@ -76,6 +83,7 @@ Page({
   },
 
   async getCurrentUser() {
+    if (!tokenManager.hasToken()) return {};
     const app = getApp();
     const cached = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
     if (cached.id != null) return cached;
@@ -107,6 +115,7 @@ Page({
 
   async buyNow() {
     if (this.data.buySubmitting) return;
+    if (!await ensureAuthenticated()) return;
     const product = this.data.product;
     if (!product.id) return;
     if (!product.canBuy) {
@@ -213,7 +222,8 @@ Page({
     }
   },
 
-  openBargain() {
+  async openBargain() {
+    if (!await ensureAuthenticated()) return;
     if (!this.data.product.canBargain) {
       wx.showToast({ title: '当前不可议价', icon: 'none' });
       return;
@@ -272,6 +282,7 @@ Page({
   noop() {},
 
   async toggleFavorite() {
+    if (!await ensureAuthenticated()) return;
     const product = this.data.product;
     if (!product.id || product.isOwner || this.data.favoriteSubmitting) return;
     const nextFavorited = !product.isFavorited;
@@ -297,7 +308,8 @@ Page({
     }
   },
 
-  gotoConversation() {
+  async gotoConversation() {
+    if (!await ensureAuthenticated()) return;
     const product = this.data.product;
     if (!product.id || !product.sellerId || product.isOwner) return;
     wx.navigateTo({

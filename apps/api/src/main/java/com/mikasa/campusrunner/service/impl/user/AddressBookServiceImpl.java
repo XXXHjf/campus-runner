@@ -118,11 +118,9 @@ public class AddressBookServiceImpl implements AddressBookService {
     @Override
     public AddressBookThreeVO three() {
         //查找当前用户所绑定的学校
-        UserVO user = userMapper.getById(BaseContext.getCurrentId());
-        Long schoolId = user.getSchoolId();
-        if (schoolId == null){
-            throw new UserException(MessageConstant.USER_NOT_AUTHEN);
-        }
+        Long userId = BaseContext.getCurrentId();
+        UserVO user = userId == null ? null : userMapper.getById(userId);
+        Long schoolId = user == null ? null : user.getSchoolId();
         List<AddressBookThreeVO.School> schools = schoolMapper.getThree(schoolId);
         List<AddressBookThreeVO.Compus> compuses = compusMapper.getThree(schoolId);
         List<AddressBookThreeVO.BuildCategory> buildCategories = buildCategoryMapper.getThree(schoolId);

@@ -50,7 +50,8 @@
     <select id="getThree" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookThreeVO$Building">
         SELECT building_name,number_id
         FROM tb_building
-        WHERE deleted = 0 AND school_id = #{schoolId}
+        WHERE deleted = 0
+        <if test="schoolId != null">AND school_id = #{schoolId}</if>
     </select>
 
     <select id="getBySchoolId" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminAdressBuildingVO">

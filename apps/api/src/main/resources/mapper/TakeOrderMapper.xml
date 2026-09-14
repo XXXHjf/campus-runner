@@ -40,7 +40,6 @@
             orders.category_id,
             category.category_name,
             take_order.take_order_create_time,
-            take_order.take_order_image,
             take_order.take_order_delivery_time,
             take_order.take_order_cancel_time,
             take_order.take_order_cancel_reason
@@ -141,7 +140,6 @@
             orders.category_id,
             category.category_name,
             take_order.take_order_create_time,
-            take_order.take_order_image,
             take_order.take_order_delivery_time,
             take_order.take_order_cancel_time,
             take_order.take_order_cancel_reason

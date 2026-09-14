@@ -35,6 +35,7 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        BaseContext.removeCurrentId();
         //判断当前拦截到的是Controller的方法还是其他资源
         if (!(handler instanceof HandlerMethod)) {
             //当前拦截到的不是动态方法，直接放行
@@ -51,8 +52,30 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
             BaseContext.setCurrentId(id);
             return true;
         } catch (Exception e){
+            if (isPublicRead(request)) return true;
             response.setStatus(401);
             return false;
         }
+    }
+
+    // Keep the method check: POST/PUT/DELETE on the same paths still require identity.
+    static boolean isPublicRead(HttpServletRequest request) {
+        if (!"GET".equals(request.getMethod())) return false;
+        String path = request.getServletPath();
+        return path.equals("/api/second-hand/categories")
+                || path.equals("/api/second-hand/products")
+                || path.matches("/api/second-hand/products/[0-9]+")
+                || path.equals("/api/order/public")
+                || path.equals("/api/school")
+                || path.matches("/api/school/[0-9]+")
+                || path.equals("/api/category")
+                || path.matches("/api/category/[0-9]+")
+                || path.equals("/api/address/three");
+    }
+
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
+                                Object handler, Exception ex) {
+        BaseContext.removeCurrentId();
     }
 }

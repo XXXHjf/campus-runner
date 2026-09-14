@@ -19,7 +19,6 @@ App({
     // 使用 tokenManager 统一管理
     if (userInfo && userInfo.token) {
       tokenManager.updateToken(userInfo.token, userInfo);
-      console.log('用户信息已更新', userInfo);
     } else {
       this.globalData.userInfo = userInfo;
       // 写入缓存
@@ -44,17 +43,13 @@ App({
     // 这样可以确保在页面/组件加载前 token 已经准备好
     tokenManager.initTokenSync();
     
-    console.log('Token 初始化完成, 当前 token:', tokenManager.getToken());
-
-    if (!tokenManager.hasToken()) {
-      this.globalData.silentLoginPromise = this.silentLogin();
-    }
+    // 游客启动不创建账号；只有用户主动确认登录时才调用 wx.login。
   },
 
   onShow() {
     this.refreshMineTabRedDot().catch(() => {});
   },
-  // 静默登录，用于启动时无感刷新 token
+  // 仅供用户主动确认登录后调用，不在启动或请求失败时自动执行。
   silentLogin() {
     console.log('尝试静默登录');
     const url = this.globalData.API_URL;
@@ -70,7 +65,7 @@ App({
             timeout: 10000,
             success: (res) => {
               const token = res.data?.data?.token;
-              if (res.statusCode === 200 && token) {
+              if (res.statusCode === 200 && res.data?.code === 1 && token) {
                 tokenManager.updateToken(token);
                 console.log('静默登录成功');
                 resolve(true);

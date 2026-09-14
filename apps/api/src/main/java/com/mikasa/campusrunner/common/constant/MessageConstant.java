@@ -6,20 +6,20 @@ package com.mikasa.campusrunner.common.constant;
  */
 
 public class MessageConstant {
-    public static final String LOGIN_FAILED = "Login failed";
-    public static final String AUTHEN_SUCCESS = "Authentication successful";
-    public static final String AUTHEN_FAILED = "Authentication failed";
+    public static final String LOGIN_FAILED = "登录失败，请稍后重试";
+    public static final String AUTHEN_SUCCESS = "认证成功";
+    public static final String AUTHEN_FAILED = "认证失败，请核对信息后重试";
     public static final String DUPLICATE_RESERVE_ADDRESS = "REPEAT";
     public static final String EMPTY_RESERVE_ADDRESS = "Cannot add an empty address";
     public static final String FILE_UPLOAD_FAILED = "File upload failed";
 
     public static final String NOT_FOUND_ADDRESS = "Address not found";
 
-    public static final String NOT_FOUND_PARAM = "Missing required parameters";
+    public static final String NOT_FOUND_PARAM = "信息不完整，请检查后重试";
 
     public static final String NOT_FOUND_ORDER = "Order not found";
 
-    public static final String ORDER_ALREADY_TAKE = "This order has already been taken";
+    public static final String ORDER_ALREADY_TAKE = "该订单已被接单，请选择其他订单";
 
     public static final String ORDER_ALREADY_CANCEL = "This order has already been canceled";
 
@@ -43,7 +43,7 @@ public class MessageConstant {
 
     public static final String ORDER_NOT_FINISHED = "Order is not finished yet, photo not available";
 
-    public static final String USER_NOT_AUTHEN = "User not authenticated";
+    public static final String USER_NOT_AUTHEN = "完成校园认证后才能操作，请前往“我的”查看认证状态";
     public static final String USER_PROFILE_INCOMPLETE = "请先完善头像、昵称和手机号";
     public static final String INVALID_USER_PHONE = "请输入正确的手机号";
     public static final String INVALID_USERNAME = "请输入有效的昵称";
@@ -52,9 +52,9 @@ public class MessageConstant {
     public static final String ORDER_NOT_PAY = "Order not paid, cannot withdraw";
     public static final String ORDER_STATE_NOT_CONFIRMS_OR_WITHDRAWAL_FAILED = "Order is not in confirmed or withdrawal-failed state";
     public static final String ORDER_CHECK_PAY_FAIL = "Order status check failed, auto-canceled";
-    public static final String NO_STUDENT_ID_CARD = "Student ID card image not provided, please upload";
+    public static final String NO_STUDENT_ID_CARD = "请上传学生证或校园卡照片";
     public static final String NO_ADMIN_USER = "Invalid credentials, admin user not found";
-    public static final String NO_USER = "User not found";
-    public static final String NO_SCHOOL_NAME = "School name not found, please try again";
+    public static final String NO_USER = "账号信息已失效，请重新登录";
+    public static final String NO_SCHOOL_NAME = "学校不存在，请重新选择";
     public static final String ORDER_TIME_OUT_TO_AUTO_REFUND = "Order timed out with no one taking it, auto-refunding";
 }

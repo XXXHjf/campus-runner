@@ -968,6 +968,7 @@ Page({
   },
   // 发布订单 - 验证并显示确认弹窗
   async order() {
+    if (!await require('../../../../utils/accessGuard').ensureAuthenticated()) return;
     // 数据预处理
     this._prepareOrderData();
 
@@ -1032,6 +1033,7 @@ Page({
   },
   // 确认发布订单
   async confirmOrder() {
+    if (!await require('../../../../utils/accessGuard').ensureAuthenticated()) return;
     this.setData({
       showOrderConfirm: false
     });
@@ -1235,11 +1237,7 @@ Page({
   },
   // 清除所有页面数据
   onUnload: function () {
-    let pages = getCurrentPages().length - 1;
-    console.log('需要销毁的页面：' + pages);
-    wx.navigateBack({
-      delta: pages
-    })
+    // 页面退出时不再发起第二次返回，避免破坏原来的浏览路径。
   },
 
   // 生命周期函数--监听页面加载
@@ -1305,10 +1303,7 @@ Page({
     } catch (error) {
       // 未登录或者未认证状态，提示并转到"我的"
       if (error.type === 'NOT_LOGIN' || error.type === 'NOT_IDENTIFY') {
-        showWarningToast(this, error.message);
-        setTimeout(() => {
-          wx.switchTab({ url: '/pages/mine/mine/mine' });
-        }, 1500);
+        showWarningToast(this, '发布跑腿前需登录并完成校园认证');
       }
       return null;
     }

@@ -41,7 +41,7 @@ async function loadSummary(userInfo) {
   const currentUser = userInfo && userInfo.id != null
     ? userInfo
     : await userService.getUserInfo();
-  if (!isProfileComplete(currentUser)) {
+  if (!isProfileComplete(currentUser) || Number(currentUser.authentication) !== 1) {
     return { totalCount: 0 };
   }
 

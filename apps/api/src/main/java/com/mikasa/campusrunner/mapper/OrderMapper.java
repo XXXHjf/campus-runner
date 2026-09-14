@@ -19,6 +19,7 @@ import java.util.List;
  */
 @Mapper
 public interface OrderMapper {
+    List<com.mikasa.campusrunner.pojo.vo.PublicOrderVO> listPublicOrders();
 
     /**
      * 根据价格优先排序，

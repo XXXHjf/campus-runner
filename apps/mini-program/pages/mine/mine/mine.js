@@ -95,12 +95,14 @@ Page({
     privateUnreadCount: 0,
   },
 
-  onMenuTap(e) {
+  async onMenuTap(e) {
     if (this.data.userInfo == null) {
       this.loginTap();
       return;
     }
     const action = e.currentTarget.dataset.value;
+    if (['label_7', 'label_8', 'label_9', 'label_10', 'label_11'].includes(action)
+      && !await require('../../../utils/accessGuard').ensureAuthenticated()) return;
     if (this[action]) {
       this[action]();
     }
@@ -178,7 +180,7 @@ Page({
     const dialogConfig = {
       context: this,
       title: '登录',
-      content: '登录后请先完善头像、昵称和手机号',
+      content: '登录后可管理个人订单。取消后仍可继续浏览。',
       confirmBtn: '确定',
       cancelBtn: '取消',
     };
@@ -201,7 +203,6 @@ Page({
         });
       });
 
-      console.log("code is " + loginRes.code);
 
       // 调用登录接口获取 token（这个接口比较特殊，直接使用 wx.request）
       const loginResult = await new Promise((resolve, reject) => {
@@ -219,7 +220,9 @@ Page({
         });
       });
 
-      console.log('登录成功', loginResult.data.data);
+      if (loginResult.statusCode !== 200 || loginResult.data?.code !== 1 || !loginResult.data?.data?.token) {
+        throw new Error('登录失败，请稍后重试');
+      }
       
       // token存入缓存与全局变量userInfo中
       const token = {
@@ -249,16 +252,7 @@ Page({
         });
         app.refreshMineTabRedDot({ force: true, userInfo }).catch(() => {});
 
-        const onboardingRoute = getRequiredOnboardingRoute(userInfo);
-        if (onboardingRoute) {
-          wx.navigateTo({ url: onboardingRoute });
-        } else {
-          wx.showToast({
-            title: '登录成功',
-            icon: 'success',
-            duration: 2000
-          });
-        }
+        wx.showToast({ title: '登录成功', icon: 'success', duration: 2000 });
 
         // 关闭加载中的遮罩层
         this.setData({
@@ -552,8 +546,11 @@ Page({
     // 已登录状态，加载用户数据
     try {
       const userInfo = await this.getGlobalData();
-      if (!isProfileComplete(userInfo)) {
-        wx.navigateTo({ url: PROFILE_PAGE });
+      // 返回资料页后可继续浏览，不在生命周期中强制进入注册。
+      if (Number(userInfo.authentication) !== 1) {
+        this.setData({ notReceiveOrderList: [], unpaidOrderList: [],
+          secondHandOrderCount: 0, bargainPendingCount: 0, privateUnreadCount: 0 });
+        mineTabBadgeService.clearMineTabRedDot();
         return;
       }
       

@@ -45,7 +45,7 @@
         <view class="show-cart" bindtap="gotoTakesInfo" data-item="{{item}}">
           <!-- 分类 -->
           <view class="box1">
-            <t-image hidden="{{item.categoryImage!=null}}" class="categoryImage" src="{{item.categoryImage}}" loading="slot" error="slot" mode="widthFix" />
+            <t-image wx:if="{{item.categoryImage}}" class="categoryImage" src="{{item.categoryImage}}" loading="slot" error="slot" mode="widthFix" />
             <view class="categoryName">{{item.categoryName}}</view>
             <!-- 时间tag -->
             <view>
@@ -71,7 +71,7 @@
             </view>
             <!-- 订单说明文字 -->
             <view class="box2-1">
-              <view class="note">{{item.displayTitle||item.note||'暂无说明'}}</view>
+              <view class="note">{{item.displayTitle||item.note||item.categoryName||'跑腿服务'}}</view>
               <view class="pick">取：{{item.pickUpAddress}}</view>
               <view class="recive">收：{{item.reciveAddress}}</view>
             </view>
@@ -82,15 +82,9 @@
       </block>
     </view>
     <!-- 底部填充 -->
-    <view wx:if="{{userInfo.token!=null && !isLoginChecking && !ordersLoading}}">
-      <view wx:if="{{userInfo.authentication==1}}" style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">{{takes.length > 0 ? '已显示全部订单' : '暂无可接订单'}}</view>
-      <view wx:else style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">在"我的"认证后查看订单</view>
-    </view>
-    <view wx:else style="position: relative;" hidden="{{isLoginChecking || ordersLoading}}">
-      <view style="position: absolute;  top: 50%;  left: 50%;  transform: translate(-50%, 150%);">
-        <t-icon name="look-around" size="96rpx" color="darkgray;" />
-        <view style="margin: 20rpx; width: 500rpx; text-align: center;font-weight: bold;color: darkgray;">登录后可查看跑腿订单</view>
-      </view>
+    <view wx:if="{{!isLoginChecking && !ordersLoading}}">
+      <view style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">{{takes.length > 0 ? '已显示当前可浏览订单' : '暂无可接订单'}}</view>
+      <view wx:if="{{userInfo.authentication!=1}}" style="margin: 30rpx;text-align: center;color: darkgray;">可先浏览，接单前需登录并完成校园认证</view>
     </view>
   </view>
 </view>

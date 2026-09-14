@@ -160,11 +160,7 @@ Component({
         // *** 关键改进：等待 token 就绪 ***
         await tokenManager.waitForToken();
         
-        // 检查是否有 token
-        if (!tokenManager.hasToken()) {
-          console.warn('组件初始化时未登录，跳过地址加载');
-          return;
-        }
+        // 校园楼栋是公开筛选数据，游客也可加载。
         
         const addressList = await this._getAllAddress();
         if (!addressList) {

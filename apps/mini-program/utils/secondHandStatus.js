@@ -58,6 +58,8 @@ function formatRemain(seconds) {
 function friendlyError(error, fallback) {
   const raw = error && error.message ? String(error.message) : '';
   if (!raw) return fallback;
+  if (/User not authentic/i.test(raw)) return '完成校园认证后才能操作';
+  if (!/[\u4e00-\u9fff]/.test(raw)) return fallback;
   if (raw.includes('BadSqlGrammarException') || raw.includes('Exception:') || raw.includes('###')) {
     return fallback;
   }
@@ -66,7 +68,7 @@ function friendlyError(error, fallback) {
   if (raw.includes('议价次数已用完')) return '议价次数已用完';
   if (raw.includes('订单已超时关闭')) return '订单已超时，请重新购买';
   if (raw.includes('订单状态已更新')) return '订单状态已更新，请刷新查看';
-  return raw.length > 18 ? raw.slice(0, 18) : raw;
+  return raw;
 }
 
 module.exports = {

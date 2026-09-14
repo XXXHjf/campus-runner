@@ -429,8 +429,9 @@ curl -I https://www.campusrunner.top/
 通用轮播图列表 `/admin/api/banner/getList/0` 允许匿名访问并会查询数据库，适合作为
 发布探针；必须同时确认 HTTP 200 和业务 `code=1`。不要假设学校 ID `1` 永久存在：
 学校被删除时 `/getList/1` 会返回业务失败，但不代表数据库连接故障。当前
-`/api/second-hand/categories` 受鉴权保护，未携带 token 时返回 `401` 属于预期行为；
-不要使用 `curl -f` 将该 `401` 误判为后端启动失败。
+游客浏览版本部署后，`/api/second-hand/categories` 及 `/api/order/public` 的 GET 也应允许
+匿名读取并返回业务 `code=1`；旧生产版本尚未升级时前者仍可能返回 `401`。
+游客能力应先发布 API，再上传小程序，且个人订单与写入仍必须拒绝匿名访问。
 
 验证 admin 登录链路时，应使用安全提供的测试账号，不要把密码留在 shell 历史中。
 至少确认 `POST /admin/api/login` 能在前端 15 秒超时之前返回，并检查后端日志确实

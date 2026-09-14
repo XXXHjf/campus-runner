@@ -28,7 +28,8 @@
     <select id="getThree" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookThreeVO$School">
         SELECT school_name,number_id
         FROM tb_school
-        WHERE deleted = 0 AND id = #{schoolId}
+        WHERE deleted = 0
+        <if test="schoolId != null">AND id = #{schoolId}</if>
     </select>
 
     <select id="getNameById" resultType="java.lang.String">

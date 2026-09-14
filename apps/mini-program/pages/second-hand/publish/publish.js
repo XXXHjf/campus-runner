@@ -271,7 +271,8 @@ Page({
     return '';
   },
 
-  submit() {
+  async submit() {
+    if (!await require('../../../utils/accessGuard').ensureAuthenticated()) return;
     const error = this.validateForm();
     if (error) {
       wx.showToast({ title: error, icon: 'none' });

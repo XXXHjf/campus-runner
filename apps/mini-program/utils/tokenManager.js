@@ -163,7 +163,7 @@ function clearToken() {
   }
   wx.removeStorageSync('userInfo');
   clearTokenMeta();
-  tokenReady = false;
+  markTokenReady();
   console.log('Token 已清除');
 }
 

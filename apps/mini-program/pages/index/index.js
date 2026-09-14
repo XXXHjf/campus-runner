@@ -105,25 +105,37 @@ Page({
   },
 
   // 详情跳转
-  gotoTakesInfo(event) {
-    const id = event.currentTarget.dataset.item.id;
+  async gotoTakesInfo(event) {
+    const item = event.currentTarget.dataset.item;
+    if (!tokenManager.hasToken() || Number(this.data.userInfo.authentication) !== 1) {
+      const accept = await new Promise((resolve) => wx.showModal({
+        title: item.categoryName || '跑腿服务',
+        content: `取：${item.pickUpAddress || '暂未提供'}\n收：${item.reciveAddress || '暂未提供'}\n${item.price == null ? '无偿帮忙' : `报酬 ¥${item.price}`}\n接单前需完成校园认证，取件说明仅向已认证用户提供。`,
+        confirmText: '去接单',
+        cancelText: '返回',
+        success: (res) => resolve(!!res.confirm),
+        fail: () => resolve(false),
+      }));
+      if (!accept) return;
+    }
+    if (!await require('../../utils/accessGuard').ensureAuthenticated()) return;
+    const id = item.id;
     console.log(id)
     wx.navigateTo({
       url: `/pages/orders/takeOrders/takesInfo/info?id=${id}`,
     })
   },
-  gotoPublishRunner() {
+  async gotoPublishRunner() {
+    if (!await require('../../utils/accessGuard').ensureAuthenticated()) return;
     wx.navigateTo({
       url: '/pages/orders/myOrders/ordersAdd/add',
     });
   },
   selectTimeSort() {
-    if (!this._ensureLoggedIn()) return;
     this.setData({ sortMode: 'time' });
     this.applyFilters();
   },
   togglePriceSort() {
-    if (!this._ensureLoggedIn()) return;
     const priceSort = this.data.sortMode === 'price' ? (this.data.priceSort + 1) % 2 : 0;
     this.setData({
       sortMode: 'price',
@@ -132,7 +144,6 @@ Page({
     this.applyFilters();
   },
   async openFilter() {
-    if (!this._ensureLoggedIn()) return;
     this._filterSnapshot = {
       selectedCategoryId: this.data.selectedCategoryId,
       selectedCategoryName: this.data.selectedCategoryName,
@@ -256,7 +267,6 @@ Page({
   },
   applyFilters() {
     const token = tokenManager.getToken();
-    if (!token) return Promise.resolve(false);
     const key = JSON.stringify([token, this.data.userInfo.schoolId, this.data.upPickUp,
       this.data.upRecive, this.data.selectedCategoryId, this.data.sortMode, this.data.priceSort]);
     if (this._ordersPending?.key === key) return this._ordersPending.promise;
@@ -266,7 +276,20 @@ Page({
     this.setData({ ordersLoading: true });
     const promise = (async () => {
       try {
-        const takes = await this._loadFilteredTakes();
+        let takes;
+        if (!token || Number(this.data.userInfo.authentication) !== 1) {
+          takes = await orderService.getPublicOrders();
+          if (this.data.selectedCategoryId != null) {
+            takes = takes.filter((item) => Number(item.categoryId) === Number(this.data.selectedCategoryId));
+          }
+          for (const [selection, field] of [[this.data.upPickUp, 'pickUpAddress'], [this.data.upRecive, 'reciveAddress']]) {
+            if (selection) takes = takes.filter((item) => (selection.label || []).filter(Boolean)
+              .every((label) => String(item[field] || '').includes(label)));
+          }
+          takes = this._sortTakes(this._decorateTakes(takes));
+        } else {
+          takes = await this._loadFilteredTakes();
+        }
         if (!isCurrent()) return false;
         this.setData({ takes });
         return true;
@@ -580,7 +603,6 @@ Page({
     this.onHide();
   },
   onShow() {
-    this.checkPrivacyAcknowledged();
     getApp().refreshMineTabRedDot().catch(() => {});
     return this.refreshRunner();
   },
@@ -600,15 +622,11 @@ Page({
       try {
         await tokenManager.waitForToken();
         if (version !== this._refreshVersion) return false;
-        if (!tokenManager.hasToken()) {
-          const app = getApp();
-          await (app.globalData?.silentLoginPromise || app.silentLogin?.());
-        }
-        if (version !== this._refreshVersion) return false;
         const token = tokenManager.getToken();
         if (!token) {
           this.setData({ userInfo: {}, takes: [] });
-          return false;
+          const [loaded] = await Promise.all([this.applyFilters(), this.loadBanners()]);
+          return loaded;
         }
         const userInfo = await userService.getUserInfo();
         if (version !== this._refreshVersion || token !== tokenManager.getToken()) return false;

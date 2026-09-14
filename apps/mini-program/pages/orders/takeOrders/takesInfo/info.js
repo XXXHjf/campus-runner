@@ -76,16 +76,10 @@ Page({
 
   // 待接单0->接单1（使用封装的 service）
   async statusTo1() {
+    if (!await require('../../../../utils/accessGuard').ensureAuthenticated()) return;
     const userInfo = this.data.userInfo;
     
     // 用户未认证的提示
-    if (userInfo.authentication == 0) {
-      errorCilcleToast(this, "未校园认证");
-      setTimeout(() => {
-        wx.navigateTo({ url: '/pages/mine/userInfo/info' });
-      }, 1500);
-      return;
-    }
     
     // 用户手机号未填的提示
     if (!userInfo.phone || userInfo.phone === '') {
