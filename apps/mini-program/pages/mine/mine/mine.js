@@ -66,11 +66,6 @@ Page({
             label: '议价记录',
             icon: 'chat-message',
           },
-          {
-            value: 'label_10',
-            label: '私信',
-            icon: 'chat',
-          },
         ],
       },
       {
@@ -92,7 +87,6 @@ Page({
     unpaidOrderList: [],
     secondHandOrderCount: 0,
     bargainPendingCount: 0,
-    privateUnreadCount: 0,
   },
 
   async onMenuTap(e) {
@@ -101,7 +95,7 @@ Page({
       return;
     }
     const action = e.currentTarget.dataset.value;
-    if (['label_7', 'label_8', 'label_9', 'label_10', 'label_11'].includes(action)
+    if (['label_7', 'label_8', 'label_9', 'label_11'].includes(action)
       && !await require('../../../utils/accessGuard').ensureAuthenticated()) return;
     if (this[action]) {
       this[action]();
@@ -141,11 +135,6 @@ Page({
   label_9() {
     wx.navigateTo({
       url: '/pages/second-hand/bargains/bargains',
-    })
-  },
-  label_10() {
-    wx.navigateTo({
-      url: '/pages/second-hand/conversations/conversations',
     })
   },
   label_11() {
@@ -321,7 +310,6 @@ Page({
           unpaidOrderList: [],
           secondHandOrderCount: 0,
           bargainPendingCount: 0,
-          privateUnreadCount: 0,
         });
         mineTabBadgeService.clearMineTabRedDot();
         
@@ -471,11 +459,10 @@ Page({
 
   async _getSecondHandTaskCounts() {
     try {
-      const [buyerOrders, sellerOrders, bargains, conversations] = await Promise.all([
+      const [buyerOrders, sellerOrders, bargains] = await Promise.all([
         secondHandService.listBuyerOrders(),
         secondHandService.listSellerOrders(),
         secondHandService.listMyBargains(),
-        secondHandService.listConversations(),
       ]);
       const buyerActionCount = buyerOrders.filter((item) => [0, 2].includes(Number(item.status))).length;
       const sellerActionCount = sellerOrders.filter((item) => (
@@ -488,21 +475,15 @@ Page({
         && userId != null
         && Number(item.sellerId) === Number(userId)
       )).length;
-      const privateUnreadCount = conversations.reduce(
-        (sum, item) => sum + Math.max(0, Number(item.unreadCount) || 0),
-        0,
-      );
       return {
         secondHandOrderCount: buyerActionCount + sellerActionCount,
         bargainPendingCount,
-        privateUnreadCount,
       };
     } catch (error) {
       console.error('获取二手待办失败:', error);
       return {
         secondHandOrderCount: 0,
         bargainPendingCount: 0,
-        privateUnreadCount: 0,
       };
     }
   },
@@ -541,7 +522,6 @@ Page({
         unpaidOrderList: [],
         secondHandOrderCount: 0,
         bargainPendingCount: 0,
-        privateUnreadCount: 0,
       });
       mineTabBadgeService.clearMineTabRedDot();
       return;
@@ -553,7 +533,7 @@ Page({
       // 返回资料页后可继续浏览，不在生命周期中强制进入注册。
       if (Number(userInfo.authentication) !== 1) {
         this.setData({ notReceiveOrderList: [], unpaidOrderList: [],
-          secondHandOrderCount: 0, bargainPendingCount: 0, privateUnreadCount: 0 });
+          secondHandOrderCount: 0, bargainPendingCount: 0 });
         mineTabBadgeService.clearMineTabRedDot();
         return;
       }
@@ -572,8 +552,7 @@ Page({
         notReceiveOrders.length
         + unpaidOrders.length
         + secondHandTasks.secondHandOrderCount
-        + secondHandTasks.bargainPendingCount
-        + secondHandTasks.privateUnreadCount,
+        + secondHandTasks.bargainPendingCount,
       );
       
     } catch (err) {
@@ -586,7 +565,6 @@ Page({
         unpaidOrderList: [],
         secondHandOrderCount: 0,
         bargainPendingCount: 0,
-        privateUnreadCount: 0,
       });
       mineTabBadgeService.clearMineTabRedDot();
     }

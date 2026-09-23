@@ -51,16 +51,14 @@ async function loadSummary(userInfo) {
     secondHandService.listBuyerOrders(),
     secondHandService.listSellerOrders(),
     secondHandService.listMyBargains(),
-    secondHandService.listConversations(),
   ]);
   const hasPartialFailure = results.some((result) => result.status === 'rejected');
-  const [notReceivedResult, runnerOrdersResult, buyerOrdersResult, sellerOrdersResult, bargainsResult, conversationsResult] = results;
+  const [notReceivedResult, runnerOrdersResult, buyerOrdersResult, sellerOrdersResult, bargainsResult] = results;
   const notReceivedOrders = fulfilledValue(notReceivedResult);
   const runnerOrders = fulfilledValue(runnerOrdersResult);
   const buyerOrders = fulfilledValue(buyerOrdersResult);
   const sellerOrders = fulfilledValue(sellerOrdersResult);
   const bargains = fulfilledValue(bargainsResult);
-  const conversations = fulfilledValue(conversationsResult);
 
   const runnerUnpaidCount = activeRunnerUnpaidCount(runnerOrders);
   const secondHandBuyerCount = buyerOrders.filter((item) => Number(item.status) === 2).length;
@@ -72,23 +70,17 @@ async function loadSummary(userInfo) {
     Number(item.status) === 0
     && Number(item.sellerId) === Number(currentUser.id)
   )).length;
-  const privateUnreadCount = conversations.reduce(
-    (sum, item) => sum + Math.max(0, Number(item.unreadCount) || 0),
-    0,
-  );
   const totalCount = notReceivedOrders.length
     + runnerUnpaidCount
     + secondHandBuyerCount
     + secondHandSellerCount
-    + bargainPendingCount
-    + privateUnreadCount;
+    + bargainPendingCount;
   if (totalCount === 0 && hasPartialFailure) {
     throw new Error('待办数据暂时不可用');
   }
 
   return {
     totalCount,
-    privateUnreadCount,
   };
 }
 

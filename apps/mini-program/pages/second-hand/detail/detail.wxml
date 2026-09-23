@@ -18,7 +18,7 @@
     <view class="description">{{product.description || '卖家暂未填写描述'}}</view>
     <view class="detail-delivery">
       <view class="info-line">{{product.deliveryText}}</view>
-      <view class="info-muted">自提点：{{product.pickupAddressText || '卖家暂未填写具体地点，购买前可私信确认'}}</view>
+      <view class="info-muted">自提点：{{product.pickupAddressText || '卖家暂未填写具体地点，下单前请与卖家确认'}}</view>
     </view>
     <view class="gallery">
       <swiper wx:if="{{images.length>0}}" current="{{galleryIndex}}" circular="{{images.length>1}}" class="swiper" bindchange="onGalleryChange">
@@ -30,9 +30,6 @@
       <view wx:if="{{images.length>0}}" class="detail-gallery-counter">{{galleryIndex + 1}}/{{images.length}}</view>
     </view>
     <view class="guarantee">平台仅提供信息撮合，付款和交付由双方自行协商。请先验货再付款。</view>
-    <view wx:if="{{product.isOwner}}" class="detail-seller-consultations">
-      <t-button size="small" shape="round" variant="outline" bind:tap="gotoConversations">查看咨询</t-button>
-    </view>
   </view>
 
   <view wx:if="{{showBargain}}" class="sheet-mask" bindtap="closeBargain">
@@ -116,15 +113,6 @@
           </t-button>
         </view>
         <view class="detail-primary-actions">
-          <t-button
-            wx:if="{{product.canContact}}"
-            class="detail-capsule-action"
-            t-class="cr-secondhand-capsule cr-secondhand-capsule--outline detail-bottom-capsule"
-            shape="round"
-            variant="outline"
-            icon="chat"
-            bind:tap="gotoConversation"
-          >私信</t-button>
           <t-button
             wx:if="{{product.canBuy}}"
             class="detail-capsule-action"

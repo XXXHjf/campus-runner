@@ -26,7 +26,7 @@
           <t-icon name="location" size="32rpx" />
       <view class="delivery-copy">
           <view class="delivery-label">{{order.deliveryAddressTitle}}</view>
-          <view class="delivery-address">{{order.deliveryAddressText || '请双方通过私信确认具体时间和地点'}}</view>
+          <view class="delivery-address">{{order.deliveryAddressText || '请双方自行确认具体时间和地点'}}</view>
           </view>
         </view>
         <view wx:if="{{order.deliveryMode==1 && order.pickupAddressText}}" class="info-muted">取货参考：{{order.pickupAddressText}}</view>
@@ -62,9 +62,6 @@
   <ui-action-bar wx:if="{{order.id}}" fixed>
     <view class="order-bottom-actions">
       <view class="order-contact-actions">
-        <t-button variant="text" t-class="order-icon-button" bind:tap="gotoConversation" aria-label="私信{{counterpartyLabel}}">
-          <view class="order-icon-content"><t-icon name="chat" size="40rpx" /><text>私信</text></view>
-        </t-button>
         <t-button wx:if="{{counterpartyPhone}}" variant="text" t-class="order-icon-button" bind:tap="callCounterparty" aria-label="拨打{{counterpartyLabel}}电话">
           <view class="order-icon-content"><t-icon name="call" size="40rpx" /><text>电话</text></view>
         </t-button>

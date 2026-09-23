@@ -78,7 +78,6 @@ Page({
       favoriteCount: Math.max(0, Number(product.favoriteCount) || 0),
       canBuy: !isOwner && Number(product.status) === 0,
       canBargain: !isOwner && Number(product.status) === 0 && Number(product.negotiable) === 1,
-      canContact: !isOwner,
     };
   },
 
@@ -306,19 +305,6 @@ Page({
     } finally {
       this.setData({ favoriteSubmitting: false });
     }
-  },
-
-  async gotoConversation() {
-    if (!await ensureAuthenticated()) return;
-    const product = this.data.product;
-    if (!product.id || !product.sellerId || product.isOwner) return;
-    wx.navigateTo({
-      url: `/pages/second-hand/conversation/conversation?productId=${product.id}&counterpartyId=${product.sellerId}`,
-    });
-  },
-
-  gotoConversations() {
-    wx.navigateTo({ url: '/pages/second-hand/conversations/conversations' });
   },
 
   editProduct() {

@@ -146,7 +146,7 @@ Page({
         return [{ title: '订单已取消', desc: '商品已恢复展示', active: true, danger: true }];
       }
       if (current === 11) {
-        return [{ title: '双方协商中', desc: '请通过私信与对方沟通后续处理', active: true, danger: true }];
+        return [{ title: '双方协商中', desc: '请与对方沟通后续处理', active: true, danger: true }];
       }
       return [
         { key: 1, title: '已下单', desc: '请双方联系并协商付款、交付方式' },
@@ -364,15 +364,6 @@ Page({
     }
   },
 
-  gotoConversation() {
-    const order = this.data.order;
-    const counterpartyId = this.data.role === 'buyer' ? order.sellerId : order.buyerId;
-    if (!order.productId || !counterpartyId) return;
-    wx.navigateTo({
-      url: `/pages/second-hand/conversation/conversation?productId=${order.productId}&counterpartyId=${counterpartyId}&orderId=${order.id}`,
-    });
-  },
-
   callCounterparty() {
     if (!this.data.counterpartyPhone) return;
     wx.makePhoneCall({ phoneNumber: this.data.counterpartyPhone });
@@ -393,7 +384,7 @@ Page({
       if (status === 2) return role === 'buyer' ? '确认双方完成交接后结束交易' : '等待买家确认交易完成';
       if (status === 3) return '双方已完成线下交易';
       if (status === 4) return '本次交易已取消';
-      if (status === 11) return '请通过私信与对方协商处理';
+      if (status === 11) return '请与对方协商处理';
       return '交易状态已更新';
     }
     if (status === 0) return '请在倒计时结束前完成支付';
