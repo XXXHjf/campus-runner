@@ -33,13 +33,19 @@ if [[ -z "${DB_PASSWORD:-}" ]]; then
     exit 1
 fi
 
+MOCK_PAYMENT_ENABLED="${MOCK_PAYMENT_ENABLED:-false}"
+if [[ "$MOCK_PAYMENT_ENABLED" != "true" && "$MOCK_PAYMENT_ENABLED" != "false" ]]; then
+    echo "MOCK_PAYMENT_ENABLED must be true or false" >&2
+    exit 1
+fi
+
 cd "$APP_DIR"
 nohup "$JAVA_BIN" -jar "$APP_JAR" \
     --server.port=8080 \
     --server.ssl.enabled=false \
     --spring.servlet.multipart.max-file-size=10MB \
     --spring.servlet.multipart.max-request-size=20MB \
-    --com.mikasa.campus-runner.dev.mock-payment-enabled=false \
+    --com.mikasa.campus-runner.dev.mock-payment-enabled="$MOCK_PAYMENT_ENABLED" \
     --com.mikasa.campus-runner.wechat.second-hand-transfer-scene-id=1010 \
     --logging.level.com.mikasa.campusrunner.mapper=INFO \
     --logging.level.com.wechat.pay.contrib.apache.httpclient.SignatureExec=OFF \
