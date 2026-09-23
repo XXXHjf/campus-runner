@@ -35,6 +35,7 @@ ALTER TABLE tb_category
 
 INSERT INTO tb_category(category_name, category_code, business_type, enabled, sort_order, deleted)
 SELECT '代买', 'PURCHASE', 'PURCHASE', 1, 10, 0
+FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM tb_category WHERE category_code = 'PURCHASE');
 
 ALTER TABLE tb_orders
