@@ -47,6 +47,7 @@ WHERE business_type IS NULL OR business_type = '' OR product_amount IS NULL;
 
 INSERT INTO tb_system_config(config_key, config_value, description)
 SELECT 'runner_transfer_single_max', '200.00', '跑腿订单接单人单笔收款上限'
+FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM tb_system_config WHERE config_key = 'runner_transfer_single_max');
 
 -- 验证：应有一条 PURCHASE，顺风车 enabled=0，商家单笔转账上限配置为 200.00。
