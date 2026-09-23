@@ -10,6 +10,7 @@ import com.mikasa.campusrunner.common.exception.UserException;
 import com.mikasa.campusrunner.common.utils.WeChatPayUtil;
 import com.mikasa.campusrunner.mapper.*;
 import com.mikasa.campusrunner.pojo.dto.OrderCancelDTO;
+import com.mikasa.campusrunner.pojo.dto.OrderContentUpdateDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderShowByAddressDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderShowByDoubleAddDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderSubmitDTO;
@@ -98,8 +99,13 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public Order submit(OrderSubmitDTO orderSubmitDTO) {
+        String note = validateContentNote(orderSubmitDTO.getNote());
+        if (orderSubmitDTO.getImageAssetId() == null) {
+            throw new ParamException("请上传一张说明图片");
+        }
         Order order = new Order();
         BeanUtils.copyProperties(orderSubmitDTO, order);
+        order.setNote(note);
         Category category = categoryMapper.getById(orderSubmitDTO.getCategoryId());
         if (category == null || !Integer.valueOf(1).equals(category.getEnabled())) {
             throw new ParamException("该跑腿类型暂不可发布");
@@ -152,6 +158,40 @@ public class OrderServiceImpl implements OrderService {
             order.setImageAssetId(orderSubmitDTO.getImageAssetId());
         }
         return order;
+    }
+
+    @Override
+    @Transactional
+    public void updateContent(Long id, OrderContentUpdateDTO dto) {
+        if (dto == null) {
+            throw new ParamException("请填写订单说明并上传图片");
+        }
+        String note = validateContentNote(dto.getNote());
+        if (dto.getImageAssetId() == null) {
+            throw new ParamException("请上传一张说明图片");
+        }
+        Order order = orderMapper.getById(id);
+        if (order == null || !BaseContext.getCurrentId().equals(order.getUserId())) {
+            throw new OrderException("订单不存在或无权修改");
+        }
+        if (orderMapper.updateWaitingContent(id, BaseContext.getCurrentId(), note) != 1) {
+            throw new OrderException("订单状态已变化，请刷新后重试");
+        }
+        mediaAssetService.replaceBinding(
+                List.of(dto.getImageAssetId()), MediaPurpose.ORDER_IMAGE.name(),
+                MediaAssetConstant.OWNER_USER, BaseContext.getCurrentId(),
+                MediaAssetConstant.BOUND_ORDER, id, 1, Duration.ofDays(7));
+    }
+
+    private String validateContentNote(String value) {
+        String note = value == null ? "" : value.trim();
+        if (note.codePoints().filter(c -> !Character.isWhitespace(c)).count() < 4) {
+            throw new ParamException("说明至少填写4个字");
+        }
+        if (note.codePointCount(0, note.length()) > 100) {
+            throw new ParamException("说明不能超过100个字");
+        }
+        return note;
     }
 
     @Override

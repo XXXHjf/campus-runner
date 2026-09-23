@@ -9,7 +9,10 @@ let tokenReady = false;
 let tokenReadyCallbacks = [];
 
 const TOKEN_TTL_MS = 20 * 60 * 60 * 1000; // 20h
+const TOKEN_REFRESH_AHEAD_MS = 30 * 60 * 1000;
 const TOKEN_UPDATED_AT_KEY = 'tokenUpdatedAt';
+const LOGIN_INTENT_KEY = 'hasLoggedIn';
+let sessionVersion = 0;
 
 function getAppSafe() {
   try {
@@ -25,10 +28,7 @@ function getTokenUpdatedAt() {
 }
 
 function setTokenUpdatedAt(timestamp) {
-  wx.setStorage({
-    key: TOKEN_UPDATED_AT_KEY,
-    data: timestamp
-  });
+  wx.setStorageSync(TOKEN_UPDATED_AT_KEY, timestamp);
 }
 
 function clearTokenMeta() {
@@ -38,6 +38,21 @@ function clearTokenMeta() {
 function isTokenExpired(updatedAt) {
   if (!updatedAt) return false;
   return Date.now() - updatedAt >= TOKEN_TTL_MS;
+}
+
+function hasLoginIntent() {
+  return wx.getStorageSync(LOGIN_INTENT_KEY) === true;
+}
+
+function needsRefresh() {
+  if (!hasLoginIntent()) return false;
+  if (!getToken()) return true;
+  const updatedAt = getTokenUpdatedAt();
+  return !updatedAt || Date.now() - updatedAt >= TOKEN_TTL_MS - TOKEN_REFRESH_AHEAD_MS;
+}
+
+function getSessionVersion() {
+  return sessionVersion;
 }
 
 /**
@@ -61,6 +76,9 @@ function waitForToken() {
     } else {
       tokenReadyCallbacks.push(resolve);
     }
+  }).then(async () => {
+    const pending = getAppSafe()?.globalData?.silentLoginPromise;
+    if (pending) await pending;
   });
 }
 
@@ -81,6 +99,8 @@ function initTokenSync() {
   try {
     const userInfo = wx.getStorageSync('userInfo');
     if (userInfo && userInfo.token) {
+      // Existing users must retain their login choice across this upgrade.
+      wx.setStorageSync(LOGIN_INTENT_KEY, true);
       const updatedAt = getTokenUpdatedAt();
       if (isTokenExpired(updatedAt)) {
         console.log('Token 已过期，清理缓存');
@@ -88,8 +108,7 @@ function initTokenSync() {
         if (app && app.globalData) {
           app.globalData.userInfo = null;
         }
-        wx.removeStorageSync('userInfo');
-        clearTokenMeta();
+        clearToken({ preserveLoginIntent: true });
         markTokenReady();
         return false;
       }
@@ -130,25 +149,17 @@ function updateToken(token, userInfo = {}) {
   }
   
   // 更新全局数据
+  const previous = app.globalData.userInfo;
   app.globalData.userInfo = {
-    ...app.globalData.userInfo,
+    ...(previous?.token === token ? previous : {}),
     ...userInfo,
     token: token
   };
   
   // 更新本地存储
-  wx.setStorage({
-    key: 'userInfo',
-    data: app.globalData.userInfo,
-    success: () => {
-      console.log('Token 更新成功');
-    },
-    fail: (err) => {
-      console.error('Token 存储失败:', err);
-    }
-  });
-
+  wx.setStorageSync('userInfo', app.globalData.userInfo);
   setTokenUpdatedAt(Date.now());
+  wx.setStorageSync(LOGIN_INTENT_KEY, true);
   
   markTokenReady();
 }
@@ -156,13 +167,15 @@ function updateToken(token, userInfo = {}) {
 /**
  * 清除 token
  */
-function clearToken() {
+function clearToken({ preserveLoginIntent = false } = {}) {
+  sessionVersion++;
   const app = getAppSafe();
   if (app && app.globalData) {
     app.globalData.userInfo = null;
   }
   wx.removeStorageSync('userInfo');
   clearTokenMeta();
+  if (!preserveLoginIntent) wx.removeStorageSync(LOGIN_INTENT_KEY);
   markTokenReady();
   console.log('Token 已清除');
 }
@@ -183,6 +196,9 @@ module.exports = {
   clearToken,
   hasToken,
   markTokenReady,
-  getTokenUpdatedAt
+  getTokenUpdatedAt,
+  hasLoginIntent,
+  needsRefresh,
+  getSessionVersion
 };
 

@@ -466,3 +466,24 @@
 .content-image-container {
   margin-top: 20rpx;
 }
+.purchase-detail { padding: 22rpx var(--cr-page-padding) 210rpx; }
+.purchase-detail__hero { padding: 12rpx 4rpx 26rpx; }
+.purchase-detail__tag { display: inline-block; padding: 7rpx 16rpx; border-radius: var(--cr-radius-small); color: #df5e28; background: #fff2e9; font-size: 24rpx; }
+.purchase-detail__state { margin-top: 10rpx; color: #e7552d; font-size: 46rpx; font-weight: 700; }
+.purchase-detail__hint { margin-top: 4rpx; color: var(--cr-color-text-secondary); font-size: 25rpx; }
+.purchase-detail__card { margin-bottom: var(--cr-section-gap); padding: 8rpx 24rpx 20rpx; background: var(--cr-color-surface); border-radius: var(--cr-radius-large); box-shadow: var(--cr-shadow-card); }
+.purchase-detail__heading { padding: 18rpx 0; font-size: 32rpx; font-weight: 600; }
+.purchase-detail__row { display: flex; gap: 22rpx; padding: 18rpx 0; border-top: 1rpx solid var(--cr-color-border); font-size: 27rpx; line-height: 1.5; }
+.purchase-detail__row text:first-child { flex: none; width: 128rpx; color: var(--cr-color-text-secondary); }
+.purchase-detail__row text:last-child { min-width: 0; flex: 1; word-break: break-all; }
+.purchase-detail__row .purchase-detail__money { text-align: right; color: #e7552d; font-weight: 600; }
+.purchase-detail__row--total { font-weight: 600; }
+.purchase-detail__row--total .purchase-detail__money { font-size: 34rpx; }
+.purchase-detail__explain { padding-top: 8rpx; color: var(--cr-color-text-secondary); font-size: 23rpx; line-height: 1.5; }
+.purchase-detail__person { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 14rpx 0 4rpx; font-size: 28rpx; }
+.purchase-detail__contact { flex: none; padding: 10rpx 22rpx; border: 1rpx solid var(--cr-color-primary); border-radius: 999rpx; color: var(--cr-color-primary); font-size: 24rpx; }
+.purchase-detail__image { display: block; width: 180rpx; height: 180rpx; margin: 8rpx 0; }
+.purchase-detail__number { padding: 8rpx 4rpx; color: var(--cr-color-text-secondary); font-size: 23rpx; }
+.purchase-detail__actions { position: fixed; z-index: 5; left: 0; right: 0; bottom: 0; padding: 16rpx var(--cr-page-padding) calc(16rpx + env(safe-area-inset-bottom)); background: var(--cr-color-surface); border-top: 1rpx solid var(--cr-color-border); }
+.purchase-detail__actions--pair { display: flex; gap: 16rpx; }
+.purchase-detail__action-secondary, .purchase-detail__action-primary { min-width: 0; flex: 1; }

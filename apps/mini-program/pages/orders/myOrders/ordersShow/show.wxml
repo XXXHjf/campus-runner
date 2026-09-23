@@ -1,54 +1,71 @@
-<!-- 顶部tab栏 -->
-<view class="tab">
-  <t-cell class="tabs" title="{{tabTitles[tabValue]}}" hover arrow leftIcon="send" bordered="{{false}}" bind:tap="openDrawer" />
-</view>
-<t-drawer visible="{{visible}}" placement="left" items="{{sidebar}}" title="我发布的跑腿" bind:overlay-click="overlayClick" bind:item-click="itemClick" />
-<!-- 展示地址卡片的空间 -->
-<view class="show">
-  <view class="cart" croll-y>
-    <block wx:for="{{orders}}" wx:key="id">
-      <view wx:if="{{tabValue=='all' || (tabValue=='0' && item.status==0) || (tabValue=='processing' && (item.status==1||item.status==2||item.status==3)) || (tabValue=='5' && item.status==5) || (tabValue=='4' && item.status==4) || (tabValue=='refund' && (item.status==-4||item.status==-3||item.status==-2||item.status==-1))}}" class="show-cart" bindtap="gotoOrderInfo" data-item="{{item}}">
-
-        <view class="box1">
-          <!-- 订单类别图标 -->
-          <image class="categoryImage" src="{{item.categoryImage}}" mode="widthFix" />
-          <!-- 订单类别名字 -->
-          <view class="categoryName">{{item.categoryName}}</view>
-          <!-- 订单状态 -->
-          <t-tag class="status" variant="light" theme="{{item.statusTheme}}">{{item.statusDesc}}</t-tag>
-        </view>
-        <t-divider />
-
-        <view class="box2">
-          <!-- 订单说明图片 -->
-          <view hidden="{{item.image==null}}">
-            <t-image class="image" src="{{item.image}}" id="loading-img" mode="aspectFill" shape="round" style="width: 125rpx;height: 125rpx;" />
-          </view>
-          <!-- 订单说明文字 -->
-          <view class="box2-1">
-            <view class="note">{{item.note||'暂无说明'}}</view>
-            <view class="pick">{{item.displayPickUpLabel}}：{{item.pickUpAddress}}</view>
-            <view class="recive">{{item.displayReciveLabel}}：{{item.reciveAddress}}</view>
-          </view>
-
-        </view>
-        <t-divider />
-
-        <view class="box3">
-          <view class="date">创建时间: {{item.createTime}}</view>
-          <view class="price" hidden="{{item.price==null}}">
-            <view class="price-text" wx:if="{{item.businessType === 'PURCHASE'}}">商品 ¥{{item.displayProductAmount}} · 报酬 ¥{{item.price}} · 实付 ¥{{item.displayPayAmount}}</view>
-            <view class="price-text" wx:else>实付 ￥ {{item.displayPayAmount}}</view>
-          </view>
-        </view>
-
+<view class="my-orders">
+  <view class="my-orders__controls" style="padding-top: {{statusBarHeight}}px;">
+    <view class="my-orders__nav" style="height: {{navigationBarHeight}}px; padding-right: {{navigationRightPadding}}px;">
+      <view class="my-orders__back" role="button" aria-label="返回" bind:tap="goBack">
+        <t-icon name="chevron-left" size="44rpx" color="#1d2129" />
       </view>
-    </block>
+      <view class="my-orders__search">
+        <t-search
+          value="{{keyword}}"
+          shape="round"
+          placeholder="搜索订单关键词"
+          bind:change="onSearchChange"
+          bind:submit="onSearchSubmit"
+          bind:clear="clearSearch"
+        />
+      </view>
+    </view>
+    <view class="my-orders__tabs" role="tablist">
+      <view wx:for="{{filterOptions}}" wx:key="value" class="my-orders__tab {{tabValue == item.value ? 'my-orders__tab--active' : ''}}" data-value="{{item.value}}" role="tab" aria-selected="{{tabValue == item.value}}" bind:tap="selectTab">{{item.label}}</view>
+    </view>
   </view>
+
+  <view class="my-orders__controls-spacer" style="height: {{controlsHeight}}px;"></view>
+
+  <view class="my-orders__list" wx:if="{{filteredOrders.length}}">
+    <view wx:for="{{filteredOrders}}" wx:for-item="order" wx:for-index="index" wx:key="id" class="my-orders__item {{index > 0 ? 'my-orders__item--separated' : ''}}" data-id="{{order.id}}" bind:tap="gotoOrderInfo">
+      <view class="my-orders__item-top">
+        <view class="my-orders__type {{order.businessType === 'PURCHASE' ? 'my-orders__type--purchase' : ''}}">{{order.categoryName}}</view>
+        <view class="my-orders__status my-orders__status--{{order.statusKind}}">{{order.statusDesc}}</view>
+      </view>
+      <view class="my-orders__main">
+        <t-image wx:if="{{order.image}}" class="my-orders__cover" src="{{order.image}}" mode="aspectFill" shape="round" width="124rpx" height="124rpx" />
+        <text class="my-orders__title">{{order.displayNote}}</text>
+        <view class="my-orders__amount" wx:if="{{order.showPayAmount}}"><text>¥{{order.displayPayAmount}}</text></view>
+      </view>
+      <view class="my-orders__item-bottom">
+        <view class="my-orders__more" data-id="{{order.id}}" role="button" aria-label="更多操作" catch:tap="openActionSheet"><t-icon name="ellipsis" size="40rpx" color="#6b778c" /></view>
+        <view wx:if="{{order.primaryAction}}" class="my-orders__action" data-id="{{order.id}}" catch:tap="onPrimaryAction"><t-button t-class="cr-secondhand-capsule {{order.status == 3 || order.status == -1 ? 'cr-secondhand-capsule--highlight' : 'cr-secondhand-capsule--outline'}}" size="small" shape="round" theme="{{order.status == 3 || order.status == -1 ? 'primary' : 'default'}}" variant="{{order.status == 3 || order.status == -1 ? 'base' : 'outline'}}">{{order.primaryAction}}</t-button></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="my-orders__feedback" wx:if="{{loading && !orders.length}}"><t-loading theme="circular" text="加载中" /></view>
+  <ui-empty-state wx:elif="{{!filteredOrders.length}}" title="{{orders.length ? '没有找到符合条件的订单' : '暂无订单'}}" />
+  <t-toast id="t-toast" />
 </view>
 
-<!-- 空白填充 -->
-<view style="height: 100rpx;"></view>
+<t-popup visible="{{actionSheetVisible}}" placement="bottom" bind:visible-change="onActionSheetChange" close-on-overlay-click="true">
+  <view class="my-orders__sheet">
+    <view class="my-orders__sheet-title">订单操作</view>
+    <t-button wx:if="{{actionOrder.status == -1 || actionOrder.status == 0}}" block variant="text" theme="danger" bind:tap="cancelActionOrder">取消订单</t-button>
+    <t-button wx:if="{{actionOrder.status == 0}}" block variant="text" open-type="share">分享</t-button>
+    <t-button wx:if="{{actionOrder.status != -1 && actionOrder.status != 0}}" block variant="text" bind:tap="showActionOrderDetail">查看详情</t-button>
+    <view class="my-orders__sheet-separator"></view>
+    <t-button block variant="text" bind:tap="closeActionSheet">关闭</t-button>
+  </view>
+</t-popup>
 
-<!-- 刷新轻提示 -->
-<t-toast id="t-toast" />
+<t-popup visible="{{editVisible}}" placement="bottom" close-on-overlay-click="{{!editSaving}}" bind:visible-change="onEditVisibleChange">
+  <view class="my-orders__edit-sheet">
+    <view class="my-orders__sheet-title">编辑订单内容</view>
+    <view class="my-orders__edit-hint">待接单时可修改说明和图片</view>
+    <t-textarea value="{{editNote}}" maxlength="100" placeholder="请填写至少4个字的说明" indicator bind:change="onEditNoteChange" />
+    <view class="my-orders__edit-label">说明图片（1张）</view>
+    <t-upload mediaType="{{['image']}}" max="{{1}}" files="{{editFiles}}" bind:add="onEditImageAdd" bind:remove="onEditImageRemove" />
+    <view class="my-orders__edit-actions">
+      <t-button size="small" shape="round" theme="default" variant="outline" disabled="{{editSaving}}" bind:tap="closeEdit">取消</t-button>
+      <t-button size="small" shape="round" theme="primary" loading="{{editSaving}}" bind:tap="saveEdit">保存</t-button>
+    </view>
+  </view>
+</t-popup>

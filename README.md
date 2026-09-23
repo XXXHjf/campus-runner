@@ -24,7 +24,7 @@ cd apps/api
 
 默认端口：`8080`。
 
-后端配置文件位于 `apps/api/src/main/resources/application.yaml`，微信支付私钥位于 `apps/api/src/main/resources/apiclient_key.pem`。这两个文件包含本地/生产敏感配置，已被 `.gitignore` 忽略，不提交到 Git。打包部署时，确认这两个文件在 `src/main/resources` 下，再执行 Maven 打包即可。
+后端配置文件位于 `apps/api/src/main/resources/application.yaml`，微信支付私钥位于 `apps/api/src/main/resources/apiclient_key.pem`，两者均被 Git 忽略。API 打包前必须人工核对忽略的 YAML 和私钥是否适用于目标环境；本地配置不能直接作为生产配置。生产数据库密码由服务器权限为 `600` 的 `/root/campus-runner.env` 注入，不能写入 JAR。生产构建、发布及回滚须先读 [服务器操作手册](docs/deployment/server-operations.md) 的必检清单。
 
 ### 管理后台
 

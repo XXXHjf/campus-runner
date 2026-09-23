@@ -165,7 +165,7 @@ test('游客公开读取无登录副作用，私有读取与写入不放行', as
   assert.equal(calls, 5);
 });
 
-test('401清理过期登录，不刷新令牌或重放订单', async () => {
+test('无已登录记录的 401 清理过期凭证，不重放订单', async () => {
   let calls = 0;
   let cleared = 0;
   const { request } = load('services/request.js', {
@@ -177,11 +177,11 @@ test('401清理过期登录，不刷新令牌或重放订单', async () => {
   assert.equal(cleared, 1);
 });
 
-test('首次启动和无缓存启动只恢复缓存，不自动微信登录', () => {
+test('游客启动不自动微信登录', () => {
   let app;
   let initialized = 0;
   load('app.js', {
-    require: () => ({ initTokenSync() { initialized++; } }),
+    require: () => ({ initTokenSync() { initialized++; }, hasLoginIntent: () => false }),
     App(config) { app = config; },
     wx: { login() { throw new Error('不应自动登录'); } },
   });

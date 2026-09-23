@@ -3,6 +3,7 @@ package com.mikasa.campusrunner.controller.user;
 import com.mikasa.campusrunner.common.context.BaseContext;
 import com.mikasa.campusrunner.common.result.Result;
 import com.mikasa.campusrunner.pojo.dto.OrderCancelDTO;
+import com.mikasa.campusrunner.pojo.dto.OrderContentUpdateDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderShowByAddressDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderShowByDoubleAddDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderSubmitDTO;
@@ -143,6 +144,13 @@ public class OrderController {
         log.info("Detail query, id: {}", id);
         OrderShowVO list = orderService.detail(id);
         return Result.success(list);
+    }
+
+    @PutMapping("/{id}/content")
+    @Operation(summary = "修改待接单订单的说明和图片")
+    public Result<Void> updateContent(@PathVariable Long id, @RequestBody OrderContentUpdateDTO dto) {
+        orderService.updateContent(id, dto);
+        return Result.success();
     }
 
     @PutMapping("/cancel")

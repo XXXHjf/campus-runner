@@ -1,40 +1,18 @@
-# 文档目录
+# 项目文档导航
 
-## API
+本目录按当前代码维护业务约束与操作方法。接口路径先核对 `apps/api/src/main/java/.../controller/`，精确 DTO 和响应结构以当前运行版本生成的 OpenAPI 为准；数据库结构先核对迁移 SQL、Mapper 和目标环境实际表结构。生产环境状态无法仅由仓库代码证明。
 
-- [完整接口文档](api/api-full.md)
-- [现有接口汇总](api/current-api-summary.md)
-- [用户登录、资料注册与校园认证](api/user-onboarding.md)
-- [二手交易接口与流程](api/second-hand.md)
-- [管理后台接口速查](api/admin-quick-reference.md)
-- [管理后台订单接口](api/admin-orders.md)
-- [管理后台接单接口](api/admin-take-orders.md)
-- [管理后台用户接口](api/admin-users.md)
-- [管理后台分类接口](api/admin-categories.md)
+## 开发与业务
 
-## 小程序
+- [项目入口](../README.md)；[协作约束](../AGENTS.md)；[小程序约束](../apps/mini-program/AGENTS.md)。
+- [当前 API 分组](api/current-api-summary.md)、[管理端接口](api/admin-management.md)、[用户注册与认证](api/user-onboarding.md)、[地址簿](api/address-book.md)、[图片资源](api/media-assets.md)、[二手交易](api/second-hand.md)。
+- [跑腿订单与接单接口](mini-program/api-orders.md)、[跑腿业务及资金流程](mini-program/order-flow.md)、[小程序组件与视觉基线](mini-program/ui-components.md)。
 
-- [列表组件与样式复用](mini-program/ui-components.md)
-- [发单与接单业务流程](mini-program/order-flow.md)
-- [订单、接单接口](mini-program/api-orders.md)
-- [配置信息接口](mini-program/api-config.md)
-- [微信支付接口](mini-program/api-wechat-pay.md)
+## 数据库与生产
 
-## 管理后台
+- [数据库变更导航](database/README.md)：按目标环境实际版本选择迁移，不把历史建表快照当作现行结构。
+- [生产服务器操作](deployment/server-operations.md)、[Nginx 配置](deployment/nginx-deployment.md)。发布前须执行生产发布必检清单。
 
-- [管理后台页面设计](admin/admin-pages-design.md)
-- [管理后台 API 设计](admin/admin-api-design.md)
+## 历史资料
 
-## 数据库和部署
-
-- [数据库表结构](database/schema.txt)
-- [二手私信与卖家收款迁移](database/second-hand-conversation-transfer-migration.md)
-- [二手交易线下模式迁移](database/second-hand-offline-trade-migration.md)
-- [二手商品收藏迁移](database/second-hand-favorite-migration.md)
-- [旧兼容链路清理发布说明](database/legacy-compatibility-cleanup.md)
-- [生产服务器部署与更新](deployment/server-operations.md)
-- [Nginx 部署](deployment/nginx-deployment.md)
-
-## 归档
-
-`archive/` 保留旧项目指南和重复文档，便于回溯；日常阅读优先使用上面的整理后文档。
+`archive/` 保存旧项目指南、旧表结构和过期流程，用于追溯，不作为现行实现或发布依据。旧版接口示例、一次性设计计划和生成快照已从日常导航移除；需要历史原文时可查 Git 历史。

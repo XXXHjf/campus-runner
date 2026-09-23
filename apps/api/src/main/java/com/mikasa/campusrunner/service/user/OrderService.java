@@ -1,6 +1,7 @@
 package com.mikasa.campusrunner.service.user;
 
 import com.mikasa.campusrunner.pojo.dto.OrderCancelDTO;
+import com.mikasa.campusrunner.pojo.dto.OrderContentUpdateDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderShowByAddressDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderShowByDoubleAddDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderSubmitDTO;
@@ -30,6 +31,8 @@ public interface OrderService {
      * @return
      */
     Order submit(OrderSubmitDTO orderSubmitDTO);
+
+    void updateContent(Long id, OrderContentUpdateDTO dto);
 
     OrderAmountVO previewAmount(OrderSubmitDTO orderSubmitDTO);
 

@@ -72,7 +72,7 @@
             </view>
             <!-- 订单说明文字 -->
             <view class="box2-1">
-              <view class="note">{{item.displayTitle||item.note||item.categoryName||'跑腿服务'}}</view>
+              <view class="note">{{item.note||item.categoryName||'跑腿服务'}}</view>
               <view class="pick">{{item.displayPickUpLabel}}：{{item.pickUpAddress}}</view>
               <view class="recive">{{item.displayReciveLabel}}：{{item.reciveAddress}}</view>
             </view>

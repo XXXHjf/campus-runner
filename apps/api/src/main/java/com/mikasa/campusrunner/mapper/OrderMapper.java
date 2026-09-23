@@ -99,6 +99,9 @@ public interface OrderMapper {
     @Transactional
     int update(Order order);
 
+    int updateWaitingContent(@Param("id") Long id, @Param("userId") Long userId,
+                             @Param("note") String note);
+
     /**
      * 根据订单状态和取消时间查询已经超过自动取消时间的订单
      * @param status

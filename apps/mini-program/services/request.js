@@ -18,11 +18,19 @@ function isPublicRead(options) {
 
 async function request(options) {
   const publicRead = isPublicRead(options);
+  const app = typeof getApp === 'function' ? getApp() : null;
+  if (!options.skipTokenCheck && !publicRead && tokenManager.hasLoginIntent?.()) {
+    await app?.restoreLogin?.();
+  }
   const token = options.skipTokenCheck ? null : tokenManager.getToken();
   // Background reads never create accounts or open a login prompt.
   if (!token && !publicRead && !options.skipTokenCheck) {
     throw new Error('请先登录后再操作');
   }
+  return send(options, token, app, false);
+}
+
+function send(options, token, app, retried) {
   return new Promise((resolve, reject) => wx.request({
     ...options,
     method: options.method || 'GET',
@@ -30,9 +38,25 @@ async function request(options) {
     timeout: options.timeout || 10000,
     success: (res) => {
       if (res.statusCode === 401) {
-        // Expired identity becomes a guest. Never retry orders/payments implicitly.
-        if (token && token === tokenManager.getToken()) tokenManager.clearToken();
-        reject(new Error('登录已失效，请重新登录'));
+        // Refresh identity once. Only reads may be retried automatically.
+        if (!token || retried || !tokenManager.hasLoginIntent?.()) {
+          if (token && token === tokenManager.getToken()) tokenManager.clearToken?.({ preserveLoginIntent: true });
+          reject(new Error('登录已失效，请重新登录'));
+          return;
+        }
+        Promise.resolve(app?.restoreLogin?.({ force: true }))
+          .then((restored) => {
+            const freshToken = tokenManager.getToken();
+            if (!restored || !freshToken) {
+              if (token === tokenManager.getToken()) tokenManager.clearToken?.({ preserveLoginIntent: true });
+              reject(new Error('登录已失效，请重新登录'));
+            } else if ((options.method || 'GET').toUpperCase() === 'GET') {
+              send(options, freshToken, app, true).then(resolve, reject);
+            } else {
+              reject(new Error('登录状态已恢复，请重试操作'));
+            }
+          })
+          .catch(() => reject(new Error('登录已失效，请重新登录')));
         return;
       }
       if (res.statusCode !== 200) {

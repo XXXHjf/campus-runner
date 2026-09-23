@@ -1,13 +1,16 @@
 {
   "navigationBarTitleText": "我发布的",
+  "navigationStyle": "custom",
   "usingComponents": {
-    "t-tag": "tdesign-miniprogram/tag/tag",
-    "t-divider": "tdesign-miniprogram/divider/divider",
+    "t-icon": "tdesign-miniprogram/icon/icon",
+    "t-search": "tdesign-miniprogram/search/search",
     "t-image": "tdesign-miniprogram/image/image",
+    "t-button": "tdesign-miniprogram/button/button",
+    "t-popup": "tdesign-miniprogram/popup/popup",
     "t-loading": "tdesign-miniprogram/loading/loading",
-    "t-cell": "tdesign-miniprogram/cell/cell",
-    "t-drawer": "tdesign-miniprogram/drawer/drawer",
-    "t-toast": "tdesign-miniprogram/toast/toast"
+    "t-toast": "tdesign-miniprogram/toast/toast",
+    "t-textarea": "tdesign-miniprogram/textarea/textarea",
+    "t-upload": "tdesign-miniprogram/upload/upload"
   },
   "enablePullDownRefresh": true
 }

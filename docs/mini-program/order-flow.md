@@ -1,277 +1,41 @@
-# 发单与接单核心业务流程详解
+# 跑腿订单与资金流程
 
-## 1. 角色模型（物理同一用户，逻辑双角色）
+本页描述当前代码中的跑腿订单，二手交易使用独立订单模型，见 [二手交易](../api/second-hand.md)。状态以 `OrderStatusConstant`、`OrderServiceImpl`、`TakeOrderServiceImpl` 和支付/转账服务为准；服务端响应字段以当前 DTO/VO 核对。`tb_orders` 的早期建表快照不是当前结构。
 
-系统“物理上”只有 `User`，不区分两套账号；在订单上下文中分为：
-- 发单人（publisher）：创建订单并发起支付
-- 接单人（taker）：接单、履约、最终收款
+## 角色与金额
 
-同一用户在不同订单里可扮演不同角色。
+同一个用户可在不同订单里担任发单人或接单人。私有订单详情与写操作需要登录；具体归属与状态校验须逐个核对服务端方法，删除接口的现存缺口见下文。游客仅可读取脱敏的公开预览，见 [订单接口](api-orders.md)。
 
-用户是否可参与发单/接单受认证状态约束：
-- `authentication=0`：未认证
-- `authentication=1`：认证通过，可进行发单接单
+普通有偿单的发单人实付为跑腿报酬 `price` 加服务费 `serviceFee`。代买单另有商品金额 `productAmount`：发单人实付为商品金额、跑腿报酬和服务费之和；接单人应收为商品金额加跑腿报酬。服务端根据分类业务类型及系统配置重新计算金额，不能信任客户端传来的金额快照。支付和接单人单笔转账均受 `runner_transfer_single_max` 约束。无偿普通单不发起微信支付。
 
----
+管理端维护 `service_fee_rate`、`service_fee_min`、`runner_transfer_single_max`，路径见 [管理端接口](../api/admin-management.md)。发布前可调用 `POST /api/order/amount-preview` 显示服务端计算结果。
 
-## 2. 核心业务对象
+## 订单状态
 
-### 2.1 订单（tb_orders）
+| 状态 | 含义 |
+| --- | --- |
+| `-4`、`-3`、`-2` | 退款异常、退款成功、退款中 |
+| `-1` | 未支付 |
+| `0` | 待接单 |
+| `1`、`2`、`3` | 已接单、配送中、已送达；代买的 `1` 在界面显示“待购买” |
+| `4` | 已取消 |
+| `5` | 发单人确认收货 |
+| `6`、`7` | 接单人收款成功、收款失败 |
 
-订单是主业务单，承载：
-- 交易信息（price/service_fee/pay_amount）
-- 业务信息（business_type/product_amount）
-- 履约信息（接单、派送、送达、确认）
-- 结算信息（提现成功/失败）
-- 支付异常信息（未支付/退款中/退款成功/退款异常）
+普通路径：创建订单后，有偿单先进入 `-1`，支付成功后进入 `0`；无偿单直接进入 `0`。接单、配送、送达、发单人确认依次为 `0 → 1 → 2 → 3 → 5`。有偿单之后按转账结果进入 `6` 或 `7`。代买从 `1` 进入 `2` 前须提交购买凭证，确认完成后商品金额与跑腿报酬合为一笔接单人转账。状态 `3` 仅代表送达，不能当作发单人确认完成。
 
-### 2.2 接单视图（TakeOrderVO）
+## 操作与异常
 
-`takeOrders` 系列接口返回的是“接单视角的订单聚合信息”，本质仍围绕订单，只是附带接单侧时间与图片字段（如 `takeOrderCreateTime`、`takeOrderImage`）。
+- 发单：`POST /api/order`；有偿单使用 `POST /api/wx-pay/jspai/{orderId}` 获取小程序支付参数。路径中的 `jspai` 是当前代码的历史拼写。支付回调为 `POST /api/wx-pay/jsapi/notify`；主动同步为 `POST /api/wx-pay/sync/{orderId}`。
+- 发布内容必须包含至少 4 个非空白字符的说明和一张订单说明图片，最多 100 个字符及一张图片；服务端再次校验，避免绕过小程序表单。已发布的订单仅在待接单 `0` 时允许通过 `PUT /api/order/{id}/content` 修改说明和图片，待支付不开放编辑，也不允许修改金额、地址、类型或时间。服务端以归属和待接单状态条件更新说明，再替换图片绑定；状态变化或图片校验失败时事务回滚。若需回退这项功能，应同时撤下编辑入口和接口，保留已有订单内容与图片绑定，不需要数据库迁移。
+- 接单与履约：`POST /api/takeOrders/{id}`、`PUT /api/takeOrders`；发单人确认：`PUT /api/order/confirm/{id}`，服务端要求当前状态为 `3`。
+- 发单人取消：`PUT /api/order/cancel` 当前只允许 `-1` 或 `0`。未支付订单先关闭微信支付单，再进入 `4`；待接单订单进入 `4`。取消本身不代表已退款。
+- 退款：`POST /api/wx-pay/refunds` 发起，`POST /api/wx-pay/refunds/notify` 异步确认；`GET /api/wx-pay/query-refunds/{refundNumber}` 可查询。管理员另有取消和退款接口，当前管理端退款会先写入退款中并尝试调用微信退款，不能仅凭接口返回判断实际到账。
+- 收款：`POST /api/wx-transfer/transfer/{orderId}` 发起，`POST /api/wx-transfer/notify` 处理结果。应依据订单状态及真实转账结果判断是否收款，模拟支付或模拟转账不代表真实资金流转。
+- 删除：`DELETE /api/order/{id}` 为逻辑删除，客户端应只在合适状态展示入口。当前服务层删除方法未自行检查订单状态和归属，不能把客户端显隐当作服务端权限保证；调整删除规则时需先修复服务端校验。
 
-### 2.3 系统配置（tb_system_config）
+退款、取消、超时和收款都有定时任务或异步回调参与。遇到结果未决时应重新查询状态，不把发起请求的成功响应当作最终资金结果。
 
-服务费相关全局配置：
-- `service_fee_rate`：服务费率（如 0.05）
-- `service_fee_min`：最低服务费（如 0.5）
+## 验证与回退
 
----
-
-## 3. 金额模型（普通跑腿/代买）
-
-### 3.1 字段定义
-
-- `price`：订单基础金额（接单人最终报酬基数）
-- `businessType`：订单业务类型；`NORMAL` 为普通跑腿，`PURCHASE` 为代买
-- `productAmount`：代买商品金额，普通跑腿固定为 0
-- `runnerReceivable`：接单人最终应收；代买为商品金额加跑腿报酬
-- `serviceFeeRate` / `service_fee_rate`：本单服务费率快照（下单时固化）
-- `serviceFee` / `service_fee`：本单服务费金额
-- `payAmount` / `pay_amount`：发单人支付总额
-
-### 3.2 关系
-
-- 普通有偿单：`payAmount = price + serviceFee`
-- 无偿单：通常 `price=0, serviceFee=0, payAmount=0`（且客户端不触发支付）
-- 代买单：`serviceFee = max(price × serviceFeeRate, serviceFeeMin)`，`payAmount = productAmount + price + serviceFee`，`runnerReceivable = productAmount + price`
-- 代买实付和接单人应收都受 `runner_transfer_single_max` 限制。两处共用同一项配置，初始为 ¥200；商家单笔额度变化时只更新此项。
-- 接单人只在发单人确认订单完成后收到一笔合并转账（商品金额 + 跑腿报酬），不会分两笔转账。
-
-### 3.3 服务费来源
-
-- 费率与最低服务费来自系统配置接口：
-  - `GET /admin/api/config/service_fee_rate`
-  - `GET /admin/api/config/service_fee_min`
-  - `GET /admin/api/config/runner_transfer_single_max`：代买支付和接单人收款共用的单笔上限；由管理员同步微信商家转账额度调整。
-
-下单时应把结果写入订单快照字段，避免后续配置变更影响历史订单结算。
-
----
-
-## 4. 订单状态机（最关键）
-
-`tb_orders.status` 定义：
-- `-4` 退款异常
-- `-3` 退款成功
-- `-2` 退款中
-- `-1` 未支付
-- `0` 待接单
-- `1` 已接单
-- `2` 派送中
-- `3` 已送达
-- `4` 已取消
-- `5` 已完成
-- `6` 提现成功
-- `7` 提现失败
-
-正常完成路径：
-- 无偿订单：`0 -> 1 -> 2 -> 3 -> 5`
-- 有偿订单：`0 -> 1 -> 2 -> 3 -> 5 -> 6`
-- 代买订单：`0 -> 1（待购买） -> 2（配送中） -> 3 -> 5 -> 6/7`
-
-补充解释：
-- `5` 表示履约闭环完成（发单人确认收货）
-- `6/7` 表示有偿订单进入接单人收款（提现）结果态
-
----
-
-## 5. 主流程（发单到收款）
-
-## 5.1 发单阶段
-
-1. 发单人填写订单表单：
-- 取件地址、收件地址、订单说明、联系电话、分类、是否门禁、超时参数等
-- 关键选项：是否支付跑腿费（决定有偿/无偿）
-
-2. 平台计算金额（有偿时）：
-- 读取 `service_fee_rate` 与 `service_fee_min`
-- 计算 `serviceFee`
-- 计算 `payAmount=price+serviceFee`
-- 代买金额由服务端按商品金额、跑腿报酬和服务费重新计算，客户端金额快照不作为权威值。
-
-3. 创建订单：
-- `POST /api/order`
-- 请求体带入 `price/serviceFeeRate/serviceFee/payAmount` 等快照字段
-
-4. 若有偿，发起微信支付：
-- `POST /api/wx-pay/jspai/{orderId}`（文档路径拼写为 `jspai`）
-- 返回 JSAPI 拉起支付参数：`prepayId/timeStamp/nonceStr/signType/paySign`
-
-5. 微信支付异步回调：
-- `POST /api/wx-pay/jsapi/notify`
-- 回调成功后订单应可进入可被接单状态（`-1 -> 0`）
-
-## 5.2 接单与履约阶段
-
-1. 接单人接单：
-- `POST /api/takeOrders/{id}`
-- 订单状态进入 `1`（已接单）
-
-2. 接单人更新履约状态：
-- `PUT /api/takeOrders`
-- 典型迁移：
-  - `1`（已接单）-> `2`（派送中）
-  - `2`（派送中）-> `3`（已送达，需上传送达图片）
-- 代买接单人购买后，须先提交一张购买凭证或商品照片，再进入配送中；商品买下后不可取消订单。
-
-3. 发单人确认收货：
-- `PUT /api/order/confirm/{id}`
-- 状态 `3 -> 5`
-
-## 5.3 结算阶段（有偿单）
-
-1. 订单完成后，接单人进入待收款：
-- `GET /api/takeOrders/notWithdrawn` 可查询“已完成但未提现”订单
-
-2. 平台向接单人打款（微信提现）：
-- `POST /api/wx-transfer/transfer/{orderId}`
-- 异步回调：`POST /api/wx-transfer/notify`
-- 代买以 `productAmount + price` 发起一笔合并转账。
-
-3. 根据转账结果更新订单：
-- 成功：`5 -> 6`（提现成功）
-- 失败：`5 -> 7`（提现失败）
-
----
-
-## 6. 退款与取消分支
-
-### 6.1 取消订单
-
-- 接口：`PUT /api/order/cancel`
-- 参数：`id/orderNumber/cancelReason`
-- 适用场景（建议）：
-  - 待接单（`0`）可取消
-  - 已接单/派送中/已送达（`1/2/3`）不应由发单人直接取消，应走履约或申诉路径
-  - 代买进入配送中（商品已购买）后，接单人不可自行取消，应联系平台协商
-  - 未支付（`-1`）建议走“超时自动删除”而非“取消+退款”
-- 状态到 `4`（已取消）
-
-### 6.2 微信退款
-
-- 发起退款：`POST /api/wx-pay/refunds`
-- 回调：`POST /api/wx-pay/refunds/notify`
-- 关联状态：`-2`（退款中）、`-3`（退款成功）、`-4`（退款异常）
-
-### 6.3 取消与退款的关系（有偿单重点）
-
-有偿单在“已支付但尚未接单”场景下，推荐链路：
-1. 发单人发起取消：`PUT /api/order/cancel`
-2. 平台发起退款：`POST /api/wx-pay/refunds`
-3. 等待退款回调：`POST /api/wx-pay/refunds/notify`
-4. 订单进入退款结果态：`-3`（成功）或 `-4`（异常）
-
-说明：
-- `orderNumber` 是取消与退款链路的关键关联键，建议前后端统一透传。
-- 退款处理为异步，不应以“发起退款接口返回成功”作为最终到账依据。
-
-### 6.4 退款状态下的前端行为约束（当前最小可用策略）
-
-- `-2` 退款中：
-  - 主按钮显示“退款处理中”，禁用
-  - 不允许删除订单（避免退款未决时用户误删）
-  - 页面给出“处理中”提示文案
-- `-3` 退款成功：
-  - 允许用户删除订单（仅前台视图删除，后端建议保留流水）
-- `-4` 退款异常：
-  - 不建议直接给“删除订单”作为主操作
-  - 主操作应引导“反馈异常”（跳转我的页意见反馈入口）
-
----
-
-## 7. 关键字段字典
-
-### 7.1 订单主字段（tb_orders）
-
-- `id`：订单主键
-- `order_number`：订单编号（支付、退款、查询链路关键关联键）
-- `user_id`：发单人用户 ID
-- `pick_up_address`：取件地址 ID
-- `recive_address`：收件地址 ID（字段名有拼写 `recive`）
-- `category_id`：订单类型 ID
-- `note`：订单说明
-- `image`：订单说明图片
-- `phone`：发单电话
-- `username`：发单昵称快照
-- `door_access`：门禁标识（0 否 1 是）
-- `gap`：超时间隔（单位需以后端约定为准）
-- `exceed_time`：超时时间点
-- `price`：订单基础金额（接单报酬）
-- `service_fee_rate`：服务费率快照
-- `service_fee`：服务费
-- `pay_amount`：发单人支付总额
-- `real_price`：文档标注“暂时禁用”
-- `status`：订单状态机核心字段
-- `delivery_time`：送达时间
-- `cancel_time`：取消时间
-- `cancel_reson`：取消原因（字段名 `reson` 为历史拼写）
-- `create_time`：订单创建时间
-- `deleted`：逻辑删除标记
-
-### 7.2 接单视图字段（TakeOrderVO 补充）
-
-- `orderId`：关联订单 ID
-- `takeOrderCreateTime`：接单时间
-- `takeOrderImage`：送达凭证图片
-- `takeOrderDeliveryTime`：接单侧送达时间
-- `takeOrderCancelTime`：接单侧取消时间
-- `takeOrderCancelReason`：接单侧取消原因
-
-## 8. 关键接口时序
-
-有偿单推荐时序：
-1. `POST /api/order` 创建订单（金额快照入库）
-2. `POST /api/wx-pay/jspai/{orderId}` 获取微信预支付参数
-3. 小程序发起支付
-4. `POST /api/wx-pay/jsapi/notify` 支付回调（更新支付态）
-5. `POST /api/takeOrders/{id}` 接单
-6. `PUT /api/takeOrders` 更新为派送中
-7. `PUT /api/takeOrders` 更新为已送达（含图片）
-8. `PUT /api/order/confirm/{id}` 发单人确认收货
-9. `POST /api/wx-transfer/transfer/{orderId}` 平台打款接单人
-10. `POST /api/wx-transfer/notify` 转账回调，订单进入 `6/7`
-
-无偿单时序：
-- 可跳过第 2~4 步（微信支付）
-- 完成路径到 `5` 即业务闭环
-
-异常分支时序（有偿单取消退款）：
-1. `PUT /api/order/cancel` 发单人取消订单
-2. `POST /api/wx-pay/refunds` 发起退款
-3. `POST /api/wx-pay/refunds/notify` 退款回调
-4. 状态流转：`0 -> 4 -> -2 -> (-3 | -4)`（具体是否经过 `4` 取决于后端实现）
-
-异常分支时序（未支付超时）：
-1. 订单创建后停留 `-1`（未支付）
-2. 达到超时阈值（当前客户端按 30 分钟倒计时）
-3. 自动删除订单（不进入退款链路）
-
----
-
-## 9. 最小结论
-
-- 这是“同一用户双角色”的跑腿交易系统：发单人先下单，若为有偿则支付 `price + serviceFee`；接单人履约后，发单人确认收货，最后接单人收款。
-- 订单是唯一主单据，`status` 覆盖支付、履约、取消、退款、提现全生命周期。
-- 有偿订单核心路径：`下单 -> 微信支付 -> 接单 -> 派送 -> 送达 -> 确认 -> 提现成功`，对应状态主线 `0/1/2/3/5/6`（含支付前后与异常分支）。
-- 结算金额上，接单人报酬是 `price`，平台收取 `serviceFee`；服务费按系统配置计算并在订单中做快照。
-- 非正常链路需独立治理：取消不等于退款完成，退款结果以异步回调落态为准；`-2/-3/-4` 应有明确前端交互策略，避免误删与误导操作。
+变更订单状态、金额或资金流程时，至少核对 `OrderStatusConstant`、订单及接单 Service、支付/转账 Service、Mapper 和小程序状态展示；代买还要核对购买凭证及额度。涉及结构变更先备份并按 [数据库变更导航](../database/README.md) 选择迁移。回退须让代码版本与数据库结构匹配，并保留已经形成的支付、退款及转账流水；生产步骤见 [生产服务器操作](../deployment/server-operations.md)。

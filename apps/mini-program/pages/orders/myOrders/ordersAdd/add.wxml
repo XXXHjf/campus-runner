@@ -121,35 +121,23 @@
 <!-- 跑腿内容说明 -->
 <ui-section title="{{isPurchase ? '购买清单' : '内容说明'}}" icon="attach" description="说明越清楚，接单人越容易准确完成任务" wx:if="{{count == 2}}">
   <view class="content-field">
-    <text class="text-address">一句话需求</text>
-    <t-input
-      class="content-title-input"
-      value="{{noteTitle}}"
-      placeholder="{{isPurchase ? '例如：购买一杯中杯美式，送到梅苑' : '例如：帮取一个快递送到梅苑'}}"
-      maxlength="30"
-      clearable="{{true}}"
-      bind:change="onNoteTitleInput"
-    />
-    <view class="content-field-tip">这句话会显示在跑腿大厅</view>
-  </view>
-  <view class="content-field">
-    <text class="text-address">详细要求</text>
+    <text class="text-address">描述（至少4个字）</text>
     <t-textarea
       t-class="external-class"
       t-class-indicator="{{skylineRender?'skyline-indicator':''}}"
-      value="{{noteDetail}}"
-      placeholder="{{isPurchase ? '补充品牌、规格、口味等要求（选填）' : '补充取件位置、物品规格和注意事项（选填）'}}"
+      value="{{note}}"
+      placeholder="{{isPurchase ? '请描述商品、规格和购买要求' : '请描述跑腿内容和注意事项'}}"
       bordered
-      maxlength="69"
+      maxlength="100"
       disableDefaultPadding="{{true}}"
       indicator
-      bindchange="onNoteDetailInput"
+      bindchange="onNoteInput"
       style="margin: 20rpx 30rpx"
     />
   </view>
   <view>
     <text class="text-address">{{isPurchase ? '商品参考图片' : '图片说明'}}</text>
-    <view class="address" style="margin-top: 20rpx;">{{isPurchase ? '选填，可上传商品图片帮助接单人确认' : '（选填）请选择一张图片：取件码等'}}</view>
+    <view class="address" style="margin-top: 20rpx;">请上传一张说明图片，帮助接单人确认任务</view>
     <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{1}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="margin: 20rpx 30rpx" />
   </view>
 </ui-section>
@@ -201,25 +189,26 @@
 </ui-section>
 
 <!-- 付费信息 -->
-<ui-section title="跑腿付费" icon="user-vip" wx:if="{{count == 3}}">
+<ui-section title="{{isPurchase ? '代买费用' : '跑腿付费'}}" icon="user-vip" wx:if="{{count == 3}}">
   <!-- 付费信息  -->
   <view wx:if="{{isPurchase}}" class="order-add__purchase-fee">
     <view class="order-add__amount-row">
       <text class="text-address">商品金额</text>
-      <t-input class="input custom-input" value="{{productAmount}}" placeholder="输入预估商品金额" suffix="元" align="left" type="digit" bind:change="onProductAmountInput" borderless />
+      <t-input class="input custom-input" value="{{productAmount}}" placeholder="输入确认后的金额" align="right" type="digit" bind:change="onProductAmountInput" borderless />
+      <text class="order-add__amount-unit">元</text>
     </view>
     <view wx:if="{{productAmountError}}" class="order-add__amount-error">请输入大于 0 且最多两位小数的金额</view>
     <view class="order-add__amount-row">
       <text class="text-address">跑腿报酬</text>
-      <t-input class="input custom-input" value="{{price}}" placeholder="输入跑腿报酬" suffix="元" align="left" type="digit" bind:change="onPriceInput" borderless />
+      <t-input class="input custom-input" value="{{price}}" placeholder="输入跑腿报酬" align="right" type="digit" bind:change="onPriceInput" borderless />
+      <text class="order-add__amount-unit">元</text>
     </view>
     <view wx:if="{{priceError}}" class="order-add__amount-error">请输入大于 0 且最多两位小数的跑腿报酬</view>
     <view class="order-add__fee-summary">
       <view class="order-add__fee-line"><text>服务费</text><text>¥{{serviceFee || 0}}</text></view>
       <view class="order-add__fee-line"><text>预计实付</text><text class="order-add__fee-total">¥{{payAmount || 0}}</text></view>
-      <view class="order-add__fee-line"><text>接单人完成后预计收款</text><text>¥{{runnerReceivable || 0}}</text></view>
     </view>
-    <view class="order-add__fee-hint">预计实付和接单人收款均受同一单笔转账额度限制（¥{{runnerTransferSingleMax}}）；完成后商品金额与跑腿报酬将合并转给接单人。</view>
+    <view class="order-add__fee-hint">请与接单人确认商品最终价格后再发布</view>
   </view>
   <view wx:else>
     <view class="box1">
@@ -306,18 +295,6 @@
         <text class="price-text-compact">¥{{price}}</text>
       </view>
 
-      <view class="confirm-item-compact confirm-highlight-bg" wx:if="{{price && priceAccess == 1}}">
-        <t-icon name="wallet" size="32rpx" color="#0052d9" class="confirm-icon-td" />
-        <text class="confirm-label-compact">实付金额</text>
-        <text class="price-text-compact">¥{{payAmount || 0}}</text>
-      </view>
-
-      <view class="confirm-item-compact confirm-highlight-bg" wx:if="{{isPurchase}}">
-        <t-icon name="wallet" size="32rpx" color="#0052d9" class="confirm-icon-td" />
-        <text class="confirm-label-compact">接单人完成后收款</text>
-        <text class="price-text-compact">¥{{runnerReceivable || 0}}</text>
-      </view>
-      
       <!-- 门禁提示（如果有） -->
       <view class="confirm-item-compact confirm-warning-item" wx:if="{{doorAccess == 1 && !isPurchase}}">
         <t-icon name="lock-on" size="32rpx" color="#FF6B00" class="confirm-icon-td" />
@@ -328,7 +305,7 @@
     <!-- 温馨提示 -->
     <view class="confirm-tips-compact">
       <t-icon name="info-circle-filled" size="28rpx" color="#FFB800" class="tips-icon-td" />
-      <text class="tips-text-compact">{{isPurchase ? '发布后将支付商品金额、跑腿报酬及服务费' : (priceAccess == 1 ? '发布后将进入支付' : '发布后骑手将收到通知')}}</text>
+      <text class="tips-text-compact">平台将收取部分服务费请仔细核对</text>
     </view>
   </view>
 </t-dialog>

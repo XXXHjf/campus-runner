@@ -11,6 +11,9 @@ function confirm(options) {
 async function ensureLogin() {
   if (loginPrompt) return loginPrompt;
   loginPrompt = (async () => {
+    if (!tokenManager.hasToken() && tokenManager.hasLoginIntent?.()) {
+      await getApp().restoreLogin();
+    }
     if (!tokenManager.hasToken()) {
       if (!await confirm({ title: '登录后继续',
         content: '此操作需要登录。取消后仍可浏览商品和跑腿服务。',

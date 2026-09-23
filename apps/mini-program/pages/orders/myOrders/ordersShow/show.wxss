@@ -1,196 +1,267 @@
-/* 总体布局 */
-.show {
-  display: flex;
-  flex-direction: column;
-  /* height: 100vh; */
-  height: auto;
-  /* 填充整个视口高度 */
-  /* justify-content: space-between; */
-  box-sizing: border-box;
+@import "../../../../styles/second-hand-card.wxss";
+
+page {
+  background: var(--cr-color-background);
 }
 
-/* 展示卡片总体布局 */
-.cart {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  /* background: white; */
+.my-orders {
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
-/* 详情卡片布局 */
-.show-cart {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  /* height: 500rpx; */
-  border-radius: 25rpx;
-  margin: 20rpx 25rpx;
-  background-color: white;
-  padding: 20rpx 25rpx 0 25rpx;
-  overflow: hidden;
-  /* padding-bottom: 50rpx; */
-  /* box-shadow: 4px 4px 3px rgba(0, 0, 0, 0.1); */
-  /* 水平偏移，垂直偏移，模糊半径，颜色 */
-}
-
-.box1 {
-  display: flex;
-  flex: 0.8;
-  align-items: center;
-  /* background: powderblue; */
-}
-
-.categoryImage {
-  width: 45rpx;
-  height: 45rpx;
-  /* border-radius: 25px; */
-  /* padding: 5rpx; */
-  /* background: brown; */
-}
-
-.categoryName {
-  flex: 1;
-  font-size: 0.9rem;
-  font-weight: unset;
-  padding-left: 10rpx;
-  /* background:rebeccapurple; */
-}
-
-.box2 {
-  position: relative;
-  display: flex;
-  flex: 3;
-  align-items: center;
-  /* background: palevioletred; */
-}
-
-.img {
-  /* border-radius: 25rpx; */
-  width: 125rpx;
-  height: 125rpx;
-  /* padding: 5rpx; */
-  /* box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); */
-  /* background: red; */
-}
-
-.box2-1 {
-  display: flex;
-  flex: 4;
-  width: 100rpx;
-  padding-left: 20rpx;
-  flex-direction: column;
-  /* background: khaki; */
-}
-
-.note {
-  display: inline-block;
-  /* 将元素设置为内联块级元素 */
-  width: 100%;
-  /* 设置宽度为 100% */
-  max-width: 100%;
-  /* 设置最大宽度为 100% */
-  white-space: nowrap;
-  /* 不允许换行 */
-  overflow: hidden;
-  /* 隐藏溢出部分 */
-  text-overflow: ellipsis;
-  /* 显示省略号 */
-  /* background: lawngreen; */
-  font-size: large;
-  font-weight: bold;
-  padding: 10rpx 0;
-}
-
-.pick {
-  flex: 1;
-  /* width: 80rpx; */
-  /* background: lightslategray; */
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: small;
-  font-weight: 500;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-  color: gray;
-}
-
-.recive {
-  flex: 1;
-  /* background: magenta; */
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: small;
-  font-weight: 500;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-  color: gray;
-}
-
-.box3 {
-  display: flex;
-  flex: 1.2;
-  align-items: center;
-  padding: 0 0 20rpx 0;
-  /* background: blue; */
-  min-width: 0;
-}
-
-.date {
-  flex: 1;
-  font-size: x-small;
-  font-weight: 500;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-  color: gray;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  /* padding-bottom: 10rpx; */
-  /* background: mediumaquamarine; */
-}
-
-.price {
-  flex: 0 0 auto;
-  margin-left: 12rpx;
-  white-space: nowrap;
-  /* background: mediumslateblue; */
-}
-
-.price-text {
-  font-size: small;
-  color: #ed7b2f;
-  font-weight: bold;
-  white-space: nowrap;
-}
-
-/* status */
-.block {
-  margin: 0 32rpx;
-}
-
-.block+.block {
-  margin-top: 48rpx;
-}
-
-.block .status:not(:last-child) {
-  margin-right: 32rpx;
-}
-
-/* tab */
-.tab {
-  position: sticky;
+.my-orders__controls {
+  position: fixed;
   top: 0;
-  z-index: 1;
+  right: 0;
+  left: 0;
+  z-index: 10;
+  background: var(--cr-color-surface);
 }
 
-.custom-tabs {
-  position: sticky;
-  z-index: 2;
-  margin-bottom: 20rpx;
+.my-orders__nav {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-height: 44px;
+  padding-left: 24rpx;
 }
-.t-drawer{
-  --td-drawer-width:500rpx;
+
+.my-orders__back {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 62rpx;
+  height: 72rpx;
 }
-.t-drawer__title{
-  padding: 48rpx 32rpx !important;
+
+.my-orders__search {
+  flex: 1;
+  min-width: 0;
+  --td-search-height: 70rpx;
+  --td-search-padding: 0 20rpx;
+  --td-search-font-size: 26rpx;
+  --td-search-bg-color: var(--cr-color-background);
+}
+
+.my-orders__tabs {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  height: 84rpx;
+  padding: 0 8rpx;
+  border-bottom: 1rpx solid var(--cr-color-border);
+}
+
+.my-orders__tab {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  height: 83rpx;
+  align-items: center;
+  justify-content: center;
+  color: var(--cr-color-text-secondary);
+  font-size: 23rpx;
+  white-space: nowrap;
+}
+
+.my-orders__tab--active {
+  color: var(--cr-color-primary);
+  font-weight: 700;
+}
+
+.my-orders__tab--active::after {
+  position: absolute;
+  right: 35%;
+  bottom: 0;
+  left: 35%;
+  height: 5rpx;
+  border-radius: 5rpx;
+  background: var(--cr-color-primary);
+  content: '';
+}
+
+.my-orders__list {
+  margin: 24rpx var(--cr-page-padding) 48rpx;
+  overflow: hidden;
+  border-radius: var(--cr-radius-large);
+  background: var(--cr-color-surface);
+  box-shadow: var(--cr-shadow-card);
+}
+
+.my-orders__item {
+  padding: 28rpx 26rpx 30rpx;
+}
+
+.my-orders__item--separated {
+  border-top: 1rpx solid var(--cr-color-border);
+}
+
+.my-orders__item-top,
+.my-orders__item-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+}
+
+.my-orders__item-top {
+  margin-bottom: 28rpx;
+}
+
+.my-orders__type,
+.my-orders__status {
+  flex: none;
+  padding: 7rpx 14rpx;
+  border-radius: var(--cr-radius-small);
+  font-size: 24rpx;
+  line-height: 1.3;
+}
+
+.my-orders__type {
+  color: var(--cr-color-primary);
+  background: var(--cr-color-primary-light);
+}
+
+.my-orders__type--purchase,
+.my-orders__status--pending {
+  color: #dc612c;
+  background: #fff2e9;
+}
+
+.my-orders__status--active {
+  color: var(--cr-color-primary);
+  background: var(--cr-color-primary-light);
+}
+
+.my-orders__status--done {
+  color: var(--cr-color-success);
+  background: #e6f8ee;
+}
+
+.my-orders__status--neutral {
+  color: var(--cr-color-text-secondary);
+  background: var(--cr-color-background);
+}
+
+.my-orders__status--warning {
+  color: var(--cr-color-danger);
+  background: #fff1f0;
+}
+
+.my-orders__status {
+  margin-left: auto;
+}
+
+.my-orders__main {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  min-width: 0;
+}
+
+.my-orders__cover {
+  flex: none;
+  width: 124rpx;
+  height: 124rpx;
+  overflow: hidden;
+  border-radius: var(--cr-radius-medium);
+  --td-image-round-radius: var(--cr-radius-medium);
+}
+
+.my-orders__title {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--cr-color-text);
+  font-size: 29rpx;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.my-orders__amount {
+  flex: 0 0 160rpx;
+  width: 160rpx;
+  margin-left: auto;
+  color: #e7552d;
+  font-size: 30rpx;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.my-orders__item-bottom {
+  margin-top: 32rpx;
+}
+
+.my-orders__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68rpx;
+  height: 56rpx;
+}
+
+.my-orders__action {
+  flex: none;
+  margin-left: auto;
+}
+
+.my-orders__action--active.my-orders__action--purchase {
+  --td-button-light-color: #d9682f;
+  --td-button-light-bg-color: #fff2e9;
+  --td-button-light-border-color: #fff2e9;
+}
+
+.my-orders__action--neutral {
+  --td-button-default-color: var(--cr-color-text-secondary);
+  --td-button-default-border-color: var(--cr-color-border);
+}
+
+.my-orders__sheet {
+  padding: 24rpx 32rpx 16rpx;
+}
+
+.my-orders__sheet-separator {
+  height: 1rpx;
+  margin: 12rpx 0;
+  background: var(--cr-color-border);
+}
+
+.my-orders__edit-sheet {
+  padding: 32rpx;
+}
+
+.my-orders__edit-hint,
+.my-orders__edit-label {
+  margin: 18rpx 0;
+  color: var(--cr-color-text-secondary);
+  font-size: 24rpx;
+}
+
+.my-orders__edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16rpx;
+  margin-top: 28rpx;
+}
+
+.my-orders__sheet-title {
+  margin-bottom: 18rpx;
+  color: var(--cr-color-text);
+  font-size: 30rpx;
+  font-weight: 700;
+  text-align: center;
+}
+
+.my-orders__feedback {
+  display: flex;
+  justify-content: center;
+  padding: 90rpx 0;
 }

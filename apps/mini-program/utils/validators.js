@@ -56,8 +56,8 @@ function validateUsername(username) {
  * @returns {Object} { valid: boolean, message: string }
  */
 function validateNote(note) {
-  if (!note || note.trim() === '') {
-    return { valid: false, message: '未填写跑腿说明' };
+  if (Array.from(String(note || '').replace(/\s/g, '')).length < 4) {
+    return { valid: false, message: '说明至少填写4个字' };
   }
   
   if (containsEmoji(note)) {
@@ -156,14 +156,13 @@ function validateBasicInfo(data) {
  * @returns {Object} { valid: boolean, message: string }
  */
 function validateContent(data) {
-  const title = String(data.noteTitle || '').trim();
-  if (!title) {
-    return { valid: false, message: '请填写一句话需求' };
+  const noteValidation = validateNote(data.note);
+  if (!noteValidation.valid) return noteValidation;
+  if (!data.imageAssetId || !Array.isArray(data.fileList)
+      || !data.fileList.some(file => file.mediaId === data.imageAssetId && file.status === 'done')) {
+    return { valid: false, message: '请上传一张说明图片' };
   }
-  if (title.length > 30) {
-    return { valid: false, message: '一句话需求不能超过30个字符' };
-  }
-  return validateNote(data.note);
+  return { valid: true, message: '' };
 }
 
 /**

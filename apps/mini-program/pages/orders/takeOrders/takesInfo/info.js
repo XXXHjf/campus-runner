@@ -26,6 +26,7 @@ Page({
     // 订单内容
     id: null,
     orderInfo: {},
+    purchaseStatusText: '',
     takeInfo: {},
     pickUpAddress: [],
     reciveAddress: [],
@@ -282,6 +283,16 @@ Page({
     }
   },
 
+  confirmCancelPurchase() {
+    wx.showModal({
+      title: '取消接单',
+      content: '取消后，订单会重新等待其他人接单。确定取消吗？',
+      success: ({ confirm }) => {
+        if (confirm) this.cancelTake();
+      }
+    });
+  },
+
   // 拉起微信确定收款（保留原逻辑，使用 tokenManager）
   async _requestMerchantTransfer() {
     try {
@@ -378,9 +389,11 @@ Page({
       const title = orderInfo.businessType === 'PURCHASE'
         ? ['待接单', '待购买', '配送中', '已送达', '已完成']
         : ['待接单', '待取件', '派送中', '已送达', '已完成'];
+      const purchaseStatusText = ({ '-4': '退款异常', '-3': '退款成功', '-2': '退款中', '-1': '待支付', 0: '待接单', 1: '待购买', 2: '配送中', 3: '已送达', 4: '已取消', 5: '已完成', 6: '收款成功', 7: '收款失败' })[orderInfo.status] || '订单状态';
       
       this.setData({
         orderInfo,
+        purchaseStatusText,
         title,
         pickUpAddress: addressParts1,
         reciveAddress: addressParts2

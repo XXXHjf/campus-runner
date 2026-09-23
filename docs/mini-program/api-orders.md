@@ -13,12 +13,16 @@
 
 - `POST /api/order/amount-preview`：按分类和金额返回服务端计算的服务费、实付、接单人应收及额度；发布订单前使用。
 - `POST /api/order`：发布订单；图片只提交 `imageAssetId`。服务端依据启用分类重新判断业务类型并计算金额。
+  小程序发单只填写一个必填的订单描述（最多 100 字），直接提交为 `note`；无需另填短标题。
+  这样发单和订单展示使用同一份内容。旧草稿中的短标题与详细要求在恢复时合并为描述。
+  验证时检查旧草稿恢复、空描述拦截和跑腿大厅展示；如需回滚，仅恢复小程序表单与草稿处理，接口和数据库无需回滚。
 - `GET /api/order/my`：查询本人订单。
 - `GET /api/order/detail/{id}`：查询订单详情。
 - `GET /api/order/showByPrice/{status}`、`showByTime/{status}`、`showByCategory/{id}`：订单列表筛选。
 - `PUT /api/order/cancel`：取消订单。
+- `PUT /api/order/{id}/content`：发单人仅在待接单时修改 `note` 与 `imageAssetId`；说明至少 4 个非空白字符、最多 100 个字符，图片必填且限一张。金额和履约信息不可修改。
 - `PUT /api/order/confirm/{id}`：确认收货。
-- `DELETE /api/order/{id}`：删除允许删除的订单。
+- `DELETE /api/order/{id}`：逻辑删除订单；当前服务端尚未检查订单状态和归属，客户端应限制入口，服务端校验缺口见 [资金流程](order-flow.md#操作与异常)。
 
 ## 接单 `/api/takeOrders`
 

@@ -1,3 +1,59 @@
+<block wx:if="{{orderInfo.businessType === 'PURCHASE'}}">
+  <view class="purchase-detail">
+    <view class="purchase-detail__hero">
+      <view class="purchase-detail__tag">代买</view>
+      <view class="purchase-detail__state">{{purchaseStatusText}}</view>
+      <view class="purchase-detail__hint" wx:if="{{orderInfo.status == 1}}">请确认商品和价格后再购买</view>
+      <view class="purchase-detail__hint" wx:elif="{{orderInfo.status == 0}}">接单前请确认商品、规格和预算</view>
+    </view>
+
+    <view class="purchase-detail__card">
+      <view class="purchase-detail__heading">购买任务</view>
+      <view class="purchase-detail__row"><text>购买清单</text><text>{{orderInfo.note || '暂无说明'}}</text></view>
+      <view class="purchase-detail__row"><text>购买地点</text><text>{{orderInfo.pickUpAddress}}</text></view>
+      <view class="purchase-detail__row"><text>送达地点</text><text>{{orderInfo.reciveAddress}}</text></view>
+      <view class="purchase-detail__row"><text>预计送达</text><text>{{orderInfo.expectTime}}</text></view>
+      <t-image wx:if="{{orderInfo.image}}" src="{{orderInfo.image}}" bind:tap="tapOnImageToPreview" data-src="{{orderInfo.image}}" mode="aspectFit" shape="round" class="purchase-detail__image" />
+    </view>
+
+    <view class="purchase-detail__card" wx:if="{{orderInfo.price != null}}">
+      <view class="purchase-detail__heading">收款明细</view>
+      <view class="purchase-detail__row"><text>需先垫付</text><text class="purchase-detail__money">¥{{orderInfo.productAmount || 0}}</text></view>
+      <view class="purchase-detail__row"><text>跑腿收入</text><text class="purchase-detail__money">¥{{orderInfo.price || 0}}</text></view>
+      <view class="purchase-detail__row purchase-detail__row--total"><text>完成后预计收款</text><text class="purchase-detail__money">¥{{orderInfo.runnerReceivable || 0}}</text></view>
+      <view class="purchase-detail__explain">完成后商品金额与跑腿费将一起收款</view>
+    </view>
+
+    <view class="purchase-detail__card" wx:if="{{orderInfo.status > 0 && orderInfo.status != 4}}">
+      <view class="purchase-detail__heading">发布用户</view>
+      <view class="purchase-detail__person">
+        <text>{{orderInfo.username || '微信用户'}}</text>
+        <view class="purchase-detail__contact" wx:if="{{orderInfo.phone}}" bind:tap="tapOnPhoneToDo" data-phone="{{'orderInfo'}}">联系发布人</view>
+      </view>
+    </view>
+
+    <view class="purchase-detail__card" wx:if="{{taker.purchaseProofImage}}">
+      <view class="purchase-detail__heading">购买凭证</view>
+      <t-image src="{{taker.purchaseProofImage}}" bind:tap="tapOnImageToPreview" data-src="{{taker.purchaseProofImage}}" mode="aspectFit" shape="round" class="purchase-detail__image" />
+    </view>
+    <view class="purchase-detail__card" wx:if="{{image}}">
+      <view class="purchase-detail__heading">送达图片</view>
+      <t-image src="{{image}}" bind:tap="tapOnImageToPreview" data-src="{{image}}" mode="aspectFit" shape="round" class="purchase-detail__image" />
+    </view>
+    <view class="purchase-detail__number">订单编号 {{orderInfo.orderNumber}}</view>
+  </view>
+  <view class="purchase-detail__actions purchase-detail__actions--pair" wx:if="{{orderInfo.status == 1}}">
+    <view class="purchase-detail__action-secondary"><t-button block variant="outline" theme="default" bind:tap="confirmCancelPurchase">取消接单</t-button></view>
+    <view class="purchase-detail__action-primary"><t-button block theme="primary" bind:tap="button">确认已购买</t-button></view>
+  </view>
+  <view class="purchase-detail__actions" wx:if="{{orderInfo.status >= 0 && orderInfo.status < 4 && orderInfo.status != 1}}">
+    <t-button block bind:tap="button" theme="primary">{{titleB[orderInfo.status]}}</t-button>
+  </view>
+  <view class="purchase-detail__actions" wx:if="{{orderInfo.status == 5 && orderInfo.price != null}}">
+    <t-button block bind:tap="_requestMerchantTransfer" theme="primary">确认收款</t-button>
+  </view>
+</block>
+<block wx:else>
 <!-- 步骤栏 -->
 <view class="step">
   <t-steps theme="dot" readonly current="{{orderInfo.status}}" bind:change="onCascader">
@@ -285,6 +341,7 @@
 <view wx:if="{{orderInfo.status==5&&orderInfo.price!=null}}" class="button">
   <t-button block bind:tap="_requestMerchantTransfer" theme="primary">确定收款</t-button>
 </view>
+</block>
 
 <!-- 接单提示 -->
 <t-dialog visible="{{showConfirm}}" title="接单提示" confirm-btn="确定" cancel-btn="取消" bind:confirm="closeConfirm" bind:cancel="closeDialog">

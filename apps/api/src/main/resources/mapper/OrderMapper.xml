@@ -986,6 +986,11 @@
         where id = #{id}
     </update>
 
+    <update id="updateWaitingContent">
+        update tb_orders set note = #{note}
+        where id = #{id} and user_id = #{userId} and status = 0 and deleted = 0
+    </update>
+
     <update id="updateStatusByOrderNumber">
         update tb_orders
         set status = #{status}

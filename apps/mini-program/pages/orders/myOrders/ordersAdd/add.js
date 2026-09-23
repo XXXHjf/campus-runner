@@ -78,9 +78,7 @@ Page({
     door: DOOR_OPTIONS,
     doorAccess: DOOR_ACCESS.NO_GUARD,
     // 文字说明
-    note: null,
-    noteTitle: '',
-    noteDetail: '',
+    note: '',
     // 图片说明
     fileList: [],
     image: null,
@@ -227,8 +225,6 @@ Page({
       showRecive: this.data.showRecive,
       showUser: this.data.showUser,
       showPhone: this.data.showPhone,
-      noteTitle: this.data.noteTitle,
-      noteDetail: this.data.noteDetail,
       showCategory: this.data.showCategory,
       doorAccess: this.data.doorAccess,
       note: this.data.note,
@@ -261,26 +257,20 @@ Page({
       success: (res) => {
         if (res.confirm) {
           const restored = restoreFromDraft(draft);
-          const noteParts = String(restored.note || '').split(/\r?\n/);
-          let noteTitle = restored.noteTitle || noteParts.shift() || '';
-          let noteDetail = restored.noteDetail || noteParts.join('\n');
-          if (!restored.noteTitle && noteTitle.length > 30) {
-            noteDetail = `${noteTitle.slice(30)}${noteDetail}`.slice(0, 69);
-            noteTitle = noteTitle.slice(0, 30);
-          }
-          noteTitle = String(noteTitle).slice(0, 30);
-          noteDetail = String(noteDetail).slice(0, 69);
+          const { noteTitle, noteDetail, ...draftFields } = restored;
+          const note = String(restored.note || [noteTitle, noteDetail]
+            .map(part => String(part || '').trim())
+            .filter(Boolean)
+            .join('\n')).slice(0, 100);
           const isPurchase = restored.showCategory && restored.showCategory.categoryCode === 'PURCHASE';
           this.setData({
-            ...restored,
+            ...draftFields,
             isPurchase,
             title: isPurchase ? ['地点', '清单', '费用'] : STEP_TITLES,
             priceAccess: isPurchase ? PRICE_MODE.PAID : restored.priceAccess,
             productAmount: isPurchase ? restored.productAmount : '',
             productAmountError: false,
-            noteTitle,
-            noteDetail,
-            note: this._composeNote(noteTitle, noteDetail),
+            note,
             maskedShowPhone: maskPhone(restored.showPhone),
             hasLoadedDraft: true
           }, () => {
@@ -788,25 +778,9 @@ Page({
       doorAccess: (old + 1) % 2
     });
   },
-  _composeNote(title = this.data.noteTitle, detail = this.data.noteDetail) {
-    return [String(title || '').trim(), String(detail || '').trim()]
-      .filter(Boolean)
-      .join('\n');
-  },
-  onNoteTitleInput(e) {
-    const noteTitle = e.detail.value;
+  onNoteInput(e) {
     this.setData({
-      noteTitle,
-      note: this._composeNote(noteTitle, this.data.noteDetail),
-    });
-    this.buttonColor();
-    this._saveDraftData();
-  },
-  onNoteDetailInput(e) {
-    const noteDetail = e.detail.value;
-    this.setData({
-      noteDetail,
-      note: this._composeNote(this.data.noteTitle, noteDetail),
+      note: e.detail.value,
     });
     this.buttonColor();
     this._saveDraftData();
@@ -846,6 +820,7 @@ Page({
         image: null,
         imageAssetId: uploadResult.mediaId
       });
+      this.buttonColor();
       
       console.log('[图片上传] 上传成功');
     } catch (error) {
@@ -875,6 +850,7 @@ Page({
       image: null,
       imageAssetId: null,
     });
+    this.buttonColor();
   },
   // 自动取消时间
   showPicker() {
@@ -1074,7 +1050,7 @@ Page({
   // 订单数据预处理
   _prepareOrderData() {
     this.setData({
-      note: this._composeNote(),
+      note: String(this.data.note || '').trim(),
     });
 
     // 处理价格：免费模式下价格设为 null
@@ -1110,6 +1086,12 @@ Page({
   // 确认发布订单
   async confirmOrder() {
     if (!await require('../../../../utils/accessGuard').ensureAuthenticated()) return;
+    const contentValidation = validateContent(this.data);
+    if (!contentValidation.valid) {
+      errorCilcleToast(this, contentValidation.message);
+      this.setData({ showOrderConfirm: false });
+      return;
+    }
     this.setData({
       showOrderConfirm: false
     });

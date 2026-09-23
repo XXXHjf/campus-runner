@@ -213,18 +213,7 @@ Page({
         throw new Error('登录失败，请稍后重试');
       }
       
-      // token存入缓存与全局变量userInfo中
-      const token = {
-        token: loginResult.data.data.token
-      };
-      
-      wx.setStorage({
-        key: "userInfo",
-        data: token,
-      });
-      app.globalData.userInfo = token;
-      
-      // 更新 tokenManager
+      const token = { token: loginResult.data.data.token };
       tokenManager.updateToken(token.token);
 
       // 获取用户信息（使用封装的 service）
@@ -313,23 +302,10 @@ Page({
         });
         mineTabBadgeService.clearMineTabRedDot();
         
-        // 清除全局数据
-        app.globalData.userInfo = null;
-        
-        // 清除 tokenManager
+        // Explicit logout also disables future automatic restoration.
         tokenManager.clearToken();
-        
-        // 清除缓存
-        wx.setStorage({
-          key: 'userInfo',
-          data: null,
-          success() {
-            console.log("清除 userInfo 缓存成功");
-            // 重新加载页面，销毁其他页面数据
-            wx.reLaunch({
-              url: '/pages/mine/mine/mine'
-            });
-          }
+        wx.reLaunch({
+          url: '/pages/mine/mine/mine'
         });
       })
       .catch(() => console.log('点击了取消'))

@@ -116,6 +116,14 @@ function refundOrder(orderNumber, reason) {
   });
 }
 
+function updateOrderContent(orderId, content) {
+  return request({
+    url: `${url}/api/order/${orderId}/content`,
+    method: 'PUT',
+    data: content
+  }).then(res => res.data);
+}
+
 function previewOrderAmount(orderData) {
   return request({
     url: `${url}/api/order/amount-preview`,
@@ -172,6 +180,7 @@ module.exports = {
   createOrder,
   previewOrderAmount,
   updateOrder,
+  updateOrderContent,
   deleteOrder,
   cancelOrder,
   refundOrder,

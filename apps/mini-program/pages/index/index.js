@@ -222,7 +222,6 @@ Page({
   _decorateTakes(takes) {
     return (Array.isArray(takes) ? takes : []).map((item) => ({
       ...item,
-      displayTitle: String(item.note || '').split(/\r?\n/)[0],
       displayPickUpLabel: item.businessType === 'PURCHASE' ? '购' : '取',
       displayReciveLabel: item.businessType === 'PURCHASE' ? '送' : '收',
     }));

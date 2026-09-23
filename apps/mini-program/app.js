@@ -42,21 +42,33 @@ App({
     // *** 使用同步方法初始化 token ***
     // 这样可以确保在页面/组件加载前 token 已经准备好
     tokenManager.initTokenSync();
-    
-    // 游客启动不创建账号；只有用户主动确认登录时才调用 wx.login。
+    // Only restore a session after the user has previously chosen to log in.
+    this.restoreLogin().catch(() => {});
   },
 
   onShow() {
-    this.refreshMineTabRedDot().catch(() => {});
+    this.restoreLogin()
+      .then(() => this.refreshMineTabRedDot())
+      .catch(() => {});
   },
-  // 仅供用户主动确认登录后调用，不在启动或请求失败时自动执行。
+  restoreLogin({ force = false } = {}) {
+    if (!tokenManager.hasLoginIntent()) return Promise.resolve(false);
+    if (!force && !tokenManager.needsRefresh()) {
+      return this.globalData.silentLoginPromise || Promise.resolve(true);
+    }
+    return this.silentLogin();
+  },
+  // Manual login and recovery of a previously chosen login share one request.
   silentLogin() {
+    if (this.globalData.silentLoginPromise) return this.globalData.silentLoginPromise;
     console.log('尝试静默登录');
     const url = this.globalData.API_URL;
+    const sessionVersion = tokenManager.getSessionVersion();
 
-    return new Promise((resolve) => {
+    const loginPromise = new Promise((resolve) => {
       wx.login({
         success: (loginRes) => {
+          if (!loginRes.code) { resolve(false); return; }
           wx.request({
             url: `${url}/api/user/login`,
             method: 'POST',
@@ -66,7 +78,12 @@ App({
             success: (res) => {
               const token = res.data?.data?.token;
               if (res.statusCode === 200 && res.data?.code === 1 && token) {
-                tokenManager.updateToken(token);
+                if (sessionVersion !== tokenManager.getSessionVersion()) {
+                  resolve(false);
+                  return;
+                }
+                try { tokenManager.updateToken(token, { id: res.data.data.id }); }
+                catch (error) { resolve(false); return; }
                 console.log('静默登录成功');
                 resolve(true);
               } else {
@@ -86,13 +103,21 @@ App({
         }
       });
     });
+    this.globalData.silentLoginPromise = loginPromise;
+    const clearPending = () => {
+      if (this.globalData.silentLoginPromise === loginPromise) {
+        this.globalData.silentLoginPromise = null;
+      }
+    };
+    loginPromise.then(clearPending, clearPending);
+    return loginPromise;
   },
 
   globalData: {
     userInfo: null,
     silentLoginPromise: null,
     // Local development only. Turn on together with backend mock-payment-enabled when testing without real WeChat Pay.
-    MOCK_PAYMENT: false,
+    MOCK_PAYMENT: true,
     //后端访问地址
     // API_URL: 'http://localhost:8080',
     // API_URL : 'http://47.99.105.120:8080',
