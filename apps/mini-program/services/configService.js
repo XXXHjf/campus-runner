@@ -29,8 +29,16 @@ function getServiceFeeMin() {
   }).then((res) => Number(res.data?.data));
 }
 
+function getRunnerTransferSingleMax() {
+  return request({
+    url: `${url}/admin/api/config/runner_transfer_single_max`,
+    method: 'GET'
+  }).then((res) => Number(res.data?.data));
+}
+
 module.exports = {
   getServiceFeeRate,
-  getServiceFeeMin
+  getServiceFeeMin,
+  getRunnerTransferSingleMax
 };
 

@@ -13,6 +13,7 @@ const PREPROCESS_POLICIES = {
   SECOND_HAND_PRODUCT_IMAGE: { targetBytes: 2 * 1024 * 1024, qualities: [88, 80, 72] },
   ORDER_IMAGE: { targetBytes: 2 * 1024 * 1024, qualities: [88, 80, 72] },
   DELIVERY_PROOF: { targetBytes: 2 * 1024 * 1024, qualities: [90, 84, 76] },
+  PURCHASE_PROOF: { targetBytes: 2 * 1024 * 1024, qualities: [90, 84, 76] },
   AVATAR: { targetBytes: 1024 * 1024, qualities: [88, 80] },
   STUDENT_CARD: { targetBytes: 4 * 1024 * 1024, qualities: [94, 90, 86] },
   BANNER: { targetBytes: 2 * 1024 * 1024, qualities: [90, 84] },

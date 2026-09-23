@@ -20,6 +20,7 @@
 
 订单是主业务单，承载：
 - 交易信息（price/service_fee/pay_amount）
+- 业务信息（business_type/product_amount）
 - 履约信息（接单、派送、送达、确认）
 - 结算信息（提现成功/失败）
 - 支付异常信息（未支付/退款中/退款成功/退款异常）
@@ -36,25 +37,32 @@
 
 ---
 
-## 3. 金额模型（有偿/无偿）
+## 3. 金额模型（普通跑腿/代买）
 
 ### 3.1 字段定义
 
 - `price`：订单基础金额（接单人最终报酬基数）
+- `businessType`：订单业务类型；`NORMAL` 为普通跑腿，`PURCHASE` 为代买
+- `productAmount`：代买商品金额，普通跑腿固定为 0
+- `runnerReceivable`：接单人最终应收；代买为商品金额加跑腿报酬
 - `serviceFeeRate` / `service_fee_rate`：本单服务费率快照（下单时固化）
 - `serviceFee` / `service_fee`：本单服务费金额
 - `payAmount` / `pay_amount`：发单人支付总额
 
 ### 3.2 关系
 
-- 有偿单：`payAmount = price + serviceFee`
+- 普通有偿单：`payAmount = price + serviceFee`
 - 无偿单：通常 `price=0, serviceFee=0, payAmount=0`（且客户端不触发支付）
+- 代买单：`serviceFee = max(price × serviceFeeRate, serviceFeeMin)`，`payAmount = productAmount + price + serviceFee`，`runnerReceivable = productAmount + price`
+- 代买实付和接单人应收都受 `runner_transfer_single_max` 限制。两处共用同一项配置，初始为 ¥200；商家单笔额度变化时只更新此项。
+- 接单人只在发单人确认订单完成后收到一笔合并转账（商品金额 + 跑腿报酬），不会分两笔转账。
 
 ### 3.3 服务费来源
 
 - 费率与最低服务费来自系统配置接口：
   - `GET /admin/api/config/service_fee_rate`
   - `GET /admin/api/config/service_fee_min`
+  - `GET /admin/api/config/runner_transfer_single_max`：代买支付和接单人收款共用的单笔上限；由管理员同步微信商家转账额度调整。
 
 下单时应把结果写入订单快照字段，避免后续配置变更影响历史订单结算。
 
@@ -76,9 +84,10 @@
 - `6` 提现成功
 - `7` 提现失败
 
-文档给出的正常完成路径：
+正常完成路径：
 - 无偿订单：`0 -> 1 -> 2 -> 3 -> 5`
 - 有偿订单：`0 -> 1 -> 2 -> 3 -> 5 -> 6`
+- 代买订单：`0 -> 1（待购买） -> 2（配送中） -> 3 -> 5 -> 6/7`
 
 补充解释：
 - `5` 表示履约闭环完成（发单人确认收货）
@@ -98,6 +107,7 @@
 - 读取 `service_fee_rate` 与 `service_fee_min`
 - 计算 `serviceFee`
 - 计算 `payAmount=price+serviceFee`
+- 代买金额由服务端按商品金额、跑腿报酬和服务费重新计算，客户端金额快照不作为权威值。
 
 3. 创建订单：
 - `POST /api/order`
@@ -122,6 +132,7 @@
 - 典型迁移：
   - `1`（已接单）-> `2`（派送中）
   - `2`（派送中）-> `3`（已送达，需上传送达图片）
+- 代买接单人购买后，须先提交一张购买凭证或商品照片，再进入配送中；商品买下后不可取消订单。
 
 3. 发单人确认收货：
 - `PUT /api/order/confirm/{id}`
@@ -135,6 +146,7 @@
 2. 平台向接单人打款（微信提现）：
 - `POST /api/wx-transfer/transfer/{orderId}`
 - 异步回调：`POST /api/wx-transfer/notify`
+- 代买以 `productAmount + price` 发起一笔合并转账。
 
 3. 根据转账结果更新订单：
 - 成功：`5 -> 6`（提现成功）
@@ -151,6 +163,7 @@
 - 适用场景（建议）：
   - 待接单（`0`）可取消
   - 已接单/派送中/已送达（`1/2/3`）不应由发单人直接取消，应走履约或申诉路径
+  - 代买进入配送中（商品已购买）后，接单人不可自行取消，应联系平台协商
   - 未支付（`-1`）建议走“超时自动删除”而非“取消+退款”
 - 状态到 `4`（已取消）
 

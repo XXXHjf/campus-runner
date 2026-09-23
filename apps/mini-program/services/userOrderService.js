@@ -116,6 +116,14 @@ function refundOrder(orderNumber, reason) {
   });
 }
 
+function previewOrderAmount(orderData) {
+  return request({
+    url: `${url}/api/order/amount-preview`,
+    method: 'POST',
+    data: orderData
+  }).then(res => res.data?.data || {});
+}
+
 /**
  * 主动同步微信支付状态
  * @param {string|number} orderId - 订单ID
@@ -162,6 +170,7 @@ module.exports = {
   getMyOrders,
   getMyOrderDetail,
   createOrder,
+  previewOrderAmount,
   updateOrder,
   deleteOrder,
   cancelOrder,

@@ -63,6 +63,9 @@ export async function detail(id: number): Promise<AdminOrderDetailResponse> {
       status: raw['status'] as number,
       categoryName: raw['categoryName'] as string,
       price: raw['price'] as number,
+      productAmount: raw['productAmount'] as number,
+      businessType: raw['businessType'] as 'NORMAL' | 'PURCHASE',
+      runnerReceivable: raw['runnerReceivable'] as number,
       serviceFeeRate: raw['serviceFeeRate'] as number,
       serviceFee: raw['serviceFee'] as number,
       payAmount: raw['payAmount'] as number,
@@ -87,6 +90,7 @@ export async function detail(id: number): Promise<AdminOrderDetailResponse> {
           takeTime: raw['takerTakeTime'] as string,
           deliveryTime: n(raw['takerDeliveryTime']) as string | null,
           image: n(raw['takerImage']) as string | null,
+          purchaseProofImage: n(raw['purchaseProofImage']) as string | null,
         }
       : null,
     payment: raw['paymentTransactionId']

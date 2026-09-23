@@ -12,6 +12,9 @@ public class AdminTakeOrderListVO {
     private Integer takeOrderStatus;
     private String categoryName;
     private BigDecimal price;
+    private BigDecimal productAmount;
+    private String businessType;
+    private BigDecimal runnerReceivable;
     private BigDecimal serviceFee;
     private BigDecimal payAmount;
     private String orderNote;

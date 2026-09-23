@@ -14,5 +14,6 @@ public class TakeOrderUserInfoVO {
     private String realname;
     private String phone;
     private LocalDateTime takeOrderTime;
+    private String purchaseProofImage;
     private Long id;
 }

@@ -1,6 +1,7 @@
 package com.mikasa.campusrunner.service.impl.admin;
 
 import com.mikasa.campusrunner.common.constant.SecondHandConstant;
+import com.mikasa.campusrunner.common.constant.OrderBusinessConstant;
 import com.mikasa.campusrunner.common.exception.ParamException;
 import com.mikasa.campusrunner.common.properties.SystemConfigProperties;
 import com.mikasa.campusrunner.mapper.AdminSystemConfigMapper;
@@ -53,6 +54,11 @@ public class AdminSystemConfigServiceImpl implements AdminSystemConfigService {
                 : config.getConfigValue();
     }
 
+    @Override
+    public String getRunnerTransferSingleMax() {
+        return getAmountConfig(OrderBusinessConstant.CONFIG_RUNNER_TRANSFER_SINGLE_MAX);
+    }
+
     /**
      * 修改服务费率
      * @param rate
@@ -79,6 +85,25 @@ public class AdminSystemConfigServiceImpl implements AdminSystemConfigService {
     public void updateSecondHandServiceFeeRate(BigDecimal rate) {
         validateRate(rate);
         adminSystemConfigMapper.updateByConfigKey(SecondHandConstant.CONFIG_SERVICE_FEE_RATE, rate.toString());
+    }
+
+    @Override
+    public void updateRunnerTransferSingleMax(BigDecimal amount) {
+        updatePositiveAmount(OrderBusinessConstant.CONFIG_RUNNER_TRANSFER_SINGLE_MAX, amount);
+    }
+
+    private String getAmountConfig(String key) {
+        SystemConfig config = adminSystemConfigMapper.getByConfigKey(key);
+        return config == null || config.getConfigValue() == null
+                ? OrderBusinessConstant.DEFAULT_AMOUNT_LIMIT.toPlainString()
+                : config.getConfigValue();
+    }
+
+    private void updatePositiveAmount(String key, BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0 || amount.scale() > 2) {
+            throw new ParamException("金额必须大于0且最多保留两位小数");
+        }
+        adminSystemConfigMapper.updateByConfigKey(key, amount.toPlainString());
     }
 
     private void validateRate(BigDecimal rate) {

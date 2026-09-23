@@ -17,6 +17,10 @@ public class OrderShowVO{
     private String reciveAddress;
     private String orderNumber;
     private BigDecimal price;//订单基础金额(骑手实际收入)
+    private String businessType;
+    private BigDecimal productAmount;
+    private BigDecimal runnerFee;
+    private BigDecimal runnerReceivable;
     private BigDecimal serviceFeeRate; //付费费率快照
     private BigDecimal serviceFee; //服务费
     private BigDecimal payAmount; //用户支付总额

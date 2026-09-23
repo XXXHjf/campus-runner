@@ -55,6 +55,15 @@ const configFields: SystemConfigFieldDefinition[] = [
     max: 1,
     step: '0.01',
   },
+  {
+    key: 'runnerTransferSingleMax',
+    label: '代买订单及接单人单笔收款上限',
+    description: '该额度同时限制代买用户实付金额和接单人收到的商品款、跑腿报酬合计，请与微信商家转账单笔额度保持一致。',
+    placeholder: '请输入商家转账单笔额度',
+    unit: '元',
+    min: 0.01,
+    step: '0.01',
+  },
 ]
 
 const visibleConfigFields = configFields.filter((field) => field.key !== 'secondHandServiceFeeRate')
@@ -104,11 +113,13 @@ export default function SystemConfigManagement() {
     serviceFeeRate: '',
     serviceFeeMin: '',
     secondHandServiceFeeRate: '',
+    runnerTransferSingleMax: '',
   })
   const [editValues, setEditValues] = useState<Record<SystemConfigKey, string>>({
     serviceFeeRate: '',
     serviceFeeMin: '',
     secondHandServiceFeeRate: '',
+    runnerTransferSingleMax: '',
   })
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<SystemConfigKey, string>>>({})
   const [successKey, setSuccessKey] = useState<SystemConfigKey | null>(null)
@@ -141,6 +152,7 @@ export default function SystemConfigManagement() {
         serviceFeeRate: '',
         serviceFeeMin: '',
         secondHandServiceFeeRate: '',
+        runnerTransferSingleMax: '',
       }
 
       values.forEach(([key, value]) => {

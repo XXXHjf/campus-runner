@@ -42,7 +42,7 @@ public class CategoryServiceImpl implements CategoryService {
      */
     @Override
     public List<Category> getAll() {
-        List<Category> list = categoryMapper.getAll();
+        List<Category> list = categoryMapper.getEnabled();
         list.forEach(this::resolveImage);
         return list;
     }

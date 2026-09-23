@@ -9,13 +9,13 @@
 </view>
 
 <!-- 地址 -->
-<ui-section title="取件与收件地址" icon="map" wx:if="{{count == 1}}">
+<ui-section title="{{isPurchase ? '购买与送达地址' : '取件与收件地址'}}" icon="map" wx:if="{{count == 1}}">
   <!-- 取件地址 -->
   <view class="box1" bind:tap="tapOnPickAddr">
-    <view class="text-address">取件地址</view>
+    <view class="text-address">{{isPurchase ? '购买地点' : '取件地址'}}</view>
     <view>
       <view class="address" style="font-weight: 600; color: {{showPickUp?'black':'gray'}};">
-        {{showPickUp.compusName || '点击选择取件地址'}} {{showPickUp.buildCategoryName}} {{showPickUp.buildingName}}
+        {{showPickUp.compusName || (isPurchase ? '点击选择购买地点' : '点击选择取件地址')}} {{showPickUp.buildCategoryName}} {{showPickUp.buildingName}}
       </view>
       <view class="address" wx:if="{{showPickUp.details}}" style="color: {{showPickUp?'black':'gray'}};">{{showPickUp.details}}</view>
     </view>
@@ -23,17 +23,17 @@
   <!-- 收件地址 -->
   <view class="box1" bind:tap="upRecive">
 
-    <text class="text-address">收件地址</text>
+    <text class="text-address">{{isPurchase ? '送达地点' : '收件地址'}}</text>
     <view>
       <view class="address" style="font-weight: 600; color: {{showRecive?'black':'gray'}};">
-        {{showRecive.compusName || '点击选择收件地址'}} {{showRecive.buildCategoryName}} {{showRecive.buildingName}}
+        {{showRecive.compusName || (isPurchase ? '点击选择送达地点' : '点击选择收件地址')}} {{showRecive.buildCategoryName}} {{showRecive.buildingName}}
       </view>
       <view class="address" wx:if="{{showRecive.details}}" style="color: {{showRecive?'black':'gray'}};">{{showRecive.details}}</view>
     </view>
   </view>
 
   <!-- 门禁情况 -->
-  <view hidden="{{!(count==1)}}">
+  <view wx:if="{{count == 1 && !isPurchase}}">
     <view class="door-container">
       <view class="door-left" bind:tap="handleChangeDoor">
         <view class="box1">
@@ -119,13 +119,13 @@
 <!-- </view> -->
 
 <!-- 跑腿内容说明 -->
-<ui-section title="内容说明" icon="attach" description="说明越清楚，接单人越容易准确完成任务" wx:if="{{count == 2}}">
+<ui-section title="{{isPurchase ? '购买清单' : '内容说明'}}" icon="attach" description="说明越清楚，接单人越容易准确完成任务" wx:if="{{count == 2}}">
   <view class="content-field">
     <text class="text-address">一句话需求</text>
     <t-input
       class="content-title-input"
       value="{{noteTitle}}"
-      placeholder="例如：帮取一个快递送到梅苑"
+      placeholder="{{isPurchase ? '例如：购买一杯中杯美式，送到梅苑' : '例如：帮取一个快递送到梅苑'}}"
       maxlength="30"
       clearable="{{true}}"
       bind:change="onNoteTitleInput"
@@ -138,7 +138,7 @@
       t-class="external-class"
       t-class-indicator="{{skylineRender?'skyline-indicator':''}}"
       value="{{noteDetail}}"
-      placeholder="补充取件位置、物品规格和注意事项（选填）"
+      placeholder="{{isPurchase ? '补充品牌、规格、口味等要求（选填）' : '补充取件位置、物品规格和注意事项（选填）'}}"
       bordered
       maxlength="69"
       disableDefaultPadding="{{true}}"
@@ -148,8 +148,8 @@
     />
   </view>
   <view>
-    <text class="text-address">图片说明</text>
-    <view class="address" style="margin-top: 20rpx;"> （选填）请选择一张图片：取件码等 </view>
+    <text class="text-address">{{isPurchase ? '商品参考图片' : '图片说明'}}</text>
+    <view class="address" style="margin-top: 20rpx;">{{isPurchase ? '选填，可上传商品图片帮助接单人确认' : '（选填）请选择一张图片：取件码等'}}</view>
     <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{1}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="margin: 20rpx 30rpx" />
   </view>
 </ui-section>
@@ -203,11 +203,29 @@
 <!-- 付费信息 -->
 <ui-section title="跑腿付费" icon="user-vip" wx:if="{{count == 3}}">
   <!-- 付费信息  -->
-  <view>
+  <view wx:if="{{isPurchase}}" class="order-add__purchase-fee">
+    <view class="order-add__amount-row">
+      <text class="text-address">商品金额</text>
+      <t-input class="input custom-input" value="{{productAmount}}" placeholder="输入预估商品金额" suffix="元" align="left" type="digit" bind:change="onProductAmountInput" borderless />
+    </view>
+    <view wx:if="{{productAmountError}}" class="order-add__amount-error">请输入大于 0 且最多两位小数的金额</view>
+    <view class="order-add__amount-row">
+      <text class="text-address">跑腿报酬</text>
+      <t-input class="input custom-input" value="{{price}}" placeholder="输入跑腿报酬" suffix="元" align="left" type="digit" bind:change="onPriceInput" borderless />
+    </view>
+    <view wx:if="{{priceError}}" class="order-add__amount-error">请输入大于 0 且最多两位小数的跑腿报酬</view>
+    <view class="order-add__fee-summary">
+      <view class="order-add__fee-line"><text>服务费</text><text>¥{{serviceFee || 0}}</text></view>
+      <view class="order-add__fee-line"><text>预计实付</text><text class="order-add__fee-total">¥{{payAmount || 0}}</text></view>
+      <view class="order-add__fee-line"><text>接单人完成后预计收款</text><text>¥{{runnerReceivable || 0}}</text></view>
+    </view>
+    <view class="order-add__fee-hint">预计实付和接单人收款均受同一单笔转账额度限制（¥{{runnerTransferSingleMax}}）；完成后商品金额与跑腿报酬将合并转给接单人。</view>
+  </view>
+  <view wx:else>
     <view class="box1">
       <text class="text-address">是否选择有偿</text>
       <view wx:if="{{!(priceAccess==0)}}" class="address">
-        <t-input class="input custom-input" placeholder="{{price}}" suffix="元" align="left" type="digit" bindchange="onPriceInput" borderless style="padding: 0 !important;" />
+        <t-input class="input custom-input" value="{{price}}" placeholder="{{price}}" suffix="元" align="left" type="digit" bindchange="onPriceInput" borderless style="padding: 0 !important;" />
       </view>
       <view class="address" style="font-weight: 600;text-align: right;" />
       <t-switch value="{{priceAccess==0?false:true}}" icon="{{['check', 'close']}}" size="small" slot="note" style="margin-right: 42rpx;" bind:tap="handleChangePrice" />
@@ -223,7 +241,7 @@
     <t-button block variant="outline" theme="default" disabled="{{count==1}}" bind:tap="toPrev">上一步</t-button>
   </view>
   <view class="order-add__action">
-    <t-button block variant="{{variant}}" theme="{{theme}}" open-type="agreePrivacyAuthorization" bind:tap="{{count==3?'order':'toNext'}}">{{count==3?'发布跑腿':'下一步'}}</t-button>
+    <t-button block variant="{{variant}}" theme="{{theme}}" open-type="agreePrivacyAuthorization" bind:tap="{{count==3?'order':'toNext'}}">{{count==3?(isPurchase?'发布代买':'发布跑腿'):'下一步'}}</t-button>
   </view>
 </ui-action-bar>
 </ui-page>
@@ -256,14 +274,14 @@
       <!-- 取件地址 -->
       <view class="confirm-item-compact">
         <t-icon name="location" size="32rpx" color="#666666" class="confirm-icon-td" />
-        <text class="confirm-label-compact">取件</text>
+        <text class="confirm-label-compact">{{isPurchase ? '购买' : '取件'}}</text>
         <text class="confirm-value-compact">{{showPickUp.buildingName}} {{showPickUp.details}}</text>
       </view>
       
       <!-- 收件地址 -->
       <view class="confirm-item-compact">
         <t-icon name="flag" size="32rpx" color="#666666" class="confirm-icon-td" />
-        <text class="confirm-label-compact">送达</text>
+        <text class="confirm-label-compact">{{isPurchase ? '送达' : '收件'}}</text>
         <text class="confirm-value-compact">{{showRecive.buildingName}} {{showRecive.details}}</text>
       </view>
       
@@ -274,10 +292,17 @@
         <text class="confirm-value-compact">{{showReachTime}}</text>
       </view>
       
+      <!-- 商品金额 -->
+      <view class="confirm-item-compact confirm-highlight-bg" wx:if="{{isPurchase}}">
+        <t-icon name="money" size="32rpx" color="#FF6B00" class="confirm-icon-td" />
+        <text class="confirm-label-compact">商品金额</text>
+        <text class="price-text-compact">¥{{productAmount}}</text>
+      </view>
+
       <!-- 价格 -->
       <view class="confirm-item-compact confirm-highlight-bg" wx:if="{{price && priceAccess == 1}}">
         <t-icon name="money" size="32rpx" color="#FF6B00" class="confirm-icon-td" />
-        <text class="confirm-label-compact">发布价格</text>
+        <text class="confirm-label-compact">{{isPurchase ? '跑腿报酬' : '发布价格'}}</text>
         <text class="price-text-compact">¥{{price}}</text>
       </view>
 
@@ -286,9 +311,15 @@
         <text class="confirm-label-compact">实付金额</text>
         <text class="price-text-compact">¥{{payAmount || 0}}</text>
       </view>
+
+      <view class="confirm-item-compact confirm-highlight-bg" wx:if="{{isPurchase}}">
+        <t-icon name="wallet" size="32rpx" color="#0052d9" class="confirm-icon-td" />
+        <text class="confirm-label-compact">接单人完成后收款</text>
+        <text class="price-text-compact">¥{{runnerReceivable || 0}}</text>
+      </view>
       
       <!-- 门禁提示（如果有） -->
-      <view class="confirm-item-compact confirm-warning-item" wx:if="{{doorAccess == 1}}">
+      <view class="confirm-item-compact confirm-warning-item" wx:if="{{doorAccess == 1 && !isPurchase}}">
         <t-icon name="lock-on" size="32rpx" color="#FF6B00" class="confirm-icon-td" />
         <text class="warning-text-compact">有门禁，请提前沟通</text>
       </view>
@@ -297,7 +328,7 @@
     <!-- 温馨提示 -->
     <view class="confirm-tips-compact">
       <t-icon name="info-circle-filled" size="28rpx" color="#FFB800" class="tips-icon-td" />
-      <text class="tips-text-compact">{{priceAccess == 1 ? '发布后将进入支付' : '发布后骑手将收到通知'}}</text>
+      <text class="tips-text-compact">{{isPurchase ? '发布后将支付商品金额、跑腿报酬及服务费' : (priceAccess == 1 ? '发布后将进入支付' : '发布后骑手将收到通知')}}</text>
     </view>
   </view>
 </t-dialog>
@@ -309,7 +340,7 @@
     <!-- 顶栏 -->
     <view class="header">
       <view class="btn btn--cancel" aria-role="button" bind:tap="cancelAndConfirmPickUp">取消</view>
-      <view class="title">取件地址修改</view>
+      <view class="title">{{isPurchase ? '购买地点修改' : '取件地址修改'}}</view>
       <view class="btn btn--confirm" aria-role="button" bind:tap="cancelAndConfirmPickUp">确定</view>
     </view>
     <!-- 滑动区域 -->
@@ -351,7 +382,7 @@
     <!-- 顶栏 -->
     <view class="header">
       <view class="btn btn--cancel" aria-role="button" bind:tap="cancelAndConfirmRecive">取消</view>
-      <view class="title">收件地址修改</view>
+      <view class="title">{{isPurchase ? '送达地点修改' : '收件地址修改'}}</view>
       <view class="btn btn--confirm" aria-role="button" bind:tap="cancelAndConfirmRecive">确定</view>
     </view>
     <!-- 滑动区 -->

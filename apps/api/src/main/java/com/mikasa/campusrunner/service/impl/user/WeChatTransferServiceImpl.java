@@ -5,6 +5,7 @@ import com.mikasa.campusrunner.common.constant.MessageConstant;
 import com.mikasa.campusrunner.common.constant.OrderStatusConstant;
 import com.mikasa.campusrunner.common.constant.WeChatPayConstant;
 import com.mikasa.campusrunner.common.constant.WeChatTransferConstant;
+import com.mikasa.campusrunner.common.constant.OrderBusinessConstant;
 import com.mikasa.campusrunner.common.context.BaseContext;
 import com.mikasa.campusrunner.common.exception.OrderException;
 import com.mikasa.campusrunner.common.properties.WeChatProperties;
@@ -12,6 +13,7 @@ import com.mikasa.campusrunner.mapper.OrderMapper;
 import com.mikasa.campusrunner.mapper.PaymentLogMapper;
 import com.mikasa.campusrunner.mapper.UserMapper;
 import com.mikasa.campusrunner.mapper.WxTransferLogMapper;
+import com.mikasa.campusrunner.mapper.AdminSystemConfigMapper;
 import com.mikasa.campusrunner.pojo.entity.Order;
 import com.mikasa.campusrunner.pojo.entity.PaymentLog;
 import com.mikasa.campusrunner.pojo.entity.WxTransferLog;
@@ -36,6 +38,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
@@ -71,6 +74,9 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
 
     @Autowired
     private OrderService orderService;
+
+    @Autowired
+    private AdminSystemConfigMapper systemConfigMapper;
     private ReentrantLock lock = new ReentrantLock();
 
     /**
@@ -112,8 +118,15 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
         paramsMap.put("transfer_scene_id", weChatProperties.getTransferSceneId()); //转账场景ID
         paramsMap.put("openid", user.getOpenid()); //收款用户OpenID
 //        paramsMap.put("transfer_amount", paymentLog.getTotal()); //转账金额
-        paramsMap.put("transfer_amount", paymentLog.getTotal() - paymentLog.getServiceFee()); //转账金额
-        paramsMap.put("transfer_remark", WeChatTransferConstant.TRANSFER_REMARK); //转账备注
+        BigDecimal receivable = (order.getProductAmount() == null ? BigDecimal.ZERO : order.getProductAmount())
+                .add(order.getPrice() == null ? BigDecimal.ZERO : order.getPrice());
+        BigDecimal transferMax = getTransferMax();
+        if (receivable.signum() <= 0 || receivable.compareTo(transferMax) > 0) {
+            throw new OrderException("预计收款金额超出当前单笔转账额度，请联系平台处理");
+        }
+        paramsMap.put("transfer_amount", receivable.movePointRight(2).intValueExact());
+        boolean purchase = OrderBusinessConstant.PURCHASE.equals(order.getBusinessType());
+        paramsMap.put("transfer_remark", purchase ? "代买垫付款及跑腿费" : WeChatTransferConstant.TRANSFER_REMARK);
         paramsMap.put("notify_url", notifyUrl); //通知地址
 
         //转账场景报备信息
@@ -124,7 +137,9 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
         sceneReportInfos[0] = sceneReprotInfo;
         sceneReprotInfo = new HashMap();
         sceneReprotInfo.put("info_type", "Compensation Description");
-        sceneReprotInfo.put("info_content", "Delivery Commission Reward");
+        sceneReprotInfo.put("info_content", purchase
+                ? "Purchase Advance Reimbursement and Delivery Reward"
+                : "Delivery Commission Reward");
         sceneReportInfos[1] = sceneReprotInfo;
         paramsMap.put("transfer_scene_report_infos", sceneReportInfos);
 
@@ -188,6 +203,18 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
             response.close();
         }
 
+    }
+
+    private BigDecimal getTransferMax() {
+        var config = systemConfigMapper.getByConfigKey(OrderBusinessConstant.CONFIG_RUNNER_TRANSFER_SINGLE_MAX);
+        if (config == null || config.getConfigValue() == null) {
+            return OrderBusinessConstant.DEFAULT_AMOUNT_LIMIT;
+        }
+        try {
+            return new BigDecimal(config.getConfigValue());
+        } catch (NumberFormatException exception) {
+            throw new OrderException("收款额度配置有误，请联系平台处理");
+        }
     }
 
     /**

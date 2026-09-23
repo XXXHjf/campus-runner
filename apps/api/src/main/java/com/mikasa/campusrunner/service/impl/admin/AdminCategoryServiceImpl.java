@@ -4,6 +4,7 @@ import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
 import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.common.context.BaseContext;
 import com.mikasa.campusrunner.common.exception.ParamException;
+import com.mikasa.campusrunner.common.constant.OrderBusinessConstant;
 import com.mikasa.campusrunner.mapper.CategoryMapper;
 import com.mikasa.campusrunner.pojo.entity.Category;
 import com.mikasa.campusrunner.service.MediaAssetService;
@@ -42,6 +43,7 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
         if (imageAssetId == null) {
             throw new ParamException("请选择分类图标");
         }
+        validateCategory(category, false);
         categoryMapper.insert(category);
         mediaAssetService.replaceBinding(
                 List.of(imageAssetId),
@@ -64,6 +66,15 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
         if (existing == null) {
             return null;
         }
+        if (category.getCategoryCode() != null
+                && !category.getCategoryCode().equals(existing.getCategoryCode())) {
+            throw new ParamException("业务编码创建后不可修改");
+        }
+        if (category.getBusinessType() != null
+                && !category.getBusinessType().equals(existing.getBusinessType())) {
+            throw new ParamException("业务类型创建后不可修改");
+        }
+        validateCategory(category, true);
         if (category.getImageAssetId() != null) {
             mediaAssetService.replaceBinding(
                     List.of(category.getImageAssetId()),
@@ -112,6 +123,24 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
         if (!images.isEmpty()) {
             category.setImageAssetId(images.get(0).getMediaId());
             category.setImage(images.get(0).getUrl());
+        }
+    }
+
+    private void validateCategory(Category category, boolean partial) {
+        if (!partial && (category.getCategoryCode() == null
+                || !category.getCategoryCode().matches("[A-Z][A-Z0-9_]{1,31}"))) {
+            throw new ParamException("业务编码应为2至32位大写字母、数字或下划线");
+        }
+        if (category.getBusinessType() != null
+                && !OrderBusinessConstant.NORMAL.equals(category.getBusinessType())
+                && !OrderBusinessConstant.PURCHASE.equals(category.getBusinessType())) {
+            throw new ParamException("请选择正确的业务类型");
+        }
+        if (category.getEnabled() != null && category.getEnabled() != 0 && category.getEnabled() != 1) {
+            throw new ParamException("启用状态不正确");
+        }
+        if (category.getSortOrder() != null && category.getSortOrder() < 0) {
+            throw new ParamException("排序不能小于0");
         }
     }
 }

@@ -28,6 +28,11 @@ const configEndpointMap: Record<SystemConfigKey, ConfigEndpoint> = {
     putPath: '/admin/api/config/second_hand_service_fee_rate',
     payloadKey: 'secondHandServiceFeeRate',
   },
+  runnerTransferSingleMax: {
+    getPath: '/admin/api/config/runner_transfer_single_max',
+    putPath: '/admin/api/config/runner_transfer_single_max',
+    payloadKey: 'runnerTransferSingleMax',
+  },
 }
 
 function normalizeConfigValue(value: unknown): string {

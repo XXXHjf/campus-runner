@@ -4,7 +4,7 @@
 <mapper namespace="com.mikasa.campusrunner.mapper.OrderMapper">
     <!-- Public projection: never include phone, note, photos or address-book details. -->
     <select id="listPublicOrders" resultType="com.mikasa.campusrunner.pojo.vo.PublicOrderVO">
-        select o.id, o.price, o.create_time, o.gap, o.category_id, c.category_name,
+        select o.id, o.price, o.product_amount, o.business_type, o.create_time, o.gap, o.category_id, c.category_name,
                concat_ws(' ', ps.school_name, pc.compus_name, pbc.name, pb.building_name) as pick_up_address,
                concat_ws(' ', rs.school_name, rc.compus_name, rbc.name, rb.building_name) as recive_address
         from tb_orders o
@@ -33,6 +33,9 @@
             address_recive.address AS recive_address, -- 收件地址，字符串，类似：浙大城市学院 南校区 寝室楼 弘毅楼 寝室楼下
             orders.order_number,
             orders.price,
+            orders.product_amount,
+            orders.business_type,
+            (orders.product_amount + orders.price) AS runner_receivable,
             orders.service_fee_rate,
             orders.service_fee,
             orders.pay_amount,
@@ -129,6 +132,9 @@
                address_recive.address AS recive_address, -- 收件地址，字符串，类似：浙大城市学院 南校区 寝室楼 弘毅楼 寝室楼下
                orders.order_number,
                orders.price,
+               orders.product_amount,
+               orders.business_type,
+               (orders.product_amount + orders.price) AS runner_receivable,
                orders.service_fee_rate,
                orders.service_fee,
                orders.pay_amount,
@@ -228,6 +234,9 @@
                 address_recive.address AS recive_address,
                 orders.order_number,
                 orders.price,
+                orders.product_amount,
+                orders.business_type,
+                (orders.product_amount + orders.price) AS runner_receivable,
                 orders.service_fee_rate,
                 orders.service_fee,
                 orders.pay_amount,
@@ -323,6 +332,9 @@
             address_recive.address AS recive_address,
             orders.order_number,
             orders.price,
+            orders.product_amount,
+            orders.business_type,
+            (orders.product_amount + orders.price) AS runner_receivable,
             orders.service_fee_rate,
             orders.service_fee,
             orders.pay_amount,
@@ -404,6 +416,9 @@
             address_recive.address AS recive_address,
             orders.order_number,
             orders.price,
+            orders.product_amount,
+            orders.business_type,
+            (orders.product_amount + orders.price) AS runner_receivable,
             orders.service_fee_rate,
             orders.service_fee,
             orders.pay_amount,
@@ -493,6 +508,9 @@
                 address_recive.address AS recive_address,
                 orders.order_number,
                 orders.price,
+                orders.product_amount,
+                orders.business_type,
+                (orders.product_amount + orders.price) AS runner_receivable,
                 orders.service_fee_rate,
                 orders.service_fee,
                 orders.pay_amount,
@@ -587,6 +605,9 @@
             address_recive.address AS recive_address, -- 收件地址，字符串，类似：浙大城市学院 南校区 弘毅楼 寝室楼下
             orders.order_number,
             orders.price,
+            orders.product_amount,
+            orders.business_type,
+            (orders.product_amount + orders.price) AS runner_receivable,
             orders.service_fee_rate,
             orders.service_fee,
             orders.pay_amount,
@@ -694,6 +715,9 @@
             address_recive.address AS recive_address, -- 收件地址，字符串，类似：浙大城市学院 南校区 弘毅楼 寝室楼下
             orders.order_number,
             orders.price,
+            orders.product_amount,
+            orders.business_type,
+            (orders.product_amount + orders.price) AS runner_receivable,
             orders.service_fee_rate,
             orders.service_fee,
             orders.pay_amount,
@@ -877,6 +901,8 @@
                               recive_address,
                               order_number,
                               price,
+                              product_amount,
+                              business_type,
                               service_fee_rate,
                               service_fee,
                               pay_amount,
@@ -901,6 +927,8 @@
                                      #{reciveAddress},
                                      #{orderNumber},
                                      #{price},
+                                     #{productAmount},
+                                     #{businessType},
                                      #{serviceFeeRate},
                                      #{serviceFee},
                                      #{payAmount},
@@ -934,6 +962,8 @@
             <if test="reciveAddress != null">recive_address = #{reciveAddress}, </if>
             <if test="orderNumber != null and orderNumber != ''">order_number = #{orderNumber}, </if>
             <if test="price != null">price = #{price}, </if>
+            <if test="productAmount != null">product_amount = #{productAmount}, </if>
+            <if test="businessType != null and businessType != ''">business_type = #{businessType}, </if>
             <if test="serviceFeeRate != null">service_fee_rate = #{serviceFeeRate}, </if>
             <if test="serviceFeeRate != null">service_fee = #{serviceFeeRate}, </if>
             <if test="payAmount != null">pay_amount = #{payAmount}, </if>
@@ -964,7 +994,9 @@
 
     <select id="listAllOrders" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminOrderListVO">
         SELECT o.id, o.order_number, o.status, c.category_name,
-               o.price, o.service_fee, o.pay_amount,
+               o.price, o.product_amount, o.business_type,
+               (o.product_amount + o.price) AS runner_receivable,
+               o.service_fee, o.pay_amount,
                o.username, o.phone, o.note, o.door_access, o.create_time,
                ap.address AS pick_up_address, ar.address AS recive_address
         FROM tb_orders o
@@ -988,7 +1020,9 @@
 
     <select id="listOrdersByStatus" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminOrderListVO">
         SELECT o.id, o.order_number, o.status, c.category_name,
-               o.price, o.service_fee, o.pay_amount,
+               o.price, o.product_amount, o.business_type,
+               (o.product_amount + o.price) AS runner_receivable,
+               o.service_fee, o.pay_amount,
                o.username, o.phone, o.note, o.door_access, o.create_time,
                o.cancel_time, o.cancel_reson AS cancel_reason, o.delivery_time,
                ap.address AS pick_up_address, ar.address AS recive_address,
@@ -1021,7 +1055,9 @@
 
     <select id="getAdminOrderDetail" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminOrderDetailVO">
         SELECT o.id, o.order_number, o.status, c.category_name,
-               o.price, o.service_fee_rate, o.service_fee, o.pay_amount,
+               o.price, o.product_amount, o.business_type,
+               (o.product_amount + o.price) AS runner_receivable,
+               o.service_fee_rate, o.service_fee, o.pay_amount,
                o.username, o.phone, o.note, o.door_access,
                o.gap, o.exceed_time, o.create_time, o.cancel_time, o.cancel_reson AS cancel_reason,
                ap.address AS pick_up_address, ar.address AS recive_address,

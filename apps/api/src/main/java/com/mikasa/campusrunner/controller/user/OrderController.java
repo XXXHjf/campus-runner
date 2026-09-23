@@ -56,6 +56,12 @@ public class OrderController {
         return Result.success(order);
     }
 
+    @PostMapping("/amount-preview")
+    @Operation(summary = "预览服务端计算的订单金额")
+    public Result<com.mikasa.campusrunner.pojo.vo.OrderAmountVO> previewAmount(@RequestBody OrderSubmitDTO orderSubmitDTO) {
+        return Result.success(orderService.previewAmount(orderSubmitDTO));
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "删除订单")
     public Result delete(@PathVariable Long id){

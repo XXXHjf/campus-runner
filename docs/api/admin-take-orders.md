@@ -73,10 +73,13 @@ list 项：
 | orderStatus | int | 订单状态码 |
 | takeOrderStatus | int | 接单状态：0已接单 1派送中 2已送达 3已取消 |
 | categoryName | string | 订单分类 |
-| price | decimal | 订单金额（骑手报酬） |
+| businessType | string | `NORMAL` 普通跑腿 / `PURCHASE` 代买 |
+| price | decimal | 跑腿报酬 |
+| productAmount | decimal | 商品金额；普通跑腿为 0 |
+| runnerReceivable | decimal | 接单人应收；代买为商品金额 + 跑腿报酬 |
 | orderNote | string | 订单说明 |
-| pickUpAddress | string | 取件地址 |
-| reciveAddress | string | 收件地址 |
+| pickUpAddress | string | 普通跑腿取件地址 / 代买购买地点 |
+| reciveAddress | string | 普通跑腿收件地址 / 代买送达地点 |
 | publisherName | string | 发单人姓名 |
 | publisherPhone | string | 发单人电话 |
 | takerName | string | 接单人姓名 |
@@ -170,6 +173,6 @@ list 项：同全部接单，额外字段：
 | totalCount | int | 接单总数 |
 | todayNewCount | int | 今日新增接单数 |
 | unpaidCount | int | 未收款订单数（已完成但未提现） |
-| unpaidTotalAmount | decimal | 未收款总额（骑手待收报酬） |
+| unpaidTotalAmount | decimal | 接单人待收款总额；代买包含商品金额与跑腿报酬 |
 | todayCompletedCount | int | 今日送达数 |
-| todayCompletedAmount | decimal | 今日送达订单金额合计 |
+| todayCompletedAmount | decimal | 今日送达订单金额合计；代买包含商品金额与跑腿报酬 |

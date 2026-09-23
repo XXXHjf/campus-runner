@@ -13,4 +13,5 @@ public class AdminSystemConfigDTO {
     public BigDecimal serviceFeeRate;
     public BigDecimal serviceFeeMin;
     public BigDecimal secondHandServiceFeeRate;
+    public BigDecimal runnerTransferSingleMax;
 }

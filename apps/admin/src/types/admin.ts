@@ -18,6 +18,9 @@ export interface AdminOrderItem {
   status: number
   categoryName: string
   price: number
+  productAmount: number
+  businessType: 'NORMAL' | 'PURCHASE'
+  runnerReceivable: number
   serviceFee: number
   payAmount: number
   username: string
@@ -48,6 +51,9 @@ export interface AdminOrderDetailResponse {
     status: number
     categoryName: string
     price: number
+    productAmount: number
+    businessType: 'NORMAL' | 'PURCHASE'
+    runnerReceivable: number
     serviceFeeRate: number
     serviceFee: number
     payAmount: number
@@ -71,6 +77,7 @@ export interface AdminOrderDetailResponse {
     takeTime: string
     deliveryTime: string | null
     image: string | null
+    purchaseProofImage: string | null
   } | null
   payment: {
     transactionId: string
@@ -161,6 +168,9 @@ export interface AdminTakeOrderItem {
   takeOrderStatus: number
   categoryName: string
   price: number
+  productAmount: number
+  businessType: 'NORMAL' | 'PURCHASE'
+  runnerReceivable: number
   orderNote: string
   pickUpAddress: string
   reciveAddress: string
@@ -194,4 +204,8 @@ export interface AdminCategory {
     categoryName: string
     image?: string
     imageAssetId?: number
+    categoryCode: string
+    businessType: 'NORMAL' | 'PURCHASE'
+    enabled: number
+    sortOrder: number
   }

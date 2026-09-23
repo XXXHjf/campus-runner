@@ -38,6 +38,7 @@ Page({
     time: 0,
     showConfirm: false,
     showWithImage: false,
+    proofPurpose: 'DELIVERY_PROOF',
     fileList: [],
     image: null,
     imageAssetId: null,
@@ -49,7 +50,11 @@ Page({
     if (status == 0) {
       this.showDialog();
     } else if (status == 1) {
-      this.statusTo2();
+      if (this.data.orderInfo.businessType === 'PURCHASE') {
+        this.showDialogWithImage('PURCHASE_PROOF');
+      } else {
+        this.statusTo2();
+      }
     } else {
       this.showDialogWithImage();
     }
@@ -121,32 +126,42 @@ Page({
 
   // 接单1->已取件2（使用封装的 service）
   async statusTo2() {
+    if (this.data.orderInfo.businessType === 'PURCHASE' && !this.data.imageAssetId) {
+      errorCilcleToast(this, '请先上传购买凭证或商品照片');
+      return;
+    }
     try {
-      showLoading('取件中');
+      showLoading(this.data.orderInfo.businessType === 'PURCHASE' ? '提交购买信息' : '取件中');
       await takeOrderService.updateTakeOrderStatus({ 
         id: this.data.taker.id, 
-        status: 1 
+        status: 1,
+        imageAssetId: this.data.orderInfo.businessType === 'PURCHASE' ? this.data.imageAssetId : null,
       });
-      checkCilcleToast(this, "取件成功");
+      this.setData({ imageAssetId: null, fileList: [], image: null });
+      checkCilcleToast(this, this.data.orderInfo.businessType === 'PURCHASE' ? '购买信息已提交' : '取件成功');
       
       
       await this._loadOrderInfo();
     } catch (error) {
       console.error('取件失败:', error);
-      showError('取件失败');
+      showError(this.data.orderInfo.businessType === 'PURCHASE' ? '提交购买信息失败' : '取件失败');
     } finally {
       hideLoading();
     }
   },
 
   // 图片上传提示
-  showDialogWithImage(e) {
-    this.setData({ showWithImage: true });
+  showDialogWithImage(purpose = 'DELIVERY_PROOF') {
+    this.setData({ showWithImage: true, proofPurpose: purpose });
   },
 
   closeConfirmWithImage() {
     this.setData({ showWithImage: false });
-    this.statusTo3();
+    if (this.data.proofPurpose === 'PURCHASE_PROOF') {
+      this.statusTo2();
+    } else {
+      this.statusTo3();
+    }
   },
 
   closeWithImage() {
@@ -155,6 +170,7 @@ Page({
     }
     this.setData({
       showWithImage: false,
+      proofPurpose: 'DELIVERY_PROOF',
       imageAssetId: null,
       fileList: [],
     });
@@ -182,9 +198,10 @@ Page({
     });
 
     try {
+      const purpose = this.data.proofPurpose || 'DELIVERY_PROOF';
       const uploaded = await mediaService.uploadImage(
         file.url,
-        'DELIVERY_PROOF',
+        purpose,
         (progress) => {
           this.setData({ [`fileList[${index}].percent`]: progress });
         },
@@ -333,7 +350,7 @@ Page({
       await this._getOrderInfo();
       
       const status = this.data.orderInfo.status;
-      if (status > 0 && status < 6 && status != 4) {
+      if (status > 0 && status != 4) {
         await this._getTaker();
       }
       await this._getTakeImage();
@@ -358,9 +375,13 @@ Page({
       const addressParts1 = orderInfo.pickUpAddress ? orderInfo.pickUpAddress.split(' ').slice(1) : [];
       const addressParts2 = orderInfo.reciveAddress ? orderInfo.reciveAddress.split(" ").slice(1) : [];
       orderInfo.expectTime = _getExpectTimeDisplay(orderInfo.createTime, orderInfo.gap);
+      const title = orderInfo.businessType === 'PURCHASE'
+        ? ['待接单', '待购买', '配送中', '已送达', '已完成']
+        : ['待接单', '待取件', '派送中', '已送达', '已完成'];
       
       this.setData({
         orderInfo,
+        title,
         pickUpAddress: addressParts1,
         reciveAddress: addressParts2
       });

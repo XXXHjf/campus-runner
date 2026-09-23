@@ -28,6 +28,8 @@ public interface CategoryMapper {
      */
     List<Category> getAll();
 
+    List<Category> getEnabled();
+
     /**
      * 新增分类
      */

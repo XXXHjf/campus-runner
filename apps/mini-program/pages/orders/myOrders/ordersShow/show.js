@@ -151,7 +151,14 @@ Page({
       // 添加状态描述和主题
       orders.forEach(order => {
         const payAmount = order.pay_amount ?? order.payAmount;
+        const productAmount = order.product_amount ?? order.productAmount;
+        const runnerReceivable = order.runner_receivable ?? order.runnerReceivable;
         order.displayPayAmount = (payAmount === null || payAmount === undefined) ? order.price : payAmount;
+        order.displayProductAmount = productAmount ?? 0;
+        order.displayRunnerReceivable = runnerReceivable ?? order.price ?? 0;
+        order.displayPickUpLabel = order.businessType === 'PURCHASE' ? '购' : '取';
+        order.displayReciveLabel = order.businessType === 'PURCHASE' ? '送' : '收';
+        order.displayFeeLabel = order.businessType === 'PURCHASE' ? '跑腿报酬' : '发布价格';
         order.statusDesc = this._getStatusDescription(order.status);
         order.statusTheme = this._getStatusTheme(order.status);
       });

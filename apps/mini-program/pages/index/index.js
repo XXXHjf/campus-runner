@@ -107,10 +107,13 @@ Page({
   // 详情跳转
   async gotoTakesInfo(event) {
     const item = event.currentTarget.dataset.item;
+    const summary = item.businessType === 'PURCHASE'
+      ? `购：${item.pickUpAddress || '暂未提供'}\n送：${item.reciveAddress || '暂未提供'}\n商品 ¥${item.productAmount || 0}，跑腿报酬 ¥${item.price || 0}\n接单前需完成校园认证，购买清单仅向已认证用户提供。`
+      : `取：${item.pickUpAddress || '暂未提供'}\n收：${item.reciveAddress || '暂未提供'}\n${item.price == null ? '无偿帮忙' : `报酬 ¥${item.price}`}\n接单前需完成校园认证，取件说明仅向已认证用户提供。`;
     if (!tokenManager.hasToken() || Number(this.data.userInfo.authentication) !== 1) {
       const accept = await new Promise((resolve) => wx.showModal({
         title: item.categoryName || '跑腿服务',
-        content: `取：${item.pickUpAddress || '暂未提供'}\n收：${item.reciveAddress || '暂未提供'}\n${item.price == null ? '无偿帮忙' : `报酬 ¥${item.price}`}\n接单前需完成校园认证，取件说明仅向已认证用户提供。`,
+        content: summary,
         confirmText: '去接单',
         cancelText: '返回',
         success: (res) => resolve(!!res.confirm),
@@ -220,6 +223,8 @@ Page({
     return (Array.isArray(takes) ? takes : []).map((item) => ({
       ...item,
       displayTitle: String(item.note || '').split(/\r?\n/)[0],
+      displayPickUpLabel: item.businessType === 'PURCHASE' ? '购' : '取',
+      displayReciveLabel: item.businessType === 'PURCHASE' ? '送' : '收',
     }));
   },
   _sortTakes(takes) {

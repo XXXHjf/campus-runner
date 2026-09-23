@@ -50,6 +50,15 @@ public enum MediaPurpose {
             0.88f,
             1400L * 1024,
             Set.of("image/jpeg", "image/png", "image/webp")),
+    PURCHASE_PROOF(
+            "order/purchase-proof",
+            MediaAssetConstant.VISIBILITY_PRIVATE,
+            ImageOutputFormat.JPEG,
+            1920,
+            1920,
+            0.88f,
+            1400L * 1024,
+            Set.of("image/jpeg", "image/png", "image/webp")),
     AVATAR(
             "user/avatar",
             MediaAssetConstant.VISIBILITY_PUBLIC,

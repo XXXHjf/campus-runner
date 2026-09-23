@@ -22,6 +22,8 @@ public interface AdminSystemConfigService {
 
     String getSecondHandServiceFeeRate();
 
+    String getRunnerTransferSingleMax();
+
     /**
      * 修改服务费率
      * @param rate
@@ -35,4 +37,6 @@ public interface AdminSystemConfigService {
     void updateServiceFeeMin(BigDecimal serviceFeeMin);
 
     void updateSecondHandServiceFeeRate(BigDecimal rate);
+
+    void updateRunnerTransferSingleMax(BigDecimal amount);
 }

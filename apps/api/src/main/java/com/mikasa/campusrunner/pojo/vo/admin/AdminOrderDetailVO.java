@@ -10,6 +10,9 @@ public class AdminOrderDetailVO {
     private Integer status;
     private String categoryName;
     private BigDecimal price;
+    private BigDecimal productAmount;
+    private String businessType;
+    private BigDecimal runnerReceivable;
     private BigDecimal serviceFeeRate;
     private BigDecimal serviceFee;
     private BigDecimal payAmount;
@@ -34,6 +37,8 @@ public class AdminOrderDetailVO {
     private String takerDeliveryTime;
     private String takerImage;
     private Long takerImageAssetId;
+    private String purchaseProofImage;
+    private Long purchaseProofImageAssetId;
     private String paymentTransactionId;
     private String paymentTradeState;
     private Integer paymentTotal;

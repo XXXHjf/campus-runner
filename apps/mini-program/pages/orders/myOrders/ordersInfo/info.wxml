@@ -38,11 +38,11 @@
 </view>
 
 <!-- 有偿跑腿，无金额时隐藏 -->
-<view class="card" hidden="{{orderInfo.price==null}}">
+<view class="card" wx:if="{{orderInfo.price!=null}}">
   <!-- 卡片名 -->
   <view style="display: flex; align-items: center;">
     <t-icon class="cardIcon" name="money-circle" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">有偿跑腿</view>
+    <view class="cardName">{{orderInfo.businessType === 'PURCHASE' ? '代买费用' : '有偿跑腿'}}</view>
   </view>
   <!-- 分割线 -->
   <t-divider class="drvider" />
@@ -51,16 +51,28 @@
     <view class="price-container">
       <view class="price-label">
         <t-icon name="wallet" size="32rpx" color="#ed7b2f" style="margin-right: 10rpx;" />
-        <text>发布价格</text>
+        <text>{{orderInfo.businessType === 'PURCHASE' ? '跑腿报酬' : '发布价格'}}</text>
       </view>
       <view class="price-amount">
         <text class="price-symbol">¥</text>
         <text class="price-value">{{orderInfo.price || 0}}</text>
       </view>
     </view>
+    <view wx:if="{{orderInfo.businessType === 'PURCHASE'}}" class="box1 pay-amount-row" style="padding: 0 30rpx 10rpx 30rpx;">
+      <view class="text-address" style="margin:0;">商品金额</view>
+      <view class="address">¥{{orderInfo.productAmount}}</view>
+    </view>
     <view class="box1 pay-amount-row" style="padding: 0 30rpx 10rpx 30rpx;">
-      <view class="text-address" style="margin:0;">实付金额</view>
+      <view class="text-address" style="margin:0;">{{orderInfo.businessType === 'PURCHASE' ? '预计实付' : '实付金额'}}</view>
       <view class="address" style="color:#0052d9;font-weight:600;">¥{{orderInfo.pay_amount || orderInfo.price || 0}}</view>
+    </view>
+    <view wx:if="{{orderInfo.businessType === 'PURCHASE'}}" class="box1 pay-amount-row" style="padding: 0 30rpx 10rpx 30rpx;">
+      <view class="text-address" style="margin:0;">服务费</view>
+      <view class="address">¥{{orderInfo.service_fee || 0}}</view>
+    </view>
+    <view wx:if="{{orderInfo.businessType === 'PURCHASE'}}" class="box1 pay-amount-row" style="padding: 0 30rpx 10rpx 30rpx;">
+      <view class="text-address" style="margin:0;">接单人完成后收款</view>
+      <view class="address" style="color:#0052d9;font-weight:600;">¥{{orderInfo.runnerReceivable}}</view>
     </view>
   </view>
 </view>
@@ -92,7 +104,7 @@
   <!-- 卡片名 -->
   <view style="display: flex; align-items: center;">
     <t-icon class="cardIcon" name="location" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">取件与收件地址</view>
+    <view class="cardName">{{orderInfo.businessType === 'PURCHASE' ? '购买与送达地址' : '取件与收件地址'}}</view>
   </view>
   <!-- 分割线 -->
   <t-divider class="drvider" />
@@ -101,7 +113,7 @@
   <view class="address-item">
     <view class="address-header">
       <t-icon name="location-setting" size="32rpx" color="#2ba471" />
-      <text class="address-type-label">取件地址</text>
+      <text class="address-type-label">{{orderInfo.businessType === 'PURCHASE' ? '购买地点' : '取件地址'}}</text>
     </view>
     <view class="address-detail">
       <view class="address-main">
@@ -115,7 +127,7 @@
   <view class="address-item">
     <view class="address-header">
       <t-icon name="location-setting" size="32rpx" color="#0052d9" />
-      <text class="address-type-label">收件地址</text>
+      <text class="address-type-label">{{orderInfo.businessType === 'PURCHASE' ? '送达地点' : '收件地址'}}</text>
     </view>
     <view class="address-detail">
       <view class="address-main">
@@ -126,9 +138,16 @@
   </view>
   
   <!-- 门禁情况 -->
-  <view class="door-access-box">
+  <view class="door-access-box" wx:if="{{orderInfo.businessType !== 'PURCHASE'}}">
     <t-icon name="{{orderInfo.doorAccess==1?'lock-on':'lock-off'}}" size="32rpx" color="{{orderInfo.doorAccess==1?'#e34d59':'#2ba471'}}" />
     <text class="door-access-text">{{door[orderInfo.doorAccess]}}</text>
+  </view>
+</view>
+
+<view class="card" wx:if="{{orderInfo.businessType === 'PURCHASE' && orderInfo.status >= 2 && orderInfo.status < 5}}">
+  <view class="box1">
+    <t-icon name="info-circle" size="32rpx" color="#ed7b2f" style="margin-left:30rpx;margin-right:10rpx;" />
+    <view class="address">商品已购买，订单进入配送阶段，无法取消。如需协助，请联系平台。</view>
   </view>
 </view>
 
@@ -224,7 +243,7 @@
   <view class="order-content-section">
     <view class="content-header">
       <t-icon name="edit" size="28rpx" color="#0052d9" style="margin-right: 8rpx;" />
-      <text class="content-title">跑腿内容</text>
+      <text class="content-title">{{orderInfo.businessType === 'PURCHASE' ? '购买清单' : '跑腿内容'}}</text>
     </view>
     <view class="content-text">{{orderInfo.note}}</view>
     
@@ -289,6 +308,13 @@
         <view class="timeline-value" style="color: #2ba471; font-weight: 600;">{{orderInfo.deliveryTime}}</view>
       </view>
     </view>
+  </view>
+  <view wx:if="{{orderInfo.businessType === 'PURCHASE' && taker.purchaseProofImage}}" style="margin-top: 20rpx;">
+    <view class="box1" style="margin-bottom: 16rpx;">
+      <t-icon name="image" size="28rpx" color="#0052d9" style="margin-right: 8rpx; margin-left: 30rpx;" />
+      <view class="text-address" style="margin-left: 0;">购买凭证</view>
+    </view>
+    <t-image src="{{taker.purchaseProofImage}}" bind:tap="tapOnImageToPreview" data-src="{{taker.purchaseProofImage}}" mode="aspectFit" shape="round" class="img" />
   </view>
   
   <!-- 送达图片 -->

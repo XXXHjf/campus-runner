@@ -6,6 +6,7 @@ import com.mikasa.campusrunner.pojo.dto.OrderShowByDoubleAddDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderSubmitDTO;
 import com.mikasa.campusrunner.pojo.entity.Order;
 import com.mikasa.campusrunner.pojo.vo.OrderShowVO;
+import com.mikasa.campusrunner.pojo.vo.OrderAmountVO;
 
 import java.util.List;
 
@@ -29,6 +30,8 @@ public interface OrderService {
      * @return
      */
     Order submit(OrderSubmitDTO orderSubmitDTO);
+
+    OrderAmountVO previewAmount(OrderSubmitDTO orderSubmitDTO);
 
     /**
      * 删除订单

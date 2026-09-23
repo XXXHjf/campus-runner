@@ -23,6 +23,9 @@
             address_recive.address AS recive_address,
             orders.order_number,
             orders.price,
+            orders.product_amount,
+            orders.business_type,
+            (orders.product_amount + orders.price) AS runner_receivable,
             orders.real_price,
             orders.delivery_time,
             orders.cancel_time,
@@ -123,6 +126,9 @@
             address_recive.address AS recive_address,
             orders.order_number,
             orders.price,
+            orders.product_amount,
+            orders.business_type,
+            (orders.product_amount + orders.price) AS runner_receivable,
             orders.real_price,
             orders.delivery_time,
             orders.cancel_time,
@@ -258,6 +264,9 @@
             address_recive.address AS recive_address,
             tb_orders.`order_number`,
             tb_orders.`price`,
+            tb_orders.`product_amount`,
+            tb_orders.`business_type`,
+            (tb_orders.`product_amount` + tb_orders.`price`) AS runner_receivable,
             tb_orders.`real_price`,
             tb_orders.`delivery_time`,
             tb_orders.`cancel_time`,
@@ -361,6 +370,8 @@
     <select id="listAllTakeOrders" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminTakeOrderListVO">
         SELECT tk.id, tk.order_id, o.order_number, o.status AS order_status,
                tk.status AS take_order_status, c.category_name, o.price,
+               o.product_amount, o.business_type,
+               (o.product_amount + o.price) AS runner_receivable,
                o.service_fee, o.pay_amount, o.note AS order_note,
                ap.address AS pick_up_address, ar.address AS recive_address,
                pub_user.realname AS publisher_name, o.phone AS publisher_phone,
@@ -391,6 +402,8 @@
     <select id="listUnpaidTakeOrders" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminTakeOrderListVO">
         SELECT tk.id, tk.order_id, o.order_number, o.status AS order_status,
                tk.status AS take_order_status, c.category_name, o.price,
+               o.product_amount, o.business_type,
+               (o.product_amount + o.price) AS runner_receivable,
                o.service_fee, o.pay_amount, o.note AS order_note,
                ap.address AS pick_up_address, ar.address AS recive_address,
                pub_user.realname AS publisher_name, o.phone AS publisher_phone,
@@ -424,7 +437,7 @@
     </select>
 
     <select id="sumUnpaidAmount" resultType="java.math.BigDecimal">
-        SELECT COALESCE(SUM(o.price), 0)
+        SELECT COALESCE(SUM(o.product_amount + o.price), 0)
         FROM tb_take_orders tk
         INNER JOIN tb_orders o ON tk.order_id = o.id AND o.deleted = 0 AND o.status IN (5, 7)
         WHERE tk.deleted = 0
@@ -437,7 +450,7 @@
     </select>
 
     <select id="sumTodayCompletedAmount" resultType="java.math.BigDecimal">
-        SELECT COALESCE(SUM(o.price), 0)
+        SELECT COALESCE(SUM(o.product_amount + o.price), 0)
         FROM tb_take_orders tk
         INNER JOIN tb_orders o ON tk.order_id = o.id AND o.deleted = 0
         WHERE tk.deleted = 0 AND tk.status = 2

@@ -132,9 +132,17 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         boolean canCancel = (Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.ALREADY_TAKE_ORDER)
                 || Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.DELIVERYING))
                 && Objects.equals(status, TakeOrderStatusConstant.CANCELED);
+        boolean purchase = OrderBusinessConstant.PURCHASE.equals(order.getBusinessType());
+        if (purchase && Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.DELIVERYING)
+                && Objects.equals(status, TakeOrderStatusConstant.CANCELED)) {
+            throw new TakeOrderException("商品已购买，如需处理订单，请联系平台协商");
+        }
         if (!canPickUp && !canDeliver && !canCancel) throw new TakeOrderException("订单状态已变化，请刷新后重试");
         LocalDateTime now = LocalDateTime.now();
         if (status.equals(TakeOrderStatusConstant.DELIVERYING)){
+            if (purchase && takeOrderUpdateStatusDTO.getImageAssetId() == null) {
+                throw new ParamException("请上传购买凭证或商品照片");
+            }
             //将接单状态修改为派送中
 
             //将接单信息状态修改
@@ -176,6 +184,17 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         //更新
         int row1 = takeOrderMapper.update(takeOrder);
         int row2 = orderMapper.update(order);
+        if (purchase && canPickUp && takeOrderUpdateStatusDTO.getImageAssetId() != null) {
+            mediaAssetService.replaceBinding(
+                    List.of(takeOrderUpdateStatusDTO.getImageAssetId()),
+                    MediaPurpose.PURCHASE_PROOF.name(),
+                    MediaAssetConstant.OWNER_USER,
+                    BaseContext.getCurrentId(),
+                    MediaAssetConstant.BOUND_TAKE_ORDER,
+                    takeOrder.getId(),
+                    1,
+                    Duration.ofDays(7));
+        }
         if (canPickUp) SecondHandSubscriptionService.afterCommit(() -> messages.sendPickUp(order.getId()));
         if (canDeliver) {
             var notification = new com.mikasa.campusrunner.pojo.dto.MessageDeliveredDTO();
@@ -241,6 +260,18 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         }
 
         TakeOrderUserInfoVO takeOrderUserInfoVO = takeOrderMapper.getUserInfoByOrderId(orderId);
+        Order order = orderMapper.getById(orderId);
+        Long currentUserId = BaseContext.getCurrentId();
+        if (takeOrderUserInfoVO != null && order != null && currentUserId != null
+                && (currentUserId.equals(order.getUserId()) || currentUserId.equals(takeOrder.getUserId()))) {
+            var purchaseProofImages = mediaAssetService.resolveAuthorizedBinding(
+                    MediaAssetConstant.BOUND_TAKE_ORDER,
+                    takeOrder.getId(),
+                    MediaPurpose.PURCHASE_PROOF.name());
+            if (!purchaseProofImages.isEmpty()) {
+                takeOrderUserInfoVO.setPurchaseProofImage(purchaseProofImages.get(0).getUrl());
+            }
+        }
         return takeOrderUserInfoVO;
     }
 
@@ -303,6 +334,14 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         if (!proofImages.isEmpty()) {
             order.setTakeOrderImageAssetId(proofImages.get(0).getMediaId());
             order.setTakeOrderImage(proofImages.get(0).getUrl());
+        }
+        var purchaseProofImages = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_TAKE_ORDER,
+                order.getId(),
+                MediaPurpose.PURCHASE_PROOF.name());
+        if (!purchaseProofImages.isEmpty()) {
+            order.setPurchaseProofImageAssetId(purchaseProofImages.get(0).getMediaId());
+            order.setPurchaseProofImage(purchaseProofImages.get(0).getUrl());
         }
         var categoryImages = mediaAssetService.resolvePublicBinding(
                 MediaAssetConstant.BOUND_ORDER_CATEGORY,

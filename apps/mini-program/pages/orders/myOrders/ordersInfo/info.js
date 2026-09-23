@@ -56,6 +56,8 @@ Page({
     normalized.service_fee_rate = serviceFeeRate ?? null;
     normalized.service_fee = serviceFee ?? null;
     normalized.pay_amount = payAmount ?? null;
+    normalized.productAmount = normalized.product_amount ?? normalized.productAmount ?? 0;
+    normalized.runnerReceivable = normalized.runner_receivable ?? normalized.runnerReceivable ?? normalized.price ?? 0;
 
     return normalized;
   },
@@ -332,7 +334,7 @@ Page({
       this._updateUnpaidCountdown();
       
       const status = this.data.orderInfo.status;
-      if (status > 0 && status < 6 && status != 4) {
+      if (status > 0 && status != 4) {
         await this._getTaker();
       }
       await this._getTakeImage();
@@ -357,9 +359,13 @@ Page({
       const addressParts1 = orderInfo.pickUpAddress ? orderInfo.pickUpAddress.split(" ") : [];
       const addressParts2 = orderInfo.reciveAddress ? orderInfo.reciveAddress.split(" ") : [];
       orderInfo.expectTime = _getExpectTimeDisplay(orderInfo.createTime, orderInfo.gap);
+      const title = orderInfo.businessType === 'PURCHASE'
+        ? ['待接单', '待购买', '配送中', '已送达', '已完成']
+        : ['待接单', '待取件', '派送中', '已送达', '已完成'];
       
       this.setData({
         orderInfo,
+        title,
         pickUpAddress: addressParts1,
         reciveAddress: addressParts2
       });

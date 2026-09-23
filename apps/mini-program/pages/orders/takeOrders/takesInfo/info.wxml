@@ -20,11 +20,11 @@
 </view>
 
 <!-- 有偿跑腿 -->
-<view class="card" hidden="{{orderInfo.price==null}}">
+<view class="card" wx:if="{{orderInfo.price!=null}}">
   <!-- 卡片名 -->
   <view style="display: flex; align-items: center;">
     <t-icon class="cardIcon" name="money-circle" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">有偿跑腿</view>
+    <view class="cardName">{{orderInfo.businessType === 'PURCHASE' ? '代买费用' : '有偿跑腿'}}</view>
   </view>
   <!-- 分割线 -->
   <t-divider class="drvider" />
@@ -33,12 +33,20 @@
     <view class="price-container">
       <view class="price-label">
         <t-icon name="wallet" size="32rpx" color="#ed7b2f" style="margin-right: 10rpx;" />
-        <text>有偿金额</text>
+        <text>{{orderInfo.businessType === 'PURCHASE' ? '跑腿报酬' : '有偿金额'}}</text>
       </view>
       <view class="price-amount">
         <text class="price-symbol">¥</text>
         <text class="price-value">{{orderInfo.price || 0}}</text>
       </view>
+    </view>
+    <view wx:if="{{orderInfo.businessType === 'PURCHASE'}}" class="price-container">
+      <view class="price-label"><text>商品金额</text></view>
+      <view class="price-amount"><text class="price-symbol">¥</text><text class="price-value">{{orderInfo.productAmount}}</text></view>
+    </view>
+    <view wx:if="{{orderInfo.businessType === 'PURCHASE'}}" class="price-container">
+      <view class="price-label"><text>完成后合并收款</text></view>
+      <view class="price-amount"><text class="price-symbol">¥</text><text class="price-value">{{orderInfo.runnerReceivable}}</text></view>
     </view>
   </view>
 </view>
@@ -48,7 +56,7 @@
   <!-- 卡片名 -->
   <view style="display: flex; align-items: center;">
     <t-icon class="cardIcon" name="location" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">取件与收件地址</view>
+    <view class="cardName">{{orderInfo.businessType === 'PURCHASE' ? '购买与送达地址' : '取件与收件地址'}}</view>
   </view>
   <!-- 分割线 -->
   <t-divider class="drvider" />
@@ -57,7 +65,7 @@
   <view class="address-item">
     <view class="address-header">
       <t-icon name="location-setting" size="32rpx" color="#2ba471" />
-      <text class="address-type-label">取件地址</text>
+      <text class="address-type-label">{{orderInfo.businessType === 'PURCHASE' ? '购买地点' : '取件地址'}}</text>
     </view>
     <view class="address-detail">
       <view class="address-main">
@@ -71,7 +79,7 @@
   <view class="address-item">
     <view class="address-header">
       <t-icon name="location-setting" size="32rpx" color="#0052d9" />
-      <text class="address-type-label">收件地址</text>
+      <text class="address-type-label">{{orderInfo.businessType === 'PURCHASE' ? '送达地点' : '收件地址'}}</text>
     </view>
     <view class="address-detail">
       <view class="address-main">
@@ -82,7 +90,7 @@
   </view>
   
   <!-- 门禁情况 -->
-  <view class="door-access-box">
+  <view class="door-access-box" wx:if="{{orderInfo.businessType !== 'PURCHASE'}}">
     <t-icon name="{{orderInfo.doorAccess==1?'lock-on':'lock-off'}}" size="32rpx" color="{{orderInfo.doorAccess==1?'#e34d59':'#2ba471'}}" />
     <text class="door-access-text">{{door[orderInfo.doorAccess]}}</text>
   </view>
@@ -180,7 +188,7 @@
   <view class="order-content-section">
     <view class="content-header">
       <t-icon name="edit" size="28rpx" color="#0052d9" style="margin-right: 8rpx;" />
-      <text class="content-title">跑腿内容</text>
+      <text class="content-title">{{orderInfo.businessType === 'PURCHASE' ? '购买清单' : '跑腿内容'}}</text>
     </view>
     <view class="content-text">{{orderInfo.note}}</view>
     
@@ -198,6 +206,15 @@
       />
     </view>
   </view>
+</view>
+
+<view class="card" wx:if="{{orderInfo.businessType === 'PURCHASE' && taker.purchaseProofImage}}">
+  <view style="display: flex; align-items: center;">
+    <t-icon class="cardIcon" name="image" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
+    <view class="cardName">购买凭证</view>
+  </view>
+  <t-divider class="drvider" />
+  <t-image src="{{taker.purchaseProofImage}}" bind:tap="tapOnImageToPreview" data-src="{{taker.purchaseProofImage}}" mode="aspectFit" shape="round" class="img" />
 </view>
 
 <!-- 服务信息（加了底端margin预留出按钮可能挡住的信息） -->
@@ -261,7 +278,7 @@
 
 <!-- 按钮 -->
 <view hidden="{{orderInfo.status>=5}}" class="button">
-  <t-button block bind:tap="button" theme="primary">{{titleB[orderInfo.status]}}</t-button>
+  <t-button block bind:tap="button" theme="primary">{{orderInfo.businessType === 'PURCHASE' && orderInfo.status == 1 ? '上传购买凭证并开始配送' : titleB[orderInfo.status]}}</t-button>
 </view>
 
 <!-- 确定收款的按钮 -->
@@ -275,7 +292,7 @@
   <scroll-view slot="content" type="list" scroll-y class="long-content">
     <view class="content-container">
       <view>
-        <span>为确保服务质量，接单后不可取消订单。平台仅提供交易渠道，服务细节请与发单方确认清楚。</span>
+        <span>{{orderInfo.businessType === 'PURCHASE' ? '请先与发单方确认商品、规格和预算。接单后请按要求购买，提交购买凭证后开始配送；商品买下后无法取消订单。' : '为确保服务质量，接单后不可取消订单。平台仅提供交易渠道，服务细节请与发单方确认清楚。'}}</span>
       </view>
     </view>
   </scroll-view>
@@ -286,12 +303,12 @@
   <view class="block">
     <view class="header">
       <view class="btn btn--cancel" bind:tap="closeWithImage">取消</view>
-      <view class="title">送达图片</view>
+      <view class="title">{{proofPurpose === 'PURCHASE_PROOF' ? '购买凭证' : '送达图片'}}</view>
       <view class="btn btn--confirm" bind:tap="closeConfirmWithImage">确定</view>
     </view>
   </view>
   <view style="margin-bottom: 30rpx;">
-    <view class="address" style="font-size: medium;text-align: center;margin:20rpx 30rpx;"> 请选择送达图片上传（一张） </view>
+    <view class="address" style="font-size: medium;text-align: center;margin:20rpx 30rpx;">{{proofPurpose === 'PURCHASE_PROOF' ? '请上传实际购买的商品照片或小票（一张）' : '请选择送达图片上传（一张）'}}</view>
     <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{1}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="text-align: center;" />
   </view>
 </t-popup>

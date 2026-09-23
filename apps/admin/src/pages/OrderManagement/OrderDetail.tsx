@@ -70,9 +70,15 @@ export default function OrderDetail({ detail, loading }: OrderDetailProps) {
         <Descriptions.Item label="分类">
           {order.categoryName || '-'}
         </Descriptions.Item>
-        <Descriptions.Item label="订单金额">
+        <Descriptions.Item label={order.businessType === 'PURCHASE' ? '跑腿报酬' : '有偿金额'}>
           {formatPrice(order.price)}
         </Descriptions.Item>
+        {order.businessType === 'PURCHASE' && (
+          <>
+            <Descriptions.Item label="商品金额">{formatPrice(order.productAmount)}</Descriptions.Item>
+            <Descriptions.Item label="接单人完成后收款">{formatPrice(order.runnerReceivable)}</Descriptions.Item>
+          </>
+        )}
         <Descriptions.Item label="服务费率">
           {order.serviceFeeRate != null ? `${(order.serviceFeeRate * 100).toFixed(1)}%` : '-'}
         </Descriptions.Item>
@@ -88,10 +94,10 @@ export default function OrderDetail({ detail, loading }: OrderDetailProps) {
         <Descriptions.Item label="联系电话" span={2}>
           {formatPhone(order.phone)}
         </Descriptions.Item>
-        <Descriptions.Item label="取件地址" span={2}>
+        <Descriptions.Item label={order.businessType === 'PURCHASE' ? '购买地点' : '取件地址'} span={2}>
           {order.pickUpAddress || '-'}
         </Descriptions.Item>
-        <Descriptions.Item label="收件地址" span={2}>
+        <Descriptions.Item label={order.businessType === 'PURCHASE' ? '送达地点' : '收件地址'} span={2}>
           {order.reciveAddress || '-'}
         </Descriptions.Item>
         <Descriptions.Item label="备注" span={2}>
@@ -109,9 +115,11 @@ export default function OrderDetail({ detail, loading }: OrderDetailProps) {
             '-'
           )}
         </Descriptions.Item>
-        <Descriptions.Item label="门禁">
-          {DOOR_ACCESS_LABELS[order.doorAccess as keyof typeof DOOR_ACCESS_LABELS] || '-'}
-        </Descriptions.Item>
+        {order.businessType !== 'PURCHASE' && (
+          <Descriptions.Item label="门禁">
+            {DOOR_ACCESS_LABELS[order.doorAccess as keyof typeof DOOR_ACCESS_LABELS] || '-'}
+          </Descriptions.Item>
+        )}
         <Descriptions.Item label="配送时限">
           {order.gap != null ? `${order.gap}分钟` : '-'}
         </Descriptions.Item>
@@ -166,6 +174,15 @@ export default function OrderDetail({ detail, loading }: OrderDetailProps) {
               '-'
             )}
           </Descriptions.Item>
+          {taker.purchaseProofImage && (
+            <Descriptions.Item label="购买凭证" span={2}>
+              <Image
+                src={taker.purchaseProofImage}
+                width={120}
+                style={{ objectFit: 'contain', border: '1px solid #f0f0f0', borderRadius: 8 }}
+              />
+            </Descriptions.Item>
+          )}
         </Descriptions>
       )}
 

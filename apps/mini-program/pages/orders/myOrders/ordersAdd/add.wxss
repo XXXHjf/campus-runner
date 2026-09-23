@@ -247,6 +247,57 @@
   color: #5f6772;
   font-size: 23rpx;
 }
+
+.order-add__purchase-fee {
+  padding: 8rpx 0 12rpx;
+}
+
+.order-add__amount-row {
+  display: flex;
+  align-items: center;
+  min-height: 88rpx;
+}
+
+.order-add__amount-row .input {
+  min-width: 0;
+}
+
+.order-add__amount-error {
+  margin: 0 30rpx 12rpx;
+  color: #d54941;
+  font-size: 24rpx;
+  text-align: right;
+}
+
+.order-add__fee-summary {
+  margin: 16rpx 30rpx 0;
+  padding: 18rpx 20rpx;
+  background: var(--cr-color-surface-muted, #f7f8fa);
+  border-radius: var(--cr-radius-small, 12rpx);
+}
+
+.order-add__fee-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48rpx;
+  color: #5f6772;
+  font-size: 25rpx;
+}
+
+.order-add__fee-total {
+  color: var(--cr-color-primary, #0052d9);
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.order-add__fee-hint {
+  margin: 14rpx 30rpx 0;
+  color: #7a8290;
+  font-size: 23rpx;
+  line-height: 1.6;
+}
+
 /* 任务时间输入框样式 */
 .input {
   flex: 1.5;

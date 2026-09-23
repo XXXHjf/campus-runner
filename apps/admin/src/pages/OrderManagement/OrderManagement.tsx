@@ -279,11 +279,25 @@ export default function OrderManagement() {
       render: (categoryName: string) => categoryName || '-',
     },
     {
-      title: '金额',
+      title: '跑腿报酬',
       dataIndex: 'price',
       key: 'price',
       width: 90,
       render: (price: number) => formatPrice(price),
+    },
+    {
+      title: '商品金额',
+      dataIndex: 'productAmount',
+      key: 'productAmount',
+      width: 100,
+      render: (amount: number, record: AdminOrderItem) => record.businessType === 'PURCHASE' ? formatPrice(amount) : '-',
+    },
+    {
+      title: '接单人收款',
+      dataIndex: 'runnerReceivable',
+      key: 'runnerReceivable',
+      width: 110,
+      render: (amount: number, record: AdminOrderItem) => record.businessType === 'PURCHASE' ? formatPrice(amount) : '-',
     },
     {
       title: '服务费',
@@ -313,14 +327,14 @@ export default function OrderManagement() {
       render: (phone: string) => formatPhone(phone),
     },
     {
-      title: '取件地址',
+      title: '购买/取件地址',
       dataIndex: 'pickUpAddress',
       key: 'pickUpAddress',
       width: 180,
       ellipsis: true,
     },
     {
-      title: '收件地址',
+      title: '送达/收件地址',
       dataIndex: 'reciveAddress',
       key: 'reciveAddress',
       width: 180,

@@ -26,8 +26,8 @@
           <!-- 订单说明文字 -->
           <view class="box2-1">
             <view class="note">{{item.note||'暂无说明'}}</view>
-            <view class="pick">取：{{item.pickUpAddress}}</view>
-            <view class="recive">收：{{item.reciveAddress}}</view>
+            <view class="pick">{{item.displayPickUpLabel}}：{{item.pickUpAddress}}</view>
+            <view class="recive">{{item.displayReciveLabel}}：{{item.reciveAddress}}</view>
           </view>
 
         </view>
@@ -35,7 +35,7 @@
         <view class="box3">
           <view class="date">接单时间: {{item.takeOrderCreateTime}}</view>
           <view class="price" hidden="{{item.price==null}}">
-            <view style="font-size: small;color: #ed7b2f;font-weight: bold;">￥ {{item.price}} </view>
+            <view style="font-size: small;color: #ed7b2f;font-weight: bold;">{{item.displayAmountLabel}} ¥{{item.displayAmount}}</view>
           </view>
         </view>
 

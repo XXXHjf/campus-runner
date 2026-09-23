@@ -236,11 +236,25 @@ export default function TakeOrderManagement() {
       render: (categoryName: string) => categoryName || '-',
     },
     {
-      title: '金额',
+      title: '跑腿报酬',
       dataIndex: 'price',
       key: 'price',
       width: 90,
       render: (price: number) => formatPrice(price),
+    },
+    {
+      title: '商品金额',
+      dataIndex: 'productAmount',
+      key: 'productAmount',
+      width: 100,
+      render: (amount: number, record: AdminTakeOrderItem) => record.businessType === 'PURCHASE' ? formatPrice(amount) : '-',
+    },
+    {
+      title: '接单人收款',
+      dataIndex: 'runnerReceivable',
+      key: 'runnerReceivable',
+      width: 110,
+      render: (amount: number, record: AdminTakeOrderItem) => record.businessType === 'PURCHASE' ? formatPrice(amount) : '-',
     },
     {
       title: '订单说明',
@@ -251,14 +265,14 @@ export default function TakeOrderManagement() {
       render: (orderNote: string) => orderNote || '-',
     },
     {
-      title: '取件地址',
+      title: '购买/取件地址',
       dataIndex: 'pickUpAddress',
       key: 'pickUpAddress',
       width: 180,
       ellipsis: true,
     },
     {
-      title: '收件地址',
+      title: '送达/收件地址',
       dataIndex: 'reciveAddress',
       key: 'reciveAddress',
       width: 180,
@@ -434,7 +448,7 @@ export default function TakeOrderManagement() {
             <Col xs={24} sm={12} lg={8}>
               <Card loading={statsLoading} className="stats-card stats-card-amount">
                 <Statistic
-                  title="未收款总额"
+                  title="接单人待收款总额"
                   value={stats?.unpaidTotalAmount ? formatPrice(stats.unpaidTotalAmount) : '-'}
                 />
               </Card>
@@ -447,7 +461,7 @@ export default function TakeOrderManagement() {
             <Col xs={24} sm={12} lg={8}>
               <Card loading={statsLoading} className="stats-card stats-card-revenue">
                 <Statistic
-                  title="今日送达金额"
+                  title="今日送达金额（含商品款）"
                   value={stats?.todayCompletedAmount ? formatPrice(stats.todayCompletedAmount) : '-'}
                 />
               </Card>

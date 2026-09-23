@@ -127,10 +127,18 @@ public class AdminOrderServiceImpl implements AdminOrderService {
                     MediaAssetConstant.BOUND_TAKE_ORDER,
                     order.getTakeOrderId(),
                     MediaPurpose.DELIVERY_PROOF.name());
-            if (!proofImages.isEmpty()) {
-                order.setTakerImageAssetId(proofImages.get(0).getMediaId());
-                order.setTakerImage(proofImages.get(0).getUrl());
-            }
+        if (!proofImages.isEmpty()) {
+            order.setTakerImageAssetId(proofImages.get(0).getMediaId());
+            order.setTakerImage(proofImages.get(0).getUrl());
+        }
+        var purchaseProofImages = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_TAKE_ORDER,
+                order.getTakeOrderId(),
+                MediaPurpose.PURCHASE_PROOF.name());
+        if (!purchaseProofImages.isEmpty()) {
+            order.setPurchaseProofImageAssetId(purchaseProofImages.get(0).getMediaId());
+            order.setPurchaseProofImage(purchaseProofImages.get(0).getUrl());
+        }
         }
         return order;
     }

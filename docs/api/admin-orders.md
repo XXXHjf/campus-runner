@@ -68,13 +68,16 @@ list 项：
 | orderNumber | string | 订单编号 |
 | status | int | 状态码：-4退款异常 -3退款成功 -2退款中 -1未支付 0待接单 1已接单 2派送中 3已送达 4已取消 5已完成 6提现成功 7提现失败 |
 | categoryName | string | 订单分类名称 |
-| price | decimal | 订单基础金额（骑手报酬） |
+| businessType | string | `NORMAL` 普通跑腿 / `PURCHASE` 代买 |
+| price | decimal | 跑腿报酬 |
+| productAmount | decimal | 商品金额；普通跑腿为 0 |
+| runnerReceivable | decimal | 接单人应收；代买为商品金额 + 跑腿报酬 |
 | serviceFee | decimal | 平台服务费 |
 | payAmount | decimal | 用户支付总额 |
 | username | string | 发单人昵称 |
 | phone | string | 发单人电话 |
-| pickUpAddress | string | 取件地址（拼接后的完整地址） |
-| reciveAddress | string | 收件地址（拼接后的完整地址） |
+| pickUpAddress | string | 普通跑腿取件地址 / 代买购买地点 |
+| reciveAddress | string | 普通跑腿收件地址 / 代买送达地点 |
 | note | string | 订单说明 |
 | doorAccess | int | 是否门禁 0否 1是 |
 | createTime | string | 创建时间 |

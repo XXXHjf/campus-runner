@@ -6,6 +6,7 @@ export interface AdminSystemConfigDTO {
   serviceFeeRate: number
   serviceFeeMin: number
   secondHandServiceFeeRate: number
+  runnerTransferSingleMax: number
 }
 
 export type SystemConfigKey = keyof AdminSystemConfigDTO

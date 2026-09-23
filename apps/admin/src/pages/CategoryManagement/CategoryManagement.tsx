@@ -13,16 +13,19 @@ import {
   Modal,
   Form,
   Input,
-  Popconfirm,
   App,
   Space,
   Image,
   Upload,
+  InputNumber,
+  Select,
+  Switch,
+  Tag,
 } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
 import type { AdminCategory } from '../../types/admin'
 import { mediaService } from '../../services'
-import { get, post, put, del } from '../../services/request'
+import { get, post, put } from '../../services/request'
 import {
   AdminContentCard,
   AdminFilterBar,
@@ -82,7 +85,13 @@ export default function CategoryManagement() {
 
   const openEditModal = (record: AdminCategory) => {
     setEditingCategory(record)
-    form.setFieldsValue({ categoryName: record.categoryName })
+    form.setFieldsValue({
+      categoryName: record.categoryName,
+      categoryCode: record.categoryCode,
+      businessType: record.businessType,
+      enabled: record.enabled === 1,
+      sortOrder: record.sortOrder,
+    })
     setTemporaryMediaId(null)
     setImagePreview(record.image || null)
     setModalOpen(true)
@@ -120,12 +129,13 @@ export default function CategoryManagement() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
+      const payload = { ...values, enabled: values.enabled ? 1 : 0 }
       setSubmitting(true)
       if (editingCategory) {
-        await put(`/admin/api/categories/${editingCategory.id}`, values)
+        await put(`/admin/api/categories/${editingCategory.id}`, payload)
         message.success('更新成功')
       } else {
-        await post('/admin/api/categories', values)
+        await post('/admin/api/categories', payload)
         message.success('新增成功')
       }
       setTemporaryMediaId(null)
@@ -141,17 +151,6 @@ export default function CategoryManagement() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    try {
-      await del(`/admin/api/categories/${id}`)
-      message.success('删除成功')
-      await loadList()
-    } catch (err) {
-      console.error('删除分类失败', err)
-      message.error('删除失败')
-    }
-  }
-
   const columns = [
     {
       title: 'ID',
@@ -163,6 +162,34 @@ export default function CategoryManagement() {
       title: '分类名称',
       dataIndex: 'categoryName',
       key: 'categoryName',
+    },
+    {
+      title: '业务编码',
+      dataIndex: 'categoryCode',
+      key: 'categoryCode',
+    },
+    {
+      title: '业务类型',
+      dataIndex: 'businessType',
+      key: 'businessType',
+      render: (value: AdminCategory['businessType']) => (
+        <Tag color={value === 'PURCHASE' ? 'orange' : 'blue'}>
+          {value === 'PURCHASE' ? '代买' : '普通跑腿'}
+        </Tag>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      width: 90,
+      render: (value: number) => <Tag color={value === 1 ? 'green' : 'default'}>{value === 1 ? '启用' : '停用'}</Tag>,
+    },
+    {
+      title: '排序',
+      dataIndex: 'sortOrder',
+      key: 'sortOrder',
+      width: 80,
     },
     {
       title: '图标',
@@ -185,21 +212,12 @@ export default function CategoryManagement() {
     {
       title: '操作',
       key: 'action',
-      width: 160,
+      width: 100,
       render: (_: unknown, record: AdminCategory) => (
         <Space>
           <Button type="link" onClick={() => openEditModal(record)}>
             编辑
           </Button>
-          <Popconfirm
-            title="确认删除?"
-            description="删除后不可恢复"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <Button type="link" danger>
-              删除
-            </Button>
-          </Popconfirm>
         </Space>
       ),
     },
@@ -258,6 +276,22 @@ export default function CategoryManagement() {
             rules={[{ required: true, message: '请输入分类名称' }]}
           >
             <Input placeholder="请输入分类名称" />
+          </Form.Item>
+          <Form.Item
+            name="categoryCode"
+            label="业务编码"
+            rules={[{ required: true, pattern: /^[A-Z][A-Z0-9_]{1,31}$/, message: '请输入2至32位大写字母、数字或下划线' }]}
+          >
+            <Input disabled={Boolean(editingCategory)} placeholder="例如 PURCHASE" />
+          </Form.Item>
+          <Form.Item name="businessType" label="业务类型" initialValue="NORMAL" rules={[{ required: true }]}>
+            <Select disabled={Boolean(editingCategory)} options={[{ label: '普通跑腿', value: 'NORMAL' }, { label: '代买', value: 'PURCHASE' }]} />
+          </Form.Item>
+          <Form.Item name="enabled" label="允许发布" valuePropName="checked" initialValue>
+            <Switch checkedChildren="启用" unCheckedChildren="停用" />
+          </Form.Item>
+          <Form.Item name="sortOrder" label="展示顺序" initialValue={50} rules={[{ required: true, message: '请输入展示顺序' }]}>
+            <InputNumber min={0} precision={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="imageAssetId" hidden>
             <Input />

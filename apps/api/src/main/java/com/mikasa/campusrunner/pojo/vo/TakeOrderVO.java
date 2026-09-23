@@ -17,6 +17,10 @@ public class TakeOrderVO {
     private String reciveAddress;
     private String orderNumber;
     private BigDecimal price;
+    private String businessType;
+    private BigDecimal productAmount;
+    private BigDecimal runnerFee;
+    private BigDecimal runnerReceivable;
     private BigDecimal realPrice;
 
     private LocalDateTime deliveryTime;
@@ -44,6 +48,8 @@ public class TakeOrderVO {
     private LocalDateTime takeOrderCreateTime;
     private String takeOrderImage;
     private Long takeOrderImageAssetId;
+    private String purchaseProofImage;
+    private Long purchaseProofImageAssetId;
     private LocalDateTime takeOrderDeliveryTime;
     private LocalDateTime takeOrderCancelTime;
     private String takeOrderCancelReason;

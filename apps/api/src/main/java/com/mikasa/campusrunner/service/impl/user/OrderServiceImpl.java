@@ -14,6 +14,7 @@ import com.mikasa.campusrunner.pojo.dto.OrderShowByAddressDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderShowByDoubleAddDTO;
 import com.mikasa.campusrunner.pojo.dto.OrderSubmitDTO;
 import com.mikasa.campusrunner.pojo.entity.AddressBook;
+import com.mikasa.campusrunner.pojo.entity.Category;
 import com.mikasa.campusrunner.pojo.entity.Order;
 import com.mikasa.campusrunner.pojo.vo.OrderShowVO;
 import com.mikasa.campusrunner.service.MediaAssetService;
@@ -65,6 +66,12 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private MediaAssetService mediaAssetService;
 
+    @Autowired
+    private CategoryMapper categoryMapper;
+
+    @Autowired
+    private com.mikasa.campusrunner.service.user.OrderAmountService orderAmountService;
+
 
 
 
@@ -93,6 +100,10 @@ public class OrderServiceImpl implements OrderService {
     public Order submit(OrderSubmitDTO orderSubmitDTO) {
         Order order = new Order();
         BeanUtils.copyProperties(orderSubmitDTO, order);
+        Category category = categoryMapper.getById(orderSubmitDTO.getCategoryId());
+        if (category == null || !Integer.valueOf(1).equals(category.getEnabled())) {
+            throw new ParamException("该跑腿类型暂不可发布");
+        }
         LocalDateTime now = LocalDateTime.now();
         if (orderSubmitDTO.getCancelTime() == null) {
             order.setCancelTime(now.plusHours(TimeConstant.DEFAULT_AUTO_CANCEL_GAP)); //如果没有传取消时间，就默认是24小时
@@ -101,18 +112,27 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderNumber(Long.valueOf(System.currentTimeMillis()).toString());
         order.setCreateTime(now);
         order.setUserId(BaseContext.getCurrentId());
-        if (orderSubmitDTO.getPrice() == null ||
-                orderSubmitDTO.getPrice().equals(BigDecimal.ZERO) ||
-                orderSubmitDTO.getPrice().multiply(BigDecimal.valueOf(100)).intValue() == 0) {
+        boolean purchase = OrderBusinessConstant.CATEGORY_PURCHASE.equals(category.getCategoryCode());
+        if (!purchase && (orderSubmitDTO.getPrice() == null ||
+                orderSubmitDTO.getPrice().signum() == 0 ||
+                orderSubmitDTO.getPrice().multiply(BigDecimal.valueOf(100)).intValue() == 0)) {
             //表示当前订单是无偿的
+            order.setBusinessType(OrderBusinessConstant.NORMAL);
+            order.setProductAmount(BigDecimal.ZERO.setScale(2));
+            order.setPrice(BigDecimal.ZERO.setScale(2));
+            order.setServiceFeeRate(BigDecimal.ZERO);
+            order.setServiceFee(BigDecimal.ZERO.setScale(2));
+            order.setPayAmount(BigDecimal.ZERO.setScale(2));
             order.setStatus(OrderStatusConstant.WAIT_TO_TAKE_ORDER);
         }else {
-            //设置订单状态为未支付
-            order.setServiceFeeRate(orderSubmitDTO.getServiceFeeRate());
-            order.setServiceFee(orderSubmitDTO.getServiceFee());
-            order.setPayAmount(orderSubmitDTO.getPayAmount());
-
-
+            var amount = orderAmountService.calculate(category, orderSubmitDTO.getPrice(), orderSubmitDTO.getProductAmount());
+            order.setBusinessType(amount.getBusinessType());
+            order.setProductAmount(amount.getProductAmount());
+            order.setPrice(amount.getRunnerFee());
+            order.setServiceFeeRate(amount.getServiceFeeRate());
+            order.setServiceFee(amount.getServiceFee());
+            order.setPayAmount(amount.getPayAmount());
+            order.setRunnerReceivable(amount.getRunnerReceivable());
             order.setStatus(OrderStatusConstant.NO_PAY);
 //            order.setRealPrice(orderSubmitDTO.getPrice());
         }
@@ -132,6 +152,15 @@ public class OrderServiceImpl implements OrderService {
             order.setImageAssetId(orderSubmitDTO.getImageAssetId());
         }
         return order;
+    }
+
+    @Override
+    public com.mikasa.campusrunner.pojo.vo.OrderAmountVO previewAmount(OrderSubmitDTO orderSubmitDTO) {
+        Category category = categoryMapper.getById(orderSubmitDTO.getCategoryId());
+        if (category == null) {
+            throw new ParamException("请选择跑腿类型");
+        }
+        return orderAmountService.calculate(category, orderSubmitDTO.getPrice(), orderSubmitDTO.getProductAmount());
     }
 
     /**
@@ -374,6 +403,9 @@ public class OrderServiceImpl implements OrderService {
         }
         if (!order.getUserId().equals(BaseContext.getCurrentId())) {
             throw new OrderException(MessageConstant.NOT_YOUR_ORDER);
+        }
+        if (!OrderStatusConstant.ORDER_FINISH.equals(order.getStatus())) {
+            throw new OrderException("订单尚未送达，请刷新后重试");
         }
         order.setStatus(OrderStatusConstant.SENDER_CONFIRMS_RECEIPT);
         orderMapper.update(order);

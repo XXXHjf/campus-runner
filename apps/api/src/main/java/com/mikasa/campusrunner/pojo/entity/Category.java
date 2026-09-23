@@ -10,6 +10,10 @@ import lombok.Data;
 public class Category {
     private Long id;
     private String categoryName;
+    private String categoryCode;
+    private String businessType;
+    private Integer enabled;
+    private Integer sortOrder;
     private String image;
     private Long imageAssetId;
     private Integer deleted;

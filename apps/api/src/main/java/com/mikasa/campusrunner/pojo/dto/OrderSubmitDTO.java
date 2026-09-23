@@ -14,6 +14,7 @@ public class OrderSubmitDTO {
     private Long pickUpAddress;//接单地址
     private Long reciveAddress;//送达地址
     private BigDecimal price;
+    private BigDecimal productAmount;
 
     private BigDecimal serviceFeeRate; //付费费率快照
     private BigDecimal serviceFee; //服务费

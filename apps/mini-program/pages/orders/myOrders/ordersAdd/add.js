@@ -71,6 +71,9 @@ Page({
     // 订单类型
     category: {},
     showCategory: {},
+    isPurchase: false,
+    productAmount: '',
+    productAmountError: false,
     // 门禁情况
     door: DOOR_OPTIONS,
     doorAccess: DOOR_ACCESS.NO_GUARD,
@@ -101,6 +104,9 @@ Page({
     serviceFee: null,
     payAmount: null,
     feeConfigLoaded: false,
+    purchaseOrderPayMax: 200,
+    runnerTransferSingleMax: 200,
+    runnerReceivable: null,
     // 按钮样式
     theme: BUTTON_THEME.DEFAULT.theme,
     variant: BUTTON_THEME.DEFAULT.variant,
@@ -139,7 +145,7 @@ Page({
   },
 
   _calculateFeePreview() {
-    const { priceAccess, price, serviceFeeRate, serviceFeeMin } = this.data;
+    const { priceAccess, price, serviceFeeRate, serviceFeeMin, isPurchase, productAmount } = this.data;
 
     if (priceAccess !== PRICE_MODE.PAID) {
       this.setData({
@@ -162,22 +168,31 @@ Page({
     }
 
     const serviceFee = this._roundMoney(Math.max(basePrice * rate, minFee));
-    const payAmount = this._roundMoney(basePrice + serviceFee);
+    const productPrice = isPurchase ? Number(productAmount) : 0;
+    if (isPurchase && (!productPrice || isNaN(productPrice))) {
+      this.setData({ serviceFee, payAmount: null, runnerReceivable: null });
+      return;
+    }
+    const payAmount = this._roundMoney(productPrice + basePrice + serviceFee);
+    const runnerReceivable = this._roundMoney(productPrice + basePrice);
 
     this.setData({
       serviceFee,
-      payAmount
+      payAmount,
+      runnerReceivable
     });
   },
 
   async _loadFeeConfig() {
     try {
-      const [serviceFeeRate, serviceFeeMin] = await Promise.all([
+      const [serviceFeeRate, serviceFeeMin, runnerTransferSingleMax] = await Promise.all([
         configService.getServiceFeeRate(),
-        configService.getServiceFeeMin()
+        configService.getServiceFeeMin(),
+        configService.getRunnerTransferSingleMax()
       ]);
 
-      if (isNaN(serviceFeeRate) || isNaN(serviceFeeMin)) {
+      if (!Number.isFinite(Number(serviceFeeRate)) || !Number.isFinite(Number(serviceFeeMin))
+        || !Number.isFinite(Number(runnerTransferSingleMax)) || Number(runnerTransferSingleMax) <= 0) {
         throw new Error('服务费配置解析失败');
       }
 
@@ -185,6 +200,8 @@ Page({
         serviceFeeRate,
         serviceFeeMin,
         serviceFeeRatePercent: this._formatPercent(serviceFeeRate),
+        purchaseOrderPayMax: runnerTransferSingleMax,
+        runnerTransferSingleMax,
         feeConfigLoaded: true
       });
 
@@ -220,6 +237,8 @@ Page({
       imageAssetId: this.data.imageAssetId,
       price: this.data.price,
       priceAccess: this.data.priceAccess,
+      isPurchase: this.data.isPurchase,
+      productAmount: this.data.productAmount,
       count: this.data.count
     };
     
@@ -251,8 +270,14 @@ Page({
           }
           noteTitle = String(noteTitle).slice(0, 30);
           noteDetail = String(noteDetail).slice(0, 69);
+          const isPurchase = restored.showCategory && restored.showCategory.categoryCode === 'PURCHASE';
           this.setData({
             ...restored,
+            isPurchase,
+            title: isPurchase ? ['地点', '清单', '费用'] : STEP_TITLES,
+            priceAccess: isPurchase ? PRICE_MODE.PAID : restored.priceAccess,
+            productAmount: isPurchase ? restored.productAmount : '',
+            productAmountError: false,
             noteTitle,
             noteDetail,
             note: this._composeNote(noteTitle, noteDetail),
@@ -744,9 +769,16 @@ Page({
   },
   onChangeCategory(event) {
     const Category = event.currentTarget.dataset.item;
+    const isPurchase = Category.categoryCode === 'PURCHASE';
     this.setData({
-      showCategory: Category
+      showCategory: Category,
+      isPurchase,
+      title: isPurchase ? ['地点', '清单', '费用'] : STEP_TITLES,
+      priceAccess: isPurchase ? PRICE_MODE.PAID : this.data.priceAccess,
+      productAmount: isPurchase ? this.data.productAmount : '',
+      productAmountError: false,
     });
+    this._calculateFeePreview();
     this._saveDraftData(); // 保存草稿
   },
   // 门禁修改
@@ -941,6 +973,7 @@ Page({
   },
   // 价格获取与检查
   handleChangePrice(e) {
+    if (this.data.isPurchase) return;
     const old = this.data.priceAccess;
     const nextPriceAccess = (old + 1) % 2;
     this.setData({
@@ -957,7 +990,8 @@ Page({
   onPriceInput(e) {
     const value = e.detail.value;
     // 正则表达式判断价格是否正确，禁止前导零 + 最多两位小数
-    const isNumber = /^(0|(?!0)\d+)(\.\d{1,2})?$/.test(e.detail.value);
+    const isNumber = /^(0|(?!0)\d+)(\.\d{1,2})?$/.test(value)
+      && (!this.data.isPurchase || Number(value) > 0);
     // 实时更新错误状态
     this.setData({
       priceError: !isNumber,
@@ -965,6 +999,14 @@ Page({
     });
     this._calculateFeePreview();
     console.log('￥输入的有偿值: ', e.detail.value)
+    this._saveDraftData();
+  },
+  onProductAmountInput(e) {
+    const value = e.detail.value;
+    const isNumber = /^(0|(?!0)\d+)(\.\d{1,2})?$/.test(value) && Number(value) > 0;
+    this.setData({ productAmount: value, productAmountError: !isNumber });
+    this._calculateFeePreview();
+    this._saveDraftData();
   },
   // 发布订单 - 验证并显示确认弹窗
   async order() {
@@ -975,6 +1017,20 @@ Page({
     if (this.data.priceAccess === PRICE_MODE.PAID && !this.data.feeConfigLoaded) {
       errorCilcleToast(this, '服务费配置加载失败，请稍后重试');
       return;
+    }
+    if (this.data.isPurchase) {
+      if (this.data.productAmountError || !Number(this.data.productAmount)) {
+        errorCilcleToast(this, '请输入正确的商品金额');
+        return;
+      }
+      if (Number(this.data.payAmount) > Number(this.data.purchaseOrderPayMax)) {
+        errorCilcleToast(this, `预计实付不能超过${this.data.purchaseOrderPayMax}元`);
+        return;
+      }
+      if (Number(this.data.runnerReceivable) > Number(this.data.runnerTransferSingleMax)) {
+        errorCilcleToast(this, `商品金额与跑腿费合计不能超过${this.data.runnerTransferSingleMax}元`);
+        return;
+      }
     }
     
     // 验证所有步骤的数据
@@ -991,11 +1047,28 @@ Page({
         return;
       }
     }
+
+    if (!this.data.isPurchase && this.data.priceAccess === PRICE_MODE.FREE) {
+      this.setData({ showOrderConfirm: true });
+      return;
+    }
     
     // 所有验证通过，显示确认弹窗
-    this.setData({
-      showOrderConfirm: true
-    });
+    try {
+      const preview = await userOrderService.previewOrderAmount({
+        categoryId: this.data.showCategory.id,
+        price: Number(this.data.price),
+        productAmount: this.data.isPurchase ? Number(this.data.productAmount) : 0,
+      });
+      this.setData({
+        serviceFee: preview.serviceFee,
+        payAmount: preview.payAmount,
+        runnerReceivable: preview.runnerReceivable,
+        showOrderConfirm: true,
+      });
+    } catch (error) {
+      errorCilcleToast(this, error.message || '金额计算失败，请稍后重试');
+    }
   },
   
   // 订单数据预处理
@@ -1005,13 +1078,16 @@ Page({
     });
 
     // 处理价格：免费模式下价格设为 null
-    if (this.data.priceAccess === PRICE_MODE.FREE || this.data.price == 0) {
+    if (!this.data.isPurchase && (this.data.priceAccess === PRICE_MODE.FREE || this.data.price == 0)) {
       this.setData({
         price: null,
+        productAmount: 0,
         serviceFee: null,
-        payAmount: null
+        payAmount: null,
+        runnerReceivable: null
       });
     } else {
+      if (this.data.isPurchase) this.setData({ priceAccess: PRICE_MODE.PAID });
       this._calculateFeePreview();
     }
     
@@ -1071,6 +1147,7 @@ Page({
         cancelTime: this.data.cancelTime,
         gap: this.data.gapReach,
         price: isPaidOrder ? Number(this.data.price) : null,
+        productAmount: this.data.isPurchase ? Number(this.data.productAmount) : 0,
         serviceFeeRate: isPaidOrder ? Number(this.data.serviceFeeRate) : 0,
         serviceFee: isPaidOrder ? Number(this.data.serviceFee) : 0,
         payAmount: isPaidOrder ? Number(this.data.payAmount) : 0

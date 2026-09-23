@@ -2,6 +2,7 @@ package com.mikasa.campusrunner.service.impl.user;
 
 import com.alibaba.fastjson.JSONObject;
 import com.mikasa.campusrunner.common.constant.MessageConstant;
+import com.mikasa.campusrunner.common.constant.OrderBusinessConstant;
 import com.mikasa.campusrunner.common.constant.OrderStatusConstant;
 import com.mikasa.campusrunner.common.exception.MessageSendException;
 import com.mikasa.campusrunner.common.properties.WeChatProperties;
@@ -120,7 +121,9 @@ public class MessageSendServiceImpl implements MessageSendService {
         Map<String, String> param = new HashMap<>();
         param.put("character_string1", order.getOrderNumber());
         param.put("time3", time);
-        param.put("thing4", "跑腿员已取货，请留意配送进度");
+        param.put("thing4", OrderBusinessConstant.PURCHASE.equals(order.getBusinessType())
+                ? "商品已购买，正在配送，请留意进度"
+                : "跑腿员已取货，请留意配送进度");
         JSONObject data = getData(param);
 
         String result = sendMessage(weChatProperties.getPickUpTemplateId(),

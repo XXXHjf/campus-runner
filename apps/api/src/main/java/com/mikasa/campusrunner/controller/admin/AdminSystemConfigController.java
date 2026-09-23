@@ -44,6 +44,12 @@ public class AdminSystemConfigController {
         return Result.success(adminSystemConfigService.getSecondHandServiceFeeRate());
     }
 
+    @GetMapping("/runner_transfer_single_max")
+    @Operation(summary = "获取接单人单笔收款上限")
+    public Result<String> getRunnerTransferSingleMax() {
+        return Result.success(adminSystemConfigService.getRunnerTransferSingleMax());
+    }
+
     @PutMapping("/service_fee_rate")
     @Operation(summary = "修改服务费率")
     public Result updateServiceFeeRate(@RequestBody AdminSystemConfigDTO dto) {
@@ -64,6 +70,13 @@ public class AdminSystemConfigController {
     @Operation(summary = "修改二手交易服务费率")
     public Result<Void> updateSecondHandServiceFeeRate(@RequestBody AdminSystemConfigDTO dto) {
         adminSystemConfigService.updateSecondHandServiceFeeRate(dto.getSecondHandServiceFeeRate());
+        return Result.success();
+    }
+
+    @PutMapping("/runner_transfer_single_max")
+    @Operation(summary = "修改接单人单笔收款上限")
+    public Result<Void> updateRunnerTransferSingleMax(@RequestBody AdminSystemConfigDTO dto) {
+        adminSystemConfigService.updateRunnerTransferSingleMax(dto.getRunnerTransferSingleMax());
         return Result.success();
     }
 

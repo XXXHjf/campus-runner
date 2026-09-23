@@ -13,18 +13,26 @@
     </select>
 
     <select id="getAll" resultType="com.mikasa.campusrunner.pojo.entity.Category">
-        select * from tb_category where deleted = 0
+        select * from tb_category where deleted = 0 order by sort_order, id
+    </select>
+
+    <select id="getEnabled" resultType="com.mikasa.campusrunner.pojo.entity.Category">
+        select * from tb_category where deleted = 0 and enabled = 1 order by sort_order, id
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into tb_category (category_name, deleted)
-        values (#{categoryName}, 0)
+        insert into tb_category (category_name, category_code, business_type, enabled, sort_order, deleted)
+        values (#{categoryName}, #{categoryCode}, #{businessType}, #{enabled}, #{sortOrder}, 0)
     </insert>
 
     <update id="update">
         update tb_category
         <set>
             <if test="categoryName != null and categoryName != ''">category_name = #{categoryName},</if>
+            <if test="categoryCode != null and categoryCode != ''">category_code = #{categoryCode},</if>
+            <if test="businessType != null and businessType != ''">business_type = #{businessType},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
         </set>
         where id = #{id} and deleted = 0
     </update>

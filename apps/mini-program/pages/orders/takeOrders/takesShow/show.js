@@ -102,9 +102,11 @@ Page({
   },
   
   // 根据状态(数字)和订单价格获取状态描述(文字描述)
-  _getStatusDescription(statusCode, price) {
+  _getStatusDescription(statusCode, price, businessType) {
     const { orderStatus } = this.data;
     const baseStatus = orderStatus[statusCode.toString()] || "未知状态";
+
+    if (statusCode === 1 && businessType === 'PURCHASE') return '待购买';
     
     // 状态5需要根据是否有偿来区分显示
     if (statusCode === 5) {
@@ -158,8 +160,14 @@ Page({
       
       // 添加状态描述和主题（根据订单价格动态设置）
       takes.forEach(item => {
-        item.statusDesc = this._getStatusDescription(item.status, item.price);
+        item.statusDesc = this._getStatusDescription(item.status, item.price, item.businessType);
         item.statusTheme = this._getStatusTheme(item.status, item.price);
+        item.displayPickUpLabel = item.businessType === 'PURCHASE' ? '购' : '取';
+        item.displayReciveLabel = item.businessType === 'PURCHASE' ? '送' : '收';
+        item.displayAmountLabel = item.businessType === 'PURCHASE' ? '完成后合并收款' : '报酬';
+        item.displayAmount = item.businessType === 'PURCHASE'
+          ? (item.runner_receivable ?? item.runnerReceivable ?? Number(item.productAmount || 0) + Number(item.price || 0))
+          : item.price;
       });
       
       this.setData({ takes });
