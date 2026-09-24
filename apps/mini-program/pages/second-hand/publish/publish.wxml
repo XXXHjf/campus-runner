@@ -1,7 +1,6 @@
 <ui-page safe-bottom>
   <view class="secondhand-publish__header">
     <view class="secondhand-publish__title">{{isEdit ? '编辑闲置' : '发布闲置'}}</view>
-    <view class="secondhand-publish__subtitle">上传清晰图片，并填写物品信息和交接地点</view>
   </view>
 
   <ui-section title="商品信息" icon="shop">
@@ -31,20 +30,17 @@
       <text class="secondhand-publish__label">自提点</text>
       <view class="secondhand-publish__select-content">
         <text class="secondhand-publish__value {{pickupAddressText ? '' : 'secondhand-publish__value--muted'}}">{{pickupAddressText || '从地址簿选择'}}</text>
-        <text class="secondhand-publish__hint">默认交货地点</text>
       </view>
     </view>
     <view class="secondhand-publish__switch-row">
       <view>
         <view class="secondhand-publish__label">仅支持自提</view>
-        <view class="secondhand-publish__hint">{{form.pickupOnly == 1 ? '买家将于自提点取货' : '下单后买家填写配送地址'}}</view>
       </view>
       <t-switch value="{{form.pickupOnly == 1}}" bind:change="setPickupOnly" />
     </view>
     <view class="secondhand-publish__switch-row">
       <view>
         <view class="secondhand-publish__label">允许议价</view>
-        <view class="secondhand-publish__hint">开启后，买家可以向你发送报价</view>
       </view>
       <t-switch value="{{form.negotiable == 1}}" data-field="negotiable" bind:change="setSwitch" />
     </view>

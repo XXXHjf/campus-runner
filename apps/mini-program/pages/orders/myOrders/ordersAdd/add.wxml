@@ -119,7 +119,7 @@
 <!-- </view> -->
 
 <!-- 跑腿内容说明 -->
-<ui-section title="{{isPurchase ? '购买清单' : '内容说明'}}" icon="attach" description="说明越清楚，接单人越容易准确完成任务" wx:if="{{count == 2}}">
+<ui-section title="{{isPurchase ? '购买清单' : '内容说明'}}" icon="attach" wx:if="{{count == 2}}">
   <view class="content-field">
     <text class="text-address">描述（至少4个字）</text>
     <t-textarea
@@ -136,9 +136,8 @@
     />
   </view>
   <view>
-    <text class="text-address">{{isPurchase ? '商品参考图片' : '图片说明'}}</text>
-    <view class="address" style="margin-top: 20rpx;">请上传一张说明图片，帮助接单人确认任务</view>
-    <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{1}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="margin: 20rpx 30rpx" />
+    <text class="text-address">{{isPurchase ? '商品参考图片' : '图片说明'}}（1～9 张）</text>
+    <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{9}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="margin: 20rpx 30rpx" />
   </view>
 </ui-section>
 
@@ -302,10 +301,9 @@
       </view>
     </view>
     
-    <!-- 温馨提示 -->
-    <view class="confirm-tips-compact">
+    <view class="confirm-tips-compact" wx:if="{{priceAccess == 1}}">
       <t-icon name="info-circle-filled" size="28rpx" color="#FFB800" class="tips-icon-td" />
-      <text class="tips-text-compact">平台将收取部分服务费请仔细核对</text>
+      <text class="tips-text-compact">服务费 ¥{{serviceFee || 0}}，预计实付 ¥{{payAmount || 0}}</text>
     </view>
   </view>
 </t-dialog>

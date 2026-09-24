@@ -104,13 +104,13 @@ export default function OrderDetail({ detail, loading }: OrderDetailProps) {
           {order.note || '-'}
         </Descriptions.Item>
         <Descriptions.Item label="图片" span={2}>
-          {order.image ? (
-            <Image
-              src={order.image}
-              width={120}
-              style={{ objectFit: 'contain', border: '1px solid #f0f0f0', borderRadius: 8 }}
-              fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='120' height='120' fill='%23f0f0f0'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23ccc' font-size='12'%3E暂无%3C/text%3E%3C/svg%3E"
-            />
+          {(order.images?.length || order.image) ? (
+            <Image.PreviewGroup>
+              {(order.images?.length ? order.images : [order.image!]).map((url, index) => (
+                <Image key={`${index}-${url}`} src={url} width={120}
+                  style={{ marginRight: 8, objectFit: 'contain', border: '1px solid #f0f0f0', borderRadius: 8 }} />
+              ))}
+            </Image.PreviewGroup>
           ) : (
             '-'
           )}

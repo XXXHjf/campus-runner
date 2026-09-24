@@ -9,16 +9,10 @@
   color: var(--cr-color-text);
 }
 
-.secondhand-publish__subtitle,
-.secondhand-publish__hint,
 .secondhand-sheet__subtitle {
   font-size: 24rpx;
   line-height: 36rpx;
   color: var(--cr-color-text-secondary);
-}
-
-.secondhand-publish__subtitle {
-  margin-top: 8rpx;
 }
 
 .secondhand-publish__select-row,

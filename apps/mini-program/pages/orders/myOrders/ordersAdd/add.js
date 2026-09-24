@@ -81,8 +81,6 @@ Page({
     note: '',
     // 图片说明
     fileList: [],
-    image: null,
-    imageAssetId: null,
     // 自动取消
     showCancel: '',
     value: '12:00:00',
@@ -229,8 +227,6 @@ Page({
       doorAccess: this.data.doorAccess,
       note: this.data.note,
       fileList: this.data.fileList,
-      image: this.data.image,
-      imageAssetId: this.data.imageAssetId,
       price: this.data.price,
       priceAccess: this.data.priceAccess,
       isPurchase: this.data.isPurchase,
@@ -278,7 +274,10 @@ Page({
           });
           checkCilcleToast(this, '已恢复草稿');
         } else {
-          if (draft.imageAssetId) {
+          (draft.fileList || []).forEach(file => {
+            if (file.mediaId) mediaService.releaseTemporaryImage(file.mediaId).catch(() => {});
+          });
+          if (draft.imageAssetId && !(draft.fileList || []).some(file => file.mediaId === draft.imageAssetId)) {
             mediaService.releaseTemporaryImage(draft.imageAssetId).catch(() => {});
           }
           clearDraft();
@@ -789,17 +788,18 @@ Page({
   // 添加图片
   handleAdd(e) {
     const { files } = e.detail;
-    files.forEach(file => this.onUpload(file));
+    (files || []).forEach(file => this.onUpload(file));
   },
   
   // 上传图片 - 重构版（消除代码重复）
   async onUpload(file) {
-    const { fileList } = this.data;
-    const fileIndex = fileList.length;
+    if (this.data.fileList.length >= 9) return;
+    const uploadKey = this._imageUploadSequence = (this._imageUploadSequence || 0) + 1;
+    const fileList = this.data.fileList;
     
     // 添加加载状态的文件项
     this.setData({
-      fileList: [...fileList, { ...file, status: 'loading' }]
+      fileList: [...fileList, { ...file, uploadKey, status: 'loading' }]
     });
     
     try {
@@ -808,27 +808,30 @@ Page({
         file.url,
         'ORDER_IMAGE',
         (progress) => {
-          this.setData({ [`fileList[${fileIndex}].percent`]: progress });
+          const index = this.data.fileList.findIndex(item => item.uploadKey === uploadKey);
+          if (index >= 0) this.setData({ [`fileList[${index}].percent`]: progress });
         },
       );
-      
+      const fileIndex = this.data.fileList.findIndex(item => item.uploadKey === uploadKey);
+      if (fileIndex < 0) {
+        mediaService.releaseTemporaryImage(uploadResult.mediaId).catch(() => {});
+        return;
+      }
       // 更新状态为完成
       this.setData({
         [`fileList[${fileIndex}].status`]: 'done',
         [`fileList[${fileIndex}].url`]: uploadResult.previewUrl,
-        [`fileList[${fileIndex}].mediaId`]: uploadResult.mediaId,
-        image: null,
-        imageAssetId: uploadResult.mediaId
+        [`fileList[${fileIndex}].mediaId`]: uploadResult.mediaId
       });
       this.buttonColor();
+      this._saveDraftData();
       
       console.log('[图片上传] 上传成功');
     } catch (error) {
       console.error('[图片上传] 上传失败:', error);
       // 更新状态为失败
-      this.setData({
-        [`fileList[${fileIndex}].status`]: 'failed'
-      });
+      const fileIndex = this.data.fileList.findIndex(item => item.uploadKey === uploadKey);
+      if (fileIndex >= 0) this.setData({ [`fileList[${fileIndex}].status`]: 'failed' });
       errorCilcleToast(this, '图片上传失败');
     }
   },
@@ -837,20 +840,15 @@ Page({
     const {
       index
     } = e.detail;
-    const {
-      fileList
-    } = this.data;
+    const fileList = [...this.data.fileList];
     const removed = fileList[index];
     if (removed && removed.mediaId) {
       mediaService.releaseTemporaryImage(removed.mediaId).catch(() => {});
     }
     fileList.splice(index, 1);
-    this.setData({
-      fileList,
-      image: null,
-      imageAssetId: null,
-    });
+    this.setData({ fileList });
     this.buttonColor();
+    this._saveDraftData();
   },
   // 自动取消时间
   showPicker() {
@@ -1124,8 +1122,7 @@ Page({
         phone: this.data.showPhone,
         doorAccess: this.data.doorAccess,
         note: this.data.note,
-        image: this.data.image,
-        imageAssetId: this.data.imageAssetId,
+        imageAssetIds: this.data.fileList.map(file => file.mediaId),
         cancelTime: this.data.cancelTime,
         gap: this.data.gapReach,
         price: isPaidOrder ? Number(this.data.price) : null,

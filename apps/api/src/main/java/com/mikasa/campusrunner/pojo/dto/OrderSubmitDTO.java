@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * author  Edith
@@ -34,6 +35,7 @@ public class OrderSubmitDTO {
     private Integer doorAccess;//门禁
     private String note;
     private Long imageAssetId;
+    private List<Long> imageAssetIds;
     private Long categoryId;
     private String username;//订单用的昵称
     private String phone;//订单用的phone字段

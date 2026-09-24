@@ -5,18 +5,23 @@ const vm = require('node:vm');
 const test = require('node:test');
 
 const source = fs.readFileSync(path.resolve(__dirname, '../../apps/mini-program/pages/orders/myOrders/ordersShow/show.js'), 'utf8');
+const template = fs.readFileSync(path.resolve(__dirname, '../../apps/mini-program/pages/orders/myOrders/ordersShow/show.wxml'), 'utf8');
 
-function createPage() {
+function createPage({ services = {}, wxOverrides = {}, showError = () => {} } = {}) {
   let page;
   const wx = {
     getWindowInfo: () => ({ statusBarHeight: 47, windowWidth: 375 }),
     getMenuButtonBoundingClientRect: () => ({ top: 54, height: 32, left: 286, width: 87 }),
+    ...wxOverrides,
   };
   vm.runInNewContext(source, {
     console,
     Date,
     wx,
-    require: () => ({}),
+    require: (name) => name.includes('userOrderService') ? services
+      : name.includes('transformers') ? { showError }
+      : name.includes('validators') ? { validateNote: () => ({ valid: true }) }
+      : {},
     Page(config) {
       page = {
         ...config,
@@ -117,4 +122,123 @@ test('更多操作绑定当前订单，待接单订单分享跳转接单详情',
   page.openActionSheet({ currentTarget: { dataset: { id: 43 } } });
   assert.equal(page.data.actionSheetVisible, true);
   assert.equal(page.data.actionOrder.id, 43);
+});
+
+test('待支付卡片进入支付流程，其他操作只在对应状态生效', () => {
+  assert.match(template, /<t-button data-id="\{\{order\.id\}\}" bind:tap="onPrimaryAction"/);
+  const navigations = [];
+  const page = createPage({ wxOverrides: { navigateTo: ({ url }) => navigations.push(url) } });
+  page.data.orders = [-1, 0, 3, 5].map((status, index) => page.prepareOrder({ id: index + 1, status }));
+  page.onPrimaryAction({ currentTarget: { dataset: { id: 1 } } });
+  assert.deepEqual(navigations, ['/pages/orders/myOrders/ordersInfo/info?id=1&pay=1']);
+  page.gotoOrderInfo({ currentTarget: { dataset: { id: 4 } } });
+  assert.equal(navigations[1], '/pages/orders/myOrders/ordersInfo/info?id=4');
+  page.onPrimaryAction({ currentTarget: { dataset: { id: 4 } } });
+  assert.equal(navigations.length, 2);
+});
+
+test('取消业务失败后不申请退款，也不提示取消成功', async () => {
+  let refundCalls = 0;
+  let modal;
+  const toasts = [];
+  const errors = [];
+  const page = createPage({
+    services: {
+      cancelOrder: async () => { throw new Error('业务失败'); },
+      refundOrder: async () => { refundCalls += 1; },
+      getMyOrders: async () => [],
+    },
+    wxOverrides: {
+      showModal: (options) => { modal = options; },
+      showToast: (options) => toasts.push(options.title),
+    },
+    showError: (message) => errors.push(message),
+  });
+  page.data.actionOrder = { id: 7, status: 0, payAmount: 5, orderNumber: 'order-7' };
+  page.cancelActionOrder();
+  await modal.success({ confirm: true });
+  assert.equal(refundCalls, 0);
+  assert.deepEqual(toasts, []);
+  assert.deepEqual(errors, ['取消失败，请重试']);
+});
+
+test('编辑和确认失败时保留编辑内容且不提示成功', async () => {
+  let modal;
+  const toasts = [];
+  const errors = [];
+  const page = createPage({
+    services: {
+      updateOrderContent: async () => { throw new Error('业务失败'); },
+      confirmOrder: async () => { throw new Error('业务失败'); },
+      getMyOrders: async () => [],
+    },
+    wxOverrides: {
+      showModal: (options) => { modal = options; },
+      showToast: (options) => toasts.push(options.title),
+    },
+    showError: (message) => errors.push(message),
+  });
+  page.setData({
+    editVisible: true,
+    editOrder: { id: 2 },
+    editNote: '说明内容',
+    editFiles: [{ mediaId: 3, status: 'done' }, { mediaId: 4, status: 'done' }],
+  });
+  await page.saveEdit();
+  assert.equal(page.data.editVisible, true);
+  page.data.orders = [page.prepareOrder({ id: 4, status: 3 })];
+  page.onPrimaryAction({ currentTarget: { dataset: { id: 4 } } });
+  await modal.success({ confirm: true });
+  assert.deepEqual(toasts, []);
+  assert.deepEqual(errors, ['保存失败，请刷新订单后重试', '确认失败，请重试']);
+});
+
+test('待接单编辑按图片顺序提交，超过九张时阻止保存', async () => {
+  const payloads = [];
+  const errors = [];
+  const page = createPage({
+    services: {
+      updateOrderContent: async (id, content) => payloads.push({ id, content }),
+      getMyOrders: async () => [],
+    },
+    wxOverrides: { showToast: () => {} },
+    showError: (message) => errors.push(message),
+  });
+  page.setData({
+    editOrder: { id: 2 }, editVisible: true, editNote: '说明内容',
+    editFiles: [3, 4].map(mediaId => ({ mediaId, status: 'done' })),
+  });
+  await page.saveEdit();
+  assert.deepEqual(Array.from(payloads[0].content.imageAssetIds), [3, 4]);
+  page.setData({ editFiles: Array.from({ length: 10 }, (_, index) => ({ mediaId: index + 1, status: 'done' })) });
+  await page.saveEdit();
+  assert.equal(payloads.length, 1);
+  assert.deepEqual(errors, ['说明图片最多上传9张']);
+});
+
+test('支付入口只对加载后的待支付订单拉起支付', async () => {
+  const detailSource = fs.readFileSync(path.resolve(__dirname, '../../apps/mini-program/pages/orders/myOrders/ordersInfo/info.js'), 'utf8');
+  let detail;
+  vm.runInNewContext(detailSource, {
+    console,
+    getApp: () => ({ globalData: { API_URL: 'https://example.com' } }),
+    require: () => ({}),
+    Page(config) {
+      detail = {
+        ...config,
+        data: structuredClone(config.data),
+        setData(value) { Object.assign(this.data, value); },
+      };
+    },
+  });
+  let payments = 0;
+  let status = -1;
+  detail._loadOrderInfo = async function () { this.setData({ orderInfo: { status } }); };
+  detail.payOrder = () => { payments += 1; };
+  await detail.onLoad({ id: 1, pay: '1' });
+  assert.equal(payments, 1);
+  await detail.onLoad({ id: 1 });
+  status = 0;
+  await detail.onLoad({ id: 1, pay: '1' });
+  assert.equal(payments, 1);
 });

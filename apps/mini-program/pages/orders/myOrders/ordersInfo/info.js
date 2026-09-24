@@ -349,6 +349,7 @@ Page({
     try {
       const orderInfoRaw = await userOrderService.getMyOrderDetail(this.data.id);
       const orderInfo = this._normalizeAmountFields(orderInfoRaw);
+      orderInfo.images = orderInfo.images?.length ? orderInfo.images : (orderInfo.image ? [orderInfo.image] : []);
       
       // 检查订单数据是否有效
       if (!orderInfo || !orderInfo.id) {
@@ -412,11 +413,14 @@ Page({
   },
 
   // 生命周期函数
-  onLoad(options) {
+  async onLoad(options) {
     console.log('订单详情页 - 接收到的参数:', options);
     console.log('订单详情页 - 订单ID:', options.id);
     this.setData({ id: options.id });
-    this._loadOrderInfo();
+    await this._loadOrderInfo();
+    if (options.pay === '1' && Number(this.data.orderInfo.status) === -1) {
+      this.payOrder();
+    }
   },
 
   _clearUnpaidTimer() {
@@ -484,8 +488,9 @@ Page({
 
   // 预览图片
   tapOnImageToPreview(res) {
-    const imageUrl = res.target.dataset.src;
-    wx.previewImage({ urls: [imageUrl], showmenu: true });
+    const imageUrl = res.currentTarget.dataset.src;
+    const orderImages = this.data.orderInfo.images || [];
+    wx.previewImage({ current: imageUrl, urls: orderImages.includes(imageUrl) ? orderImages : [imageUrl], showmenu: true });
   },
 
   // 联系方式

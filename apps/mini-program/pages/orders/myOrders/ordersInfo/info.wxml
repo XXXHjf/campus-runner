@@ -94,9 +94,8 @@
   <view class="box1">
     <t-icon name="time" size="28rpx" color="#ed7b2f" style="margin-left:30rpx;margin-right:8rpx;" />
     <view class="text-address" style="margin:0;">退款处理中</view>
-    <view class="address" style="color:#ed7b2f;">请耐心等待系统处理完成</view>
+    <view class="address" style="color:#ed7b2f;">请稍后查看退款结果</view>
   </view>
-  <view class="address" style="margin-top:4rpx;color:#999;text-align:right;">处理中订单暂不支持删除</view>
 </view>
 
 <!-- 地址 -->
@@ -248,15 +247,10 @@
     <view class="content-text">{{orderInfo.note}}</view>
     
     <!-- 内容图片 -->
-    <view hidden="{{orderInfo.image==null}}" class="content-image-container">
-      <t-image 
-        src="{{orderInfo.image}}" 
-        bind:tap="tapOnImageToPreview" 
-        data-src="{{orderInfo.image}}" 
-        mode="aspectFit" 
-        shape="round" 
-        class="img" 
-      />
+    <view wx:if="{{orderInfo.images && orderInfo.images.length}}" class="content-image-container">
+      <t-image wx:for="{{orderInfo.images}}" wx:key="*this"
+        src="{{item}}" bind:tap="tapOnImageToPreview" data-src="{{item}}"
+        mode="aspectFit" shape="round" class="img" />
     </view>
   </view>
 </view>

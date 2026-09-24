@@ -95,7 +95,7 @@ HTTP 200 的业务失败保留 API 返回的可操作提示，正常上传和压
 | `ORDER_CATEGORY_ICON` | `imageAssetId` | 1 | 公开 |
 | `SECOND_HAND_CATEGORY_ICON` | `imageAssetId` | 1 | 公开 |
 | `SECOND_HAND_PRODUCT_IMAGE` | `imageAssetIds` | 最多 6 | 公开 |
-| `ORDER_IMAGE` | `imageAssetId` | 1 | 私有 |
+| `ORDER_IMAGE` | `imageAssetIds`（旧版单图入参 `imageAssetId` 仍可用） | 1～9 | 私有 |
 | `DELIVERY_PROOF` | `imageAssetId` | 1 | 私有 |
 | `AVATAR` | `headImgAssetId` | 1 | 公开 |
 | `STUDENT_CARD` | `studentIdCardAssetId` | 1 | 私有 |
@@ -103,6 +103,10 @@ HTTP 200 的业务失败保留 API 返回的可操作提示，正常上传和压
 
 公开图片查询 URL 的签名有效期为 7 天。学生证、订单图片和送达凭证只能通过已完成
 业务鉴权的接口返回，签名有效期为 15 分钟。
+
+跑腿发单和待接单内容编辑按 `imageAssetIds` 的顺序保存图片。订单详情返回
+`imageAssetIds`、`images` 数组；原有 `imageAssetId`、`image` 继续返回第一张，
+供订单列表封面及旧版调用方使用。被编辑移除的图片按原有媒体清理延时处理。
 
 ## 管理端学生认证图片回显
 

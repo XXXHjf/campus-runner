@@ -63,6 +63,7 @@ export interface AdminOrderDetailResponse {
     reciveAddress: string
     note: string
     image: string | null
+    images?: string[]
     doorAccess: number
     gap: number
     exceedTime: string

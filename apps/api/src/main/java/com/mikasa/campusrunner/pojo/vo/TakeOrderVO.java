@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * author  Edith
@@ -42,6 +43,8 @@ public class TakeOrderVO {
     private String note;
     private String image;//发单的
     private Long imageAssetId;
+    private List<Long> imageAssetIds;
+    private List<String> images;
     private Long categoryId;
     private String categoryImage;
     private String categoryName;

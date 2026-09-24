@@ -324,6 +324,8 @@ public class TakeOrderServiceImpl implements TakeOrderService {
                 order.getOrderId(),
                 MediaPurpose.ORDER_IMAGE.name());
         if (!contentImages.isEmpty()) {
+            order.setImageAssetIds(contentImages.stream().map(item -> item.getMediaId()).toList());
+            order.setImages(contentImages.stream().map(item -> item.getUrl()).toList());
             order.setImageAssetId(contentImages.get(0).getMediaId());
             order.setImage(contentImages.get(0).getUrl());
         }

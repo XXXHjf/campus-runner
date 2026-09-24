@@ -13,7 +13,9 @@
       <view class="purchase-detail__row"><text>购买地点</text><text>{{orderInfo.pickUpAddress}}</text></view>
       <view class="purchase-detail__row"><text>送达地点</text><text>{{orderInfo.reciveAddress}}</text></view>
       <view class="purchase-detail__row"><text>预计送达</text><text>{{orderInfo.expectTime}}</text></view>
-      <t-image wx:if="{{orderInfo.image}}" src="{{orderInfo.image}}" bind:tap="tapOnImageToPreview" data-src="{{orderInfo.image}}" mode="aspectFit" shape="round" class="purchase-detail__image" />
+      <view wx:if="{{orderInfo.images && orderInfo.images.length}}" class="content-image-container">
+        <t-image wx:for="{{orderInfo.images}}" wx:key="*this" src="{{item}}" bind:tap="tapOnImageToPreview" data-src="{{item}}" mode="aspectFit" shape="round" class="purchase-detail__image" />
+      </view>
     </view>
 
     <view class="purchase-detail__card" wx:if="{{orderInfo.price != null}}">
@@ -249,17 +251,11 @@
     <view class="content-text">{{orderInfo.note}}</view>
     
     <!-- 内容图片 -->
-    <view hidden="{{orderInfo.image==null}}" class="content-image-container">
-      <t-image 
-        src="{{orderInfo.image}}" 
-        bind:tap="tapOnImageToPreview" 
-        data-src="{{orderInfo.image}}" 
-        data-flag="{{orderInfo.status}}" 
-        mode="aspectFit" 
-        shape="round" 
-        class="img" 
-        style="{{orderInfo.status==0?'filter:blur(10rpx)':''}}" 
-      />
+    <view wx:if="{{orderInfo.images && orderInfo.images.length}}" class="content-image-container">
+      <t-image wx:for="{{orderInfo.images}}" wx:key="*this"
+        src="{{item}}" bind:tap="tapOnImageToPreview" data-src="{{item}}"
+        data-flag="{{orderInfo.status}}" mode="aspectFit" shape="round"
+        class="img" style="{{orderInfo.status==0?'filter:blur(10rpx)':''}}" />
     </view>
   </view>
 </view>

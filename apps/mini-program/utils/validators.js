@@ -158,9 +158,11 @@ function validateBasicInfo(data) {
 function validateContent(data) {
   const noteValidation = validateNote(data.note);
   if (!noteValidation.valid) return noteValidation;
-  if (!data.imageAssetId || !Array.isArray(data.fileList)
-      || !data.fileList.some(file => file.mediaId === data.imageAssetId && file.status === 'done')) {
-    return { valid: false, message: '请上传一张说明图片' };
+  const files = Array.isArray(data.fileList) ? data.fileList : [];
+  if (!files.length) return { valid: false, message: '请至少上传一张说明图片' };
+  if (files.length > 9) return { valid: false, message: '说明图片最多上传9张' };
+  if (files.some(file => !file.mediaId || file.status !== 'done')) {
+    return { valid: false, message: '请等待图片上传完成' };
   }
   return { valid: true, message: '' };
 }

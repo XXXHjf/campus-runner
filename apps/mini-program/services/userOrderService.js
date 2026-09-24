@@ -8,6 +8,13 @@ const { _delbefore1stBlank } = require('../utils/commonJs');
 
 const url = getApp().globalData.API_URL;
 
+function requireSuccess(res) {
+  if (res.data?.code !== 1) {
+    throw new Error(res.data?.msg || '操作失败，请稍后重试');
+  }
+  return res.data;
+}
+
 /**
  * 获取我发布的所有订单
  * @returns {Promise<Array>} 订单列表
@@ -95,9 +102,7 @@ function cancelOrder(orderId, cancelReason, orderNumber) {
     url: `${url}/api/order/cancel`,
     method: 'PUT',
     data: { id: orderId, cancelReason, orderNumber }
-  }).then(res => {
-    return res.data;
-  });
+  }).then(requireSuccess);
 }
 
 /**
@@ -111,9 +116,7 @@ function refundOrder(orderNumber, reason) {
     url: `${url}/api/wx-pay/refunds`,
     method: 'POST',
     data: { orderNumber, reason }
-  }).then(res => {
-    return res.data;
-  });
+  }).then(requireSuccess);
 }
 
 function updateOrderContent(orderId, content) {
@@ -121,7 +124,7 @@ function updateOrderContent(orderId, content) {
     url: `${url}/api/order/${orderId}/content`,
     method: 'PUT',
     data: content
-  }).then(res => res.data);
+  }).then(requireSuccess);
 }
 
 function previewOrderAmount(orderData) {
@@ -169,9 +172,7 @@ function confirmOrder(orderId) {
   return request({
     url: `${url}/api/order/confirm/${orderId}`,
     method: 'PUT'
-  }).then(res => {
-    return res.data;
-  });
+  }).then(requireSuccess);
 }
 
 module.exports = {

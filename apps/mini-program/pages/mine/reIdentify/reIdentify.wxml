@@ -20,10 +20,7 @@
       <view class="auth-status-title">{{authStatusTitle}}</view>
       <t-tag size="small" variant="light" theme="{{authStatusTheme}}">{{authStatusText}}</t-tag>
     </view>
-    <view class="auth-status-desc">{{authStatusDesc}}</view>
-    <view class="auth-status-actions" wx:if="{{!canSubmit}}">
-      <view class="tips" style="margin: 0; text-align: right;">审核中暂不可修改</view>
-    </view>
+    <view class="auth-status-desc" wx:if="{{authStatusDesc}}">{{authStatusDesc}}</view>
   </view>
   
   <!-- 学校 -->
@@ -45,7 +42,7 @@
     
     <!-- 上传证件图片 -->
     <view class="upload-container">
-      <view class="upload-item" wx:if="{{!studentIdCardUrl && !userInfo.studentIdCard}}">
+      <view class="upload-item" wx:if="{{canSubmit && !studentIdCardUrl && !userInfo.studentIdCard}}">
         <view class="upload-btn" bindtap="chooseStudentIdCard">
           <t-icon name="add" size="48" color="#0052d9" />
           <text class="upload-text">上传证件</text>
@@ -53,7 +50,7 @@
       </view>
       <view class="upload-item uploaded" wx:if="{{studentIdCardUrl}}">
         <image class="uploaded-image" src="{{studentIdCardUrl}}" mode="aspectFill" />
-        <view class="delete-btn" bindtap="deleteStudentIdCard">
+        <view class="delete-btn" wx:if="{{canSubmit}}" bindtap="deleteStudentIdCard">
           <t-icon name="close" size="20" color="#fff" />
         </view>
       </view>
@@ -62,8 +59,7 @@
       </view>
     </view>
 
-    <view class="replace-hint" wx:if="{{userInfo.studentIdCard}}">
-      <text>可复用当前材料，也可以</text>
+    <view class="replace-hint" wx:if="{{canSubmit && userInfo.studentIdCard}}">
       <text class="font-link" bind:tap="chooseStudentIdCard">重新上传</text>
     </view>
   </view>

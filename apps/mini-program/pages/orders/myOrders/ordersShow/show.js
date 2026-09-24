@@ -39,7 +39,6 @@ Page({
     editOrder: {},
     editNote: '',
     editFiles: [],
-    editImageAssetId: null,
     editSaving: false,
   },
 
@@ -86,14 +85,15 @@ Page({
     const id = event.currentTarget.dataset.id;
     const order = this.data.orders.find(item => String(item.id) === String(id));
     if (!order) return;
+    if (Number(order.status) === -1) {
+      wx.navigateTo({ url: `/pages/orders/myOrders/ordersInfo/info?id=${id}&pay=1` });
+      return;
+    }
     if (Number(order.status) === 0) {
       this.openEdit(event);
       return;
     }
-    if (Number(order.status) !== 3) {
-      this.gotoOrderInfo(event);
-      return;
-    }
+    if (Number(order.status) !== 3) return;
     wx.showModal({
       title: '确认订单',
       content: '确认已收到物品并完成订单？',
@@ -168,6 +168,8 @@ Page({
 
   async openEdit(event) {
     const id = event.currentTarget.dataset.id;
+    const listedOrder = this.data.orders.find(item => String(item.id) === String(id));
+    if (!listedOrder || Number(listedOrder.status) !== 0) return;
     try {
       const order = await userOrderService.getMyOrderDetail(id);
       if (Number(order.status) !== 0) {
@@ -178,8 +180,9 @@ Page({
       this.setData({
         editOrder: order,
         editNote: order.note || '',
-        editImageAssetId: order.imageAssetId || null,
-        editFiles: order.imageAssetId && order.image ? [{ url: order.image, mediaId: order.imageAssetId, status: 'done' }] : [],
+        editFiles: (order.imageAssetIds && order.images
+          ? order.imageAssetIds.map((mediaId, index) => ({ url: order.images[index], mediaId, status: 'done' }))
+          : order.imageAssetId && order.image ? [{ url: order.image, mediaId: order.imageAssetId, status: 'done' }] : []),
         editVisible: true,
       });
     } catch (error) {
@@ -192,29 +195,36 @@ Page({
   },
 
   async onEditImageAdd(event) {
-    const file = event.detail.files && event.detail.files[0];
-    if (!file) return;
-    this.setData({ editFiles: [{ ...file, status: 'loading' }], editImageAssetId: null });
+    const files = event.detail.files || [];
+    files.forEach(file => this.uploadEditImage(file));
+  },
+
+  async uploadEditImage(file) {
+    if (this.data.editFiles.length >= 9) return;
+    const uploadKey = this._editUploadSequence = (this._editUploadSequence || 0) + 1;
+    this.setData({ editFiles: [...this.data.editFiles, { ...file, uploadKey, status: 'loading' }] });
     try {
       const uploaded = await mediaService.uploadImage(file.url, 'ORDER_IMAGE');
-      if (!this.data.editVisible) {
+      const index = this.data.editFiles.findIndex(item => item.uploadKey === uploadKey);
+      if (!this.data.editVisible || index < 0) {
         await mediaService.releaseTemporaryImage(uploaded.mediaId).catch(() => {});
         return;
       }
-      this._editTempMediaId = uploaded.mediaId;
-      this.setData({ editFiles: [{ url: uploaded.previewUrl, mediaId: uploaded.mediaId, status: 'done' }], editImageAssetId: uploaded.mediaId });
+      this.setData({ [`editFiles[${index}]`]: { url: uploaded.previewUrl, mediaId: uploaded.mediaId, status: 'done' } });
     } catch (error) {
-      this.setData({ editFiles: [], editImageAssetId: null });
+      const index = this.data.editFiles.findIndex(item => item.uploadKey === uploadKey);
+      if (index >= 0) this.setData({ [`editFiles[${index}].status`]: 'failed' });
       showError('图片上传失败，请重试');
     }
   },
 
-  onEditImageRemove() {
-    if (this._editTempMediaId) {
-      mediaService.releaseTemporaryImage(this._editTempMediaId).catch(() => {});
-      this._editTempMediaId = null;
+  onEditImageRemove(event) {
+    const editFiles = [...this.data.editFiles];
+    const [removed] = editFiles.splice(event.detail.index, 1);
+    if (removed && removed.mediaId) {
+      mediaService.releaseTemporaryImage(removed.mediaId).catch(() => {});
     }
-    this.setData({ editFiles: [], editImageAssetId: null });
+    this.setData({ editFiles });
   },
 
   onEditVisibleChange(event) {
@@ -223,10 +233,10 @@ Page({
 
   closeEdit() {
     if (this.data.editSaving) return;
-    if (this._editTempMediaId) {
-      mediaService.releaseTemporaryImage(this._editTempMediaId).catch(() => {});
-      this._editTempMediaId = null;
-    }
+    const originalIds = new Set(this.data.editOrder.imageAssetIds || [this.data.editOrder.imageAssetId]);
+    this.data.editFiles.forEach(file => {
+      if (file.mediaId && !originalIds.has(file.mediaId)) mediaService.releaseTemporaryImage(file.mediaId).catch(() => {});
+    });
     this.setData({ editVisible: false });
   },
 
@@ -237,16 +247,23 @@ Page({
       showError(validation.message);
       return;
     }
-    if (!this.data.editImageAssetId || !this.data.editFiles.some(file => file.status === 'done')) {
-      showError('请上传一张说明图片');
+    if (!this.data.editFiles.length) {
+      showError('请至少上传一张说明图片');
+      return;
+    }
+    if (this.data.editFiles.length > 9) {
+      showError('说明图片最多上传9张');
+      return;
+    }
+    if (this.data.editFiles.some(file => !file.mediaId || file.status !== 'done')) {
+      showError('请等待图片上传完成');
       return;
     }
     this.setData({ editSaving: true });
     try {
       await userOrderService.updateOrderContent(this.data.editOrder.id, {
-        note: this.data.editNote.trim(), imageAssetId: this.data.editImageAssetId,
+        note: this.data.editNote.trim(), imageAssetIds: this.data.editFiles.map(file => file.mediaId),
       });
-      this._editTempMediaId = null;
       this.setData({ editVisible: false });
       wx.showToast({ title: '保存成功', icon: 'success' });
       this.loadOrders();

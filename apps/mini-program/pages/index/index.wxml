@@ -82,11 +82,7 @@
         </view>
       </block>
     </view>
-    <!-- 底部填充 -->
-    <view wx:if="{{!isLoginChecking && !ordersLoading}}">
-      <view style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">{{takes.length > 0 ? '已显示当前可浏览订单' : '暂无可接订单'}}</view>
-      <view wx:if="{{userInfo.authentication!=1}}" style="margin: 30rpx;text-align: center;color: darkgray;">可先浏览，接单前需登录并完成校园认证</view>
-    </view>
+    <view wx:if="{{!isLoginChecking && !ordersLoading && takes.length === 0}}" style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">暂无可接订单</view>
   </view>
 </view>
 

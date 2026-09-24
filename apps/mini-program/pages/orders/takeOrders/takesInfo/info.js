@@ -381,6 +381,7 @@ Page({
       if (!orderInfo || !orderInfo.id) {
         throw new Error('订单不存在或已被删除');
       }
+      orderInfo.images = orderInfo.images?.length ? orderInfo.images : (orderInfo.image ? [orderInfo.image] : []);
       
       // 安全处理地址分割（去掉第一个空格前的内容）
       const addressParts1 = orderInfo.pickUpAddress ? orderInfo.pickUpAddress.split(' ').slice(1) : [];
@@ -480,15 +481,17 @@ Page({
 
   // 预览图片
   tapOnImageToPreview(res) {
-    const imageUrl = res.target.dataset.src;
-    const ifClickable = res.target.dataset.flag;
+    const imageUrl = res.currentTarget.dataset.src;
+    const ifClickable = res.currentTarget.dataset.flag;
     
     if (ifClickable == 0) {
       return;
     }
     
+    const orderImages = this.data.orderInfo.images || [];
     wx.previewImage({
-      urls: [imageUrl],
+      current: imageUrl,
+      urls: orderImages.includes(imageUrl) ? orderImages : [imageUrl],
       showmenu: true
     });
   },

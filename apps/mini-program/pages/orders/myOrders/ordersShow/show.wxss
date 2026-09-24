@@ -238,7 +238,6 @@ page {
   padding: 32rpx;
 }
 
-.my-orders__edit-hint,
 .my-orders__edit-label {
   margin: 18rpx 0;
   color: var(--cr-color-text-secondary);

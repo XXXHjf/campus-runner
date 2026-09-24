@@ -465,6 +465,14 @@
 
 .content-image-container {
   margin-top: 20rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.content-image-container .img {
+  width: 180rpx;
+  height: 180rpx;
 }
 .purchase-detail { padding: 22rpx var(--cr-page-padding) 210rpx; }
 .purchase-detail__hero { padding: 12rpx 4rpx 26rpx; }

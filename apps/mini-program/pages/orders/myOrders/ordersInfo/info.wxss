@@ -404,6 +404,14 @@
 
 .content-image-container {
   margin-top: 20rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.content-image-container .img {
+  width: 180rpx;
+  height: 180rpx;
 }
 
 /* 服务时间轴样式 */

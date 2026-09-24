@@ -100,9 +100,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public Order submit(OrderSubmitDTO orderSubmitDTO) {
         String note = validateContentNote(orderSubmitDTO.getNote());
-        if (orderSubmitDTO.getImageAssetId() == null) {
-            throw new ParamException("请上传一张说明图片");
-        }
+        List<Long> imageAssetIds = validateOrderImages(orderSubmitDTO.getImageAssetIds(), orderSubmitDTO.getImageAssetId());
         Order order = new Order();
         BeanUtils.copyProperties(orderSubmitDTO, order);
         order.setNote(note);
@@ -145,18 +143,16 @@ public class OrderServiceImpl implements OrderService {
         order.setDeleted(DeleteConstant.UN_DELETED);
 
         int row = orderMapper.insert(order);
-        if (orderSubmitDTO.getImageAssetId() != null) {
-            mediaAssetService.replaceBinding(
-                    List.of(orderSubmitDTO.getImageAssetId()),
-                    MediaPurpose.ORDER_IMAGE.name(),
-                    MediaAssetConstant.OWNER_USER,
-                    BaseContext.getCurrentId(),
-                    MediaAssetConstant.BOUND_ORDER,
-                    order.getId(),
-                    1,
-                    Duration.ofDays(7));
-            order.setImageAssetId(orderSubmitDTO.getImageAssetId());
-        }
+        mediaAssetService.replaceBinding(
+                imageAssetIds,
+                MediaPurpose.ORDER_IMAGE.name(),
+                MediaAssetConstant.OWNER_USER,
+                BaseContext.getCurrentId(),
+                MediaAssetConstant.BOUND_ORDER,
+                order.getId(),
+                9,
+                Duration.ofDays(7));
+        order.setImageAssetId(imageAssetIds.get(0));
         return order;
     }
 
@@ -167,9 +163,7 @@ public class OrderServiceImpl implements OrderService {
             throw new ParamException("请填写订单说明并上传图片");
         }
         String note = validateContentNote(dto.getNote());
-        if (dto.getImageAssetId() == null) {
-            throw new ParamException("请上传一张说明图片");
-        }
+        List<Long> imageAssetIds = validateOrderImages(dto.getImageAssetIds(), dto.getImageAssetId());
         Order order = orderMapper.getById(id);
         if (order == null || !BaseContext.getCurrentId().equals(order.getUserId())) {
             throw new OrderException("订单不存在或无权修改");
@@ -178,9 +172,22 @@ public class OrderServiceImpl implements OrderService {
             throw new OrderException("订单状态已变化，请刷新后重试");
         }
         mediaAssetService.replaceBinding(
-                List.of(dto.getImageAssetId()), MediaPurpose.ORDER_IMAGE.name(),
+                imageAssetIds, MediaPurpose.ORDER_IMAGE.name(),
                 MediaAssetConstant.OWNER_USER, BaseContext.getCurrentId(),
-                MediaAssetConstant.BOUND_ORDER, id, 1, Duration.ofDays(7));
+                MediaAssetConstant.BOUND_ORDER, id, 9, Duration.ofDays(7));
+    }
+
+    private List<Long> validateOrderImages(List<Long> imageAssetIds, Long legacyImageAssetId) {
+        List<Long> ids = imageAssetIds == null
+                ? (legacyImageAssetId == null ? List.of() : List.of(legacyImageAssetId))
+                : imageAssetIds;
+        if (ids.isEmpty()) {
+            throw new ParamException("请至少上传一张说明图片");
+        }
+        if (ids.size() > 9) {
+            throw new ParamException("说明图片最多上传9张");
+        }
+        return ids;
     }
 
     private String validateContentNote(String value) {
@@ -627,6 +634,8 @@ public class OrderServiceImpl implements OrderService {
                 order.getId(),
                 MediaPurpose.ORDER_IMAGE.name());
         if (!images.isEmpty()) {
+            order.setImageAssetIds(images.stream().map(item -> item.getMediaId()).toList());
+            order.setImages(images.stream().map(item -> item.getUrl()).toList());
             order.setImageAssetId(images.get(0).getMediaId());
             order.setImage(images.get(0).getUrl());
         }

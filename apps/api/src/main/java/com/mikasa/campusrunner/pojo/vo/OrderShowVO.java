@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * author  Edith
@@ -44,6 +45,8 @@ public class OrderShowVO{
     private String note;
     private String image;
     private Long imageAssetId;
+    private List<Long> imageAssetIds;
+    private List<String> images;
     private Integer deleted;
     private Long categoryId;
     private String categoryImage;

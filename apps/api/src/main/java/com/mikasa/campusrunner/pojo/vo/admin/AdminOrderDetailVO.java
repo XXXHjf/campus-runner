@@ -2,6 +2,7 @@ package com.mikasa.campusrunner.pojo.vo.admin;
 
 import lombok.Data;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 public class AdminOrderDetailVO {
@@ -23,6 +24,8 @@ public class AdminOrderDetailVO {
     private String note;
     private String image;
     private Long imageAssetId;
+    private List<Long> imageAssetIds;
+    private List<String> images;
     private Integer doorAccess;
     private Integer gap;
     private String exceedTime;

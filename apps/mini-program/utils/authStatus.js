@@ -46,25 +46,16 @@ function getStatusIcon(status) {
 }
 
 function getStatusTitle(status) {
-  const s = Number(status);
-  if (s === STUDENT_ID_CARD_REVIEW_STATUS.APPROVED) return '学生证审核已通过';
-  if (s === STUDENT_ID_CARD_REVIEW_STATUS.PENDING) return '学生证审核中';
-  if (s === STUDENT_ID_CARD_REVIEW_STATUS.REJECTED) return '学生证审核未通过';
-  return '学生证审核未开始';
+  return '认证材料';
 }
 
 function getStatusDesc(status) {
   const s = Number(status);
-  if (s === STUDENT_ID_CARD_REVIEW_STATUS.APPROVED) {
-    return '若仍无法发单/接单，请稍后刷新或重新登录';
-  }
-  if (s === STUDENT_ID_CARD_REVIEW_STATUS.PENDING) {
-    return '正在审核中。审核通过后将自动生效';
-  }
+  if (s === STUDENT_ID_CARD_REVIEW_STATUS.APPROVED || s === STUDENT_ID_CARD_REVIEW_STATUS.PENDING) return '';
   if (s === STUDENT_ID_CARD_REVIEW_STATUS.REJECTED) {
     return '审核未通过，请核对信息并重新提交材料';
   }
-  return '请上传学生证/校园卡等材料，提交后等待审核';
+  return '请填写认证信息并上传证明材料';
 }
 
 module.exports = {

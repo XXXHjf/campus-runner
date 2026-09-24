@@ -35,7 +35,7 @@
       </view>
       <view class="my-orders__item-bottom">
         <view class="my-orders__more" data-id="{{order.id}}" role="button" aria-label="更多操作" catch:tap="openActionSheet"><t-icon name="ellipsis" size="40rpx" color="#6b778c" /></view>
-        <view wx:if="{{order.primaryAction}}" class="my-orders__action" data-id="{{order.id}}" catch:tap="onPrimaryAction"><t-button t-class="cr-secondhand-capsule {{order.status == 3 || order.status == -1 ? 'cr-secondhand-capsule--highlight' : 'cr-secondhand-capsule--outline'}}" size="small" shape="round" theme="{{order.status == 3 || order.status == -1 ? 'primary' : 'default'}}" variant="{{order.status == 3 || order.status == -1 ? 'base' : 'outline'}}">{{order.primaryAction}}</t-button></view>
+        <view wx:if="{{order.primaryAction}}" class="my-orders__action"><t-button data-id="{{order.id}}" bind:tap="onPrimaryAction" t-class="cr-secondhand-capsule {{order.status == 3 || order.status == -1 ? 'cr-secondhand-capsule--highlight' : 'cr-secondhand-capsule--outline'}}" size="small" shape="round" theme="{{order.status == 3 || order.status == -1 ? 'primary' : 'default'}}" variant="{{order.status == 3 || order.status == -1 ? 'base' : 'outline'}}">{{order.primaryAction}}</t-button></view>
       </view>
     </view>
   </view>
@@ -59,10 +59,9 @@
 <t-popup visible="{{editVisible}}" placement="bottom" close-on-overlay-click="{{!editSaving}}" bind:visible-change="onEditVisibleChange">
   <view class="my-orders__edit-sheet">
     <view class="my-orders__sheet-title">编辑订单内容</view>
-    <view class="my-orders__edit-hint">待接单时可修改说明和图片</view>
     <t-textarea value="{{editNote}}" maxlength="100" placeholder="请填写至少4个字的说明" indicator bind:change="onEditNoteChange" />
-    <view class="my-orders__edit-label">说明图片（1张）</view>
-    <t-upload mediaType="{{['image']}}" max="{{1}}" files="{{editFiles}}" bind:add="onEditImageAdd" bind:remove="onEditImageRemove" />
+    <view class="my-orders__edit-label">说明图片（1～9 张）</view>
+    <t-upload mediaType="{{['image']}}" max="{{9}}" files="{{editFiles}}" bind:add="onEditImageAdd" bind:remove="onEditImageRemove" />
     <view class="my-orders__edit-actions">
       <t-button size="small" shape="round" theme="default" variant="outline" disabled="{{editSaving}}" bind:tap="closeEdit">取消</t-button>
       <t-button size="small" shape="round" theme="primary" loading="{{editSaving}}" bind:tap="saveEdit">保存</t-button>

@@ -28,7 +28,7 @@
       <view class="auth-status-title">{{authStatusTitle}}</view>
       <t-tag size="small" variant="light" theme="{{authStatusTheme}}">{{authStatusText}}</t-tag>
     </view>
-    <view class="auth-status-desc">{{authStatusDesc}}</view>
+    <view class="auth-status-desc" wx:if="{{authStatusDesc}}">{{authStatusDesc}}</view>
     <view class="auth-status-actions" wx:if="{{userInfo.studentIdCardReview==1}}">
       <t-button size="small" theme="primary" variant="outline" bind:tap="refreshStatus">刷新状态</t-button>
     </view>
@@ -39,7 +39,6 @@
     <t-icon class="cardIcon" name="user-checked" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
     <view class="cardName">认证信息</view>
   </view>
-  <view class="address" style="margin-top: 20rpx;"> *认证修改次数有限，请谨慎 </view>
 
   <!-- 学校 -->
   <t-input label="学校" placeholder="{{upSchool||'请选择所在的学校'}}" bindtap="onTapSelectSchool" align="right" borderless="true" disabled="true" />
@@ -91,7 +90,6 @@
     </view>
 
     <view class="replace-hint" wx:if="{{studentIdCardWithTimestamp}}">
-      <text>可复用当前材料，也可以</text>
       <text class="font-link" bind:tap="chooseStudentIdCard">重新上传</text>
     </view>
   </view>
@@ -142,7 +140,6 @@
 
 <!-- 更改校园认证 -->
 <view class="change-identify" wx:if="{{showChangeIdentify}}">
-  <text>若要更改认证信息，请点击</text>
   <text class="font-link" bind:tap="tapChangeIdnetify">更改认证</text>
 </view>
 
@@ -150,7 +147,7 @@
 <t-dialog
   visible="{{dialogVisable}}"
   title="校园认证更正"
-  content="因账号校园认证与实际信息不符。因此要更正认证信息。"
+  content="确定更改校园认证信息吗？"
   confirm-btn="去修改"
   cancel-btn="取消"
   bind:confirm="goToChange"
