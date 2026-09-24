@@ -1,46 +1,49 @@
 <!-- 首页展示 -->
 <view class="show">
-  <!-- 轮播图区域 -->
-  <view class="banner-wrap" wx:if="{{swiperList.length > 0}}">
-    <t-swiper height="220rpx" current="{{current}}" autoplay="{{autoplay}}" duration="{{duration}}" interval="{{interval}}" list="{{swiperList}}" navigation="{{ { type: 'dots-bar' } }}" />
+  <view class="runner-controls">
+    <view class="runner-nav-shell" style="padding-top: {{statusBarHeight}}px;">
+      <view class="runner-nav" style="height: {{navigationBarHeight}}px; padding-right: {{navigationRightPadding}}px;">
+        <view class="runner-brand">帮帮</view>
+        <view wx:if="{{schoolName}}" class="runner-school">
+          <text class="runner-school-name">{{schoolName}}</text>
+        </view>
+      </view>
+      <view class="runner-search">
+        <t-search
+          value="{{keyword}}"
+          shape="round"
+          placeholder="搜索跑腿需求"
+          bind:change="onSearchChange"
+          bind:submit="onSearch"
+          bind:clear="clearSearch"
+        />
+      </view>
+    </view>
+    <view class="runner-toolbar">
+      <scroll-view class="runner-category-scroll" scroll-x="{{true}}" enhanced="{{true}}" bounces="{{false}}" show-scrollbar="{{false}}">
+        <view class="runner-category-row">
+          <view class="runner-category-pill {{selectedCategoryId==null?'active':''}}" bindtap="selectCategory">全部</view>
+          <view wx:for="{{category}}" wx:key="id" class="runner-category-pill {{selectedCategoryId==item.id?'active':''}}" data-id="{{item.id}}" bindtap="selectCategory">{{item.categoryName}}</view>
+        </view>
+      </scroll-view>
+      <view class="runner-filter-entry {{filterCount>0?'runner-filter-entry--active':''}}" bindtap="openFilter">
+        <t-icon name="filter" size="28rpx" color="{{filterCount>0?'#0052d9':'#52605a'}}" />
+        <text>筛选</text>
+        <view wx:if="{{filterCount>0}}" class="runner-filter-count">{{filterCount}}</view>
+      </view>
+    </view>
+    <view class="runner-filter-summary" wx:if="{{filterCount>0}}">
+      <t-icon name="filter" size="26rpx" color="#0052d9" />
+      <text class="runner-filter-summary-text">{{filterSummary}}</text>
+      <text class="runner-filter-summary-reset" bindtap="resetFilters">清除</text>
+    </view>
   </view>
-
-  <view class="runner-panel">
-    <view class="runner-copy">
-      <view class="runner-eyebrow">跑腿大厅</view>
-      <!-- <view class="runner-title">发布需求，等同校同学接单</view> -->
-      <view class="runner-subtitle">取送、代买、临时帮忙从这里开始</view>
-    </view>
-    <view class="runner-cta" bindtap="gotoPublishRunner">
-      <t-icon name="add-circle" size="38rpx" color="#ffffff" />
-      <text>发布跑腿</text>
-    </view>
-  </view>
-
-  <view>
-    <view class="filter-bar">
-      <view class="filter-bar-item {{sortMode==='time'?'active':''}}" bindtap="selectTimeSort">
-        <t-icon name="filter-3" size="34rpx" />
-        <text>综合排序</text>
-      </view>
-      <view class="filter-bar-item {{sortMode==='price'?'active':''}}" bindtap="togglePriceSort">
-        <t-icon name="{{sortMode==='price'?(priceSort===0?'caret-up':'caret-down'):'currency-exchange'}}" size="34rpx" />
-        <text>{{sortMode==='price'?(priceSort===0?'价格从高到低':'价格从低到高'):'价格排序'}}</text>
-      </view>
-      <view class="filter-bar-item {{filterCount>0?'active':''}}" bindtap="openFilter">
-        <t-icon name="filter" size="34rpx" />
-        <text>{{filterCount>0?'筛选 · '+filterCount:'筛选'}}</text>
-      </view>
-    </view>
-    <view class="filter-summary" wx:if="{{filterCount>0}}">
-      <text class="filter-summary-text">{{filterSummary}}</text>
-      <text class="filter-summary-reset" bindtap="resetFilters">清除</text>
-    </view>
+  <view class="runner-feed">
     <view wx:if="{{takes.length === 0 && (isLoginChecking || ordersLoading)}}" class="runner-list-loading">
       <t-loading theme="dots" size="36rpx" text="加载中" />
     </view>
     <!-- 订单展示 -->
-    <view class="cart" croll-y>
+    <view class="cart">
       <block wx:for="{{takes}}" wx:key="id">
         <view class="show-cart" bindtap="gotoTakesInfo" data-item="{{item}}">
           <!-- 分类 -->
@@ -83,6 +86,10 @@
       </block>
     </view>
     <view wx:if="{{!isLoginChecking && !ordersLoading && takes.length === 0}}" style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">暂无可接订单</view>
+    <view class="runner-feed-bottom-space" />
+  </view>
+  <view wx:if="{{!filterVisible}}" class="runner-publish-float">
+    <t-button t-class="runner-publish-button" theme="primary" shape="round" icon="add" bind:tap="gotoPublishRunner">发布跑腿</t-button>
   </view>
 </view>
 
@@ -154,6 +161,15 @@
           <t-icon name="chevron-right" size="34rpx" color="#7a8491" />
         </view>
         <text class="filter-address-clear" wx:if="{{upRecive}}" bindtap="clearUpRecive">清除</text>
+      </view>
+    </view>
+
+    <view class="filter-section">
+      <view class="filter-section-title">排序</view>
+      <view class="filter-options">
+        <view class="filter-chip {{sortMode==='time'?'active':''}}" data-mode="time" bindtap="selectFilterSort">综合排序</view>
+        <view class="filter-chip {{sortMode==='price' && priceSort===0?'active':''}}" data-mode="price-desc" bindtap="selectFilterSort">价格从高到低</view>
+        <view class="filter-chip {{sortMode==='price' && priceSort===1?'active':''}}" data-mode="price-asc" bindtap="selectFilterSort">价格从低到高</view>
       </view>
     </view>
 

@@ -21,7 +21,10 @@ function harness() {
       if (id.endsWith('tokenManager')) return {
         getToken: () => state.token, hasToken: () => !!state.token, waitForToken: async () => {},
       };
-      if (id.endsWith('userService')) return { getUserInfo: async () => ({ id: 1, schoolId: 1, authentication: 1 }) };
+      if (id.endsWith('userService')) return {
+        getUserInfo: async () => ({ id: 1, schoolId: 1, authentication: 1 }),
+        getSchools: async () => [{ id: 1, schoolName: '测试大学' }],
+      };
       if (id.endsWith('orderService')) return { getPublicOrders: async () => [{ id: 9, categoryId: 2, categoryName: '取件', price: 3 }] };
       if (id.endsWith('transformers')) return {
         showLoading() { state.loading++; }, hideLoading() {}, showError(message) { state.errors.push(message); },
@@ -29,7 +32,10 @@ function harness() {
       if (id.endsWith('constants')) return { SWIPER_CONFIG: {}, ERROR_MESSAGES: { GET_ORDERS_FAILED: '获取失败' } };
       return {};
     },
-    Page(config) { page = { ...config, data: structuredClone(config.data), setData(value) { Object.assign(this.data, value); } }; },
+    Page(config) { page = { ...config, data: structuredClone(config.data), setData(value, callback) {
+      Object.assign(this.data, value);
+      if (callback) callback();
+    } }; },
   });
   page.checkPrivacyAcknowledged = () => {};
   page.loadBanners = async () => {};
@@ -100,4 +106,26 @@ test('首次加载与失败均结束加载状态，退出登录清空旧订单',
   assert.equal(page.data.takes.length, 1);
   assert.equal(page.data.takes[0].id, 9);
   assert.equal(page.data.userInfo.token, undefined);
+  assert.equal(page.data.schoolName, '');
+});
+
+test('搜索与分类一起筛选订单，学校名称随登录状态更新', async () => {
+  const { page, state } = harness();
+  page.data.userInfo = { id: 1, schoolId: 1, authentication: 1, token: 'a' };
+  page.data.category = [{ id: 2, categoryName: '外卖' }];
+  page._loadFilteredTakes = async () => [
+    { id: 1, categoryId: 2, categoryName: '外卖', note: '送到图书馆' },
+    { id: 2, categoryId: 2, categoryName: '外卖', note: '送到宿舍' },
+  ];
+  await page.refreshRunner();
+  assert.equal(page.data.schoolName, '测试大学');
+  page.selectCategory({ currentTarget: { dataset: { id: 2 } } });
+  page.onSearchChange({ detail: { value: '图书馆' } });
+  page.onSearch();
+  await tick();
+  assert.deepEqual(Array.from(page.data.takes, item => item.id), [1]);
+  assert.equal(page.data.filterSummary, '外卖');
+  state.token = null;
+  await page.refreshRunner();
+  assert.equal(page.data.schoolName, '');
 });

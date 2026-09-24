@@ -1,5 +1,8 @@
 {
-  "component": true,
+  "navigationBarTitleText": "校园跑腿",
+  "navigationStyle": "custom",
+  "navigationBarTextStyle": "white",
+  "navigationBarBackgroundColor": "#0052d9",
   "usingComponents": {
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-tag": "tdesign-miniprogram/tag/tag",
@@ -11,6 +14,7 @@
     "t-popup": "tdesign-miniprogram/popup/popup",
     "t-button": "tdesign-miniprogram/button/button",
     "t-loading": "tdesign-miniprogram/loading/loading",
+    "t-search": "tdesign-miniprogram/search/search",
     "triple-address-pricker": "../../components/triple-address-pricker/triple-address-pricker"
   },
   "enablePullDownRefresh": true

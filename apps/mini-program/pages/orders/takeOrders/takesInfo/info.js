@@ -27,6 +27,10 @@ Page({
     id: null,
     orderInfo: {},
     purchaseStatusText: '',
+    orderStatusText: '',
+    progressStep: 0,
+    isMyTaken: false,
+    senderAvatar: '',
     takeInfo: {},
     pickUpAddress: [],
     reciveAddress: [],
@@ -322,16 +326,33 @@ Page({
   async _loadOrderInfo() {
     try {
       await tokenManager.waitForToken();
+      this.setData({ taker: {}, image: null, isMyTaken: false, senderAvatar: '' });
       await this._getOrderInfo();
       
       const status = this.data.orderInfo.status;
       if (status > 0 && status != 4) {
-        await this._getTaker();
+        await this._getMyTakeInfo();
+        if (this.data.isMyTaken) {
+          await this._getTaker();
+          await this._getTakeImage();
+        }
       }
-      await this._getTakeImage();
     } catch (err) {
       showErrorToast(this, "加载失败");
       _logErrInfo("_loadOrderInfo", err.message);
+    }
+  },
+
+  async _getMyTakeInfo() {
+    try {
+      const orders = await takeOrderService.getMyTakeOrders();
+      const myOrder = orders.find(order => String(order.orderId) === String(this.data.id));
+      this.setData({
+        isMyTaken: Boolean(myOrder),
+        senderAvatar: myOrder?.senderAvatar || ''
+      });
+    } catch (error) {
+      console.warn('获取接单身份失败:', error);
     }
   },
 
@@ -355,10 +376,13 @@ Page({
         ? ['待接单', '待购买', '配送中', '已送达', '已完成']
         : ['待接单', '待取件', '派送中', '已送达', '已完成'];
       const purchaseStatusText = ({ '-4': '退款异常', '-3': '退款成功', '-2': '退款中', '-1': '待支付', 0: '待接单', 1: '待购买', 2: '配送中', 3: '已送达', 4: '已取消', 5: '已完成', 6: '收款成功', 7: '收款失败' })[orderInfo.status] || '订单状态';
+      const runnerStatusText = ({ 0: '待接单', 1: '待取件', 2: '派送中', 3: '已送达', 4: '已取消', 5: '已完成', 6: '收款成功', 7: '收款失败' })[orderInfo.status] || '订单状态';
       
       this.setData({
         orderInfo,
         purchaseStatusText,
+        orderStatusText: orderInfo.businessType === 'PURCHASE' ? purchaseStatusText : runnerStatusText,
+        progressStep: Math.min(Math.max(Number(orderInfo.status) || 0, 0), 4),
         title,
         pickUpAddress: addressParts1,
         reciveAddress: addressParts2

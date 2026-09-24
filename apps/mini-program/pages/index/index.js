@@ -14,17 +14,22 @@ const orderService = require('../../services/orderService');
 const addressService = require('../../services/addressService');
 const bannerService = require('../../services/bannerService');
 const userService = require('../../services/userService');
-const { showLoading, hideLoading, showError } = require('../../utils/transformers');
+const { showError } = require('../../utils/transformers');
 const {
   FILTER_TYPES,
   SWIPER_CONFIG,
-  LOADING_MESSAGES,
   ERROR_MESSAGES
 } = require('../../utils/constants');
 
 Page({
   data: {
     userInfo: {},
+    schoolName: '',
+    keyword: '',
+    searchKeyword: '',
+    statusBarHeight: 0,
+    navigationBarHeight: 44,
+    navigationRightPadding: 96,
     takes: [], // 订单列表（数组类型）
     visible: false,
     isLoginChecking: false,
@@ -78,7 +83,73 @@ Page({
   },
 
   onLoad() {
+    this.updateNavigationMetrics();
+    this.getCategory();
     this.loadBanners();
+  },
+
+  updateNavigationMetrics() {
+    const windowInfo = typeof wx.getWindowInfo === 'function'
+      ? wx.getWindowInfo()
+      : wx.getSystemInfoSync();
+    const menuButton = wx.getMenuButtonBoundingClientRect();
+    const statusBarHeight = windowInfo.statusBarHeight || 0;
+    const hasMenuButton = menuButton && menuButton.width > 0 && menuButton.left > 0;
+    const menuGap = hasMenuButton ? Math.max(0, menuButton.top - statusBarHeight) : 0;
+    this.setData({
+      statusBarHeight,
+      navigationBarHeight: hasMenuButton
+        ? Math.max(44, menuButton.height + menuGap * 2)
+        : 44,
+      navigationRightPadding: hasMenuButton
+        ? Math.max(96, windowInfo.windowWidth - menuButton.left + 4)
+        : 96,
+    });
+  },
+
+  async loadSchoolName(userInfo, token) {
+    const version = (this._schoolVersion || 0) + 1;
+    this._schoolVersion = version;
+    if (!token || !userInfo || !userInfo.schoolId) {
+      this.setData({ schoolName: '' });
+      return;
+    }
+    try {
+      const schools = await userService.getSchools();
+      if (version !== this._schoolVersion || !tokenManager.getToken()
+        || String(this.data.userInfo.id) !== String(userInfo.id)) return;
+      const school = schools.find((item) => String(item.id) === String(userInfo.schoolId));
+      this.setData({ schoolName: school && typeof school.schoolName === 'string'
+        ? school.schoolName.trim() : '' });
+    } catch (error) {
+      if (version === this._schoolVersion) this.setData({ schoolName: '' });
+      console.error('跑腿首页学校信息加载失败', error);
+    }
+  },
+
+  onSearchChange(e) {
+    this.setData({ keyword: e.detail.value });
+  },
+
+  onSearch() {
+    this.setData({ searchKeyword: this.data.keyword.trim() }, () => this.applyFilters());
+  },
+
+  clearSearch() {
+    this.setData({ keyword: '', searchKeyword: '' }, () => this.applyFilters());
+  },
+
+  selectCategory(e) {
+    const id = e.currentTarget.dataset.id || null;
+    const category = this.data.category.find((item) => Number(item.id) === Number(id));
+    this.setData({
+      selectedCategoryId: id,
+      selectedCategoryName: category ? category.categoryName : '',
+      showCategory: category ? category.categoryName : null,
+    }, () => {
+      this._updateFilterMeta();
+      this.applyFilters();
+    });
   },
 
   async loadBanners(schoolId) {
@@ -153,6 +224,8 @@ Page({
       showCategory: this.data.showCategory,
       upPickUp: this.data.upPickUp,
       upRecive: this.data.upRecive,
+      sortMode: this.data.sortMode,
+      priceSort: this.data.priceSort,
     };
     this.setData({ filterVisible: true });
     if (!Array.isArray(this.data.category) || this.data.category.length === 0) {
@@ -178,6 +251,13 @@ Page({
       showCategory: item ? item.categoryName : null,
     });
   },
+  selectFilterSort(e) {
+    const mode = e.currentTarget.dataset.mode;
+    this.setData({
+      sortMode: mode === 'time' ? 'time' : 'price',
+      priceSort: mode === 'price-asc' ? 1 : 0,
+    });
+  },
   clearUpPickUp() {
     this.setData({ upPickUp: null });
   },
@@ -191,6 +271,8 @@ Page({
       showCategory: null,
       upPickUp: null,
       upRecive: null,
+      sortMode: 'time',
+      priceSort: 0,
     });
   },
   applyFilterSelection() {
@@ -214,6 +296,7 @@ Page({
     if (this.data.selectedCategoryId != null) names.push(this.data.selectedCategoryName);
     if (this.data.upPickUp) names.push(`取件：${this.data.upPickUp.label.slice(-1)[0]}`);
     if (this.data.upRecive) names.push(`收件：${this.data.upRecive.label.slice(-1)[0]}`);
+    if (this.data.sortMode === 'price') names.push(this.data.priceSort === 0 ? '价格从高到低' : '价格从低到高');
     this.setData({
       filterCount: names.length,
       filterSummary: names.join(' · '),
@@ -272,7 +355,8 @@ Page({
   applyFilters() {
     const token = tokenManager.getToken();
     const key = JSON.stringify([token, this.data.userInfo.schoolId, this.data.upPickUp,
-      this.data.upRecive, this.data.selectedCategoryId, this.data.sortMode, this.data.priceSort]);
+      this.data.upRecive, this.data.selectedCategoryId, this.data.sortMode,
+      this.data.priceSort, this.data.searchKeyword]);
     if (this._ordersPending?.key === key) return this._ordersPending.promise;
     const version = (this._ordersVersion || 0) + 1;
     this._ordersVersion = version;
@@ -293,6 +377,12 @@ Page({
           takes = this._sortTakes(this._decorateTakes(takes));
         } else {
           takes = await this._loadFilteredTakes();
+        }
+        const keyword = this.data.searchKeyword.trim().toLowerCase();
+        if (keyword) {
+          takes = takes.filter((item) => [item.note, item.categoryName,
+            item.pickUpAddress, item.reciveAddress]
+            .some((value) => String(value || '').toLowerCase().includes(keyword)));
         }
         if (!isCurrent()) return false;
         this.setData({ takes });
@@ -481,14 +571,11 @@ Page({
   // 获取Category
   async getCategory() {
     try {
-      showLoading(LOADING_MESSAGES.GETTING_CATEGORY);
       const category = await addressService.getCategories();
-      this.setData({ category });
+      this.setData({ category: Array.isArray(category) ? category : [] });
     } catch (error) {
       console.error('获取分类失败:', error);
       showError(ERROR_MESSAGES.GET_CATEGORY_FAILED);
-    } finally {
-      hideLoading();
     }
   },
   // 首次使用（本地无缓存）提示
@@ -599,6 +686,7 @@ Page({
     this._refreshVersion = (this._refreshVersion || 0) + 1;
     this._ordersVersion = (this._ordersVersion || 0) + 1;
     this._bannerRequestId = (this._bannerRequestId || 0) + 1;
+    this._schoolVersion = (this._schoolVersion || 0) + 1;
     this._refreshPending = null;
     this._ordersPending = null;
     this.setData({ isLoginChecking: false, ordersLoading: false });
@@ -619,7 +707,7 @@ Page({
     this._ordersVersion = (this._ordersVersion || 0) + 1;
     this._ordersPending = null;
     if (!entryToken || (this.data.userInfo.token && this.data.userInfo.token !== entryToken)) {
-      this.setData({ userInfo: {}, takes: [] });
+      this.setData({ userInfo: {}, takes: [], schoolName: '' });
     }
     this.setData({ isLoginChecking: !this.data.userInfo.id, ordersLoading: false });
     const promise = (async () => {
@@ -628,17 +716,18 @@ Page({
         if (version !== this._refreshVersion) return false;
         const token = tokenManager.getToken();
         if (!token) {
-          this.setData({ userInfo: {}, takes: [] });
+          this.setData({ userInfo: {}, takes: [], schoolName: '' });
           const [loaded] = await Promise.all([this.applyFilters(), this.loadBanners()]);
           return loaded;
         }
         const userInfo = await userService.getUserInfo();
         if (version !== this._refreshVersion || token !== tokenManager.getToken()) return false;
         if (this.data.userInfo.id !== userInfo.id || this.data.userInfo.schoolId !== userInfo.schoolId) {
-          this.setData({ takes: [] });
+          this.setData({ takes: [], schoolName: '' });
         }
         this.setData({ userInfo: { ...userInfo, token } });
-        const [loaded] = await Promise.all([this.applyFilters(), this.loadBanners(userInfo.schoolId)]);
+        const [loaded] = await Promise.all([this.applyFilters(), this.loadBanners(userInfo.schoolId),
+          this.loadSchoolName(userInfo, token)]);
         return loaded;
       } catch (error) {
         if (version === this._refreshVersion) showError('刷新失败，请稍后重试');

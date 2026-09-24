@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "接单详情",
   "usingComponents": {
+    "t-avatar": "tdesign-miniprogram/avatar/avatar",
+    "ui-action-bar": "/components/ui-action-bar/ui-action-bar",
     "t-tag": "tdesign-miniprogram/tag/tag",
     "t-divider": "tdesign-miniprogram/divider/divider",
     "t-cell": "tdesign-miniprogram/cell/cell",

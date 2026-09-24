@@ -1,343 +1,105 @@
-<block wx:if="{{orderInfo.businessType === 'PURCHASE'}}">
-  <view class="purchase-detail">
-    <view class="purchase-detail__hero">
-      <view class="purchase-detail__tag">代买</view>
-      <view class="purchase-detail__state">{{purchaseStatusText}}</view>
-      <view class="purchase-detail__hint" wx:if="{{orderInfo.status == 1}}">请确认商品和价格后再购买</view>
-      <view class="purchase-detail__hint" wx:elif="{{orderInfo.status == 0}}">接单前请确认商品、规格和预算</view>
+<view class="runner-detail-page">
+  <view wx:if="{{orderInfo.id}}" class="runner-detail-sender">
+    <t-avatar image="{{senderAvatar}}" icon="user" shape="circle" size="72rpx" />
+    <text class="runner-detail-sender-name">{{isMyTaken ? (orderInfo.username || '同学') : '同学发布'}}</text>
+    <text class="runner-detail-sender-time">{{orderInfo.createTime}}</text>
+  </view>
+
+  <view wx:if="{{orderInfo.id}}" class="runner-detail-main">
+    <view wx:if="{{orderInfo.price != null}}" class="runner-detail-primary">
+      <text class="runner-detail-price">¥{{orderInfo.price}}</text>
+      <text class="runner-detail-price-label">跑腿报酬</text>
+    </view>
+    <view wx:else class="runner-detail-free">无偿跑腿</view>
+
+    <view class="runner-detail-title">{{orderInfo.businessType === 'PURCHASE' ? '购买清单' : '跑腿内容'}}</view>
+    <view class="runner-detail-tags">
+      <t-tag wx:if="{{orderInfo.categoryName}}" size="small" variant="light">{{orderInfo.categoryName}}</t-tag>
+      <t-tag wx:if="{{orderInfo.businessType === 'PURCHASE'}}" size="small" theme="warning" variant="light">代买</t-tag>
+      <t-tag wx:if="{{orderInfo.status > 2}}" size="small" variant="light">{{orderStatusText}}</t-tag>
+    </view>
+    <view class="runner-detail-description">{{orderInfo.note || '暂无说明'}}</view>
+    <view class="runner-detail-muted">预计送达：{{orderInfo.expectTime}}</view>
+
+    <view wx:if="{{isMyTaken && taker.id && orderInfo.status > 0 && orderInfo.status != 4}}" class="runner-detail-section runner-detail-progress">
+      <view class="runner-detail-section-title">订单进度</view>
+      <t-steps theme="dot" readonly current="{{progressStep}}">
+        <t-step-item wx:for="{{5}}" wx:key="index" title="{{title[index]}}" />
+      </t-steps>
+      <view wx:if="{{orderInfo.status == 1 || orderInfo.status == 2}}" class="runner-detail-countdown">
+        <text>距离预期送达</text>
+        <text wx:if="{{time < 0}}" class="runner-detail-overdue">已超时，请尽快送达</text>
+        <t-count-down wx:else time="{{time}}" format="HH:mm:ss" theme="round" size="small" />
+      </view>
     </view>
 
-    <view class="purchase-detail__card">
-      <view class="purchase-detail__heading">购买任务</view>
-      <view class="purchase-detail__row"><text>购买清单</text><text>{{orderInfo.note || '暂无说明'}}</text></view>
-      <view class="purchase-detail__row"><text>购买地点</text><text>{{orderInfo.pickUpAddress}}</text></view>
-      <view class="purchase-detail__row"><text>送达地点</text><text>{{orderInfo.reciveAddress}}</text></view>
-      <view class="purchase-detail__row"><text>预计送达</text><text>{{orderInfo.expectTime}}</text></view>
-      <view wx:if="{{orderInfo.images && orderInfo.images.length}}" class="content-image-container">
-        <t-image wx:for="{{orderInfo.images}}" wx:key="*this" src="{{item}}" bind:tap="tapOnImageToPreview" data-src="{{item}}" mode="aspectFit" shape="round" class="purchase-detail__image" />
-      </view>
-    </view>
-
-    <view class="purchase-detail__card" wx:if="{{orderInfo.price != null}}">
-      <view class="purchase-detail__heading">收款明细</view>
-      <view class="purchase-detail__row"><text>需先垫付</text><text class="purchase-detail__money">¥{{orderInfo.productAmount || 0}}</text></view>
-      <view class="purchase-detail__row"><text>跑腿收入</text><text class="purchase-detail__money">¥{{orderInfo.price || 0}}</text></view>
-      <view class="purchase-detail__row purchase-detail__row--total"><text>完成后预计收款</text><text class="purchase-detail__money">¥{{orderInfo.runnerReceivable || 0}}</text></view>
-      <view class="purchase-detail__explain">完成后商品金额与跑腿费将一起收款</view>
-    </view>
-
-    <view class="purchase-detail__card" wx:if="{{orderInfo.status > 0 && orderInfo.status != 4}}">
-      <view class="purchase-detail__heading">发布用户</view>
-      <view class="purchase-detail__person">
-        <text>{{orderInfo.username || '微信用户'}}</text>
-        <view class="purchase-detail__contact" wx:if="{{orderInfo.phone}}" bind:tap="tapOnPhoneToDo" data-phone="{{'orderInfo'}}">联系发布人</view>
-      </view>
-    </view>
-
-    <view class="purchase-detail__card" wx:if="{{taker.purchaseProofImage}}">
-      <view class="purchase-detail__heading">购买凭证</view>
-      <t-image src="{{taker.purchaseProofImage}}" bind:tap="tapOnImageToPreview" data-src="{{taker.purchaseProofImage}}" mode="aspectFit" shape="round" class="purchase-detail__image" />
-    </view>
-    <view class="purchase-detail__card" wx:if="{{image}}">
-      <view class="purchase-detail__heading">送达图片</view>
-      <t-image src="{{image}}" bind:tap="tapOnImageToPreview" data-src="{{image}}" mode="aspectFit" shape="round" class="purchase-detail__image" />
-    </view>
-    <view class="purchase-detail__number">订单编号 {{orderInfo.orderNumber}}</view>
-  </view>
-  <view class="purchase-detail__actions" wx:if="{{orderInfo.status == 1}}">
-    <t-button block theme="primary" bind:tap="button">确认已购买</t-button>
-  </view>
-  <view class="purchase-detail__actions" wx:if="{{orderInfo.status == 0 || orderInfo.status == 2}}">
-    <t-button block bind:tap="button" theme="primary">{{titleB[orderInfo.status]}}</t-button>
-  </view>
-  <view class="purchase-detail__actions" wx:if="{{(orderInfo.status == 5 || orderInfo.status == 7) && orderInfo.price != null}}">
-    <t-button block bind:tap="_requestMerchantTransfer" theme="primary" loading="{{transferBusy}}" disabled="{{transferBusy}}">{{orderInfo.status == 7 ? '重新收款' : '确认收款'}}</t-button>
-  </view>
-</block>
-<block wx:else>
-<!-- 步骤栏 -->
-<view class="step">
-  <t-steps theme="dot" readonly current="{{orderInfo.status}}" bind:change="onCascader">
-    <t-step-item wx:for="{{5}}" wx:key="index" title="{{title[index]}}" />
-  </t-steps>
-  <!-- 任务倒计时 - 优化样式 -->
-  <view class="countdown-container" hidden="{{!(orderInfo.status==1 || orderInfo.status==2)}}">
-    <view class="countdown-box">
-      <t-icon name="time" size="32rpx" color="#0052d9" style="margin-right: 10rpx;" />
-      <view class="countdown-label">距离预期送达</view>
-      <view wx:if="{{time<0}}" class="countdown-overtime">
-        <t-icon name="error-circle" size="32rpx" color="#e34d59" style="margin-right: 10rpx;" />
-        <text style="color: #e34d59; font-weight: 600;">已超时，请尽快送达</text>
-      </view>
-      <view wx:else class="countdown-time">
-        <t-count-down time="{{ time }}" format="HH:mm:ss" theme="round" size="small" />
-      </view>
-    </view>
-  </view>
-</view>
-
-<!-- 有偿跑腿 -->
-<view class="card" wx:if="{{orderInfo.price!=null}}">
-  <!-- 卡片名 -->
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="money-circle" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">{{orderInfo.businessType === 'PURCHASE' ? '代买费用' : '有偿跑腿'}}</view>
-  </view>
-  <!-- 分割线 -->
-  <t-divider class="drvider" />
-  <!-- 内容说明  -->
-  <view>
-    <view class="price-container">
-      <view class="price-label">
-        <t-icon name="wallet" size="32rpx" color="#ed7b2f" style="margin-right: 10rpx;" />
-        <text>{{orderInfo.businessType === 'PURCHASE' ? '跑腿报酬' : '有偿金额'}}</text>
-      </view>
-      <view class="price-amount">
-        <text class="price-symbol">¥</text>
-        <text class="price-value">{{orderInfo.price || 0}}</text>
-      </view>
-    </view>
-    <view wx:if="{{orderInfo.businessType === 'PURCHASE'}}" class="price-container">
-      <view class="price-label"><text>商品金额</text></view>
-      <view class="price-amount"><text class="price-symbol">¥</text><text class="price-value">{{orderInfo.productAmount}}</text></view>
-    </view>
-    <view wx:if="{{orderInfo.businessType === 'PURCHASE'}}" class="price-container">
-      <view class="price-label"><text>完成后合并收款</text></view>
-      <view class="price-amount"><text class="price-symbol">¥</text><text class="price-value">{{orderInfo.runnerReceivable}}</text></view>
-    </view>
-  </view>
-</view>
-
-<!-- 地址 -->
-<view class="card">
-  <!-- 卡片名 -->
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="location" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">{{orderInfo.businessType === 'PURCHASE' ? '购买与送达地址' : '取件与收件地址'}}</view>
-  </view>
-  <!-- 分割线 -->
-  <t-divider class="drvider" />
-  
-  <!-- 取件地址 -->
-  <view class="address-item">
-    <view class="address-header">
-      <t-icon name="location-setting" size="32rpx" color="#2ba471" />
-      <text class="address-type-label">{{orderInfo.businessType === 'PURCHASE' ? '购买地点' : '取件地址'}}</text>
-    </view>
-    <view class="address-detail">
-      <view class="address-main">
-        {{pickUpAddress[0]}} {{pickUpAddress[1]}} {{pickUpAddress[2]}}
-      </view>
-      <view class="address-extra" wx:if="{{pickUpAddress[3]}}">{{pickUpAddress[3]}}</view>
-    </view>
-  </view>
-  
-  <!-- 收件地址 -->
-  <view class="address-item">
-    <view class="address-header">
-      <t-icon name="location-setting" size="32rpx" color="#0052d9" />
-      <text class="address-type-label">{{orderInfo.businessType === 'PURCHASE' ? '送达地点' : '收件地址'}}</text>
-    </view>
-    <view class="address-detail">
-      <view class="address-main">
-        {{reciveAddress[0]}} {{reciveAddress[1]}} {{reciveAddress[2]}}
-      </view>
-      <view class="address-extra" wx:if="{{reciveAddress[3]}}">{{reciveAddress[3]}}</view>
-    </view>
-  </view>
-  
-  <!-- 门禁情况 -->
-  <view class="door-access-box" wx:if="{{orderInfo.businessType !== 'PURCHASE'}}">
-    <t-icon name="{{orderInfo.doorAccess==1?'lock-on':'lock-off'}}" size="32rpx" color="{{orderInfo.doorAccess==1?'#e34d59':'#2ba471'}}" />
-    <text class="door-access-text">{{door[orderInfo.doorAccess]}}</text>
-  </view>
-</view>
-
-<!-- 联系方式 -->
-<view class="card">
-  <!-- 卡片名 -->
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="usergroup" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">联系方式</view>
-  </view>
-  <!-- 分割线 -->
-  <t-divider class="drvider" />
-  <!-- 具体联系方式 -->
-  <view class="{{orderInfo.status==0?'mask':''}}">
-    <!-- 发布用户 -->
-    <view class="contact-item">
-      <view class="contact-header">
-        <t-icon name="user" size="32rpx" color="#0052d9" />
-        <text class="contact-type">发布用户</text>
-      </view>
-      <view class="contact-info">
-        <view class="info-row">
-          <t-icon name="user-avatar" size="28rpx" color="#666" style="margin-right: 10rpx;" />
-          <text class="info-label">昵称：</text>
-          <text class="info-value">{{orderInfo.username || '微信用户'}}</text>
-        </view>
-        <view class="info-row" bind:tap="tapOnPhoneToDo" data-phone="{{'orderInfo'}}">
-          <t-icon name="call" size="28rpx" color="#666" style="margin-right: 10rpx;" />
-          <text class="info-label">联系：</text>
-          <text class="info-value phone-number">{{orderInfo.phone || '暂无'}}</text>
-          <t-icon name="chevron-right" size="32rpx" color="#ccc" style="margin-left: auto;" />
+    <view class="runner-detail-section">
+      <view class="runner-detail-section-title">{{orderInfo.businessType === 'PURCHASE' ? '购买与送达地点' : '取送地点'}}</view>
+      <view class="runner-detail-address">
+        <view class="runner-detail-address-dot runner-detail-address-dot--pickup"></view>
+        <view class="runner-detail-address-content">
+          <view class="runner-detail-address-label">{{orderInfo.businessType === 'PURCHASE' ? '购买地点' : '取件地址'}}</view>
+          <view class="runner-detail-address-main">{{pickUpAddress[0]}} {{pickUpAddress[1]}} {{pickUpAddress[2]}}</view>
+          <view wx:if="{{pickUpAddress[3]}}" class="runner-detail-muted">{{pickUpAddress[3]}}</view>
         </view>
       </view>
-    </view>
-    
-    <!-- 接单用户 -->
-    <view class="contact-item" hidden="{{orderInfo.status==0}}">
-      <view class="contact-header">
-        <t-icon name="user-checked" size="32rpx" color="#0052d9" />
-        <text class="contact-type">接单用户</text>
-      </view>
-      <view class="contact-info">
-        <view class="info-row">
-          <t-icon name="user-avatar" size="28rpx" color="#666" style="margin-right: 10rpx;" />
-          <text class="info-label">昵称：</text>
-          <text class="info-value">{{taker.username || '微信用户'}}</text>
-        </view>
-        <view class="info-row" bind:tap="tapOnPhoneToDo" data-phone="{{'taker'}}">
-          <t-icon name="call" size="28rpx" color="#666" style="margin-right: 10rpx;" />
-          <text class="info-label">联系：</text>
-          <text class="info-value phone-number">{{taker.phone || '暂无'}}</text>
-          <t-icon name="chevron-right" size="32rpx" color="#ccc" style="margin-left: auto;" />
+      <view class="runner-detail-address">
+        <view class="runner-detail-address-dot runner-detail-address-dot--delivery"></view>
+        <view class="runner-detail-address-content">
+          <view class="runner-detail-address-label">{{orderInfo.businessType === 'PURCHASE' ? '送达地点' : '收件地址'}}</view>
+          <view class="runner-detail-address-main">{{reciveAddress[0]}} {{reciveAddress[1]}} {{reciveAddress[2]}}</view>
+          <view wx:if="{{reciveAddress[3]}}" class="runner-detail-muted">{{reciveAddress[3]}}</view>
         </view>
       </view>
+      <view wx:if="{{orderInfo.businessType !== 'PURCHASE'}}" class="runner-detail-door">{{door[orderInfo.doorAccess]}}</view>
     </view>
-  </view>
-</view>
 
-<!-- 跑腿内容说明 -->
-<view class="card">
-  <!-- 卡片名 -->
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="order" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">{{orderInfo.categoryName}}</view>
-    <view class="order-number">
-      <t-icon name="file-paste" size="24rpx" color="#999" style="margin-right: 6rpx;" />
-      <text>{{orderInfo.orderNumber}}</text>
+    <view wx:if="{{orderInfo.businessType === 'PURCHASE' && orderInfo.price != null}}" class="runner-detail-section">
+      <view class="runner-detail-section-title">收款明细</view>
+      <view class="runner-detail-money-row"><text>需先垫付</text><text>¥{{orderInfo.productAmount || 0}}</text></view>
+      <view class="runner-detail-money-row"><text>跑腿收入</text><text>¥{{orderInfo.price || 0}}</text></view>
+      <view class="runner-detail-money-row runner-detail-money-row--total"><text>完成后预计收款</text><text>¥{{orderInfo.runnerReceivable || 0}}</text></view>
+      <view class="runner-detail-muted">完成后商品金额与跑腿费将一起收款</view>
     </view>
-  </view>
-  <!-- 分割线 -->
-  <t-divider class="drvider" />
-  
-  <!-- 时间信息 -->
-  <view class="order-time-info">
-    <view class="time-info-item">
-      <t-icon name="time" size="28rpx" color="#0052d9" style="margin-right: 8rpx;" />
-      <text class="time-label">发布时间</text>
-      <text class="time-value">{{orderInfo.createTime}}</text>
-    </view>
-    <view class="time-info-item" hidden="{{!orderInfo.status==0}}">
-      <t-icon name="close-circle" size="28rpx" color="#e34d59" style="margin-right: 8rpx;" />
-      <text class="time-label">自动取消</text>
-      <text class="time-value">{{orderInfo.cancelTime}}</text>
-    </view>
-    <view class="time-info-item">
-      <t-icon name="calendar" size="28rpx" color="#2ba471" style="margin-right: 8rpx;" />
-      <text class="time-label">预期送达</text>
-      <text class="time-value">{{orderInfo.expectTime}}</text>
-    </view>
-  </view>
-  
-  <!-- 跑腿内容 -->
-  <view class="order-content-section">
-    <view class="content-header">
-      <t-icon name="edit" size="28rpx" color="#0052d9" style="margin-right: 8rpx;" />
-      <text class="content-title">{{orderInfo.businessType === 'PURCHASE' ? '购买清单' : '跑腿内容'}}</text>
-    </view>
-    <view class="content-text">{{orderInfo.note}}</view>
-    
-    <!-- 内容图片 -->
-    <view wx:if="{{orderInfo.images && orderInfo.images.length}}" class="content-image-container">
-      <t-image wx:for="{{orderInfo.images}}" wx:key="*this"
-        src="{{item}}" bind:tap="tapOnImageToPreview" data-src="{{item}}"
-        data-flag="{{orderInfo.status}}" mode="aspectFit" shape="round"
-        class="img" style="{{orderInfo.status==0?'filter:blur(10rpx)':''}}" />
-    </view>
-  </view>
-</view>
 
-<view class="card" wx:if="{{orderInfo.businessType === 'PURCHASE' && taker.purchaseProofImage}}">
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="image" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">购买凭证</view>
-  </view>
-  <t-divider class="drvider" />
-  <t-image src="{{taker.purchaseProofImage}}" bind:tap="tapOnImageToPreview" data-src="{{taker.purchaseProofImage}}" mode="aspectFit" shape="round" class="img" />
-</view>
-
-<!-- 服务信息（加了底端margin预留出按钮可能挡住的信息） -->
-<view class="card" style="margin-bottom: 100rpx;" hidden="{{orderInfo.status==0}}">
-  <!-- 卡片名 -->
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="service" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">服务信息</view>
-  </view>
-  <!-- 分割线 -->
-  <t-divider class="drvider" />
-  
-  <!-- 时间轴显示 -->
-  <view class="service-timeline">
-    <!-- 接单时间 -->
-    <view class="timeline-item">
-      <view class="timeline-dot"></view>
-      <view class="timeline-content">
-        <view class="timeline-label">
-          <t-icon name="clock" size="28rpx" color="#0052d9" style="margin-right: 8rpx;" />
-          接单时间
-        </view>
-        <view class="timeline-value">{{taker.takeOrderTime}}</view>
+    <view wx:if="{{orderInfo.images && orderInfo.images.length}}" class="runner-detail-section">
+      <view class="runner-detail-section-title">任务图片</view>
+      <view class="runner-detail-images">
+        <t-image wx:for="{{orderInfo.images}}" wx:key="*this" src="{{item}}" bind:tap="tapOnImageToPreview" data-src="{{item}}" data-flag="{{isMyTaken ? 1 : 0}}" mode="aspectFit" shape="round" class="runner-detail-image" style="{{isMyTaken ? '' : 'filter:blur(10rpx)'}}" />
       </view>
     </view>
-    
-    <!-- 预期送达 -->
-    <view class="timeline-item">
-      <view class="timeline-dot"></view>
-      <view class="timeline-content">
-        <view class="timeline-label">
-          <t-icon name="time" size="28rpx" color="#0052d9" style="margin-right: 8rpx;" />
-          预期送达
-        </view>
-        <view class="timeline-value">{{orderInfo.expectTime}}</view>
-      </view>
+
+    <view wx:if="{{isMyTaken && taker.id && orderInfo.status > 0 && orderInfo.status != 4}}" class="runner-detail-section">
+      <view class="runner-detail-section-title">联系发布人</view>
+      <view class="runner-detail-contact-name">{{orderInfo.username || '微信用户'}}</view>
+      <view wx:if="{{orderInfo.phone}}" class="runner-detail-contact-phone" bind:tap="tapOnPhoneToDo" data-phone="orderInfo">{{orderInfo.phone}} <t-icon name="chevron-right" size="28rpx" /></view>
     </view>
-    
-    <!-- 送达时间 -->
-    <view class="timeline-item" hidden="{{orderInfo.deliveryTime==null}}">
-      <view class="timeline-dot timeline-dot-success"></view>
-      <view class="timeline-content">
-        <view class="timeline-label">
-          <t-icon name="check-circle" size="28rpx" color="#2ba471" style="margin-right: 8rpx;" />
-          实际送达
-        </view>
-        <view class="timeline-value" style="color: #2ba471; font-weight: 600;">{{orderInfo.deliveryTime}}</view>
-      </view>
+
+    <view wx:if="{{isMyTaken && taker.purchaseProofImage}}" class="runner-detail-section">
+      <view class="runner-detail-section-title">购买凭证</view>
+      <t-image src="{{taker.purchaseProofImage}}" bind:tap="tapOnImageToPreview" data-src="{{taker.purchaseProofImage}}" mode="aspectFit" shape="round" class="runner-detail-image" />
+    </view>
+    <view wx:if="{{isMyTaken && image && orderInfo.status > 0}}" class="runner-detail-section">
+      <view class="runner-detail-section-title">送达图片</view>
+      <t-image src="{{image}}" bind:tap="tapOnImageToPreview" data-src="{{image}}" mode="aspectFit" shape="round" class="runner-detail-image" />
+    </view>
+
+    <view class="runner-detail-meta">
+      <view><text>发布时间</text><text>{{orderInfo.createTime}}</text></view>
+      <view wx:if="{{orderInfo.status == 0 && orderInfo.cancelTime}}"><text>自动取消</text><text>{{orderInfo.cancelTime}}</text></view>
+      <view wx:if="{{isMyTaken && taker.takeOrderTime}}"><text>接单时间</text><text>{{taker.takeOrderTime}}</text></view>
+      <view wx:if="{{isMyTaken && orderInfo.deliveryTime}}"><text>实际送达</text><text>{{orderInfo.deliveryTime}}</text></view>
+      <view><text>订单编号</text><text>{{orderInfo.orderNumber}}</text></view>
     </view>
   </view>
-  
-  <!-- 送达图片 -->
-  <view hidden="{{image==null}}" style="margin-top: 20rpx;">
-    <view class="box1" style="margin-bottom: 16rpx;">
-      <t-icon name="image" size="28rpx" color="#0052d9" style="margin-right: 8rpx; margin-left: 30rpx;" />
-      <view class="text-address" style="margin-left: 0;">送达图片</view>
+
+  <ui-action-bar wx:if="{{orderInfo.status == 0 || (isMyTaken && (orderInfo.status == 1 || orderInfo.status == 2 || ((orderInfo.status == 5 || orderInfo.status == 7) && orderInfo.price != null)))}}" class="runner-detail-action-bar" fixed>
+    <view class="runner-detail-actions">
+      <t-button wx:if="{{orderInfo.status == 0 || orderInfo.status == 1 || orderInfo.status == 2}}" class="runner-detail-action" t-class="cr-secondhand-capsule runner-detail-capsule" shape="round" theme="primary" bind:tap="button">{{orderInfo.businessType === 'PURCHASE' && orderInfo.status == 1 ? '提交购买凭证' : (orderInfo.businessType === 'PURCHASE' && orderInfo.status == 2 ? '上传送达图片' : titleB[orderInfo.status])}}</t-button>
+      <t-button wx:else class="runner-detail-action" t-class="cr-secondhand-capsule runner-detail-capsule" shape="round" theme="primary" loading="{{transferBusy}}" disabled="{{transferBusy}}" bind:tap="_requestMerchantTransfer">{{orderInfo.status == 7 ? '重新收款' : '确认收款'}}</t-button>
     </view>
-    <t-image src="{{image}}" bind:tap="tapOnImageToPreview" data-src="{{image}}" data-flag="{{image!=null}}" mode="aspectFit" shape="round" class="img" />
-  </view>
+  </ui-action-bar>
 </view>
-
-<!-- 按钮 -->
-<view wx:if="{{orderInfo.status == 0 || orderInfo.status == 1 || orderInfo.status == 2}}" class="button">
-  <t-button block bind:tap="button" theme="primary">{{orderInfo.businessType === 'PURCHASE' && orderInfo.status == 1 ? '上传购买凭证并开始配送' : titleB[orderInfo.status]}}</t-button>
-</view>
-
-<!-- 确定收款的按钮 -->
-<view wx:if="{{(orderInfo.status == 5 || orderInfo.status == 7) && orderInfo.price != null}}" class="button">
-  <t-button block bind:tap="_requestMerchantTransfer" theme="primary" loading="{{transferBusy}}" disabled="{{transferBusy}}">{{orderInfo.status == 7 ? '重新收款' : '确定收款'}}</t-button>
-</view>
-</block>
-
 <!-- 接单提示 -->
 <t-dialog visible="{{showConfirm}}" title="接单提示" confirm-btn="确定" cancel-btn="取消" bind:confirm="closeConfirm" bind:cancel="closeDialog">
   <!-- 适配skyline，增加type="list" -->
@@ -352,22 +114,20 @@
 
 <!-- 派送提示 -->
 <t-popup visible="{{showWithImage}}" bind:visible-change="closeWithImage" placement="bottom">
-  <view class="block">
-    <view class="header">
-      <view class="btn btn--cancel" bind:tap="closeWithImage">取消</view>
-      <view class="title">{{proofPurpose === 'PURCHASE_PROOF' ? '购买凭证' : '送达图片'}}</view>
-      <view class="btn btn--confirm" bind:tap="closeConfirmWithImage">确定</view>
+  <view class="runner-detail-upload">
+    <view class="block">
+      <view class="header">
+        <view class="btn btn--cancel" bind:tap="closeWithImage">取消</view>
+        <view class="title">{{proofPurpose === 'PURCHASE_PROOF' ? '购买凭证' : '送达图片'}}</view>
+        <view class="btn btn--confirm" bind:tap="closeConfirmWithImage">确定</view>
+      </view>
     </view>
-  </view>
-  <view style="margin-bottom: 30rpx;">
-    <view class="address" style="font-size: medium;text-align: center;margin:20rpx 30rpx;">{{proofPurpose === 'PURCHASE_PROOF' ? '请上传实际购买的商品照片或小票（一张）' : '请选择送达图片上传（一张）'}}</view>
-    <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{1}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="text-align: center;" />
+    <view style="margin-bottom: 30rpx;">
+      <view class="address">{{proofPurpose === 'PURCHASE_PROOF' ? '请上传实际购买的商品照片或小票（一张）' : '请选择送达图片上传（一张）'}}</view>
+      <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{1}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="text-align: center;" />
+    </view>
   </view>
 </t-popup>
 
-<!-- 空白填充 -->
-<view class="bottom-spacer"></view>
-
 <!-- 刷新轻提示 -->
 <t-toast id="t-toast" />
-
