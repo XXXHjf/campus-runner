@@ -278,7 +278,7 @@ public class SecondHandServiceImpl implements SecondHandService {
             query.setStatus(SecondHandConstant.PRODUCT_ON_SALE);
         }
         List<SecondHandProductVO> products = productMapper.list(query, schoolId);
-        products.forEach(this::resolveProductImages);
+        products.forEach(product -> resolveProductImages(product, 600));
         return products;
     }
 
@@ -1625,13 +1625,17 @@ public class SecondHandServiceImpl implements SecondHandService {
     }
 
     private SecondHandProductVO resolveProductImages(SecondHandProductVO product) {
+        return resolveProductImages(product, 0);
+    }
+
+    private SecondHandProductVO resolveProductImages(SecondHandProductVO product, int maxWidth) {
         if (product == null) {
             return null;
         }
         var images = mediaAssetService.resolvePublicBinding(
                 MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
                 product.getId(),
-                MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name());
+                MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name(), maxWidth);
         if (!images.isEmpty()) {
             product.setImageAssetIds(images.stream().map(item -> item.getMediaId()).toList());
             product.setImages(String.join(",", images.stream().map(item -> item.getUrl()).toList()));

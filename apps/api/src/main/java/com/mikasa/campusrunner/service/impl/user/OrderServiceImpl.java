@@ -630,18 +630,22 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private List<OrderShowVO> resolveOrderImages(List<OrderShowVO> orders) {
-        orders.forEach(this::resolveOrderImage);
+        orders.forEach(order -> resolveOrderImage(order, 320));
         return orders;
     }
 
     private OrderShowVO resolveOrderImage(OrderShowVO order) {
+        return resolveOrderImage(order, 0);
+    }
+
+    private OrderShowVO resolveOrderImage(OrderShowVO order, int maxWidth) {
         if (order == null) {
             return null;
         }
         var images = mediaAssetService.resolveAuthorizedBinding(
                 MediaAssetConstant.BOUND_ORDER,
                 order.getId(),
-                MediaPurpose.ORDER_IMAGE.name());
+                MediaPurpose.ORDER_IMAGE.name(), maxWidth);
         if (!images.isEmpty()) {
             order.setImageAssetIds(images.stream().map(item -> item.getMediaId()).toList());
             order.setImages(images.stream().map(item -> item.getUrl()).toList());

@@ -274,7 +274,13 @@ public class MediaAssetServiceImpl implements MediaAssetService {
             String boundType,
             Long boundId,
             String purposeValue) {
-        return resolveBinding(boundType, boundId, purposeValue, false);
+        return resolveBinding(boundType, boundId, purposeValue, false, 0);
+    }
+
+    @Override
+    public List<BoundMediaVO> resolvePublicBinding(
+            String boundType, Long boundId, String purposeValue, int maxWidth) {
+        return resolveBinding(boundType, boundId, purposeValue, false, maxWidth);
     }
 
     @Override
@@ -282,14 +288,21 @@ public class MediaAssetServiceImpl implements MediaAssetService {
             String boundType,
             Long boundId,
             String purposeValue) {
-        return resolveBinding(boundType, boundId, purposeValue, true);
+        return resolveBinding(boundType, boundId, purposeValue, true, 0);
+    }
+
+    @Override
+    public List<BoundMediaVO> resolveAuthorizedBinding(
+            String boundType, Long boundId, String purposeValue, int maxWidth) {
+        return resolveBinding(boundType, boundId, purposeValue, true, maxWidth);
     }
 
     private List<BoundMediaVO> resolveBinding(
             String boundType,
             Long boundId,
             String purposeValue,
-            boolean allowPrivate) {
+            boolean allowPrivate,
+            int maxWidth) {
         if (boundId == null || boundType == null || boundType.isBlank()) {
             return List.of();
         }
@@ -299,15 +312,18 @@ public class MediaAssetServiceImpl implements MediaAssetService {
         return assets.stream()
                 .filter(asset -> allowPrivate
                         || MediaAssetConstant.VISIBILITY_PUBLIC.equals(asset.getVisibility()))
-                .map(asset -> BoundMediaVO.builder()
-                        .mediaId(asset.getId())
-                        .url(aliOSSUtil.generatePresignedUrl(
-                                asset.getObjectKey(),
-                                MediaAssetConstant.VISIBILITY_PRIVATE.equals(asset.getVisibility())
-                                        ? PRIVATE_URL_LIFETIME
-                                        : PUBLIC_URL_LIFETIME))
-                        .sortOrder(asset.getSortOrder())
-                        .build())
+                .map(asset -> {
+                    Duration lifetime = MediaAssetConstant.VISIBILITY_PRIVATE.equals(asset.getVisibility())
+                            ? PRIVATE_URL_LIFETIME : PUBLIC_URL_LIFETIME;
+                    String url = maxWidth > 0
+                            ? aliOSSUtil.generatePresignedUrl(asset.getObjectKey(), lifetime, maxWidth)
+                            : aliOSSUtil.generatePresignedUrl(asset.getObjectKey(), lifetime);
+                    return BoundMediaVO.builder()
+                            .mediaId(asset.getId())
+                            .url(url)
+                            .sortOrder(asset.getSortOrder())
+                            .build();
+                })
                 .toList();
     }
 

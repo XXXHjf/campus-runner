@@ -302,6 +302,25 @@ class MediaAssetServiceImplTest {
                         "STUDENT_CARD").get(0).getUrl());
     }
 
+    @Test
+    void resizedPrivateBindingKeepsPrivateLifetime() {
+        MediaAsset asset = MediaAsset.builder()
+                .id(10L)
+                .objectKey("order/cover.jpg")
+                .purpose("ORDER_IMAGE")
+                .visibility(MediaAssetConstant.VISIBILITY_PRIVATE)
+                .sortOrder(0)
+                .build();
+        when(mediaAssetMapper.listBoundAssets("ORDER", 11L, "ORDER_IMAGE"))
+                .thenReturn(List.of(asset));
+        when(aliOSSUtil.generatePresignedUrl("order/cover.jpg", Duration.ofMinutes(15), 320))
+                .thenReturn("https://private.example/cover");
+
+        assertEquals("https://private.example/cover",
+                service.resolveAuthorizedBinding("ORDER", 11L, "ORDER_IMAGE", 320)
+                        .get(0).getUrl());
+    }
+
     private byte[] imageBytes() throws Exception {
         BufferedImage image =
                 new BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB);

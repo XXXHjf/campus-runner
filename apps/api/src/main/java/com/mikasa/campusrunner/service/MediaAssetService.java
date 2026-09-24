@@ -43,10 +43,16 @@ public interface MediaAssetService {
             Long boundId,
             String purpose);
 
+    List<BoundMediaVO> resolvePublicBinding(
+            String boundType, Long boundId, String purpose, int maxWidth);
+
     List<BoundMediaVO> resolveAuthorizedBinding(
             String boundType,
             Long boundId,
             String purpose);
+
+    List<BoundMediaVO> resolveAuthorizedBinding(
+            String boundType, Long boundId, String purpose, int maxWidth);
 
     int cleanupExpired(int limit);
 }

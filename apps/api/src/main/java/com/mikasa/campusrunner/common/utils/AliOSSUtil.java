@@ -1,12 +1,14 @@
 package com.mikasa.campusrunner.common.utils;
 
 import com.aliyun.oss.ClientException;
+import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.OSSException;
 import com.aliyun.oss.common.auth.CredentialsProvider;
 import com.aliyun.oss.common.auth.DefaultCredentialProvider;
 import com.aliyun.oss.model.PutObjectResult;
+import com.aliyun.oss.model.GeneratePresignedUrlRequest;
 import com.mikasa.campusrunner.common.exception.UploadException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -25,6 +27,8 @@ import java.util.Date;
 @Data
 @AllArgsConstructor
 public class AliOSSUtil {
+    private static final long PUBLIC_URL_WINDOW_SECONDS = 60 * 60;
+    private static final long PRIVATE_URL_WINDOW_SECONDS = 5 * 60;
     private String endpoint;
     private String bucketName;
     private String accessKeyId;
@@ -58,10 +62,20 @@ public class AliOSSUtil {
     }
 
     public String generatePresignedUrl(String objectKey, Duration duration) {
+        return generatePresignedUrl(objectKey, duration, 0);
+    }
+
+    public String generatePresignedUrl(String objectKey, Duration duration, int maxWidth) {
         OSS ossClient = buildClient();
         try {
-            Date expiration = new Date(System.currentTimeMillis() + duration.toMillis());
-            URL url = ossClient.generatePresignedUrl(bucketName, objectKey, expiration);
+            Date expiration = stableExpiration(System.currentTimeMillis(), duration);
+            GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(
+                    bucketName, objectKey, HttpMethod.GET);
+            request.setExpiration(expiration);
+            if (maxWidth > 0) {
+                request.setProcess("image/resize,w_" + maxWidth);
+            }
+            URL url = ossClient.generatePresignedUrl(request);
             return ensureHttps(url.toString());
         } catch (OSSException | ClientException e) {
             log.error("Failed to generate OSS URL, objectKey: {}", objectKey, e);
@@ -69,6 +83,13 @@ public class AliOSSUtil {
         } finally {
             ossClient.shutdown();
         }
+    }
+
+    static Date stableExpiration(long nowMillis, Duration duration) {
+        long window = duration.compareTo(Duration.ofDays(1)) >= 0
+                ? PUBLIC_URL_WINDOW_SECONDS : PRIVATE_URL_WINDOW_SECONDS;
+        long deadline = nowMillis / 1000 + duration.getSeconds();
+        return new Date(Math.floorDiv(deadline, window) * window * 1000);
     }
 
     public void deleteObject(String objectKey) {
