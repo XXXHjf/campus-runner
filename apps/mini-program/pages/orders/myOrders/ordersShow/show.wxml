@@ -47,7 +47,6 @@
 
 <t-popup visible="{{actionSheetVisible}}" placement="bottom" bind:visible-change="onActionSheetChange" close-on-overlay-click="true">
   <view class="my-orders__sheet">
-    <view class="my-orders__sheet-title">订单操作</view>
     <t-button wx:if="{{actionOrder.status == -1 || actionOrder.status == 0}}" block variant="text" theme="danger" bind:tap="cancelActionOrder">取消订单</t-button>
     <t-button wx:if="{{actionOrder.status == 0}}" block variant="text" open-type="share">分享</t-button>
     <t-button wx:if="{{actionOrder.status != -1 && actionOrder.status != 0}}" block variant="text" bind:tap="showActionOrderDetail">查看详情</t-button>
@@ -60,7 +59,7 @@
   <view class="my-orders__edit-sheet">
     <view class="my-orders__sheet-title">编辑订单内容</view>
     <t-textarea value="{{editNote}}" maxlength="100" placeholder="请填写至少4个字的说明" indicator bind:change="onEditNoteChange" />
-    <view class="my-orders__edit-label">说明图片（1～9 张）</view>
+    <view class="my-orders__edit-label">说明图片</view>
     <t-upload mediaType="{{['image']}}" max="{{9}}" files="{{editFiles}}" bind:add="onEditImageAdd" bind:remove="onEditImageRemove" />
     <view class="my-orders__edit-actions">
       <t-button size="small" shape="round" theme="default" variant="outline" disabled="{{editSaving}}" bind:tap="closeEdit">取消</t-button>

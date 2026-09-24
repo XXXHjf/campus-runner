@@ -43,6 +43,7 @@ Page({
     fileList: [],
     image: null,
     imageAssetId: null,
+    transferBusy: false,
   },
 
   // 按钮根据状态跳转方法
@@ -72,12 +73,6 @@ Page({
 
   closeDialog() {
     this.setData({ showConfirm: false });
-    wx.showToast({
-      title: '取消接单',
-      icon: 'none',
-      mask: 'true',
-      duration: 2000
-    });
   },
 
   // 待接单0->接单1（使用封装的 service）
@@ -262,43 +257,15 @@ Page({
     }
   },
 
-  // 取消接单（使用封装的 service）
-  async cancelTake() {
-    try {
-      showLoading('取消中');
-      await takeOrderService.updateTakeOrderStatus({ 
-        id: this.data.taker.id, 
-        status: 3 
-      });
-      wx.showToast({
-        title: '接单已取消',
-        icon: 'success'
-      });
-      await this._loadOrderInfo();
-    } catch (error) {
-      console.error('取消接单失败:', error);
-      showError('取消失败');
-    } finally {
-      hideLoading();
-    }
-  },
-
-  confirmCancelPurchase() {
-    wx.showModal({
-      title: '取消接单',
-      content: '取消后，订单会重新等待其他人接单。确定取消吗？',
-      success: ({ confirm }) => {
-        if (confirm) this.cancelTake();
-      }
-    });
-  },
-
   // 拉起微信确定收款（保留原逻辑，使用 tokenManager）
   async _requestMerchantTransfer() {
+    if (this.data.transferBusy) return;
+    this.setData({ transferBusy: true });
     try {
       if (getApp().globalData.MOCK_PAYMENT) {
         showLoading('模拟收款中');
-        await takeOrderService.mockReceiveSuccess(this.data.id);
+        const mockResult = await takeOrderService.mockReceiveSuccess(this.data.id);
+        if (mockResult.code !== 1) throw new Error('模拟收款失败');
         hideLoading();
         wx.showToast({
           title: '模拟收款成功',
@@ -310,28 +277,21 @@ Page({
 
       const result = await this._apiTransfer(this.data.id);
       const accountInfo = wx.getAccountInfoSync();
-      wx.requestMerchantTransfer({
+      await new Promise((resolve, reject) => wx.requestMerchantTransfer({
         mchId: result.mchId,
         appId: accountInfo.miniProgram.appId,
         package: result.packageInfo,
-        success: (res) => {
-          const newOrderInfo = this.data.orderInfo;
-          newOrderInfo.status = '6';
-          this.setData({ orderInfo: newOrderInfo });
-          console.log(res);
-        },
-        fail: (err) => {
-          console.log(err);
-        }
-      });
+        success: resolve,
+        fail: () => reject(new Error('收款未完成，请重试')),
+      }));
+      wx.showToast({ title: '收款申请已提交', icon: 'none' });
     } catch (err) {
       hideLoading();
-      errorCilcleToast(this, err.message);
+      errorCilcleToast(this, err.message || '收款失败，请重试');
+    } finally {
+      await this._loadOrderInfo();
+      this.setData({ transferBusy: false });
     }
-    
-    const pages = getCurrentPages();
-    const currentPage = pages[pages.length - 1];
-    currentPage.onLoad(currentPage.options);
   },
 
   // 调用微信收款的后端接口
@@ -344,11 +304,15 @@ Page({
           'token': tokenManager.getToken()
         },
         success: (res) => {
-          console.log("res.data", res.data);
-          resolve(res.data.data);
+          const transfer = res.data?.data;
+          if (res.statusCode !== 200 || res.data?.code !== 1 || !transfer?.mchId || !transfer?.packageInfo) {
+            reject(new Error('发起收款失败，请稍后重试'));
+            return;
+          }
+          resolve(transfer);
         },
-        fail: (err) => {
-          reject(new Error("发起转账失败"));
+        fail: () => {
+          reject(new Error('网络连接失败，请稍后重试'));
         }
       });
     });

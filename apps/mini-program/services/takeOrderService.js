@@ -83,20 +83,6 @@ function updateTakeOrderStatus(statusData) {
 }
 
 /**
- * 取消接单
- * @param {string|number} takeOrderId - 接单ID
- * @returns {Promise<Object>} 取消结果
- */
-function cancelTakeOrder(takeOrderId) {
-  return request({
-    url: `${url}/api/takeOrders/cancel/${takeOrderId}`,
-    method: 'PUT'
-  }).then(res => {
-    return res.data;
-  });
-}
-
-/**
  * 获取送达图片
  * @param {string|number} orderId - 订单ID
  * @returns {Promise<string>} 图片URL
@@ -203,7 +189,6 @@ module.exports = {
   getTakeOrderDetail,
   acceptOrder,
   updateTakeOrderStatus,
-  cancelTakeOrder,
   getDeliveryImage,
   acceptOrderById,
   sendTakeOrderMessage,

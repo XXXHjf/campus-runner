@@ -28,7 +28,7 @@
 
 - `POST /api/takeOrders/{id}`：接单。
 - `PUT /api/takeOrders`：更新接单状态；普通送达和代买购买凭证均只提交相应用途图片的 `imageAssetId`。代买必须先提交购买凭证才能进入配送中。
-- `GET /api/takeOrders`、`GET /api/takeOrders/query`：查询接单列表。
+- `GET /api/takeOrders`、`GET /api/takeOrders/query`：查询接单列表。本人接单列表额外返回发单人的公开头像 `senderAvatar`；未设置头像时为空，昵称沿用该订单的 `username`。
 - `GET /api/takeOrders/{orderId}`：查询订单的接单人资料。
 - `GET /api/takeOrders/image/{orderId}`：在权限校验后获取当前送达凭证地址。
 - `GET /api/takeOrders/notWithdrawn`：查询已完成但尚未结算的接单记录。

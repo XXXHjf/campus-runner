@@ -493,5 +493,3 @@
 .purchase-detail__image { display: block; width: 180rpx; height: 180rpx; margin: 8rpx 0; }
 .purchase-detail__number { padding: 8rpx 4rpx; color: var(--cr-color-text-secondary); font-size: 23rpx; }
 .purchase-detail__actions { position: fixed; z-index: 5; left: 0; right: 0; bottom: 0; padding: 16rpx var(--cr-page-padding) calc(16rpx + env(safe-area-inset-bottom)); background: var(--cr-color-surface); border-top: 1rpx solid var(--cr-color-border); }
-.purchase-detail__actions--pair { display: flex; gap: 16rpx; }
-.purchase-detail__action-secondary, .purchase-detail__action-primary { min-width: 0; flex: 1; }

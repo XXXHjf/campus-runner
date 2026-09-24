@@ -41,4 +41,25 @@ class TakeOrderSubscriptionTest {
             verifyNoMoreInteractions(messages);
         } finally { BaseContext.removeCurrentId(); }
     }
+
+    @Test void takerCannotCancelOrdinaryOrPurchaseOrder() {
+        TakeOrder take = new TakeOrder();
+        take.setId(1L); take.setOrderId(2L); take.setUserId(3L);
+        Order order = new Order(); order.setId(2L);
+        when(takeOrderMapper.getById(1L)).thenReturn(take);
+        when(orderMapper.getById(2L)).thenReturn(order);
+        TakeOrderUpdateStatusDTO dto = new TakeOrderUpdateStatusDTO();
+        dto.setId(1L); dto.setStatus(3); dto.setCancelReason("不想继续");
+        BaseContext.setCurrentId(3L);
+        try {
+            take.setStatus(0);
+            order.setBusinessType("NORMAL");
+            assertThrows(TakeOrderException.class, () -> service.updateStatus(dto));
+            take.setStatus(1);
+            order.setBusinessType("PURCHASE");
+            assertThrows(TakeOrderException.class, () -> service.updateStatus(dto));
+            verify(takeOrderMapper, never()).update(any());
+            verify(orderMapper, never()).update(any());
+        } finally { BaseContext.removeCurrentId(); }
+    }
 }

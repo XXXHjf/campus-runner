@@ -37,6 +37,7 @@ public class TakeOrderVO {
     private Integer doorAccess;//以上都是订单的信息
     private Long userId;//发单人id
     private String username;//发单人的昵称，即订单的昵称
+    private String senderAvatar;
     private String phone;//该订单的电话
     private String realname;//发单人姓名
     private Integer status;//原则上接单的

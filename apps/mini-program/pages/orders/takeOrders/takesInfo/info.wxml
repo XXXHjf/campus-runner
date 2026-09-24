@@ -44,15 +44,14 @@
     </view>
     <view class="purchase-detail__number">订单编号 {{orderInfo.orderNumber}}</view>
   </view>
-  <view class="purchase-detail__actions purchase-detail__actions--pair" wx:if="{{orderInfo.status == 1}}">
-    <view class="purchase-detail__action-secondary"><t-button block variant="outline" theme="default" bind:tap="confirmCancelPurchase">取消接单</t-button></view>
-    <view class="purchase-detail__action-primary"><t-button block theme="primary" bind:tap="button">确认已购买</t-button></view>
+  <view class="purchase-detail__actions" wx:if="{{orderInfo.status == 1}}">
+    <t-button block theme="primary" bind:tap="button">确认已购买</t-button>
   </view>
-  <view class="purchase-detail__actions" wx:if="{{orderInfo.status >= 0 && orderInfo.status < 4 && orderInfo.status != 1}}">
+  <view class="purchase-detail__actions" wx:if="{{orderInfo.status == 0 || orderInfo.status == 2}}">
     <t-button block bind:tap="button" theme="primary">{{titleB[orderInfo.status]}}</t-button>
   </view>
-  <view class="purchase-detail__actions" wx:if="{{orderInfo.status == 5 && orderInfo.price != null}}">
-    <t-button block bind:tap="_requestMerchantTransfer" theme="primary">确认收款</t-button>
+  <view class="purchase-detail__actions" wx:if="{{(orderInfo.status == 5 || orderInfo.status == 7) && orderInfo.price != null}}">
+    <t-button block bind:tap="_requestMerchantTransfer" theme="primary" loading="{{transferBusy}}" disabled="{{transferBusy}}">{{orderInfo.status == 7 ? '重新收款' : '确认收款'}}</t-button>
   </view>
 </block>
 <block wx:else>
@@ -329,13 +328,13 @@
 </view>
 
 <!-- 按钮 -->
-<view hidden="{{orderInfo.status>=5}}" class="button">
+<view wx:if="{{orderInfo.status == 0 || orderInfo.status == 1 || orderInfo.status == 2}}" class="button">
   <t-button block bind:tap="button" theme="primary">{{orderInfo.businessType === 'PURCHASE' && orderInfo.status == 1 ? '上传购买凭证并开始配送' : titleB[orderInfo.status]}}</t-button>
 </view>
 
 <!-- 确定收款的按钮 -->
-<view wx:if="{{orderInfo.status==5&&orderInfo.price!=null}}" class="button">
-  <t-button block bind:tap="_requestMerchantTransfer" theme="primary">确定收款</t-button>
+<view wx:if="{{(orderInfo.status == 5 || orderInfo.status == 7) && orderInfo.price != null}}" class="button">
+  <t-button block bind:tap="_requestMerchantTransfer" theme="primary" loading="{{transferBusy}}" disabled="{{transferBusy}}">{{orderInfo.status == 7 ? '重新收款' : '确定收款'}}</t-button>
 </view>
 </block>
 
@@ -345,7 +344,7 @@
   <scroll-view slot="content" type="list" scroll-y class="long-content">
     <view class="content-container">
       <view>
-        <span>{{orderInfo.businessType === 'PURCHASE' ? '请先与发单方确认商品、规格和预算。接单后请按要求购买，提交购买凭证后开始配送；商品买下后无法取消订单。' : '为确保服务质量，接单后不可取消订单。平台仅提供交易渠道，服务细节请与发单方确认清楚。'}}</span>
+        <span>{{orderInfo.businessType === 'PURCHASE' ? '请先与发单方确认商品、规格和预算。接单后请按要求购买，提交购买凭证后开始配送；如遇问题，请联系平台协商处理。' : '为确保服务质量，接单后不可取消订单。平台仅提供交易渠道，服务细节请与发单方确认清楚。'}}</span>
       </view>
     </view>
   </scroll-view>

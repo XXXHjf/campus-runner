@@ -121,7 +121,7 @@
 <!-- 跑腿内容说明 -->
 <ui-section title="{{isPurchase ? '购买清单' : '内容说明'}}" icon="attach" wx:if="{{count == 2}}">
   <view class="content-field">
-    <text class="text-address">描述（至少4个字）</text>
+    <text class="text-address">描述</text>
     <t-textarea
       t-class="external-class"
       t-class-indicator="{{skylineRender?'skyline-indicator':''}}"
@@ -136,7 +136,7 @@
     />
   </view>
   <view>
-    <text class="text-address">{{isPurchase ? '商品参考图片' : '图片说明'}}（1～9 张）</text>
+    <text class="text-address">{{isPurchase ? '商品参考图片' : '图片说明'}}</text>
     <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{9}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="margin: 20rpx 30rpx" />
   </view>
 </ui-section>

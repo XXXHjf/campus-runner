@@ -1,6 +1,5 @@
 package com.mikasa.campusrunner.service.impl.user;
 
-import com.aliyuncs.utils.StringUtils;
 import com.mikasa.campusrunner.common.constant.*;
 import com.mikasa.campusrunner.common.context.BaseContext;
 import com.mikasa.campusrunner.common.exception.OrderException;
@@ -27,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.Duration;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -124,20 +125,16 @@ public class TakeOrderServiceImpl implements TakeOrderService {
 
         //status为我要修改成的状态
         Integer status = takeOrderUpdateStatusDTO.getStatus();
+        if (Objects.equals(status, TakeOrderStatusConstant.CANCELED)) {
+            throw new TakeOrderException("接单后如需处理，请联系平台");
+        }
         if (Objects.equals(status, takeOrder.getStatus())) return;
         boolean canPickUp = Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.ALREADY_TAKE_ORDER)
                 && Objects.equals(status, TakeOrderStatusConstant.DELIVERYING);
         boolean canDeliver = Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.DELIVERYING)
                 && Objects.equals(status, TakeOrderStatusConstant.ORDER_FINISH);
-        boolean canCancel = (Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.ALREADY_TAKE_ORDER)
-                || Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.DELIVERYING))
-                && Objects.equals(status, TakeOrderStatusConstant.CANCELED);
         boolean purchase = OrderBusinessConstant.PURCHASE.equals(order.getBusinessType());
-        if (purchase && Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.DELIVERYING)
-                && Objects.equals(status, TakeOrderStatusConstant.CANCELED)) {
-            throw new TakeOrderException("商品已购买，如需处理订单，请联系平台协商");
-        }
-        if (!canPickUp && !canDeliver && !canCancel) throw new TakeOrderException("订单状态已变化，请刷新后重试");
+        if (!canPickUp && !canDeliver) throw new TakeOrderException("订单状态已变化，请刷新后重试");
         LocalDateTime now = LocalDateTime.now();
         if (status.equals(TakeOrderStatusConstant.DELIVERYING)){
             if (purchase && takeOrderUpdateStatusDTO.getImageAssetId() == null) {
@@ -164,21 +161,6 @@ public class TakeOrderServiceImpl implements TakeOrderService {
             order.setStatus(OrderStatusConstant.ORDER_FINISH);
             order.setDeliveryTime(now);
 
-        }else if (status.equals(TakeOrderStatusConstant.CANCELED)){
-            //将订单状态修改为已取消
-
-            if (StringUtils.isEmpty(takeOrderUpdateStatusDTO.getCancelReason())){
-                throw new ParamException(MessageConstant.NO_CANCELR_EASON);
-            }
-
-            //修改接单信息
-            takeOrder.setStatus(TakeOrderStatusConstant.CANCELED);
-            takeOrder.setCancelTime(now);
-            takeOrder.setCancelReason(takeOrderUpdateStatusDTO.getCancelReason());
-            //修改订单信息
-            order.setCancelTime(now);
-            order.setCancelReson(takeOrderUpdateStatusDTO.getCancelReason());
-            order.setStatus(OrderStatusConstant.CANCELED);
         }
 
         //更新
@@ -224,7 +206,19 @@ public class TakeOrderServiceImpl implements TakeOrderService {
     @Override
     public List<TakeOrderVO> getMy() {
         List<TakeOrderVO> list = takeOrderMapper.getMy(BaseContext.getCurrentId());
-        list.forEach(this::resolveTakeOrderImages);
+        Map<Long, String> senderAvatars = new HashMap<>();
+        list.forEach(order -> {
+            resolveTakeOrderImages(order);
+            if (order.getUserId() != null) {
+                order.setSenderAvatar(senderAvatars.computeIfAbsent(order.getUserId(), userId -> {
+                    var avatars = mediaAssetService.resolvePublicBinding(
+                            MediaAssetConstant.BOUND_USER_AVATAR,
+                            userId,
+                            MediaPurpose.AVATAR.name());
+                    return avatars.isEmpty() ? "" : avatars.get(0).getUrl();
+                }));
+            }
+        });
         return list;
     }
 

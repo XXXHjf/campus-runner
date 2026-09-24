@@ -29,6 +29,7 @@
 - 发单：`POST /api/order`；有偿单使用 `POST /api/wx-pay/jspai/{orderId}` 获取小程序支付参数。路径中的 `jspai` 是当前代码的历史拼写。支付回调为 `POST /api/wx-pay/jsapi/notify`；主动同步为 `POST /api/wx-pay/sync/{orderId}`。
 - 发布内容必须包含至少 4 个非空白字符的说明和一张订单说明图片，最多 100 个字符及一张图片；服务端再次校验，避免绕过小程序表单。已发布的订单仅在待接单 `0` 时允许通过 `PUT /api/order/{id}/content` 修改说明和图片，待支付不开放编辑，也不允许修改金额、地址、类型或时间。服务端以归属和待接单状态条件更新说明，再替换图片绑定；状态变化或图片校验失败时事务回滚。若需回退这项功能，应同时撤下编辑入口和接口，保留已有订单内容与图片绑定，不需要数据库迁移。
 - 接单与履约：`POST /api/takeOrders/{id}`、`PUT /api/takeOrders`；发单人确认：`PUT /api/order/confirm/{id}`，服务端要求当前状态为 `3`。
+- 接单人当前不能单方面取消普通单或代买单；`PUT /api/takeOrders` 拒绝接单人提交取消状态。历史取消记录仍可查看，订单履约遇到问题由平台协商处理。
 - 发单人取消：`PUT /api/order/cancel` 当前只允许 `-1` 或 `0`。未支付订单先关闭微信支付单，再进入 `4`；待接单订单进入 `4`。取消本身不代表已退款。
 - 退款：`POST /api/wx-pay/refunds` 发起，`POST /api/wx-pay/refunds/notify` 异步确认；`GET /api/wx-pay/query-refunds/{refundNumber}` 可查询。管理员另有取消和退款接口，当前管理端退款会先写入退款中并尝试调用微信退款，不能仅凭接口返回判断实际到账。
 - 收款：`POST /api/wx-transfer/transfer/{orderId}` 发起，`POST /api/wx-transfer/notify` 处理结果。应依据订单状态及真实转账结果判断是否收款，模拟支付或模拟转账不代表真实资金流转。
