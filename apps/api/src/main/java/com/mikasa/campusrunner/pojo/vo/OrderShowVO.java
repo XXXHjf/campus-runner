@@ -40,6 +40,7 @@ public class OrderShowVO{
     private Integer doorAccess;
     private Long userId;
     private String username;
+    private String senderAvatar;
     private String phone;
     private Integer status;
     private String note;

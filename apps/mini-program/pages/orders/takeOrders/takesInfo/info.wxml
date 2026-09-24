@@ -1,22 +1,17 @@
 <view class="runner-detail-page">
   <view wx:if="{{orderInfo.id}}" class="runner-detail-sender">
-    <t-avatar image="{{senderAvatar}}" icon="user" shape="circle" size="72rpx" />
-    <text class="runner-detail-sender-name">{{isMyTaken ? (orderInfo.username || '同学') : '同学发布'}}</text>
-    <text class="runner-detail-sender-time">{{orderInfo.createTime}}</text>
+    <t-avatar image="{{orderInfo.senderAvatar || ''}}" icon="user" shape="circle" size="72rpx" />
+    <text class="runner-detail-sender-name">{{orderInfo.username || '同学'}}</text>
   </view>
 
   <view wx:if="{{orderInfo.id}}" class="runner-detail-main">
-    <view wx:if="{{orderInfo.price != null}}" class="runner-detail-primary">
-      <text class="runner-detail-price">¥{{orderInfo.price}}</text>
-      <text class="runner-detail-price-label">跑腿报酬</text>
-    </view>
-    <view wx:else class="runner-detail-free">无偿跑腿</view>
-
-    <view class="runner-detail-title">{{orderInfo.businessType === 'PURCHASE' ? '购买清单' : '跑腿内容'}}</view>
-    <view class="runner-detail-tags">
+    <view class="runner-detail-primary">
+      <text wx:if="{{orderInfo.price != null}}" class="runner-detail-price">¥{{orderInfo.price}}</text>
+      <text wx:else class="runner-detail-free">无偿跑腿</text>
       <t-tag wx:if="{{orderInfo.categoryName}}" size="small" variant="light">{{orderInfo.categoryName}}</t-tag>
-      <t-tag wx:if="{{orderInfo.businessType === 'PURCHASE'}}" size="small" theme="warning" variant="light">代买</t-tag>
-      <t-tag wx:if="{{orderInfo.status > 2}}" size="small" variant="light">{{orderStatusText}}</t-tag>
+    </view>
+    <view wx:if="{{orderInfo.status > 2}}" class="runner-detail-tags">
+      <t-tag size="small" variant="light">{{orderStatusText}}</t-tag>
     </view>
     <view class="runner-detail-description">{{orderInfo.note || '暂无说明'}}</view>
     <view class="runner-detail-muted">预计送达：{{orderInfo.expectTime}}</view>
@@ -84,9 +79,9 @@
       <t-image src="{{image}}" bind:tap="tapOnImageToPreview" data-src="{{image}}" mode="aspectFit" shape="round" class="runner-detail-image" />
     </view>
 
-    <view class="runner-detail-meta">
+    <view wx:if="{{orderInfo.status >= 4 || orderInfo.status == -3 || orderInfo.status == -4}}" class="runner-detail-meta">
       <view><text>发布时间</text><text>{{orderInfo.createTime}}</text></view>
-      <view wx:if="{{orderInfo.status == 0 && orderInfo.cancelTime}}"><text>自动取消</text><text>{{orderInfo.cancelTime}}</text></view>
+      <view wx:if="{{orderInfo.status == 4 && orderInfo.cancelTime}}"><text>取消时间</text><text>{{orderInfo.cancelTime}}</text></view>
       <view wx:if="{{isMyTaken && taker.takeOrderTime}}"><text>接单时间</text><text>{{taker.takeOrderTime}}</text></view>
       <view wx:if="{{isMyTaken && orderInfo.deliveryTime}}"><text>实际送达</text><text>{{orderInfo.deliveryTime}}</text></view>
       <view><text>订单编号</text><text>{{orderInfo.orderNumber}}</text></view>

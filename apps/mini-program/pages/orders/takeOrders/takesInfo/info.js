@@ -30,7 +30,6 @@ Page({
     orderStatusText: '',
     progressStep: 0,
     isMyTaken: false,
-    senderAvatar: '',
     takeInfo: {},
     pickUpAddress: [],
     reciveAddress: [],
@@ -326,7 +325,7 @@ Page({
   async _loadOrderInfo() {
     try {
       await tokenManager.waitForToken();
-      this.setData({ taker: {}, image: null, isMyTaken: false, senderAvatar: '' });
+      this.setData({ taker: {}, image: null, isMyTaken: false });
       await this._getOrderInfo();
       
       const status = this.data.orderInfo.status;
@@ -347,10 +346,7 @@ Page({
     try {
       const orders = await takeOrderService.getMyTakeOrders();
       const myOrder = orders.find(order => String(order.orderId) === String(this.data.id));
-      this.setData({
-        isMyTaken: Boolean(myOrder),
-        senderAvatar: myOrder?.senderAvatar || ''
-      });
+      this.setData({ isMyTaken: Boolean(myOrder) });
     } catch (error) {
       console.warn('获取接单身份失败:', error);
     }

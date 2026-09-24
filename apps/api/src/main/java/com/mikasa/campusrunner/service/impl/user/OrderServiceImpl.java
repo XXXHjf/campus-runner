@@ -325,8 +325,17 @@ public class OrderServiceImpl implements OrderService {
 //        if (!order.getStatus().equals(OrderStatusConstant.WAIT_TO_TAKE_ORDER)){
 //            throw new OrderException(MessageConstant.STATUS_NOT_WAIT_TO_TAKE_ORDER);
 //        }
-        OrderShowVO list = orderMapper.detail(id);
-        return resolveOrderImage(list);
+        OrderShowVO detail = resolveOrderImage(orderMapper.detail(id));
+        if (detail != null && detail.getUserId() != null) {
+            var avatars = mediaAssetService.resolvePublicBinding(
+                    MediaAssetConstant.BOUND_USER_AVATAR,
+                    detail.getUserId(),
+                    MediaPurpose.AVATAR.name());
+            if (!avatars.isEmpty()) {
+                detail.setSenderAvatar(avatars.get(0).getUrl());
+            }
+        }
+        return detail;
     }
 
     /**

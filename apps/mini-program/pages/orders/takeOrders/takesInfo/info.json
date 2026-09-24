@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "接单详情",
+  "navigationBarBackgroundColor": "#f3f4f5",
+  "backgroundColor": "#f3f4f5",
   "usingComponents": {
     "t-avatar": "tdesign-miniprogram/avatar/avatar",
     "ui-action-bar": "/components/ui-action-bar/ui-action-bar",
