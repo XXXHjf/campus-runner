@@ -2,7 +2,7 @@
   <view class="secondhand-orders__controls" style="padding-top: {{statusBarHeight}}px;">
     <view class="secondhand-orders__nav" style="height: {{navigationBarHeight}}px; padding-right: {{navigationRightPadding}}px;">
       <view class="secondhand-orders__back" role="button" aria-label="返回" bind:tap="goBack"><t-icon name="chevron-left" size="44rpx" color="#1d2129" /></view>
-      <view class="secondhand-orders__search"><t-search value="{{keyword}}" shape="round" placeholder="搜索商品或卖家" bind:change="onSearchChange" bind:submit="onSearchSubmit" bind:clear="clearSearch" /></view>
+      <view class="secondhand-orders__search"><t-search value="{{keyword}}" shape="round" placeholder="搜索商品或买家" bind:change="onSearchChange" bind:submit="onSearchSubmit" bind:clear="clearSearch" /></view>
     </view>
     <view class="secondhand-orders__tabs" role="tablist">
       <view wx:for="{{filterOptions}}" wx:key="value" class="secondhand-orders__tab {{tabValue == item.value ? 'secondhand-orders__tab--active' : ''}}" data-value="{{item.value}}" role="tab" aria-selected="{{tabValue == item.value}}" bind:tap="selectTab">{{item.label}}</view>
@@ -14,9 +14,9 @@
     <view wx:for="{{filteredOrders}}" wx:for-item="order" wx:for-index="index" wx:key="id" class="secondhand-orders__item {{index > 0 ? 'secondhand-orders__item--separated' : ''}}" data-id="{{order.id}}" bind:tap="gotoDetail">
       <view class="secondhand-orders__item-top">
         <view class="secondhand-orders__person">
-          <t-image wx:if="{{order.sellerAvatar}}" class="secondhand-orders__avatar" src="{{order.sellerAvatar}}" mode="aspectFill" shape="circle" width="48rpx" height="48rpx" />
+          <t-image wx:if="{{order.buyerAvatar}}" class="secondhand-orders__avatar" src="{{order.buyerAvatar}}" mode="aspectFill" shape="circle" width="48rpx" height="48rpx" />
           <view wx:else class="secondhand-orders__avatar-fallback"><t-icon name="user" size="26rpx" color="#6b778c" /></view>
-          <text class="secondhand-orders__buyer">卖家 {{order.sellerName || '同学'}}</text>
+          <text class="secondhand-orders__buyer">买家 {{order.buyerName || '同学'}}</text>
         </view>
         <text class="secondhand-orders__status secondhand-orders__status--{{order.statusKind}}">{{order.statusText}}</text>
       </view>
@@ -30,13 +30,13 @@
       </view>
       <view class="secondhand-orders__item-bottom">
         <view class="secondhand-orders__more" data-id="{{order.id}}" role="button" aria-label="更多操作" catch:tap="openActionSheet"><t-icon name="ellipsis" size="40rpx" color="#6b778c" /></view>
-        <view wx:if="{{order.canContact}}" class="secondhand-orders__action"><t-button data-id="{{order.id}}" catch:tap="contactCounterparty" t-class="cr-secondhand-capsule cr-secondhand-capsule--outline" size="small" shape="round" theme="default" variant="outline">联系卖家</t-button></view>
+        <view wx:if="{{order.canContact}}" class="secondhand-orders__action"><t-button data-id="{{order.id}}" catch:tap="contactCounterparty" t-class="cr-secondhand-capsule cr-secondhand-capsule--outline" size="small" shape="round" theme="default" variant="outline">联系买家</t-button></view>
         <view wx:if="{{order.primaryAction}}" class="secondhand-orders__action"><t-button data-id="{{order.id}}" catch:tap="onPrimaryAction" t-class="cr-secondhand-capsule cr-secondhand-capsule--outline" size="small" shape="round" theme="default" variant="outline">{{order.primaryAction}}</t-button></view>
       </view>
     </view>
   </view>
   <view wx:if="{{loading && !orders.length}}" class="secondhand-orders__feedback"><t-loading theme="circular" text="加载中" /></view>
-  <ui-empty-state wx:elif="{{!filteredOrders.length}}" title="{{orders.length ? '没有符合条件的订单' : '暂无购买订单'}}" />
+  <ui-empty-state wx:elif="{{!filteredOrders.length}}" title="{{orders.length ? '没有符合条件的订单' : '暂无卖出订单'}}" />
 </view>
 
 <t-popup visible="{{actionSheetVisible}}" placement="bottom" close-on-overlay-click="true" bind:visible-change="onActionSheetChange">

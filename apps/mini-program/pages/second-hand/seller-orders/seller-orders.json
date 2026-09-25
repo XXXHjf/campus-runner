@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "我买到的",
+  "navigationBarTitleText": "我卖出的",
   "navigationStyle": "custom",
   "backgroundColor": "#f6f8f7",
   "usingComponents": {

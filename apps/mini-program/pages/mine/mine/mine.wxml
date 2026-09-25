@@ -31,6 +31,7 @@
           <view class="menu-badge" wx:if="{{menu.value==='label_1' && unpaidOrderList.length>0}}">{{unpaidOrderList.length}}</view>
           <view class="menu-badge" wx:if="{{menu.value==='label_2' && notReceiveOrderList.length>0}}">{{notReceiveOrderList.length}}</view>
           <view class="menu-badge" wx:if="{{menu.value==='label_8' && secondHandOrderCount>0}}">{{secondHandOrderCount}}</view>
+          <view class="menu-badge" wx:if="{{menu.value==='label_12' && secondHandSellerOrderCount>0}}">{{secondHandSellerOrderCount}}</view>
           <view class="menu-badge" wx:if="{{menu.value==='label_9' && bargainPendingCount>0}}">{{bargainPendingCount}}</view>
         </view>
         <view class="menu-copy">
@@ -40,9 +41,9 @@
     </view>
   </view>
 
-  <view class="task-center-heading" wx:if="{{unpaidOrderList.length > 0 || notReceiveOrderList.length > 0 || secondHandOrderCount > 0 || bargainPendingCount > 0}}">
+  <view class="task-center-heading" wx:if="{{unpaidOrderList.length > 0 || notReceiveOrderList.length > 0 || secondHandOrderCount > 0 || secondHandSellerOrderCount > 0 || bargainPendingCount > 0}}">
     <text>待办事项</text>
-    <text class="task-center-count">{{unpaidOrderList.length + notReceiveOrderList.length + secondHandOrderCount + bargainPendingCount}}项</text>
+    <text class="task-center-count">{{unpaidOrderList.length + notReceiveOrderList.length + secondHandOrderCount + secondHandSellerOrderCount + bargainPendingCount}}项</text>
   </view>
 
   <!-- 待支付提醒 -->

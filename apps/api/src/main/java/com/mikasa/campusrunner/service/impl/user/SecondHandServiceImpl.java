@@ -463,7 +463,9 @@ public class SecondHandServiceImpl implements SecondHandService {
     public List<SecondHandOrderVO> listBuyerOrders() {
         ensureAuthenticated();
         refreshUnpaidTimeouts();
-        return enrichOrders(orderMapper.listByBuyer(BaseContext.getCurrentId()));
+        List<SecondHandOrderVO> orders = enrichOrders(orderMapper.listByBuyer(BaseContext.getCurrentId()));
+        resolveCounterpartyAvatars(orders, false);
+        return orders;
     }
 
     @Override
@@ -471,7 +473,9 @@ public class SecondHandServiceImpl implements SecondHandService {
     public List<SecondHandOrderVO> listSellerOrders() {
         ensureAuthenticated();
         refreshUnpaidTimeouts();
-        return enrichOrders(orderMapper.listBySeller(BaseContext.getCurrentId()));
+        List<SecondHandOrderVO> orders = enrichOrders(orderMapper.listBySeller(BaseContext.getCurrentId()));
+        resolveCounterpartyAvatars(orders, true);
+        return orders;
     }
 
     @Override
@@ -1808,6 +1812,21 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     private List<SecondHandOrderVO> enrichOrders(List<SecondHandOrderVO> orders) {
         return orders.stream().map(this::enrichOrder).toList();
+    }
+
+    private void resolveCounterpartyAvatars(List<SecondHandOrderVO> orders, boolean sellerView) {
+        Map<Long, String> avatarCache = new HashMap<>();
+        for (SecondHandOrderVO order : orders) {
+            Long counterpartyId = sellerView ? order.getBuyerId() : order.getSellerId();
+            if (counterpartyId == null) continue;
+            String avatar = avatarCache.computeIfAbsent(counterpartyId, id -> {
+                var avatars = mediaAssetService.resolvePublicBinding(
+                        MediaAssetConstant.BOUND_USER_AVATAR, id, MediaPurpose.AVATAR.name());
+                return avatars.isEmpty() ? "" : avatars.get(0).getUrl();
+            });
+            if (sellerView) order.setBuyerAvatar(avatar);
+            else order.setSellerAvatar(avatar);
+        }
     }
 
     private SecondHandOrderVO enrichOrder(SecondHandOrderVO order) {

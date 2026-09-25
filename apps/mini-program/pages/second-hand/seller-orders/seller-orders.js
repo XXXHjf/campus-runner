@@ -62,7 +62,7 @@ Page({
   async loadOrders() {
     this.setData({ loading: true });
     try {
-      const orders = (await secondHandService.listBuyerOrders()).map((order) => this.decorateOrder(order));
+      const orders = (await secondHandService.listSellerOrders()).map((order) => this.decorateOrder(order));
       this.setData({ orders, filteredOrders: this.filterOrders(orders, this.data.tabValue, this.data.keyword) });
     } catch (error) {
       wx.showToast({ title: friendlyError(error, '订单加载失败'), icon: 'none' });
@@ -92,16 +92,17 @@ Page({
           : [7, 10, 11].includes(status) ? 'warning'
             : [0, 5, 8].includes(status) ? 'pending' : 'active',
       coverImage: String(order.productImages || '').split(',').filter(Boolean)[0] || '',
-      canCancel: isOffline ? status === 1 : [0, 1].includes(status),
+      canCancel: isOffline && status === 1,
       canContact: isOffline || !!order.payTime,
-      primaryAction: status === 2 ? '去确认' : '',
+      primaryAction: status === 1 ? '去交付'
+        : status === 8 && !isOffline && order.transferState === 'WAIT_USER_CONFIRM' ? '确认收款' : '',
     };
   },
 
   filterOrders(orders, tabValue, keyword) {
     const needle = normalizeSearchText(keyword);
     return orders.filter((order) => (tabValue === 'all' || order.statusGroup === tabValue)
-      && (!needle || normalizeSearchText([order.productTitle, order.sellerName, order.orderNumber].join(' ')).includes(needle)));
+      && (!needle || normalizeSearchText([order.productTitle, order.buyerName, order.orderNumber].join(' ')).includes(needle)));
   },
 
   applyFilters(tabValue = this.data.tabValue, keyword = this.data.keyword) {
@@ -122,7 +123,7 @@ Page({
 
   contactCounterparty(e) {
     const id = e.currentTarget.dataset.id;
-    if (id) showOrderContact(id, '卖家');
+    if (id) showOrderContact(id, '买家');
   },
 
   openActionSheet(e) {
@@ -145,15 +146,14 @@ Page({
     if (!order.canCancel || this.data.actionBusy) return;
     wx.showModal({
       title: '取消订单',
-      content: order.isOffline ? '取消后双方无需继续本次交易。确认取消？'
-        : (Number(order.status) === 1 ? '卖家交付前取消会发起退款，确认继续？' : '确认取消订单？'),
+      content: '取消后商品将重新展示，双方无需继续本次交易。确认取消？',
       confirmText: '确认取消',
       confirmColor: '#d54941',
       success: async (res) => {
         if (!res.confirm || this.data.actionBusy) return;
         this.setData({ actionBusy: true });
         try {
-          await secondHandService.cancelOrder(order.id, order.isOffline ? '买家取消线下交易' : '买家取消订单');
+          await secondHandService.cancelOrder(order.id, '卖家取消线下交易');
           wx.showToast({ title: '已取消', icon: 'success' });
         } catch (error) {
           wx.showToast({ title: friendlyError(error, '取消失败'), icon: 'none' });

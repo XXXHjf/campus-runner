@@ -14,8 +14,10 @@ public class SecondHandOrderVO {
     private Long bargainId;
     private Long buyerId;
     private String buyerName;
+    private String buyerAvatar;
     private Long sellerId;
     private String sellerName;
+    private String sellerAvatar;
     private String tradeMode;
     private String productTitle;
     private String productImages;

@@ -6,6 +6,7 @@
     "pages/second-hand/detail/detail",
     "pages/second-hand/publish/publish",
     "pages/second-hand/orders/orders",
+    "pages/second-hand/seller-orders/seller-orders",
     "pages/second-hand/bargains/bargains",
     "pages/second-hand/order-detail/order-detail",
     "pages/second-hand/my-products/my-products",

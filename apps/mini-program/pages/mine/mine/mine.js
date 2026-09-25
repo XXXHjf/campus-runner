@@ -53,8 +53,13 @@ Page({
           },
           {
             value: 'label_8',
-            label: '二手订单',
+            label: '我买到的',
             icon: 'order-ascending',
+          },
+          {
+            value: 'label_12',
+            label: '我卖出的',
+            icon: 'shop',
           },
           {
             value: 'label_11',
@@ -86,6 +91,7 @@ Page({
     notReceiveOrderList: [],
     unpaidOrderList: [],
     secondHandOrderCount: 0,
+    secondHandSellerOrderCount: 0,
     bargainPendingCount: 0,
   },
 
@@ -95,7 +101,7 @@ Page({
       return;
     }
     const action = e.currentTarget.dataset.value;
-    if (['label_7', 'label_8', 'label_9', 'label_11'].includes(action)
+    if (['label_7', 'label_8', 'label_9', 'label_11', 'label_12'].includes(action)
       && !await require('../../../utils/accessGuard').ensureAuthenticated()) return;
     if (this[action]) {
       this[action]();
@@ -131,6 +137,9 @@ Page({
     wx.navigateTo({
       url: '/pages/second-hand/orders/orders',
     })
+  },
+  label_12() {
+    wx.navigateTo({ url: '/pages/second-hand/seller-orders/seller-orders' });
   },
   label_9() {
     wx.navigateTo({
@@ -298,6 +307,7 @@ Page({
           notReceiveOrderList: [],
           unpaidOrderList: [],
           secondHandOrderCount: 0,
+          secondHandSellerOrderCount: 0,
           bargainPendingCount: 0,
         });
         mineTabBadgeService.clearMineTabRedDot();
@@ -452,13 +462,15 @@ Page({
         && Number(item.sellerId) === Number(userId)
       )).length;
       return {
-        secondHandOrderCount: buyerActionCount + sellerActionCount,
+        secondHandOrderCount: buyerActionCount,
+        secondHandSellerOrderCount: sellerActionCount,
         bargainPendingCount,
       };
     } catch (error) {
       console.error('获取二手待办失败:', error);
       return {
         secondHandOrderCount: 0,
+        secondHandSellerOrderCount: 0,
         bargainPendingCount: 0,
       };
     }
@@ -497,6 +509,7 @@ Page({
         notReceiveOrderList: [],
         unpaidOrderList: [],
         secondHandOrderCount: 0,
+        secondHandSellerOrderCount: 0,
         bargainPendingCount: 0,
       });
       mineTabBadgeService.clearMineTabRedDot();
@@ -509,7 +522,7 @@ Page({
       // 返回资料页后可继续浏览，不在生命周期中强制进入注册。
       if (Number(userInfo.authentication) !== 1) {
         this.setData({ notReceiveOrderList: [], unpaidOrderList: [],
-          secondHandOrderCount: 0, bargainPendingCount: 0 });
+          secondHandOrderCount: 0, secondHandSellerOrderCount: 0, bargainPendingCount: 0 });
         mineTabBadgeService.clearMineTabRedDot();
         return;
       }
@@ -528,6 +541,7 @@ Page({
         notReceiveOrders.length
         + unpaidOrders.length
         + secondHandTasks.secondHandOrderCount
+        + secondHandTasks.secondHandSellerOrderCount
         + secondHandTasks.bargainPendingCount,
       );
       
@@ -540,6 +554,7 @@ Page({
         notReceiveOrderList: [],
         unpaidOrderList: [],
         secondHandOrderCount: 0,
+        secondHandSellerOrderCount: 0,
         bargainPendingCount: 0,
       });
       mineTabBadgeService.clearMineTabRedDot();

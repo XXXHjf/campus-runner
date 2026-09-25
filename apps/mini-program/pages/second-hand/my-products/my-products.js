@@ -3,8 +3,16 @@ const { friendlyError } = require('../../../utils/secondHandStatus');
 
 Page({
   data: {
+    statusBarHeight: 0,
+    navigationBarHeight: 44,
+    navigationRightPadding: 96,
+    controlsHeight: 88,
     products: [],
+    filteredProducts: [],
+    tab: 'selling',
     loading: false,
+    actionSheetVisible: false,
+    actionProduct: {},
     pricePopupVisible: false,
     priceProduct: null,
     currentPriceText: '',
@@ -14,15 +22,42 @@ Page({
     priceKeyboardHeight: 0,
   },
 
+  onLoad() {
+    this.updateNavigationMetrics();
+  },
+
   onShow() {
     this.loadProducts();
+  },
+
+  updateNavigationMetrics() {
+    const windowInfo = typeof wx.getWindowInfo === 'function'
+      ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const menuButton = wx.getMenuButtonBoundingClientRect();
+    const statusBarHeight = windowInfo.statusBarHeight || 0;
+    const hasMenuButton = menuButton && menuButton.width > 0 && menuButton.left > 0;
+    const menuGap = hasMenuButton ? Math.max(0, menuButton.top - statusBarHeight) : 0;
+    const navigationBarHeight = hasMenuButton ? Math.max(44, menuButton.height + menuGap * 2) : 44;
+    this.setData({
+      statusBarHeight,
+      navigationBarHeight,
+      navigationRightPadding: hasMenuButton
+        ? Math.max(96, windowInfo.windowWidth - menuButton.left + 4) : 96,
+      controlsHeight: statusBarHeight + navigationBarHeight + windowInfo.windowWidth * 84 / 750,
+    });
+  },
+
+  goBack() {
+    if (getCurrentPages().length > 1) wx.navigateBack({ delta: 1 });
+    else wx.switchTab({ url: '/pages/mine/mine/mine' });
   },
 
   async loadProducts() {
     this.setData({ loading: true });
     try {
       const products = await secondHandService.listMyProducts();
-      this.setData({ products: products.map((item) => this.decorateProduct(item)) });
+      const decorated = products.map((item) => this.decorateProduct(item));
+      this.setData({ products: decorated, filteredProducts: this.filterProducts(decorated, this.data.tab) });
     } catch (error) {
       wx.showToast({ title: this.errorText(error, '加载失败'), icon: 'none' });
     } finally {
@@ -39,6 +74,35 @@ Page({
       statusTheme: this.statusTheme(product.status),
       canChangePrice: this.canChangePrice(product),
     };
+  },
+
+  filterProducts(products, tab) {
+    return products.filter((item) => Number(item.status) === (tab === 'offShelf' ? 4 : 0));
+  },
+
+  selectTab(e) {
+    const tab = e.currentTarget.dataset.tab;
+    if (tab === this.data.tab) return;
+    this.setData({ tab, filteredProducts: this.filterProducts(this.data.products, tab) });
+  },
+
+  openActionSheet(e) {
+    const product = this.data.products.find((item) => Number(item.id) === Number(e.currentTarget.dataset.id));
+    if (product) this.setData({ actionSheetVisible: true, actionProduct: product });
+  },
+
+  closeActionSheet() {
+    this.setData({ actionSheetVisible: false });
+  },
+
+  onActionSheetChange(e) {
+    if (!e.detail.visible) this.closeActionSheet();
+  },
+
+  showActionProductDetail() {
+    const id = this.data.actionProduct.id;
+    this.closeActionSheet();
+    if (id) wx.navigateTo({ url: `/pages/second-hand/detail/detail?id=${id}` });
   },
 
   firstImage(images) {
@@ -141,6 +205,7 @@ Page({
         pricePopupVisible: false,
         priceKeyboardHeight: 0,
       });
+      this.setData({ filteredProducts: this.filterProducts(this.data.products, this.data.tab) });
       wx.showToast({ title: '已改价', icon: 'success' });
     } catch (error) {
       this.setData({ priceError: this.errorText(error, '改价失败，请重试') });
@@ -149,9 +214,10 @@ Page({
     }
   },
 
-  toggleStatus(e) {
-    const product = this.data.products.find((item) => Number(item.id) === Number(e.currentTarget.dataset.id));
+  toggleStatus() {
+    const product = this.data.actionProduct;
     if (!product) return;
+    this.closeActionSheet();
     const isOffShelf = Number(product.status) === 4;
     const nextStatus = isOffShelf ? 0 : 4;
     wx.showModal({

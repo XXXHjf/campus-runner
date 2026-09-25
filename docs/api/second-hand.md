@@ -148,6 +148,10 @@ GET 分类、商品列表和数字 ID 的商品详情允许游客访问；有效
 `POST /api/second-hand/pay/jsapi/{orderId}` 会拒绝发起新的微信支付。重新开放线上能力前，必须
 重新核对微信正式准入、资金关系和接口版本，不能只修改配置值。
 
+买家和卖家订单列表各自返回对方的公开头像 URL（`sellerAvatar` / `buyerAvatar`），
+无头像时为空。列表不返回联系电话；只有交易双方通过订单详情，在允许的订单阶段才能取得
+`counterpartyPhone`。小程序列表的联系入口据此提供拨打与复制。
+
 ### 历史服务费配置
 
 `second_hand_service_fee_rate` 仅供历史线上交易兼容，当前管理端隐藏该配置。

@@ -1,14 +1,11 @@
 {
-  "navigationBarTitleText": "",
-  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTitleText": "我的闲置",
+  "navigationStyle": "custom",
   "backgroundColor": "#f6f8f7",
   "usingComponents": {
-    "ui-page-header": "/components/ui-page-header/ui-page-header",
-    "ui-page": "/components/ui-page/ui-page",
-    "ui-section": "/components/ui-section/ui-section",
     "ui-empty-state": "/components/ui-empty-state/ui-empty-state",
+    "t-loading": "tdesign-miniprogram/loading/loading",
     "t-button": "tdesign-miniprogram/button/button",
-    "t-tag": "tdesign-miniprogram/tag/tag",
     "t-image": "tdesign-miniprogram/image/image",
     "t-popup": "tdesign-miniprogram/popup/popup",
     "t-input": "tdesign-miniprogram/input/input",

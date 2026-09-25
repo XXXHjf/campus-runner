@@ -1,50 +1,50 @@
-<ui-page class="my-products-page" compact>
-  <ui-page-header title="我的闲置" subtitle="{{loading ? '正在加载闲置' : products.length + ' 件闲置'}}" />
+<view class="my-products-page">
+  <view class="my-products-page__controls" style="padding-top: {{statusBarHeight}}px;">
+    <view class="my-products-page__nav" style="height: {{navigationBarHeight}}px; padding-right: {{navigationRightPadding}}px;">
+      <view class="my-products-page__back" role="button" aria-label="返回" bind:tap="goBack"><t-icon name="chevron-left" size="44rpx" color="#1d2129" /></view>
+      <text class="my-products-page__nav-title">我的闲置</text>
+    </view>
+    <view class="my-products-page__tabs" role="tablist">
+      <view class="my-products-page__tab {{tab == 'selling' ? 'my-products-page__tab--active' : ''}}" data-tab="selling" role="tab" aria-selected="{{tab == 'selling'}}" bind:tap="selectTab">在卖</view>
+      <view class="my-products-page__tab {{tab == 'offShelf' ? 'my-products-page__tab--active' : ''}}" data-tab="offShelf" role="tab" aria-selected="{{tab == 'offShelf'}}" bind:tap="selectTab">已下架</view>
+    </view>
+  </view>
+  <view class="my-products-page__controls-spacer" style="height: {{controlsHeight}}px;"></view>
 
   <view class="my-products-page__body">
-    <view wx:if="{{products.length>0}}" class="my-products-page__list">
-      <ui-section wx:for="{{products}}" wx:key="id" plain>
-        <view class="my-products-page__card">
-          <view class="my-products-page__main" data-id="{{item.id}}" bindtap="gotoDetail">
+    <view wx:if="{{filteredProducts.length>0}}" class="my-products-page__list">
+      <view wx:for="{{filteredProducts}}" wx:for-item="product" wx:for-index="index" wx:key="id" class="my-products-page__card {{index > 0 ? 'my-products-page__card--separated' : ''}}">
+          <view class="my-products-page__item-top">
+            <text class="my-products-page__category">{{product.categoryName || '闲置好物'}}</text>
+            <text class="my-products-page__status {{product.status == 4 ? 'my-products-page__status--off' : ''}}">{{product.statusText}}</text>
+          </view>
+          <view class="my-products-page__main" data-id="{{product.id}}" bindtap="gotoDetail">
             <t-image
               class="my-products-page__cover"
-              src="{{item.coverImage}}"
+              src="{{product.coverImage}}"
               mode="aspectFill"
               shape="round"
-              width="168rpx"
-              height="168rpx"
+              width="124rpx"
+              height="124rpx"
             />
             <view class="my-products-page__info">
-              <view class="my-products-page__top">
-                <view class="my-products-page__title">{{item.title}}</view>
-                <view class="my-products-page__status">
-                  <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
-                </view>
-              </view>
-              <view class="my-products-page__meta">{{item.categoryName || '闲置好物'}} · {{item.conditionLevel || '成色良好'}}</view>
-              <view class="my-products-page__price">¥{{item.price}}</view>
+              <text class="my-products-page__title">{{product.title}}</text>
+              <text class="my-products-page__meta">{{product.conditionLevel || '成色良好'}}</text>
             </view>
+            <text class="my-products-page__price">¥{{product.price}}</text>
           </view>
           <view class="my-products-page__actions">
-            <view wx:if="{{item.status==0 || item.status==4}}" class="my-products-page__action-slot">
-              <t-button
-                t-class="cr-secondhand-capsule cr-secondhand-capsule--outline"
-                size="small"
-                shape="round"
-                theme="default"
-                variant="outline"
-                data-id="{{item.id}}"
-                bind:tap="toggleStatus"
-              >{{item.status==4?'上架':'下架'}}</t-button>
+            <view class="my-products-page__more" data-id="{{product.id}}" role="button" aria-label="更多操作" catch:tap="openActionSheet">
+              <t-icon name="ellipsis" size="40rpx" color="#6b778c" />
             </view>
-            <view wx:if="{{item.canChangePrice}}" class="my-products-page__action-slot">
+            <view wx:if="{{product.canChangePrice}}" class="my-products-page__action-slot">
               <t-button
                 t-class="cr-secondhand-capsule cr-secondhand-capsule--outline"
                 size="small"
                 shape="round"
                 theme="default"
                 variant="outline"
-                data-id="{{item.id}}"
+                data-id="{{product.id}}"
                 bind:tap="openPriceSheet"
               >改价</t-button>
             </view>
@@ -55,25 +55,26 @@
                 shape="round"
                 theme="default"
                 variant="outline"
-                data-id="{{item.id}}"
+                data-id="{{product.id}}"
                 bind:tap="editProduct"
               >编辑</t-button>
             </view>
           </view>
         </view>
-      </ui-section>
-    </view>
+      </view>
 
-    <ui-section wx:if="{{!loading && products.length==0}}" plain>
-      <ui-empty-state
-        title="还没有发布闲置"
-        description="把用不上的东西交给同校需要的人"
-        action-text="发布第一件"
-        bind:action="gotoPublish"
-      />
-    </ui-section>
+    <view wx:if="{{loading && !products.length}}" class="my-products-page__feedback"><t-loading theme="circular" text="加载中" /></view>
+    <ui-empty-state wx:elif="{{!filteredProducts.length}}" title="{{tab == 'selling' ? '暂无在卖商品' : '暂无已下架商品'}}" description="{{tab == 'selling' ? '发布闲置，让同校同学看到' : ''}}" action-text="{{tab == 'selling' ? '发布闲置' : ''}}" bind:action="gotoPublish" />
   </view>
-</ui-page>
+</view>
+
+<t-popup visible="{{actionSheetVisible}}" placement="bottom" close-on-overlay-click="true" bind:visible-change="onActionSheetChange">
+  <view class="my-products-page__sheet">
+    <t-button block variant="text" theme="{{actionProduct.status == 4 ? 'primary' : 'danger'}}" bind:tap="toggleStatus">{{actionProduct.status == 4 ? '重新上架' : '下架商品'}}</t-button>
+    <t-button block variant="text" bind:tap="showActionProductDetail">查看商品</t-button>
+    <t-button block variant="text" bind:tap="closeActionSheet">关闭</t-button>
+  </view>
+</t-popup>
 
 <t-popup
   visible="{{pricePopupVisible}}"
