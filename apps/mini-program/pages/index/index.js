@@ -25,6 +25,7 @@ const {
 Page({
   retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
+    refreshing: false,
     userInfo: {},
     schoolName: '',
     keyword: '',
@@ -691,7 +692,7 @@ Page({
     this._schoolVersion = (this._schoolVersion || 0) + 1;
     this._refreshPending = null;
     this._ordersPending = null;
-    this.setData({ isLoginChecking: false, ordersLoading: false });
+    this.setData({ isLoginChecking: false, ordersLoading: false, refreshing: false });
   },
   onUnload() {
     this.onHide();
@@ -745,9 +746,12 @@ Page({
     return promise;
   },
   async onPullDownRefresh() {
+    if (this.data.refreshing) return;
+    this.setData({ refreshing: true });
     try {
       await this.refreshRunner();
     } finally {
+      this.setData({ refreshing: false });
       wx.stopPullDownRefresh();
     }
   },

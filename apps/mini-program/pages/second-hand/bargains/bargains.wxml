@@ -1,5 +1,3 @@
-<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
-<block wx:if="{{!feedbackLoadError}}">
 <view class="bargains-page">
   <view class="bargains-page__tabs">
     <t-tabs theme="line" show-bottom-line="{{false}}" value="{{tab}}" bind:click="onTabsClick">
@@ -8,8 +6,9 @@
     </t-tabs>
   </view>
 
-  <view class="bargains-page__body">
-    <view wx:if="{{tab == 'received' ? received.length > 0 : issued.length > 0}}" class="bargains-page__list">
+  <scroll-view class="bargains-page__body" scroll-y="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}" refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" refresher-background="#f5f7fa" bindrefresherrefresh="onPullDownRefresh">
+    <ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+    <view wx:elif="{{tab == 'received' ? received.length > 0 : issued.length > 0}}" class="bargains-page__list">
       <view
         wx:for="{{tab == 'received' ? received : issued}}"
         wx:for-item="record"
@@ -48,9 +47,8 @@
       title="{{tab == 'received' ? '暂无收到的议价' : '暂无发出的议价'}}"
       description="{{tab == 'received' ? '买家提交报价后，会显示在这里' : '在商品详情提交报价后，会显示在这里'}}"
     />
-  </view>
+  </scroll-view>
 </view>
 
 
-</block>
 <ui-feedback id="ui-feedback" />

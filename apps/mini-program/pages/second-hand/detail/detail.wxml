@@ -86,18 +86,22 @@
   <ui-action-bar wx:if="{{!product.isOwner || product.status==0 || product.status==4}}" class="detail-action-bar" fixed>
     <view class="detail-bottom-actions">
       <block wx:if="{{product.isOwner}}">
-        <t-button
-          class="detail-owner-action"
-          shape="round"
-          variant="outline"
-          bind:tap="toggleProductStatus"
-        >{{product.status==4?'上架':'下架'}}</t-button>
-        <t-button
-          class="detail-owner-action"
-          shape="round"
-          theme="primary"
-          bind:tap="editProduct"
-        >编辑商品</t-button>
+        <view class="detail-primary-actions">
+          <t-button
+            class="detail-capsule-action"
+            t-class="cr-secondhand-capsule detail-bottom-capsule"
+            shape="round"
+            variant="outline"
+            bind:tap="toggleProductStatus"
+          >{{product.status==4?'上架':'下架'}}</t-button>
+          <t-button
+            class="detail-capsule-action"
+            t-class="cr-secondhand-capsule detail-bottom-capsule"
+            shape="round"
+            theme="primary"
+            bind:tap="editProduct"
+          >编辑商品</t-button>
+        </view>
       </block>
       <block wx:else>
         <view class="detail-secondary-actions">

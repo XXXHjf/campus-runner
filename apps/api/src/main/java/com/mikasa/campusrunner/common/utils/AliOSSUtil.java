@@ -9,6 +9,7 @@ import com.aliyun.oss.common.auth.CredentialsProvider;
 import com.aliyun.oss.common.auth.DefaultCredentialProvider;
 import com.aliyun.oss.model.PutObjectResult;
 import com.aliyun.oss.model.GeneratePresignedUrlRequest;
+import com.aliyun.oss.model.ResponseHeaderOverrides;
 import com.mikasa.campusrunner.common.exception.UploadException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -66,14 +67,26 @@ public class AliOSSUtil {
     }
 
     public String generatePresignedUrl(String objectKey, Duration duration, int maxWidth) {
+        String process = maxWidth > 0
+                ? "image/resize,m_fill,w_" + maxWidth + ",h_" + maxWidth + ",limit_1/quality,q_75"
+                : null;
+        return generatePresignedImageUrl(objectKey, duration, process);
+    }
+
+    public String generatePresignedImageUrl(String objectKey, Duration duration, String process) {
         OSS ossClient = buildClient();
         try {
             Date expiration = stableExpiration(System.currentTimeMillis(), duration);
             GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(
                     bucketName, objectKey, HttpMethod.GET);
             request.setExpiration(expiration);
-            if (maxWidth > 0) {
-                request.setProcess("image/resize,w_" + maxWidth);
+            if (process != null) {
+                request.setProcess(process);
+            }
+            if (duration.compareTo(Duration.ofDays(1)) >= 0) {
+                ResponseHeaderOverrides responseHeaders = new ResponseHeaderOverrides();
+                responseHeaders.setCacheControl("private,max-age=3600");
+                request.setResponseHeaders(responseHeaders);
             }
             URL url = ossClient.generatePresignedUrl(request);
             return ensureHttps(url.toString());

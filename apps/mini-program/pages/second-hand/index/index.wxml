@@ -69,7 +69,7 @@
   >
     <view wx:if="{{products.length>0}}" class="product-grid">
       <view wx:for="{{products}}" wx:key="id" class="product-card" data-id="{{item.id}}" bindtap="gotoDetail">
-        <t-image class="cover" src="{{item.coverImage}}" mode="aspectFill" />
+        <t-image class="cover" src="{{item.coverImage}}" lazy="{{index >= 4}}" mode="aspectFill" />
         <view class="product-body">
           <view class="product-title">{{item.title}}</view>
           <view class="product-tags">

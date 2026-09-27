@@ -7,6 +7,7 @@ const { bargainStatus, friendlyError } = require('../../../utils/secondHandStatu
 Page({
   retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
+    refreshing: false,
     tab: 'received',
     issued: [],
     received: [],
@@ -46,8 +47,6 @@ Page({
       });
     } catch (error) {
       feedback.loadError(this, '议价记录加载失败，请重试', () => this.loadList(), !!(this.data.received.length + this.data.issued.length));
-    } finally {
-      wx.stopPullDownRefresh();
     }
   },
 
@@ -159,7 +158,13 @@ Page({
     return friendlyError(error, fallback);
   },
 
-  onPullDownRefresh() {
-    this.loadList();
+  async onPullDownRefresh() {
+    if (this.data.refreshing) return;
+    this.setData({ refreshing: true });
+    try {
+      await this.loadList();
+    } finally {
+      this.setData({ refreshing: false });
+    }
   },
 });

@@ -366,7 +366,3 @@ page {
   --td-button-medium-font-size: 28rpx;
   --td-button-medium-padding-horizontal: 12rpx;
 }
-
-.detail-page .detail-owner-action {
-  flex: 1;
-}

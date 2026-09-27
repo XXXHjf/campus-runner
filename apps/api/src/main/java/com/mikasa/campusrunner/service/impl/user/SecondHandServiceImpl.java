@@ -278,7 +278,7 @@ public class SecondHandServiceImpl implements SecondHandService {
             query.setStatus(SecondHandConstant.PRODUCT_ON_SALE);
         }
         List<SecondHandProductVO> products = productMapper.list(query, schoolId);
-        products.forEach(product -> resolveProductImages(product, 600));
+        products.forEach(product -> resolveProductImages(product, 480));
         return products;
     }
 

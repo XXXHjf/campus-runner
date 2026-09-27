@@ -321,6 +321,29 @@ class MediaAssetServiceImplTest {
                         .get(0).getUrl());
     }
 
+    @Test
+    void categoryIconUsesSmallTransparentImageAndProductDetailKeepsOriginal() {
+        MediaAsset icon = MediaAsset.builder().id(12L).objectKey("category/icon.png")
+                .visibility(MediaAssetConstant.VISIBILITY_PUBLIC).sortOrder(0).build();
+        when(mediaAssetMapper.listBoundAssets("ORDER_CATEGORY", 13L, "ORDER_CATEGORY_ICON"))
+                .thenReturn(List.of(icon));
+        when(aliOSSUtil.generatePresignedImageUrl("category/icon.png", Duration.ofDays(7),
+                "image/resize,m_lfit,w_96,h_96,limit_1")).thenReturn("https://public.example/icon");
+        assertEquals("https://public.example/icon",
+                service.resolvePublicBinding("ORDER_CATEGORY", 13L, "ORDER_CATEGORY_ICON")
+                        .get(0).getUrl());
+
+        MediaAsset product = MediaAsset.builder().id(14L).objectKey("product/image.jpg")
+                .visibility(MediaAssetConstant.VISIBILITY_PUBLIC).sortOrder(0).build();
+        when(mediaAssetMapper.listBoundAssets("SECOND_HAND_PRODUCT", 15L, "SECOND_HAND_PRODUCT_IMAGE"))
+                .thenReturn(List.of(product));
+        when(aliOSSUtil.generatePresignedUrl("product/image.jpg", Duration.ofDays(7)))
+                .thenReturn("https://public.example/original");
+        assertEquals("https://public.example/original",
+                service.resolvePublicBinding("SECOND_HAND_PRODUCT", 15L, "SECOND_HAND_PRODUCT_IMAGE")
+                        .get(0).getUrl());
+    }
+
     private byte[] imageBytes() throws Exception {
         BufferedImage image =
                 new BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB);

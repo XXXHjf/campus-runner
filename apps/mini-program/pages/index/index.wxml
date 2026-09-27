@@ -38,7 +38,7 @@
       <text class="runner-filter-summary-reset" bindtap="resetFilters">清除</text>
     </view>
   </view>
-  <view class="runner-feed">
+  <scroll-view class="runner-feed" scroll-y="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}" refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" refresher-background="#f6f8f7" bindrefresherrefresh="onPullDownRefresh">
     <view wx:if="{{takes.length === 0 && (isLoginChecking || ordersLoading)}}" class="runner-list-loading">
       <t-loading theme="dots" size="36rpx" text="加载中" />
     </view>
@@ -48,7 +48,7 @@
         <view class="show-cart" bindtap="gotoTakesInfo" data-item="{{item}}">
           <!-- 分类 -->
           <view class="box1">
-            <t-image wx:if="{{item.categoryImage}}" class="categoryImage" src="{{item.categoryImage}}" loading="slot" error="slot" mode="widthFix" />
+            <t-image wx:if="{{item.categoryImage}}" class="categoryImage" src="{{item.categoryImage}}" lazy="{{index >= 3}}" loading="slot" error="slot" mode="widthFix" />
             <view class="categoryName">{{item.categoryName}}</view>
             <!-- 时间tag -->
             <view>
@@ -71,7 +71,7 @@
           <view class="box2" style="margin-bottom: 20rpx;">
             <!-- 订单说明图片 -->
             <view hidden="{{item.image==null}}">
-              <t-image class="image" src="{{item.image}}" id="loading-img" mode="aspectFill" shape="round" style="filter:blur(4rpx)" />
+              <t-image class="image" src="{{item.image}}" lazy="{{index >= 3}}" id="loading-img" mode="aspectFill" shape="round" style="filter:blur(4rpx)" />
             </view>
             <!-- 订单说明文字 -->
             <view class="box2-1">
@@ -88,7 +88,7 @@
     <ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
     <ui-empty-state wx:elif="{{!isLoginChecking && !ordersLoading && takes.length === 0}}" title="暂无可接订单" />
     <view class="runner-feed-bottom-space" />
-  </view>
+  </scroll-view>
   <view wx:if="{{!filterVisible}}" class="runner-publish-float">
     <t-button t-class="runner-publish-button" theme="primary" shape="round" icon="add" bind:tap="gotoPublishRunner">发布跑腿</t-button>
   </view>

@@ -17,5 +17,6 @@
     "t-search": "tdesign-miniprogram/search/search",
     "triple-address-pricker": "../../components/triple-address-pricker/triple-address-pricker"
   },
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": false,
+  "disableScroll": true
 }

@@ -1,17 +1,20 @@
 @import "../../../styles/second-hand-card.wxss";
 
 page {
+  height: 100%;
+  overflow: hidden;
   background: var(--cr-color-background, #f5f7fa);
 }
 
 .bargains-page {
-  min-height: 100vh;
-  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .bargains-page__tabs {
-  position: sticky;
-  top: 0;
+  flex: none;
   z-index: 10;
   background: var(--cr-color-surface, #fff);
   --td-tab-border-color: transparent;
@@ -24,6 +27,11 @@ page {
 }
 
 .bargains-page__body {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
   padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
 }
 

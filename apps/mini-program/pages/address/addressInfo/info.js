@@ -443,11 +443,12 @@ Page({
     }
   },
   // 下拉刷新事件
-  onPullDownRefresh() {
-    // 这里加上要刷新的逻辑
-    this.getAddressInfo()
-    // ------------
-    wx.stopPullDownRefresh()
+  async onPullDownRefresh() {
+    try {
+      await this.getAddressInfo();
+    } finally {
+      wx.stopPullDownRefresh();
+    }
   },
 
 })

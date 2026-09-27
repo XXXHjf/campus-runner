@@ -26,7 +26,7 @@ Page({
     userInfo: null,
     displayPhone: '',
     loginLoadShow: false,
-    defaultAvatarUrl: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
+    defaultAvatarUrl: '/images/default-avatar.png',
     shareFlag: false,
     feedbackFlag: false,
 

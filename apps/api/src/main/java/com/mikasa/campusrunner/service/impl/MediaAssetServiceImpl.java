@@ -315,9 +315,19 @@ public class MediaAssetServiceImpl implements MediaAssetService {
                 .map(asset -> {
                     Duration lifetime = MediaAssetConstant.VISIBILITY_PRIVATE.equals(asset.getVisibility())
                             ? PRIVATE_URL_LIFETIME : PUBLIC_URL_LIFETIME;
-                    String url = maxWidth > 0
-                            ? aliOSSUtil.generatePresignedUrl(asset.getObjectKey(), lifetime, maxWidth)
-                            : aliOSSUtil.generatePresignedUrl(asset.getObjectKey(), lifetime);
+                    String url;
+                    if (maxWidth > 0) {
+                        url = aliOSSUtil.generatePresignedUrl(asset.getObjectKey(), lifetime, maxWidth);
+                    } else if (purpose == MediaPurpose.ORDER_CATEGORY_ICON
+                            || purpose == MediaPurpose.SECOND_HAND_CATEGORY_ICON) {
+                        url = aliOSSUtil.generatePresignedImageUrl(asset.getObjectKey(), lifetime,
+                                "image/resize,m_lfit,w_96,h_96,limit_1");
+                    } else if (purpose == MediaPurpose.AVATAR) {
+                        url = aliOSSUtil.generatePresignedImageUrl(asset.getObjectKey(), lifetime,
+                                "image/resize,m_lfit,w_256,h_256,limit_1/quality,q_80");
+                    } else {
+                        url = aliOSSUtil.generatePresignedUrl(asset.getObjectKey(), lifetime);
+                    }
                     return BoundMediaVO.builder()
                             .mediaId(asset.getId())
                             .url(url)

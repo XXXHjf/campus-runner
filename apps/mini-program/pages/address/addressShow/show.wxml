@@ -1,7 +1,7 @@
 <ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
 <block wx:if="{{!feedbackLoadError}}">
 <view class="address-page">
-  <view class="address-hero">
+  <!-- <view class="address-hero">
     <view class="hero-icon">
       <t-icon name="location" size="42rpx" color="#0052d9" />
     </view>
@@ -10,7 +10,7 @@
       <view class="hero-subtitle">发布跑腿和二手配送时可直接选择</view>
     </view>
     <view class="address-count">{{addressBook.length}}个</view>
-  </view>
+  </view> -->
 
   <view class="address-list" wx:if="{{addressBook.length > 0}}">
     <view

@@ -67,6 +67,7 @@ function createHarness({ token = 'session-a', getUserInfo, getSchools, listProdu
       throw new Error(`Unexpected dependency: ${id}`);
     },
     wx: {
+      showShareMenu() {},
       getWindowInfo: () => ({ windowWidth: 375, statusBarHeight: 20 }),
       getMenuButtonBoundingClientRect: () => ({ top: 24, left: 281, width: 87, height: 32 }),
       showToast: (options) => toasts.push(options.title),
