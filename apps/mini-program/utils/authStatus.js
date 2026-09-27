@@ -49,11 +49,14 @@ function getStatusTitle(status) {
   return '认证材料';
 }
 
-function getStatusDesc(status) {
+function getStatusDesc(status, reason) {
   const s = Number(status);
-  if (s === STUDENT_ID_CARD_REVIEW_STATUS.APPROVED || s === STUDENT_ID_CARD_REVIEW_STATUS.PENDING) return '';
+  if (s === STUDENT_ID_CARD_REVIEW_STATUS.APPROVED) return '';
+  if (s === STUDENT_ID_CARD_REVIEW_STATUS.PENDING) return '已提交，等待审核';
   if (s === STUDENT_ID_CARD_REVIEW_STATUS.REJECTED) {
-    return '审核未通过，请核对信息并重新提交材料';
+    return typeof reason === 'string' && reason.trim()
+      ? reason.trim()
+      : '本次审核未提供具体原因，请核对认证信息和材料后重新提交';
   }
   return '请填写认证信息并上传证明材料';
 }

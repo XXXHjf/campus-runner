@@ -11,4 +11,6 @@ import lombok.Data;
 public class AdminStuAuthDTO {
     private Long userID;
     private Integer review;
+    private String studentIdCardRejectReason;
+    private Long authReviewVersion;
 }

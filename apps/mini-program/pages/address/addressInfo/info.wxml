@@ -21,7 +21,10 @@
 
     <view class="address-info__group address-info__group--divided">
       <view class="address-info__default">
-        <t-radio block="{{false}}" custom-style="width: 100%;" value="radio" label="设为默认地址" placement="right" bind:tap="changeDefault" checked="{{upDefault == 1}}" borderless />
+        <t-cell wx:if="{{addressInfo.isDefault == 1}}" title="默认地址" borderless>
+          <t-tag slot="note" size="small" variant="light" theme="primary">默认</t-tag>
+        </t-cell>
+        <t-radio wx:else block="{{false}}" custom-style="width: 100%;" value="radio" label="设为默认地址" placement="right" bind:tap="changeDefault" checked="{{upDefault == 1}}" borderless />
       </view>
     </view>
   </ui-section>

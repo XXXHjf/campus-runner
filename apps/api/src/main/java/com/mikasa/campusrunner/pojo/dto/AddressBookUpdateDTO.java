@@ -9,6 +9,7 @@ import lombok.Data;
 @Data
 public class AddressBookUpdateDTO {
     private Long id;
+    private Integer isDefault;
     private Long schoolNumberId;
     private Long compusNumberId;
     private Long buildCategoryNumberId;

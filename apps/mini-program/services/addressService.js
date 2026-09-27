@@ -5,6 +5,11 @@
 
 const { request } = require('./request');
 
+function checkResult(res) {
+  if (res.data?.code !== 1) throw new Error(res.data?.msg || '操作失败，请重试');
+  return res;
+}
+
 const url = getApp().globalData.API_URL;
 
 /**
@@ -15,7 +20,7 @@ function getThreeLevelAddress() {
   return request({
     url: `${url}/api/address/three`,
     method: 'GET'
-  }).then(res => {
+  }).then(checkResult).then(res => {
     return res.data.data;
   });
 }
@@ -28,7 +33,7 @@ function getCategories() {
   return request({
     url: `${url}/api/category`,
     method: 'GET'
-  }).then(res => {
+  }).then(checkResult).then(res => {
     return res.data.data;
   });
 }
@@ -41,7 +46,7 @@ function getAllAddresses() {
   return request({
     url: `${url}/api/address/show`,
     method: 'GET'
-  }).then(res => {
+  }).then(checkResult).then(res => {
     return res.data.data || [];
   });
 }
@@ -56,7 +61,7 @@ function createUserAddress(addressData) {
     url: `${url}/api/address`,
     method: 'POST',
     data: addressData
-  }).then(res => {
+  }).then(checkResult).then(res => {
     return res.data;
   });
 }
@@ -71,7 +76,7 @@ function updateUserAddress(addressData) {
     url: `${url}/api/address`,
     method: 'PUT',
     data: addressData
-  }).then(res => {
+  }).then(checkResult).then(res => {
     return res.data;
   });
 }
@@ -86,7 +91,7 @@ function updateUserAddressDetail(addressData) {
     url: `${url}/api/address/update`,
     method: 'PUT',
     data: addressData
-  }).then(res => {
+  }).then(checkResult).then(res => {
     return res.data;
   });
 }
@@ -100,7 +105,7 @@ function deleteUserAddress(addressId) {
   return request({
     url: `${url}/api/address/${addressId}`,
     method: 'DELETE'
-  }).then(res => {
+  }).then(checkResult).then(res => {
     return res.data;
   });
 }
@@ -115,7 +120,7 @@ function getUserAddressDetail(addressId) {
     url: `${url}/api/address`,
     method: 'GET',
     data: { id: addressId }
-  }).then(res => {
+  }).then(checkResult).then(res => {
     return res.data.data?.[0] || {};
   });
 }

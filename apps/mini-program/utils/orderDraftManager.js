@@ -6,6 +6,14 @@
 
 const { CACHE_KEYS } = require('./orderConstants');
 
+// Only an absolute timestamp can reproduce the deadline used for submission.
+function normalizeSelectedTime(value) {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  if (typeof value === 'string' && !value.trim()) return null;
+  const time = Number(value);
+  return time > 0 && Number.isFinite(new Date(time).getTime()) ? time : null;
+}
+
 /**
  * 保存订单草稿
  * @param {Object} orderData - 订单数据
@@ -15,8 +23,9 @@ function saveDraft(orderData) {
   try {
     const draft = {
       ...orderData,
+      selectedTime: normalizeSelectedTime(orderData.selectedTime),
       timestamp: Date.now(),
-      version: '1.0' // 用于未来版本兼容
+      version: '1.1' // 用于未来版本兼容
     };
     
     wx.setStorageSync(CACHE_KEYS.ORDER_DRAFT, draft);
@@ -87,7 +96,11 @@ function restoreFromDraft(draft) {
   if (!draft) return {};
   
   // 不恢复的字段（用于控制UI状态，不应该恢复）
-  const excludeFields = ['timestamp', 'version', 'userInfo', 'orderID', 'wxpayPrepayID'];
+  const excludeFields = [
+    'timestamp', 'version', 'userInfo', 'orderID', 'wxpayPrepayID',
+    'showReachTime', 'gapReach', 'activeTab', 'todayTimes', 'tomorrowTimes',
+    'isReachTimeVisiable', 'showOrderConfirm'
+  ];
   
   const restored = {};
   Object.keys(draft).forEach(key => {
@@ -96,6 +109,10 @@ function restoreFromDraft(draft) {
     }
   });
   
+  // Older drafts without a timestamp must require a new selection. Relative
+  // durations and labels cannot identify the user's original deadline.
+  const selectedTime = normalizeSelectedTime(draft.selectedTime);
+  restored.selectedTime = selectedTime !== null && selectedTime > Date.now() ? selectedTime : null;
   return restored;
 }
 

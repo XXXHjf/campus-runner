@@ -16,6 +16,9 @@ public interface SecondHandOrderMapper {
 
     SecondHandOrder getById(@Param("id") Long id);
 
+    @org.apache.ibatis.annotations.Select("select * from tb_second_hand_order where bargain_id = #{bargainId} limit 1")
+    SecondHandOrder getByBargainId(@Param("bargainId") Long bargainId);
+
     SecondHandOrder getByOrderNumber(@Param("orderNumber") String orderNumber);
 
     SecondHandOrder getByTransferOutBillNo(@Param("transferOutBillNo") String transferOutBillNo);

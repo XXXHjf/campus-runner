@@ -238,7 +238,8 @@ Page({
       priceAccess: this.data.priceAccess,
       isPurchase: this.data.isPurchase,
       productAmount: this.data.productAmount,
-      count: this.data.count
+      count: this.data.count,
+      selectedTime: this.data.selectedTime
     };
     
     this.debouncedSaveDraft(draftData);
@@ -279,6 +280,7 @@ Page({
             maskedShowPhone: maskPhone(restored.showPhone),
             hasLoadedDraft: true
           }, () => {
+            this._syncDeliveryTime();
             this.buttonColor();
           });
           checkCilcleToast(this, '已恢复草稿');
@@ -308,7 +310,7 @@ Page({
     });
   },
   // 生成时间列表
-  async _generateTimeSlots() {
+  async _generateTimeSlots(initializeSelection = false) {
     // 生成今日时间（仅当前时间之后的准点）
     const todayTimes = await this._generateTodayTimes();
 
@@ -327,28 +329,41 @@ Page({
     const todayTimesWithLabel = markRecommended(todayTimes);
     const tomorrowTimesWithLabel = markRecommended(tomorrowTimes);
 
-    // 如果今天已经没有可选时间，则只显示明天
-    var defaultTimeList = todayTimesWithLabel.length > 0 ? todayTimesWithLabel : tomorrowTimesWithLabel;
-    var day = todayTimesWithLabel.length > 0 ? "今天 " : "明天 ";
-    
-    if (todayTimesWithLabel.length <= 0) {
-      this.setData({
-        activeTab: 'tomorrow'
-      });
-    }
-    
-    // 生成后将默认最近的整点作为显示时间
-    var timeDifference = defaultTimeList[0].time - Date.now();
-    var minutesDifference = Math.floor(timeDifference / (1000 * 60));
-    this.setData({
-      showReachTime: day + defaultTimeList[0].displayTime,
-      gapReach: minutesDifference,
-      selectedTime: defaultTimeList[0].time
-    });
-
     this.setData({
       todayTimes: todayTimesWithLabel,
-      tomorrowTimes: tomorrowTimesWithLabel
+      tomorrowTimes: tomorrowTimesWithLabel,
+      ...(this.data.selectedTime == null ? { activeTab: todayTimesWithLabel.length ? 'today' : 'tomorrow' } : {})
+    });
+    // Defaults apply only to a new form, never to a restored or expired choice.
+    if (initializeSelection && !this.data.hasLoadedDraft && this.data.selectedTime == null) {
+      const firstSlot = todayTimesWithLabel[0] || tomorrowTimesWithLabel[0];
+      this.setData({ selectedTime: firstSlot ? firstSlot.time : null });
+    }
+    this._syncDeliveryTime();
+  },
+
+  _syncDeliveryTime() {
+    const selectedTime = this.data.selectedTime;
+    const now = Date.now();
+    if (!Number.isFinite(selectedTime) || selectedTime <= now || !Number.isFinite(new Date(selectedTime).getTime())) {
+      this.setData({ selectedTime: null, showReachTime: '', gapReach: null });
+      return;
+    }
+    const selectedDate = new Date(selectedTime);
+    const today = new Date(now);
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const sameDay = date => selectedDate.getFullYear() === date.getFullYear()
+      && selectedDate.getMonth() === date.getMonth() && selectedDate.getDate() === date.getDate();
+    const isToday = sameDay(today);
+    const isTomorrow = sameDay(tomorrow);
+    const day = isToday ? '今天' : isTomorrow ? '明天'
+      : `${selectedDate.getMonth() + 1}月${selectedDate.getDate()}日`;
+    const time = `${selectedDate.getHours()}:${String(selectedDate.getMinutes()).padStart(2, '0')}`;
+    this.setData({
+      showReachTime: `${day} ${time}`,
+      gapReach: Math.max(1, Math.floor((selectedTime - now) / 60000)),
+      activeTab: isToday ? 'today' : 'tomorrow'
     });
   },
   // 生成今日时间
@@ -446,21 +461,10 @@ Page({
   },
   // 选择送达时间
   selectTime(e) {
-    const selectedTime = e.currentTarget.dataset.time.time;
-    var date = "今天"
-    if (this.data.activeTab == "today")
-      date = "今天 "
-    else
-      date = "明天 "
-    var timeDifference = selectedTime - Date.now();
-    var minutesDifference = Math.floor(timeDifference / (1000 * 60));
-    console.log(minutesDifference);
-    this.setData({
-      selectedTime: selectedTime,
-      gapReach: minutesDifference,
-      isReachTimeVisiable: false,
-      showReachTime: date + e.currentTarget.dataset.time.displayTime
-    });
+    this.setData({ selectedTime: e.currentTarget.dataset.time.time });
+    this._syncDeliveryTime();
+    this.setData({ isReachTimeVisiable: false });
+    this._saveDraftData();
   },
   // 接单提示
   closeConfirm() {
@@ -1028,11 +1032,12 @@ Page({
     // 数据预处理
     this._prepareOrderData();
 
-    if (!this.data.selectedTime || this.data.selectedTime <= Date.now()) {
+    if (!Number.isFinite(this.data.selectedTime) || this.data.selectedTime <= Date.now()) {
+      this._syncDeliveryTime();
       errorCilcleToast(this, '请重新选择送达时间');
       return;
     }
-    this.setData({ gapReach: Math.max(1, Math.floor((this.data.selectedTime - Date.now()) / 60000)) });
+    this._syncDeliveryTime();
 
     if (this.data.priceAccess === PRICE_MODE.PAID && !this.data.feeConfigLoaded) {
       feedback.showMessage(this, '费用暂时无法获取，请重试', { persistent: true, key: 'fee', action: '重试', onAction: () => this._loadFeeConfig() });
@@ -1152,7 +1157,8 @@ Page({
       const isPaidOrder = this.data.priceAccess === PRICE_MODE.PAID;
 
       // 确认弹窗或订阅授权期间可能跨过截止时间，实际提交前再次校验。
-      if (!this.data.selectedTime || this.data.selectedTime <= Date.now()) {
+      if (!Number.isFinite(this.data.selectedTime) || this.data.selectedTime <= Date.now()) {
+        this._syncDeliveryTime();
         this.setData({ showOrderConfirm: false });
         throw new Error('预期送达时间已过，请重新选择');
       }
@@ -1344,7 +1350,7 @@ Page({
     // 初始化日期标签
     this._setDateLabels();
     // 生成时间列表
-    this._generateTimeSlots();
+    this._generateTimeSlots(true);
     // 初始化草稿自动保存
     this._initDraftAutoSave();
   },
@@ -1352,6 +1358,7 @@ Page({
   // 生命周期函数--监听页面显示
   async onShow() {
     console.log('[生命周期] onShow - 页面显示');
+    this._syncDeliveryTime();
     
     try {
       // 等待 token 就绪
@@ -1485,17 +1492,8 @@ Page({
 
   // 预期送达时间对应事件：选择送达时间
   async tapOnReachTime() {
-    const selectedTime = this.data.selectedTime;
-    const showReachTime = this.data.showReachTime;
     this._setDateLabels();
     await this._generateTimeSlots();
-    if (selectedTime && selectedTime > Date.now()) {
-      this.setData({
-        selectedTime,
-        showReachTime,
-        gapReach: Math.max(1, Math.floor((selectedTime - Date.now()) / 60000))
-      });
-    }
     this.setData({
       isReachTimeVisiable: true
     })

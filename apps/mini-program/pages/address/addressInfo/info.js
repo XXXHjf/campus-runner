@@ -45,7 +45,10 @@ Page({
   },
   // 删除（使用封装的 service）
   async b1() {
-    const result = await feedback.showModal(this, { title: '删除地址？', content: '删除后需要重新添加该地址。', confirmText: '删除', cancelText: '保留', danger: true });
+    let addresses;
+    try { addresses = await addressService.getAllAddresses(); }
+    catch (error) { showError(this, '地址加载失败，请重试'); return; }
+    const result = await feedback.showModal(this, { title: '删除地址？', content: this.data.addressInfo.isDefault == 1 && addresses.length > 1 ? '删除后，最近添加的其他地址将设为默认地址。' : '删除后需要重新添加该地址。', confirmText: '删除', cancelText: '保留', danger: true });
     if (!result.confirm) return;
     try {
       showLoading('删除中');
@@ -64,10 +67,6 @@ Page({
     try {
       showLoading('保存中');
 
-      if (this.data.upDefault == 1) {
-        await this.saveAsDefault();
-      }
-
       const id = this.data.addressInfo.id;
       const requestedDetails = this.data.upDetails;
       const requestedLabel = this.data.upLabel;
@@ -75,6 +74,7 @@ Page({
       // 动态构建数据对象
       let data = {
         'id': id,
+        'isDefault': Number(this.data.upDefault),
         'details': requestedDetails,
         'label': requestedLabel,
       };
@@ -91,16 +91,21 @@ Page({
 
       await addressService.updateUserAddressDetail(data);
 
-      if (requestedDetails === '' || requestedLabel === '') {
-        const savedAddress = await addressService.getUserAddressDetail(id);
-        const detailsNotCleared = requestedDetails === '' && (savedAddress.details || '') !== '';
-        const labelNotCleared = requestedLabel === '' && (savedAddress.label || '') !== '';
-
-        if (detailsNotCleared || labelNotCleared) {
-          const error = new Error('地址修改未生效');
-          error.code = ADDRESS_SAVE_NOT_APPLIED;
-          throw error;
-        }
+      const savedAddress = await addressService.getUserAddressDetail(id);
+      let defaultMatches = Number(savedAddress.isDefault) === data.isDefault;
+      // 历史地址可能没有默认地址；服务端会在本次写入时补齐。
+      if (!defaultMatches && data.isDefault === 0 && Number(savedAddress.isDefault) === 1
+          && this.data.addressInfo.isDefault != 1) {
+        const addresses = await addressService.getAllAddresses();
+        const defaults = addresses.filter(address => Number(address.isDefault) === 1);
+        defaultMatches = defaults.length === 1 && String(defaults[0].id) === String(id);
+      }
+      if (!defaultMatches
+          || (savedAddress.details || '') !== requestedDetails
+          || (savedAddress.label || '') !== requestedLabel) {
+        const error = new Error('地址修改未生效');
+        error.code = ADDRESS_SAVE_NOT_APPLIED;
+        throw error;
       }
 
       feedback.navigate(this, 'navigateBack', {}, '更新成功');
@@ -210,21 +215,11 @@ Page({
   },
   // 设置为默认地址
   changeDefault(event) {
-    const oldDefault = this.data.upDefault;
+    if (this.data.addressInfo.isDefault == 1) return;
+    const oldDefault = Number(this.data.upDefault);
     this.setData({
       upDefault: (oldDefault + 1) % 2,
     })
-  },
-  // 保存为默认地址（使用封装的 service）
-  async saveAsDefault() {
-    try {
-      const id = this.data.addressInfo.id;
-      await addressService.updateUserAddress({ id });
-      console.log('设置默认地址成功');
-    } catch (error) {
-      console.error('设置默认地址失败:', error);
-      throw error;
-    }
   },
   // 显示地址选择器
   showAddressPicker() {
@@ -270,7 +265,7 @@ Page({
         upCategory: addressInfo.buildCategoryName,
         upBuilding: addressInfo.buildingName,
         upDetails: addressInfo.details || '',
-        upDefault: addressInfo.isDefault,
+        upDefault: addressInfo.isDefault == 1 ? 1 : 0,
         upLabel: addressInfo.label || '',
         showLabelTip: false,
         showDetailsTip: false,

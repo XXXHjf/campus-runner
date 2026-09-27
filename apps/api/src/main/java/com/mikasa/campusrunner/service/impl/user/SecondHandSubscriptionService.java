@@ -33,6 +33,12 @@ public class SecondHandSubscriptionService {
         status(recipient, productId, productId.toString(), "pages/second-hand/detail/detail?id=" + productId, "议价中", tip, time);
     }
 
+    public void bargainAccepted(Long recipient, Long productId, Long bargainId, String tip, LocalDateTime time) {
+        status(recipient, productId, productId.toString(),
+                "pages/second-hand/detail/detail?id=" + productId + "&bargainId=" + bargainId,
+                "待下单", tip, time);
+    }
+
     private void status(Long recipient, Long productId, String number, String page, String status, String tip, LocalDateTime time) {
         afterCommit(() -> {
             var product = products.getById(productId);

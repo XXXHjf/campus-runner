@@ -49,7 +49,7 @@
   <view wx:if="{{showBuySheet}}" class="sheet-mask" bindtap="closeBuySheet">
     <view class="sheet buy-sheet" catchtap="noop">
       <view class="sheet-title">确认交付方式</view>
-      <view class="buy-price">¥{{product.price}}</view>
+      <view class="buy-price">¥{{orderPrice}}</view>
       <view class="mode-grid">
         <view class="mode-card {{selectedDeliveryMode==0?'active':''}}" data-mode="0" bindtap="chooseDeliveryMode">
           <view class="mode-title">买家自提</view>

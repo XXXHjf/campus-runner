@@ -51,8 +51,8 @@ async function guideAuthentication(user = {}) {
       content: pending ? '认证材料正在审核，通过后即可操作。您可以继续浏览，或查看审核进度。'
         : (rejected ? '请查看未通过原因，修改材料后重新提交。审核通过前仍可继续浏览。'
           : '完成校园认证后才能操作。请先完善个人资料并提交认证材料，您也可以暂不认证、继续浏览。'),
-      confirmText: pending ? '查看进度' : '去认证',
-      cancelText: pending ? '继续浏览' : '暂不认证',
+      confirmText: pending ? '查看进度' : (rejected ? '查看并修改' : '去认证'),
+      cancelText: pending || rejected ? '继续浏览' : '暂不认证',
     });
     if (accepted) wx.navigateTo({ url: !isProfileComplete(user) && !pending ? PROFILE_PAGE : CAMPUS_AUTH_PAGE });
   } finally { guidanceVisible = false; }

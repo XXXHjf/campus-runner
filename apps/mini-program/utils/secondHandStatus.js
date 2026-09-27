@@ -29,6 +29,7 @@ const BARGAIN_STATUS = {
   1: { text: '已接受', theme: 'success' },
   2: { text: '已拒绝', theme: 'danger' },
   3: { text: '已失效', theme: 'default' },
+  4: { text: '已撤回', theme: 'default' },
 };
 
 function orderStatus(status, tradeMode) {
@@ -36,6 +37,24 @@ function orderStatus(status, tradeMode) {
     ? OFFLINE_ORDER_STATUS
     : ORDER_STATUS;
   return statusMap[Number(status)] || { text: '订单状态', theme: 'default' };
+}
+
+function orderStatusGroup(status, tradeMode) {
+  const value = Number(status);
+  const isOffline = String(tradeMode || '').toUpperCase() === 'OFFLINE';
+  if (isOffline) {
+    if ([1, 2, 11].includes(value)) return 'processing';
+    if (value === 3) return 'completed';
+    if (value === 4) return 'canceled';
+  } else {
+    // 收款异常和协商中仍待处理；退款分组只包含真正的退款状态。
+    if ([0, 1, 2, 8, 10, 11].includes(value)) return 'processing';
+    if ([3, 9].includes(value)) return 'completed';
+    if (value === 4) return 'canceled';
+    if ([5, 6, 7].includes(value)) return 'refund';
+  }
+  // 未知状态仅在全部中展示，避免误报为退款。
+  return 'all';
 }
 
 function bargainStatus(status) {
@@ -74,6 +93,7 @@ function friendlyError(error, fallback) {
 module.exports = {
   SECOND_HAND_ONLINE_PAYMENT_ENABLED,
   orderStatus,
+  orderStatusGroup,
   bargainStatus,
   formatRemain,
   friendlyError,

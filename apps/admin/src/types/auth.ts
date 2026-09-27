@@ -26,6 +26,8 @@ export interface PendingAuthUser {
   stuId?: string
   studentIdCard?: string
   studentIdCardReview?: AuthReviewStatus
+  studentIdCardRejectReason?: string | null
+  authReviewVersion: number
   score?: number
   money?: number
   isManager?: number
@@ -38,5 +40,7 @@ export interface PendingAuthUser {
 export interface ReviewAuthRequest {
   userID: number
   review: AuthReviewStatus
+  authReviewVersion: number
+  studentIdCardRejectReason?: string
 }
 

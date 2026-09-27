@@ -13,6 +13,8 @@ import java.util.List;
  */
 @Mapper
 public interface AddressBookMapper {
+    @org.apache.ibatis.annotations.Select("select id from tb_user where id = #{id} for update")
+    Long lockUser(Long id);
 
     /**
      * 得到id列表

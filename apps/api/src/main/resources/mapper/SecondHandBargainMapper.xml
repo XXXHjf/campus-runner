@@ -38,6 +38,11 @@
         where id = #{id} and deleted = 0
     </select>
 
+    <select id="getByIdForUpdate" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandBargain">
+        select * from tb_second_hand_bargain
+        where id = #{id} and deleted = 0 for update
+    </select>
+
     <select id="countByBuyerAndProduct" resultType="int">
         select count(1)
         from tb_second_hand_bargain
@@ -52,6 +57,14 @@
         where product_id = #{productId}
           and deleted = 0
           and status = 0
+    </update>
+
+    <update id="expireAcceptedWithoutOrder">
+        update tb_second_hand_bargain b
+        left join tb_second_hand_order o on o.bargain_id = b.id
+        set b.status = 3, b.update_time = now()
+        where b.product_id = #{productId} and b.deleted = 0
+          and b.status = 1 and o.id is null
     </update>
 
     <sql id="bargainVoSelect">

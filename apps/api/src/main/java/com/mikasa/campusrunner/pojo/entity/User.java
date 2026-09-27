@@ -27,6 +27,8 @@ public class User {
     private Long schoolId;
     private String stuId;
     private Integer studentIdCardReview;//学生证审核(0未审核 1审核中 2审核通过 3审核不通过)
+    private String studentIdCardRejectReason;
+    private Long authReviewVersion;
     private Integer score;
     private BigDecimal money;
     private Integer isManager;//是否是管理员(0不是 1是)

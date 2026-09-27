@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_favorite` (
 -- 1 已接受：卖家接受该报价，并生成订单。
 -- 2 已拒绝：卖家拒绝该报价。
 -- 3 已失效：商品已被其他订单锁定/成交，或其他议价被接受。
+-- 4 已撤回：买家主动撤回待回复报价，保留记录与议价次数。
 --
 -- attempt_no：
 -- 同一买家对同一商品第几次议价，用于防止重复骚扰。
@@ -126,7 +127,7 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_bargain` (
   `seller_id` BIGINT NOT NULL COMMENT '卖家用户id，关联 tb_user.id',
   `offer_price` DECIMAL(10,2) NOT NULL COMMENT '买家本次议价报价金额',
   `message` VARCHAR(255) NULL COMMENT '买家议价留言，如取货时间、价格说明',
-  `status` INT NULL DEFAULT 0 COMMENT '议价状态：0待回复，1已接受，2已拒绝，3已失效',
+  `status` INT NULL DEFAULT 0 COMMENT '议价状态：0待回复，1已接受，2已拒绝，3已失效，4已撤回',
   `attempt_no` INT NULL COMMENT '同一买家对同一商品的第几次议价',
   `deleted` INT NULL DEFAULT 0 COMMENT '逻辑删除字段：0未删除，1已删除',
   `create_time` DATETIME NULL COMMENT '议价创建时间',

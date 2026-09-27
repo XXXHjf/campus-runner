@@ -7,6 +7,7 @@ import com.mikasa.campusrunner.common.context.BaseContext;
 import com.mikasa.campusrunner.common.exception.LoginFailedException;
 import com.mikasa.campusrunner.common.exception.UserException;
 import com.mikasa.campusrunner.mapper.UserMapper;
+import com.mikasa.campusrunner.mapper.SchoolMapper;
 import com.mikasa.campusrunner.pojo.dto.UserAuthenDTO;
 import com.mikasa.campusrunner.pojo.dto.UserLoginDTO;
 import com.mikasa.campusrunner.pojo.dto.UserSaveDTO;
@@ -45,6 +46,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private SchoolMapper schoolMapper;
 
     @Autowired
     private MediaAssetService mediaAssetService;
@@ -134,6 +138,12 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void userAuthen(UserAuthenDTO userAuthenDTO) {
 
+        Long userId = BaseContext.getCurrentId();
+        User lockedUser = userMapper.getByIdForAuthUpdate(userId);
+        if (lockedUser == null) throw new UserException(MessageConstant.NO_USER);
+        if (Integer.valueOf(1).equals(lockedUser.getStudentIdCardReview())) {
+            throw new UserException("认证材料审核中，请勿重复提交");
+        }
         UserVO currentUser = getCurrentUser();
         if (!isProfileComplete(currentUser)) {
             throw new UserException(MessageConstant.USER_PROFILE_INCOMPLETE);
@@ -141,7 +151,6 @@ public class UserServiceImpl implements UserService {
 
         User user = new User();
         BeanUtils.copyProperties(userAuthenDTO, user);
-        Long userId = BaseContext.getCurrentId();
         user.setId(userId);
 
         if (userAuthenDTO.getStudentIdCardAssetId() == null) {
@@ -149,11 +158,17 @@ public class UserServiceImpl implements UserService {
             throw new UserException(MessageConstant.NO_STUDENT_ID_CARD);
         }
 
-        //下一步是 人工 审核学生证是否正确
-        user.setStudentIdCardReview(StudentIdCardReviewConstant.DOING_REVIEW);//审核中
-
-        //更新
-        userMapper.update(user);
+        if (StringUtils.isBlank(userAuthenDTO.getRealname()) || StringUtils.isBlank(userAuthenDTO.getStuId())) {
+            throw new UserException("请填写姓名和学号");
+        }
+        if (userAuthenDTO.getSchoolId() == null || schoolMapper.getNameById(userAuthenDTO.getSchoolId()) == null) {
+            throw new UserException("请选择有效的学校");
+        }
+        user.setRealname(userAuthenDTO.getRealname().strip());
+        user.setStuId(userAuthenDTO.getStuId().strip());
+        if (userMapper.submitAuthentication(user) != 1) {
+            throw new UserException("申请状态已更新，请刷新后重试");
+        }
         mediaAssetService.replaceBinding(
                 List.of(userAuthenDTO.getStudentIdCardAssetId()),
                 MediaPurpose.STUDENT_CARD.name(),
@@ -176,6 +191,9 @@ public class UserServiceImpl implements UserService {
         resolveUserMedia(user);
         if (user != null) {
             user.setProfileCompleted(isProfileComplete(user));
+            if (!Integer.valueOf(3).equals(user.getStudentIdCardReview())) {
+                user.setStudentIdCardRejectReason(null);
+            }
         }
         return user;
     }

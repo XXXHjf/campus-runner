@@ -49,6 +49,13 @@ public interface UserMapper {
      */
     UserVO getById(Long currentId);
 
+    User getByIdForAuthUpdate(@Param("id") Long id);
+
+    int submitAuthentication(User user);
+
+    int reviewAuthentication(@Param("id") Long id, @Param("version") Long version,
+                             @Param("review") Integer review, @Param("reason") String reason);
+
     /**
      * 获取当前用户的学校id
      * @param id

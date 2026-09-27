@@ -76,5 +76,13 @@ class SecondHandSubscriptionServiceTest {
         assertTrue(SecondHandSubscriptionService.shortTitle("特别长的未知商品名称").length()<=5);
         assertEquals("同学", SecondHandSubscriptionService.text("\n😀",20,"同学"));
     }
+    @Test void acceptedQuoteNotifiesBuyerToChooseDeliveryInsteadOfOpeningAnOrder() {
+        when(users.getById(20L)).thenReturn(UserVO.builder().openid("receiver").build());
+        when(products.getById(3L)).thenReturn(SecondHandProduct.builder().title("耳机").build());
+        service.bargainAccepted(20L, 3L, 7L, "报价已接受，请选择交付方式下单", LocalDateTime.now());
+        verify(sender).send(anyString(), eq("receiver"),
+                eq("pages/second-hand/detail/detail?id=3&bargainId=7"),
+                argThat(data -> value(data, "phrase2").equals("待下单")));
+    }
     private static String value(JSONObject data, String key) { return data.getJSONObject(key).getString("value"); }
 }

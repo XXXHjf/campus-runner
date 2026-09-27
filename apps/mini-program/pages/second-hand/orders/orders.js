@@ -1,6 +1,6 @@
 const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
-const { orderStatus, friendlyError } = require('../../../utils/secondHandStatus');
+const { orderStatus, orderStatusGroup, friendlyError } = require('../../../utils/secondHandStatus');
 const { showOrderContact } = require('../../../utils/secondHandContact');
 
 function normalizeSearchText(value) {
@@ -79,16 +79,11 @@ Page({
     const status = Number(order.status);
     const isOffline = String(order.tradeMode || '').toUpperCase() === 'OFFLINE';
     const isRefund = !isOffline && [5, 6, 7].includes(status);
-    let statusGroup = 'refund';
-    if ([0, 1, 2, 8].includes(status)) statusGroup = 'processing';
-    else if ([3, 9].includes(status)) statusGroup = 'completed';
-    else if (status === 4) statusGroup = 'canceled';
-    else if (isRefund) statusGroup = 'refund';
     return {
       ...order,
       isOffline,
       isRefund,
-      statusGroup,
+      statusGroup: orderStatusGroup(status, order.tradeMode),
       statusText: orderStatus(status, order.tradeMode).text,
       statusKind: [3, 6, 9].includes(status) ? 'done'
         : status === 4 ? 'neutral'

@@ -104,15 +104,23 @@ public class SecondHandController {
     }
 
     @PostMapping("/bargains/{id}/accept")
-    @Operation(summary = "接受议价并生成待支付订单")
-    public Result<SecondHandOrderVO> acceptBargain(@PathVariable Long id, @RequestBody(required = false) SecondHandOrderCreateDTO dto) {
-        return Result.success(secondHandService.acceptBargain(id, dto));
+    @Operation(summary = "接受议价，等待买家选择交付方式下单")
+    public Result<Void> acceptBargain(@PathVariable Long id, @RequestBody(required = false) SecondHandOrderCreateDTO dto) {
+        secondHandService.acceptBargain(id, dto);
+        return Result.success();
     }
 
     @PostMapping("/bargains/{id}/reject")
     @Operation(summary = "拒绝议价")
     public Result<Void> rejectBargain(@PathVariable Long id) {
         secondHandService.rejectBargain(id);
+        return Result.success();
+    }
+
+    @PostMapping("/bargains/{id}/withdraw")
+    @Operation(summary = "撤回本人待回复的议价")
+    public Result<Void> withdrawBargain(@PathVariable Long id) {
+        secondHandService.withdrawBargain(id);
         return Result.success();
     }
 
@@ -129,7 +137,7 @@ public class SecondHandController {
     }
 
     @PostMapping("/orders")
-    @Operation(summary = "直接购买创建待支付订单")
+    @Operation(summary = "买家选择交付方式后按原价或已接受报价创建订单")
     public Result<SecondHandOrderVO> createOrder(@RequestBody SecondHandOrderCreateDTO dto) {
         return Result.success(secondHandService.createOrder(dto));
     }

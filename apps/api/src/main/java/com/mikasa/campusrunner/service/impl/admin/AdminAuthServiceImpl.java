@@ -1,19 +1,15 @@
 package com.mikasa.campusrunner.service.impl.admin;
 
-import com.mikasa.campusrunner.common.constant.AuthenConstant;
 import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
 import com.mikasa.campusrunner.common.constant.MediaPurpose;
-import com.mikasa.campusrunner.common.constant.MessageConstant;
 import com.mikasa.campusrunner.common.constant.StudentIdCardReviewConstant;
 import com.mikasa.campusrunner.common.exception.UserException;
 import com.mikasa.campusrunner.mapper.UserMapper;
 import com.mikasa.campusrunner.pojo.dto.admin.AdminStuAuthDTO;
-import com.mikasa.campusrunner.pojo.entity.User;
 import com.mikasa.campusrunner.pojo.vo.UserVO;
 import com.mikasa.campusrunner.service.admin.AdminAuthService;
 import com.mikasa.campusrunner.service.MediaAssetService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -66,21 +62,32 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     @Override
     public void reviewStuCard(AdminStuAuthDTO adminStuAuthDTO) {
         log.info("Reviewing student authentication...");
-        UserVO userVO = userMapper.getById(adminStuAuthDTO.getUserID());
-        //如果用户不存在 或者 不是审核中状态时，返回报错
-        if (userVO == null || !userVO.getStudentIdCardReview().equals(StudentIdCardReviewConstant.DOING_REVIEW)) {
-            throw new UserException(MessageConstant.NO_USER);
+        Integer review = adminStuAuthDTO.getReview();
+        if (adminStuAuthDTO.getUserID() == null || adminStuAuthDTO.getAuthReviewVersion() == null
+                || adminStuAuthDTO.getAuthReviewVersion() < 0
+                || review == null || (review != 1 && review != 2 && review != 3)) {
+            throw new UserException("审核信息不完整，请刷新后重试");
         }
-
-        User user = new User();
-        BeanUtils.copyProperties(userVO, user);
-        user.setStudentIdCardReview(adminStuAuthDTO.getReview());
-
-        if (user.getStudentIdCardReview().equals(StudentIdCardReviewConstant.PASS_REVIEW)) {
-            //如果是审核通过
-            user.setAuthentication(AuthenConstant.SUCCESS);
+        String reason = null;
+        if (StudentIdCardReviewConstant.NOT_PASS_REVIEW.equals(review)) {
+            reason = adminStuAuthDTO.getStudentIdCardRejectReason();
+            reason = reason == null ? "" : reason.strip();
+            if (reason.isBlank() || reason.codePointCount(0, reason.length()) > 100) {
+                throw new UserException("请填写1至100字的驳回原因");
+            }
         }
-        //更新
-        userMapper.update(user);
+        if (review == 1) {
+            // Compatibility only: do not remove an existing pending task or clear feedback.
+            UserVO current = userMapper.getById(adminStuAuthDTO.getUserID());
+            if (current == null || !Integer.valueOf(1).equals(current.getStudentIdCardReview())
+                    || !adminStuAuthDTO.getAuthReviewVersion().equals(current.getAuthReviewVersion())) {
+                throw new UserException("申请状态已更新，请刷新后重试");
+            }
+            return;
+        }
+        if (userMapper.reviewAuthentication(adminStuAuthDTO.getUserID(),
+                adminStuAuthDTO.getAuthReviewVersion(), review, reason) != 1) {
+            throw new UserException("申请状态已更新，请刷新后重试");
+        }
     }
 }

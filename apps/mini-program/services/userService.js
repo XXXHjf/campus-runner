@@ -47,6 +47,7 @@ function authenticate(authData) {
     method: 'PUT',
     data: authData
   }).then(res => {
+    if (res.data?.code !== 1) throw new Error(res.data?.msg || '提交失败，请稍后重试');
     return res.data;
   });
 }

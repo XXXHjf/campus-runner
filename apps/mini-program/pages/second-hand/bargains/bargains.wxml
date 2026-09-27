@@ -16,6 +16,7 @@
         wx:key="id"
         class="bargains-page__row {{index > 0 ? 'bargains-page__row--separated' : ''}}"
         data-status="{{record.status}}"
+        data-id="{{record.id}}"
         data-order-id="{{record.orderId}}"
         data-product-id="{{record.productId}}"
         bindtap="gotoRecord"
@@ -36,6 +37,12 @@
             <view wx:if="{{tab == 'received' && record.status == 0}}" class="bargains-page__actions" catchtap="noop">
               <t-button t-class="cr-secondhand-capsule cr-secondhand-capsule--outline" size="small" shape="round" theme="default" variant="outline" disabled="{{actionLoadingId != null}}" data-id="{{record.id}}" catch:tap="reject">拒绝</t-button>
               <t-button t-class="cr-secondhand-capsule" size="small" shape="round" theme="primary" variant="base" loading="{{actionLoadingId == record.id}}" disabled="{{actionLoadingId != null}}" data-id="{{record.id}}" catch:tap="accept">接受</t-button>
+            </view>
+            <view wx:if="{{tab == 'issued' && record.isBuyer && record.status == 0}}" class="bargains-page__actions" catchtap="noop">
+              <t-button t-class="cr-secondhand-capsule cr-secondhand-capsule--outline" size="small" shape="round" theme="default" variant="outline" loading="{{actionLoadingId == record.id}}" disabled="{{actionLoadingId != null}}" data-id="{{record.id}}" catch:tap="withdraw">撤回报价</t-button>
+            </view>
+            <view wx:if="{{tab == 'issued' && record.isBuyer && record.status == 1 && !record.orderId}}" class="bargains-page__actions" catchtap="noop">
+              <t-button t-class="cr-secondhand-capsule" size="small" shape="round" theme="primary" data-id="{{record.id}}" catch:tap="buyBargain">去下单</t-button>
             </view>
           </view>
         </view>

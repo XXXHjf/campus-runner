@@ -47,6 +47,8 @@ class SecondHandOfflineTradeServiceTest {
     @Mock
     private SecondHandProductMapper productMapper;
     @Mock
+    private com.mikasa.campusrunner.mapper.AddressBookMapper addressBookMapper;
+    @Mock
     private SecondHandOrderMapper orderMapper;
     @Mock
     private AdminSystemConfigMapper configMapper;
@@ -143,6 +145,15 @@ class SecondHandOfflineTradeServiceTest {
         dto.setBuyerDeliveryAddressId(300L);
         dto.setBuyerDeliveryAddressSnapshot("大学城校区 2栋 201室");
         dto.setDeliveryRemark("晚上八点后送达");
+
+        var address = new com.mikasa.campusrunner.pojo.vo.AddressBookShowVO();
+        address.setId(300L);
+        address.setUserId(100L);
+        address.setDeleted(0);
+        address.setCompusName("大学城校区");
+        address.setBuildingName("2栋");
+        address.setDetails("201室");
+        when(addressBookMapper.query(any())).thenReturn(List.of(address));
 
         service.createOrder(dto);
 

@@ -87,6 +87,8 @@ Page({
     authStatusIcon: 'info-circle',
     authStatusTitle: '',
     authStatusDesc: '',
+    isRejected: false,
+    submitting: false,
     isFormReadOnly: false,
     showSubmitButton: false,
     submitButtonText: '提交认证',
@@ -205,6 +207,7 @@ Page({
     }
   },
   onTapSelectSchool() {
+    if (this.data.submitting) return;
     const authStatus = Number(this.data.userInfo?.authentication);
     const reviewStatus = Number(this.data.userInfo?.studentIdCardReview ?? AUTH_STATUS.UNREVIEWED);
     if (this.data.isFormReadOnly) {
@@ -258,6 +261,7 @@ Page({
   },
   // 选择学生证照片
   async chooseStudentIdCard() {
+    if (this.data.isFormReadOnly || this.data.submitting) return;
     try {
       const res = await new Promise((resolve, reject) => {
         wx.chooseMedia({
@@ -271,9 +275,10 @@ Page({
 
       const tempFilePath = res.tempFiles[0].tempFilePath;
 
-      this.setData({
-        studentIdCardUrl: tempFilePath
-      });
+      if (this.data.uploadedStudentIdCardAssetId) {
+        mediaService.releaseTemporaryImage(this.data.uploadedStudentIdCardAssetId).catch(() => {});
+      }
+      this.setData({ studentIdCardUrl: tempFilePath, uploadedStudentIdCardAssetId: null });
       console.log('选择学生证照片成功');
     } catch (err) {
       if (/cancel/i.test(err?.errMsg || err?.message || '')) return;
@@ -296,23 +301,15 @@ Page({
   },
   // 预览学生证照片（已认证状态）
   previewStudentIdCard() {
-    if (this.data.userInfo.studentIdCard) {
-      // 使用不带时间戳的原始 URL 进行预览
-      const imageUrl = normalizeRemoteImageUrl(this.data.userInfo.studentIdCard).split('?')[0];
-      wx.previewImage({
-        current: imageUrl,
-        urls: [imageUrl]
-      });
-    }
+    const imageUrl = this.data.studentIdCardUrl || normalizeRemoteImageUrl(this.data.userInfo?.studentIdCard);
+    if (imageUrl) wx.previewImage({ current: imageUrl, urls: [imageUrl] });
   },
   // 图片加载成功
   onImageLoad(e) {
-    console.log('[identify] 证件照片加载成功:', this.data.userInfo.studentIdCard);
   },
   // 图片加载失败
   onImageError(e) {
     console.error('[identify] 证件照片加载失败:', e.detail);
-    console.error('[identify] 图片URL:', this.data.userInfo.studentIdCard);
     feedback.showToast(this, {
       title: '证件照片加载失败',
       theme: 'error',
@@ -337,8 +334,8 @@ Page({
 
     const nextData = {};
 
-    if (!this.data.upName && userInfo.realname) nextData.upName = userInfo.realname;
-    if (!this.data.upSID && userInfo.stuId) nextData.upSID = userInfo.stuId;
+    if (this.data.upName == null && userInfo.realname) nextData.upName = userInfo.realname;
+    if (this.data.upSID == null && userInfo.stuId) nextData.upSID = userInfo.stuId;
     if (!this.data.upSchoolNumberId && userInfo.schoolId) nextData.upSchoolNumberId = userInfo.schoolId;
     // 学校名称依赖 schools 列表加载完成（getAllAddress 之后）
     if (!this.data.upSchool && userInfo.schoolId && this.data.addressList?.schools) {
@@ -361,18 +358,19 @@ Page({
     // 审核不通过时，需要允许用户修改“信息 + 材料”重新提交（即使 authentication==1）
     const isFormReadOnly = pending || approved || (authStatus === 1 && !rejected);
     const showSubmitButton = status === AUTH_STATUS.UNREVIEWED || rejected;
-    const submitButtonText = rejected ? '重新审核' : '提交认证';
+    const submitButtonText = rejected ? '重新提交' : '提交认证';
 
     this.setData({
       authStatusText: getStatusText(status),
       authStatusTheme: getStatusTheme(status),
       authStatusIcon: getStatusIcon(status),
       authStatusTitle: getStatusTitle(status),
-      authStatusDesc: getStatusDesc(status),
+      authStatusDesc: getStatusDesc(status, this.data.userInfo?.studentIdCardRejectReason),
+      isRejected: status === AUTH_STATUS.REJECTED,
       isFormReadOnly,
       showSubmitButton,
       submitButtonText,
-      showChangeIdentify: authStatus === 1 && !showSubmitButton,
+      showChangeIdentify: authStatus === 1 && approved,
     });
   },
 
@@ -389,11 +387,13 @@ Page({
       console.error('刷新认证状态失败:', error);
       feedback.showMessage(this, '刷新失败，请重试', { theme: 'error', action: '重试', onAction: () => this.refreshStatus() });
     } finally {
+      this.setData({ submitting: false });
       hideLoading();
     }
   },
   // 确定认证（使用封装的 service）
   async identify() {
+    if (this.data.submitting) return;
     const reviewStatus = Number(this.data.userInfo?.studentIdCardReview ?? AUTH_STATUS.UNREVIEWED);
 
     // 审核中/已通过时，不允许重复提交
@@ -418,7 +418,7 @@ Page({
         feedback.showModal(this, {
           title: '重新提交审核',
           content: '将重新提交认证信息与材料进行审核，是否继续？',
-          confirmText: '重新审核',
+          confirmText: '重新提交',
           cancelText: '取消',
           success: (res) => resolve(!!res.confirm),
           fail: () => resolve(false),
@@ -436,8 +436,8 @@ Page({
 
     // 验证基本信息
     const effectiveSchoolId = this.data.upSchoolNumberId || this.data.userInfo?.schoolId;
-    const effectiveName = this.data.upName || this.data.userInfo?.realname;
-    const effectiveStuId = this.data.upSID || this.data.userInfo?.stuId;
+    const effectiveName = this.data.upName ?? this.data.userInfo?.realname;
+    const effectiveStuId = this.data.upSID ?? this.data.userInfo?.stuId;
     if (effectiveSchoolId == null || effectiveName == null || effectiveStuId == null) {
       feedback.showToast(this, {
         title: '请填写完整信息',
@@ -465,7 +465,9 @@ Page({
       return;
     }
 
+    if (this.data.submitting) return;
     try {
+      this.setData({ submitting: true });
       showLoading('提交中');
 
       // 有新图则上传，否则复用已绑定的媒体资源。
@@ -484,6 +486,8 @@ Page({
         studentIdCardAssetId
       };
 
+      const submittedUser = { ...this.data.userInfo, ...authData,
+        studentIdCard: this.data.studentIdCardUrl || this.data.userInfo?.studentIdCard };
       await userService.authenticate(authData);
       console.log('认证信息已提交');
       showSuccessToast(this, "提交成功，等待审核");
@@ -494,13 +498,21 @@ Page({
         uploadedStudentIdCardAssetId: null
       });
 
-      // 刷新缓存信息
-      await this.getGlobalData();
+      // Successful write is distinct from a subsequent refresh failure.
+      this.setData({ userInfo: { ...submittedUser,
+        studentIdCardReview: AUTH_STATUS.PENDING, studentIdCardRejectReason: null } });
+      this.updateStudentIdCardUrl();
+      this._refreshAuthViewState();
+      try { await this.getGlobalData(); } catch (_) {
+        feedback.showMessage(this, '提交成功，状态刷新失败', {
+          theme: 'info', action: '刷新', onAction: () => this.refreshStatus(),
+        });
+      }
     } catch (error) {
       console.error('认证失败:', error);
       showError(this, error.message || '认证失败');
-      throw error;
     } finally {
+      this.setData({ submitting: false });
       hideLoading();
     }
   },
@@ -522,7 +534,6 @@ Page({
       this._syncFormFromUserInfo();
       this._refreshAuthViewState();
 
-      console.log('获取用户数据成功:', userInfo);
       return userInfo;
     } catch (error) {
       console.error('获取用户数据失败:', error);
@@ -533,15 +544,13 @@ Page({
   updateStudentIdCardUrl() {
     if (this.data.userInfo?.studentIdCard) {
       const baseUrl = normalizeRemoteImageUrl(this.data.userInfo.studentIdCard);
-      // 检查URL中是否已经有查询参数
-      const separator = baseUrl.includes('?') ? '&' : '?';
-      const urlWithTimestamp = `${baseUrl}${separator}t=${this.data.refreshTime}`;
+      // Private media URLs already carry a fresh signature; preserve their query intact.
+      const urlWithTimestamp = baseUrl;
 
       this.setData({
         studentIdCardWithTimestamp: urlWithTimestamp
       });
 
-      console.log('[identify] 更新图片URL:', urlWithTimestamp);
     } else {
       this.setData({ studentIdCardWithTimestamp: '' });
     }
@@ -569,8 +578,6 @@ Page({
       }
       console.log('[identify] 用户数据刷新成功');
       console.log('[identify] authentication:', this.data.userInfo?.authentication);
-      console.log('[identify] studentIdCard:', this.data.userInfo?.studentIdCard);
-      console.log('[identify] 完整图片URL:', this.data.studentIdCardWithTimestamp);
 
       // 获取学校列表
       await this.getAllAddress();

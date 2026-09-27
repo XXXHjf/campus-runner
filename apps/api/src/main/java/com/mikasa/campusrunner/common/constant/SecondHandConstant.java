@@ -18,6 +18,7 @@ public class SecondHandConstant {
     public static final int BARGAIN_ACCEPTED = 1;
     public static final int BARGAIN_REJECTED = 2;
     public static final int BARGAIN_EXPIRED = 3;
+    public static final int BARGAIN_WITHDRAWN = 4;
 
     public static final int ORDER_PENDING_PAY = 0;
     public static final int ORDER_PAID_WAIT_DELIVERY = 1;

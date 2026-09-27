@@ -1,0 +1,21 @@
+/* Shared only by the two campus authentication pages. */
+.campus-auth-page {
+  padding-bottom: 160rpx;
+  --td-input-vertical-padding: 28rpx;
+  --td-input-horizontal-padding: 30rpx;
+  --td-image-round-radius: var(--cr-radius-medium, 20rpx);
+}
+.campus-auth-page__status,
+.campus-auth-page__materials { padding: 30rpx; }
+.campus-auth-page__heading { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; }
+.campus-auth-page__title { color: var(--cr-color-text); font-size: 30rpx; font-weight: 600; line-height: 44rpx; }
+.campus-auth-page__muted { color: var(--cr-color-text-secondary); font-size: 24rpx; line-height: 38rpx; }
+.campus-auth-page__reason-label { margin-top: 22rpx; }
+.campus-auth-page__description { margin-top: 12rpx; color: var(--cr-color-text-secondary); font-size: 26rpx; line-height: 42rpx; white-space: pre-wrap; overflow-wrap: anywhere; }
+.campus-auth-page__description--reason { color: var(--cr-color-text); }
+.campus-auth-page__form { border-top: 1rpx solid var(--cr-color-border); border-bottom: 1rpx solid var(--cr-color-border); }
+.campus-auth-page__section-title { padding: 26rpx 30rpx 8rpx; }
+.campus-auth-page__media-row { display: flex; align-items: center; gap: 32rpx; margin-top: 24rpx; margin-bottom: 16rpx; }
+.campus-auth-page__preview { position: relative; flex: 0 0 auto; }
+.campus-auth-page__remove { position: absolute; right: -12rpx; top: -12rpx; }
+.campus-auth-page__actions { display: flex; flex: 1; align-items: center; justify-content: flex-end; gap: 20rpx; }

@@ -206,6 +206,13 @@ function acceptBargain(bargainId, data = {}) {
   }).then((res) => unwrapData(res));
 }
 
+function withdrawBargain(bargainId) {
+  return request({
+    url: `${url}/api/second-hand/bargains/${bargainId}/withdraw`,
+    method: 'POST',
+  }).then((res) => unwrapData(res));
+}
+
 function rejectBargain(bargainId) {
   return request({
     url: `${url}/api/second-hand/bargains/${bargainId}/reject`,
@@ -275,6 +282,7 @@ module.exports = {
   listProductBargains,
   acceptBargain,
   rejectBargain,
+  withdrawBargain,
   sendMessage,
   listProductMessages,
   listConversations,

@@ -41,9 +41,11 @@ public interface SecondHandService {
 
     SecondHandBargainVO createBargain(SecondHandBargainDTO dto);
 
-    SecondHandOrderVO acceptBargain(Long bargainId, SecondHandOrderCreateDTO dto);
+    void acceptBargain(Long bargainId, SecondHandOrderCreateDTO dto);
 
     void rejectBargain(Long bargainId);
+
+    void withdrawBargain(Long bargainId);
 
     List<SecondHandBargainVO> listMyBargains();
 

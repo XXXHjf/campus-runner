@@ -13,6 +13,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import com.mikasa.campusrunner.pojo.dto.admin.AdminStuAuthDTO;
+import com.mikasa.campusrunner.common.exception.UserException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -59,4 +61,42 @@ class AdminAuthServiceImplTest {
         assertTrue(service.getPendingList().isEmpty());
         verifyNoInteractions(mediaAssetService);
     }
+    private AdminStuAuthDTO review(int status, String reason) {
+        AdminStuAuthDTO dto = new AdminStuAuthDTO();
+        dto.setUserID(101L); dto.setReview(status); dto.setAuthReviewVersion(2L);
+        dto.setStudentIdCardRejectReason(reason);
+        return dto;
+    }
+
+    @Test
+    void rejectionRequiresReasonAndRejectsInvalidStatus() {
+        for (String reason : new String[] {null, "  ", "原".repeat(101)}) {
+            assertThrows(UserException.class, () -> service.reviewStuCard(review(3, reason)));
+        }
+        assertThrows(UserException.class, () -> service.reviewStuCard(review(0, "原因")));
+        verifyNoInteractions(userMapper);
+    }
+
+    @Test
+    void rejectionTrimsReasonAndUsesPendingVersion() {
+        when(userMapper.reviewAuthentication(101L, 2L, 3, "请更正学号")).thenReturn(1);
+        service.reviewStuCard(review(3, "  请更正学号  "));
+        verify(userMapper).reviewAuthentication(101L, 2L, 3, "请更正学号");
+    }
+
+    @Test
+    void approvalClearsReasonAndOldReviewCannotOverwriteNewRound() {
+        when(userMapper.reviewAuthentication(101L, 2L, 2, null)).thenReturn(1, 0);
+        service.reviewStuCard(review(2, "旧原因"));
+        assertThrows(UserException.class, () -> service.reviewStuCard(review(2, "旧原因")));
+    }
+
+    @Test
+    void pendingCompatibilityDoesNotWriteOrRemoveTask() {
+        UserVO user = new UserVO(); user.setStudentIdCardReview(1); user.setAuthReviewVersion(2L);
+        when(userMapper.getById(101L)).thenReturn(user);
+        service.reviewStuCard(review(1, null));
+        verify(userMapper, never()).reviewAuthentication(any(), any(), any(), any());
+    }
+
 }

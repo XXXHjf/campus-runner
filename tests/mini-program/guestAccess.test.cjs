@@ -56,6 +56,10 @@ test('未认证、审核中、驳回分别指引，取消后无跳转', async ()
     const { guard, state } = guardHarness({ token: 'a', user: { authentication: 0, studentIdCardReview: review, profileCompleted: true } });
     assert.equal(await guard.ensureAuthenticated(), false);
     assert.equal(state.modals[0].title, title);
+    if (review === 3) {
+      assert.equal(state.modals[0].confirmText, '查看并修改');
+      assert.equal(state.modals[0].cancelText, '继续浏览');
+    }
     assert.equal(state.routes.length, 0);
   }
 });
@@ -225,4 +229,12 @@ test('后台读取被拒绝时只返回中文错误，不弹认证引导', async
   });
   await assert.rejects(request({ url: 'https://example.test/api/second-hand/orders/buyer' }), /完成校园认证/);
   assert.equal(imports, 1);
+});
+
+test('已认证用户重新认证被驳回仍保留原权限', async () => {
+  const { guard, state } = guardHarness({ token: 'a', user: {
+    authentication: 1, studentIdCardReview: 3, profileCompleted: true,
+  } });
+  assert.equal(await guard.ensureAuthenticated(), true);
+  assert.equal(state.modals.length, 0);
 });

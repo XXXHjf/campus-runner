@@ -51,6 +51,8 @@ Page({
     authStatusIcon: 'info-circle',
     authStatusTitle: '',
     authStatusDesc: '',
+    isRejected: false,
+    submitting: false,
     canSubmit: true,
   },
 
@@ -74,6 +76,7 @@ Page({
   
   // 点击"选择学校"，跳出选择器
   changeSchoolNew() {
+    if (this.data.submitting) return;
     if (!this.data.canSubmit) {
       feedback.showMessage(this, '认证材料审核中，暂不可修改', { theme: 'info' });
       return;
@@ -130,6 +133,7 @@ Page({
   },
   // 选择学生证照片
   async chooseStudentIdCard() {
+    if (!this.data.canSubmit || this.data.submitting) return;
     try {
       const res = await new Promise((resolve, reject) => {
         wx.chooseMedia({
@@ -143,9 +147,10 @@ Page({
       
       const tempFilePath = res.tempFiles[0].tempFilePath;
       
-      this.setData({
-        studentIdCardUrl: tempFilePath
-      });
+      if (this.data.uploadedStudentIdCardAssetId) {
+        mediaService.releaseTemporaryImage(this.data.uploadedStudentIdCardAssetId).catch(() => {});
+      }
+      this.setData({ studentIdCardUrl: tempFilePath, uploadedStudentIdCardAssetId: null });
       console.log('选择学生证照片成功');
     } catch (err) {
       if (/cancel/i.test(err?.errMsg || err?.message || '')) return;
@@ -171,7 +176,7 @@ Page({
     });
   },
   previewStudentIdCard() {
-    const imageUrl = this.data.userInfo?.studentIdCard;
+    const imageUrl = this.data.studentIdCardUrl || this.data.userInfo?.studentIdCard;
     if (!imageUrl) return;
     wx.previewImage({
       current: imageUrl,
@@ -192,6 +197,7 @@ Page({
   },
   // 确认修改（使用封装的 service）
   async identify() {
+    if (this.data.submitting) return;
     const status = Number(this.data.userInfo?.studentIdCardReview ?? AUTH_STATUS.UNREVIEWED);
     if (status === AUTH_STATUS.PENDING) {
       feedback.showMessage(this, '认证材料审核中，请勿重复提交', { theme: 'info' });
@@ -204,8 +210,8 @@ Page({
     }
 
     const effectiveSchoolId = this.data.upSchoolId || this.data.userInfo?.schoolId;
-    const effectiveName = this.data.upName || this.data.userInfo?.realname;
-    const effectiveStuId = this.data.upSID || this.data.userInfo?.stuId;
+    const effectiveName = this.data.upName ?? this.data.userInfo?.realname;
+    const effectiveStuId = this.data.upSID ?? this.data.userInfo?.stuId;
 
     if (effectiveSchoolId == null || effectiveName == null || effectiveStuId == null) {
       errorCilcleToast(this, "请填写完整信息");
@@ -225,7 +231,9 @@ Page({
       return;
     }
 
+    if (this.data.submitting) return;
     try {
+      this.setData({ submitting: true });
       showLoading('提交中');
       
       // 有新图则上传，否则复用已绑定的媒体资源。
@@ -243,15 +251,34 @@ Page({
         studentIdCardAssetId
       };
       
+      const submittedUser = { ...this.data.userInfo, ...authData,
+        studentIdCard: this.data.studentIdCardUrl || this.data.userInfo?.studentIdCard };
       await userService.authenticate(authData);
-      this.setData({ uploadedStudentIdCardAssetId: null });
-      console.log('确认修改成功');
-      feedback.navigate(this, 'navigateBack', {}, '提交成功，等待审核');
+      this.setData({ studentIdCardUrl: null, uploadedStudentIdCardAssetId: null,
+        userInfo: { ...submittedUser, studentIdCardReview: AUTH_STATUS.PENDING,
+          studentIdCardRejectReason: null } });
+      this._refreshAuthViewState();
+      feedback.showToast(this, { title: '提交成功，等待审核', theme: 'success' });
+      await this.refreshStatus();
     } catch (error) {
       console.error('重新认证失败:', error);
       showError(this, error.message || '修改失败');
     } finally {
+      this.setData({ submitting: false });
       hideLoading();
+    }
+  },
+
+  async refreshStatus() {
+    try {
+      const userInfo = await userService.getUserInfo();
+      this.setData({ userInfo });
+      this._syncFormFromUserInfo();
+      this._refreshAuthViewState();
+    } catch (_) {
+      feedback.showMessage(this, '状态刷新失败，请重试', {
+        theme: 'error', action: '刷新', onAction: () => this.refreshStatus(),
+      });
     }
   },
 
@@ -262,7 +289,8 @@ Page({
       authStatusTheme: getStatusTheme(status),
       authStatusIcon: getStatusIcon(status),
       authStatusTitle: getStatusTitle(status),
-      authStatusDesc: getStatusDesc(status),
+      authStatusDesc: getStatusDesc(status, this.data.userInfo?.studentIdCardRejectReason),
+      isRejected: status === AUTH_STATUS.REJECTED,
       canSubmit: status !== AUTH_STATUS.PENDING,
     });
   },
@@ -273,8 +301,8 @@ Page({
 
     const nextData = {};
     if (!this.data.upSchoolId && userInfo.schoolId) nextData.upSchoolId = userInfo.schoolId;
-    if (!this.data.upName && userInfo.realname) nextData.upName = userInfo.realname;
-    if (!this.data.upSID && userInfo.stuId) nextData.upSID = userInfo.stuId;
+    if (this.data.upName == null && userInfo.realname) nextData.upName = userInfo.realname;
+    if (this.data.upSID == null && userInfo.stuId) nextData.upSID = userInfo.stuId;
     if (Object.keys(nextData).length > 0) this.setData(nextData);
   },
 
@@ -325,7 +353,7 @@ Page({
       }
       
       // 显示认证须知（重新认证也需要同意）
-      if (!this.data.hasAgreedNotice) {
+      if (this.data.canSubmit && !this.data.hasAgreedNotice) {
         this.setData({ showAuthNotice: true });
       }
     } catch (error) {

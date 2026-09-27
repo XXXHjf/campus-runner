@@ -160,6 +160,7 @@ const bargainStatus: Record<number, { label: string; color: string }> = {
   1: { label: '已接受', color: 'green' },
   2: { label: '已拒绝', color: 'red' },
   3: { label: '已失效', color: 'default' },
+  4: { label: '已撤回', color: 'default' },
 }
 
 const productStatusOptions = Object.entries(productStatus).map(([value, item]) => ({
@@ -180,6 +181,7 @@ const offlineOrderStatusOptions = [1, 2, 3, 4, 11].map((value) => ({
 const bargainStatusOptions = Object.entries(bargainStatus).map(([value, item]) => ({
   label: item.label,
   value: Number(value),
+  disabled: value === '4',
 }))
 
 function statusTag(map: Record<number, { label: string; color: string }>, status: number) {
@@ -881,6 +883,7 @@ export default function SecondHandManagement() {
                       <Select
                         size="small"
                         value={record.status}
+                        disabled={record.status === 4}
                         options={bargainStatusOptions}
                         onChange={(value) => updateBargainStatus(record.id, value)}
                       />

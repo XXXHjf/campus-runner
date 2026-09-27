@@ -65,6 +65,8 @@ export default function AuthManagement() {
   const [loading, setLoading] = useState(false)
   const [list, setList] = useState<PendingAuthUser[]>([])
   const [keyword, setKeyword] = useState('')
+  const [rejectReason, setRejectReason] = useState('')
+  const [reasonError, setReasonError] = useState('')
   const [actionUserId, setActionUserId] = useState<number | null>(null)
   const [confirmModal, setConfirmModal] = useState<ConfirmModalState>({ open: false })
   const [preview, setPreview] = useState<{ open: boolean; url?: string; title?: string }>({
@@ -107,10 +109,18 @@ export default function AuthManagement() {
   }, [list, keyword])
 
   const updateStatus = async (user: PendingAuthUser, review: AuthReviewStatus) => {
+    const reason = rejectReason.trim()
+    if (review === 3 && (!reason || Array.from(reason).length > 100)) {
+      setReasonError('请填写1至100字的驳回原因')
+      return
+    }
     setActionUserId(user.id)
     try {
-      await authService.reviewAuth({ userID: user.id, review })
-      setList((prev) => prev.filter((u) => u.id !== user.id))
+      await authService.reviewAuth({ userID: user.id, review,
+        authReviewVersion: user.authReviewVersion,
+        ...(review === 3 ? { studentIdCardRejectReason: reason } : {}),
+      })
+      if (review !== 1) setList((prev) => prev.filter((u) => u.id !== user.id))
       setConfirmModal({ open: false })
     } catch (err: unknown) {
       console.error('更新审核状态失败', err)
@@ -207,7 +217,7 @@ export default function AuthManagement() {
               type="link"
               size="small"
               disabled={disabled}
-              onClick={() => setConfirmModal({ open: true, user, review: 1 })}
+              onClick={() => { setRejectReason(''); setReasonError(''); setConfirmModal({ open: true, user, review: 1 }) }}
             >
               标记审核中
             </Button>
@@ -215,7 +225,7 @@ export default function AuthManagement() {
               type="link"
               size="small"
               disabled={disabled}
-              onClick={() => setConfirmModal({ open: true, user, review: 2 })}
+              onClick={() => { setRejectReason(''); setReasonError(''); setConfirmModal({ open: true, user, review: 2 }) }}
             >
               通过
             </Button>
@@ -224,7 +234,7 @@ export default function AuthManagement() {
               size="small"
               danger
               disabled={disabled}
-              onClick={() => setConfirmModal({ open: true, user, review: 3 })}
+              onClick={() => { setRejectReason(''); setReasonError(''); setConfirmModal({ open: true, user, review: 3 }) }}
             >
               不通过
             </Button>
@@ -282,18 +292,22 @@ export default function AuthManagement() {
       </AdminContentCard>
 
       <Modal
-        title="确认审核操作"
+        rootClassName="auth-management"
+        title={confirmModal.open && confirmModal.review === 3 ? '审核不通过' : '确认审核操作'}
         open={confirmModal.open}
         onCancel={() => setConfirmModal({ open: false })}
         onOk={() =>
           confirmModal.open && void updateStatus(confirmModal.user, confirmModal.review)
         }
-        okText="确认提交"
+        okText={confirmModal.open && confirmModal.review === 3 ? '确认不通过' : '确认提交'}
         cancelText="取消"
         confirmLoading={confirmModal.open && actionUserId === confirmModal.user.id}
+        closable={actionUserId === null}
+        maskClosable={actionUserId === null}
+        cancelButtonProps={{ disabled: actionUserId !== null }}
       >
         {confirmModal.open && (
-          <Space direction="vertical" size={12}>
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <span>
               用户：
               {confirmModal.user.realname ||
@@ -306,7 +320,19 @@ export default function AuthManagement() {
                 {statusLabels[confirmModal.review] || '未知'}
               </Tag>
             </span>
-            <span className="auth-modal-note">提交后将更新该用户的学生认证审核状态。</span>
+            {confirmModal.review === 3 ? (
+              <div>
+                <label htmlFor="auth-reject-reason">驳回原因（必填）</label>
+                <Input.TextArea id="auth-reject-reason" value={rejectReason} rows={3}
+                  count={{ show: true, max: 100, strategy: (value) => Array.from(value).length }}
+                  disabled={actionUserId !== null}
+                  status={reasonError ? 'error' : undefined}
+                  placeholder="请说明用户需要修改的内容"
+                  onChange={(event) => { setRejectReason(event.target.value); setReasonError('') }} />
+                {reasonError && <div role="alert" className="auth-reason-error">{reasonError}</div>}
+                <p className="auth-modal-note">原因将向用户展示，请说明需要修改的内容。</p>
+              </div>
+            ) : <span className="auth-modal-note">确认本次审核结果后提交。</span>}
           </Space>
         )}
       </Modal>

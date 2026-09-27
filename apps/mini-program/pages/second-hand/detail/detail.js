@@ -18,6 +18,8 @@ Page({
     addressBook: [],
     showBargain: false,
     showBuySheet: false,
+    acceptedBargain: null,
+    orderPrice: '',
     selectedDeliveryMode: 0,
     selectedBuyerAddressId: null,
     selectedBuyerAddressText: '',
@@ -32,39 +34,79 @@ Page({
   onLoad(options) {
     wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] });
     this.setData({ id: options.id });
-    this.loadDetail();
+    this._requestedBargainId = options.bargainId || null;
+    this._openBargainCheckout = !!options.bargainId;
   },
 
   async onShow() {
+    this._detailHidden = false;
     if (this._detailToken !== undefined && this._detailToken !== tokenManager.getToken()) {
-      this.setData({ showBuySheet: false, showBargain: false, addressBook: [], currentUserId: null });
-      await this.loadDetail();
+      this.invalidateDetail();
+      this.setData({ product: {}, images: [], showBuySheet: false, showBargain: false, addressBook: [], currentUserId: null, acceptedBargain: null, orderPrice: '' });
+      this._openBargainCheckout = false;
     }
-    if (this.data.showBuySheet) {
+    await this.loadDetail();
+    if (this._openBargainCheckout && !this._detailHidden && this.data.product.id) {
+      this._openBargainCheckout = false;
+      await this.buyNow();
+    }
+    if (!this._detailHidden && this.data.showBuySheet) {
       await this.loadAddressBook(false);
     }
   },
 
-  async loadDetail() {
+  onHide() {
+    this._detailHidden = true;
+    this.invalidateDetail();
+  },
+
+  onUnload() {
+    this._detailDisposed = true;
+    this.invalidateDetail();
+  },
+
+  invalidateDetail() {
+    this._detailVersion = (this._detailVersion || 0) + 1;
+    this._detailRequest = null;
+  },
+
+  loadDetail() {
+    if (this._detailDisposed || this._detailHidden) return Promise.resolve();
+    const token = tokenManager.getToken();
+    if (this._detailRequest && this._detailToken === token) return this._detailRequest;
+    this._detailToken = token;
+    const version = this._detailVersion = (this._detailVersion || 0) + 1;
+    const isCurrent = () => !this._detailDisposed && !this._detailHidden
+      && version === this._detailVersion && token === tokenManager.getToken();
     feedback.loaded(this);
-    this._detailToken = tokenManager.getToken();
     this.setData({ loading: true });
-    try {
-      const [product, user] = await Promise.all([
-        secondHandService.getProduct(this.data.id),
-        this.getCurrentUser(),
-      ]);
-      this.setData({
-        product: this.decorateProduct(product, user),
-        images: this.parseImages(product.images),
-        galleryIndex: 0,
-        currentUserId: user.id || null,
-      });
-    } catch (error) {
-      feedback.loadError(this, '详情加载失败，请重试', () => this.loadDetail(), !!this.data.product.id);
-    } finally {
-      this.setData({ loading: false });
-    }
+    this._detailRequest = (async () => {
+      try {
+        const [product, user] = await Promise.all([
+          secondHandService.getProduct(this.data.id),
+          this.getCurrentUser(),
+        ]);
+        if (!isCurrent()) return;
+        const decorated = this.decorateProduct(product, user);
+        this.setData({
+          product: decorated,
+          images: this.parseImages(product.images),
+          galleryIndex: 0,
+          currentUserId: user.id || null,
+          showBuySheet: this.data.showBuySheet && decorated.canBuy,
+          showBargain: this.data.showBargain && decorated.canBargain,
+        });
+      } catch (error) {
+        if (!isCurrent()) return;
+        feedback.loadError(this, '详情加载失败，请重试', () => this.loadDetail(), !!this.data.product.id);
+      } finally {
+        if (isCurrent()) {
+          this._detailRequest = null;
+          this.setData({ loading: false });
+        }
+      }
+    })();
+    return this._detailRequest;
   },
 
   decorateProduct(product, user = {}) {
@@ -87,11 +129,13 @@ Page({
 
   async getCurrentUser() {
     if (!tokenManager.hasToken()) return {};
+    const token = tokenManager.getToken();
     const app = getApp();
     const cached = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
     if (cached.id != null) return cached;
     try {
       const fresh = await userService.getUserInfo();
+      if (token !== tokenManager.getToken()) return {};
       app.globalData.userInfo = { ...cached, ...fresh };
       wx.setStorageSync('userInfo', app.globalData.userInfo);
       return app.globalData.userInfo;
@@ -125,8 +169,31 @@ Page({
       feedback.showToast(this, { title: '商品当前不可下单', theme: 'warning' });
       return;
     }
+    const token = tokenManager.getToken();
+    let acceptedBargain;
+    try {
+      const bargains = await secondHandService.listProductBargains(product.id);
+      if (this._detailDisposed || this._detailHidden || token !== tokenManager.getToken()) return;
+      const user = await this.getCurrentUser();
+      if (this._detailDisposed || this._detailHidden || token !== tokenManager.getToken()) return;
+      const eligible = bargains.filter((item) => Number(item.status) === 1 && !item.orderId
+        && Number(item.buyerId) === Number(user.id));
+      acceptedBargain = this._requestedBargainId
+        ? eligible.find((item) => Number(item.id) === Number(this._requestedBargainId))
+        : eligible[0];
+      if (this._requestedBargainId && !acceptedBargain) {
+        feedback.showToast(this, { title: '该报价当前不可下单，请查看议价记录', theme: 'warning' });
+        return;
+      }
+    } catch (error) {
+      feedback.showToast(this, { title: this.errorText(error, '报价加载失败，请重试'), theme: 'error' });
+      return;
+    }
+    if (!this.data.product.canBuy) return;
     this.setData({
       showBuySheet: true,
+      acceptedBargain: acceptedBargain || null,
+      orderPrice: acceptedBargain ? acceptedBargain.offerPrice : this.data.product.price,
       selectedDeliveryMode: 0,
       selectedBuyerAddressId: null,
       selectedBuyerAddressText: '',
@@ -154,15 +221,19 @@ Page({
   },
 
   async loadAddressBook(showError = true) {
+    const token = tokenManager.getToken();
     try {
       const addressBook = await deliveryAddressService.getMyAddresses();
+      if (this._detailDisposed || this._detailHidden || token !== tokenManager.getToken()) return;
+      const addresses = (addressBook || []).map((item) => ({ ...item, addressText: this.formatAddress(item) }));
+      const selected = addresses.find((item) => Number(item.id) === Number(this.data.selectedBuyerAddressId));
       this.setData({
-        addressBook: (addressBook || []).map((item) => ({
-          ...item,
-          addressText: this.formatAddress(item),
-        })),
+        addressBook: addresses,
+        selectedBuyerAddressId: selected ? selected.id : null,
+        selectedBuyerAddressText: selected ? selected.addressText : '',
       });
     } catch (error) {
+      if (this._detailDisposed || this._detailHidden || token !== tokenManager.getToken()) return;
       if (showError) {
         feedback.showMessage(this, '地址列表加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.loadAddressBook() });
       }
@@ -192,7 +263,7 @@ Page({
     const addressText = deliveryMode === 1 ? this.data.selectedBuyerAddressText : product.pickupAddressText;
     feedback.showModal(this, {
       title: '确认下单',
-      content: `${deliveryMode === 1 ? '卖家配送到' : '买家自提于'}：${addressText}\n约定价格 ¥${product.price}。下单后商品将进入交易中，请与卖家自行协商付款和交付。`,
+      content: `${deliveryMode === 1 ? '卖家配送到' : '买家自提于'}：${addressText}\n约定价格 ¥${this.data.orderPrice || product.price}。下单后商品将进入交易中，请与卖家自行协商付款和交付。`,
       confirmText: '创建订单',
       cancelText: '再看看',
       success: async (res) => {
@@ -203,10 +274,12 @@ Page({
   },
 
   async createOrder() {
+    if (this.data.buySubmitting || !this.data.product.canBuy) return;
     const product = this.data.product;
     const deliveryMode = Number(this.data.selectedDeliveryMode);
     const payload = {
       productId: product.id,
+      bargainId: this.data.acceptedBargain ? this.data.acceptedBargain.id : null,
       deliveryMode,
       deliveryRemark: deliveryMode === 1 ? this.data.selectedBuyerAddressText : product.pickupAddressText,
       buyerDeliveryAddressId: deliveryMode === 1 ? this.data.selectedBuyerAddressId : null,
@@ -215,11 +288,16 @@ Page({
     this.setData({ buySubmitting: true });
     try {
       const order = await secondHandService.createOrder(payload);
+      this.invalidateDetail();
+      this.setData({ product: { ...this.data.product, canBuy: false, canBargain: false }, showBuySheet: false });
+      await this.loadDetail();
       await subscriptions.requestSecondHandOrder();
       this.setData({ showBuySheet: false });
       feedback.navigate(this, 'navigateTo', { url: `/pages/second-hand/order-detail/order-detail?id=${order.id}` }, '下单成功');
     } catch (error) {
       feedback.showToast(this, { title: this.errorText(error, '下单失败'), theme: 'error' });
+      this.invalidateDetail();
+      await this.loadDetail();
     } finally {
       this.setData({ buySubmitting: false });
     }
@@ -290,6 +368,8 @@ Page({
     const product = this.data.product;
     if (!product.id || product.isOwner || this.data.favoriteSubmitting) return;
     const nextFavorited = !product.isFavorited;
+    const token = tokenManager.getToken();
+    this.invalidateDetail();
     this.setData({ favoriteSubmitting: true });
     try {
       if (nextFavorited) {
@@ -297,18 +377,15 @@ Page({
       } else {
         await secondHandService.unfavoriteProduct(product.id);
       }
-      this.setData({
-        product: {
-          ...product,
-          isFavorited: nextFavorited,
-          favoriteCount: Math.max(0, product.favoriteCount + (nextFavorited ? 1 : -1)),
-        },
-      });
-      // The favorite button already reflects the saved result.
+      if (this._detailDisposed || token !== tokenManager.getToken()) return;
+      this.invalidateDetail();
     } catch (error) {
       feedback.showToast(this, { title: this.errorText(error, '操作失败'), theme: 'error' });
     } finally {
-      this.setData({ favoriteSubmitting: false });
+      if (!this._detailDisposed) {
+        this.setData({ favoriteSubmitting: false });
+        await this.loadDetail();
+      }
     }
   },
 
@@ -331,6 +408,7 @@ Page({
         try {
           await secondHandService.updateProductStatus(product.id, nextStatus);
           feedback.showToast(this, { title: `已${actionText}`, icon: 'success' });
+          this.invalidateDetail();
           this.loadDetail();
         } catch (error) {
           feedback.showToast(this, { title: this.errorText(error, '操作失败'), theme: 'error' });

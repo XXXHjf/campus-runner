@@ -8,6 +8,7 @@
     "t-divider": "tdesign-miniprogram/divider/divider",
     "t-tag": "tdesign-miniprogram/tag/tag",
     "t-icon": "tdesign-miniprogram/icon/icon",
-    "auth-notice": "/components/authNotice/authNotice"
+    "auth-notice": "/components/authNotice/authNotice",
+    "t-image": "tdesign-miniprogram/image/image"
   }
 }

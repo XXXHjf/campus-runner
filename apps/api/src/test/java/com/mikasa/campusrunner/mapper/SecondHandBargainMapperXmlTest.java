@@ -40,4 +40,20 @@ class SecondHandBargainMapperXmlTest {
         String query = sql("SecondHandProductMapper", "getByIdForUpdate", Map.of("id", 10L));
         assertTrue(query.contains("where id = ? and deleted = 0 for update"));
     }
+
+    @Test
+    void closingAcceptedQuotesPreservesEveryQuoteThatAlreadyHasAnOrder() throws IOException {
+        String query = sql("SecondHandBargainMapper", "expireAcceptedWithoutOrder", Map.of("productId", 10L));
+        assertTrue(query.contains("left join tb_second_hand_order o on o.bargain_id = b.id"));
+        assertTrue(query.contains("b.status = 1 and o.id is null"));
+        assertTrue(query.contains("b.deleted = 0"));
+    }
+
+    @Test
+    void withdrawalAndAdminReadCurrentBargainUnderRowLock() throws IOException {
+        String query = sql("SecondHandBargainMapper", "getByIdForUpdate", Map.of("id", 7L));
+        assertTrue(query.contains("where id = ? and deleted = 0 for update"));
+        String withdrawal = sql("SecondHandBargainMapper", "updatePendingStatus", Map.of("id", 7L, "status", 4));
+        assertTrue(withdrawal.contains("where id = ? and deleted = 0 and status = 0"));
+    }
 }

@@ -38,7 +38,8 @@ public class AdminAuthController {
     @PutMapping("/review")
     @Operation(summary = "审核学生认证")
     public Result reviewStuCard(@RequestBody AdminStuAuthDTO adminStuAuthDTO) {
-        log.info("Review student authentication, {}", adminStuAuthDTO);
+        log.info("Review student authentication, userId={}, review={}",
+                adminStuAuthDTO.getUserID(), adminStuAuthDTO.getReview());
         adminAuthService.reviewStuCard(adminStuAuthDTO);
         return Result.success();
     }

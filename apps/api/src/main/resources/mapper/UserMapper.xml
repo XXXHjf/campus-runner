@@ -19,6 +19,8 @@
             user.school_id,
             user.stu_id,
             user.student_id_card_review,
+            user.student_id_card_reject_reason,
+            user.auth_review_version,
             user.score,
             user.money,
             user.is_manager,
@@ -167,4 +169,21 @@
         SELECT COUNT(*) FROM tb_user WHERE deleted = 0 AND is_manager = 1
     </select>
 
+    <!-- Submission locks this row until both data and private media binding commit. -->
+    <select id="getByIdForAuthUpdate" resultType="com.mikasa.campusrunner.pojo.entity.User">
+        SELECT * FROM tb_user WHERE id = #{id} AND deleted = 0 FOR UPDATE
+    </select>
+    <update id="submitAuthentication">
+        UPDATE tb_user SET school_id = #{schoolId}, realname = #{realname}, stu_id = #{stuId},
+            student_id_card_review = 1, student_id_card_reject_reason = NULL,
+            auth_review_version = auth_review_version + 1, update_time = NOW()
+        WHERE id = #{id} AND deleted = 0 AND student_id_card_review IN (0, 2, 3)
+    </update>
+    <update id="reviewAuthentication">
+        UPDATE tb_user SET student_id_card_review = #{review},
+            student_id_card_reject_reason = #{reason}, update_time = NOW()
+            <if test="review == 2">, authentication = 1</if>
+        WHERE id = #{id} AND deleted = 0 AND student_id_card_review = 1
+            AND auth_review_version = #{version}
+    </update>
 </mapper>

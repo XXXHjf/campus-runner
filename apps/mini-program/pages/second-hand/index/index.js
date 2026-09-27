@@ -32,19 +32,24 @@ Page({
     wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] });
     this.schoolLoadVersion = 0;
     this.schoolToken = null;
+    this.productLoadVersion = 0;
     this.updateNavigationMetrics();
   },
 
   onShow() {
+    this.productHidden = false;
     getApp().refreshMineTabRedDot().catch(() => {});
     return Promise.all([this.loadSchoolName(), this.loadData()]);
   },
 
   onHide() {
+    this.productHidden = true;
+    this.productLoadVersion += 1;
     this.schoolLoadVersion += 1;
   },
 
   onUnload() {
+    this.productDisposed = true;
     this.onHide();
   },
 
@@ -116,19 +121,32 @@ Page({
   },
 
   async loadData() {
+    if (this.productDisposed || this.productHidden) return;
+    const version = ++this.productLoadVersion;
+    const query = {
+      keyword: this.data.keyword,
+      categoryId: this.data.activeCategoryId,
+      pickupAddressPrefix: this.data.pickupAddressFilter
+        ? this.data.pickupAddressFilter.prefix
+        : null,
+    };
+    const queryKey = JSON.stringify(query);
+    const queryChanged = queryKey !== this.productQueryKey;
+    this.productQueryKey = queryKey;
+    const isCurrent = () => !this.productDisposed && !this.productHidden
+      && version === this.productLoadVersion;
     feedback.loaded(this);
-    this.setData({ loading: true });
+    // Do not display a previous query's products under the new conditions.
+    this.setData({
+      loading: true,
+      ...(queryChanged ? { products: [], stats: { onSale: 0, negotiable: 0 } } : {}),
+    });
     try {
       const [categories, products] = await Promise.all([
         secondHandService.listCategories(),
-        secondHandService.listProducts({
-          keyword: this.data.keyword,
-          categoryId: this.data.activeCategoryId,
-          pickupAddressPrefix: this.data.pickupAddressFilter
-            ? this.data.pickupAddressFilter.prefix
-            : null,
-        }),
+        secondHandService.listProducts(query),
       ]);
+      if (!isCurrent()) return;
       this.setData({
         categories,
         products: this.decorateProducts(products),
@@ -138,13 +156,16 @@ Page({
         },
       });
     } catch (error) {
+      if (!isCurrent()) return;
       console.error('二手首页商品加载失败', error);
       feedback.loadError(this, '商品加载失败，请重试', () => this.loadData(), !!this.data.products.length);
     } finally {
-      this.setData({
-        loading: false,
-        refreshing: false,
-      });
+      if (isCurrent()) {
+        this.setData({
+          loading: false,
+          refreshing: false,
+        });
+      }
     }
   },
 

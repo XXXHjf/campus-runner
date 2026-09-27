@@ -64,6 +64,8 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Autowired
     private SecondHandBargainMapper bargainMapper;
     @Autowired
+    private AddressBookMapper addressBookMapper;
+    @Autowired
     private SecondHandMessageMapper messageMapper;
     @Autowired
     private UserMapper userMapper;
@@ -386,7 +388,7 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     @Override
     @Transactional
-    public SecondHandOrderVO acceptBargain(Long bargainId, SecondHandOrderCreateDTO dto) {
+    public void acceptBargain(Long bargainId, SecondHandOrderCreateDTO dto) {
         ensureAuthenticated();
         SecondHandBargain bargain = requireBargain(bargainId);
         ensureOwner(bargain.getSellerId());
@@ -398,11 +400,8 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (bargainMapper.updatePendingStatus(bargain.getId(), SecondHandConstant.BARGAIN_ACCEPTED) == 0) {
             throw new SecondHandException("该议价已处理或已失效，请刷新后查看");
         }
-        SecondHandOrderCreateDTO orderDTO = dto == null ? new SecondHandOrderCreateDTO() : dto;
-        orderDTO.setProductId(product.getId());
-        orderDTO.setBargainId(bargain.getId());
-        SecondHandOrderVO order = createOrderInternal(product, bargain.getBuyerId(), bargain.getOfferPrice(), orderDTO, true);
-        return order;
+        subscriptions.bargainAccepted(bargain.getBuyerId(), product.getId(), bargain.getId(),
+                "报价已接受，请选择交付方式下单", LocalDateTime.now());
     }
 
     @Override
@@ -415,6 +414,23 @@ public class SecondHandServiceImpl implements SecondHandService {
         ensureBargainProductAvailable(product);
         if (bargainMapper.updatePendingStatus(bargain.getId(), SecondHandConstant.BARGAIN_REJECTED) == 0) {
             throw new SecondHandException("该议价已处理或已失效，请刷新后查看");
+        }
+    }
+
+    @Override
+    @Transactional
+    public void withdrawBargain(Long bargainId) {
+        ensureAuthenticated();
+        SecondHandBargain bargain = requireBargainForUpdate(bargainId);
+        ensureOwner(bargain.getBuyerId());
+        if (isStatus(bargain.getStatus(), SecondHandConstant.BARGAIN_WITHDRAWN)) {
+            return;
+        }
+        if (isStatus(bargain.getStatus(), SecondHandConstant.BARGAIN_ACCEPTED)) {
+            throw new SecondHandException("卖家已接受，请查看议价记录");
+        }
+        if (bargainMapper.updatePendingStatus(bargainId, SecondHandConstant.BARGAIN_WITHDRAWN) == 0) {
+            throw new SecondHandException("报价已处理或失效，请刷新查看");
         }
     }
 
@@ -454,6 +470,24 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Transactional
     public SecondHandOrderVO createOrder(SecondHandOrderCreateDTO dto) {
         ensureAuthenticated();
+        if (dto == null || dto.getProductId() == null) {
+            throw new ParamException("请选择商品");
+        }
+        if (dto.getBargainId() != null) {
+            // 先锁商品再读报价，与接受和商品占用保持相同顺序。
+            SecondHandProduct product = requireProductForUpdate(dto.getProductId());
+            SecondHandBargain bargain = requireBargainForUpdate(dto.getBargainId());
+            ensureOwner(bargain.getBuyerId());
+            if (!product.getId().equals(bargain.getProductId())
+                    || !product.getSellerId().equals(bargain.getSellerId())
+                    || !isStatus(bargain.getStatus(), SecondHandConstant.BARGAIN_ACCEPTED)) {
+                throw new SecondHandException("该报价当前不可下单，请刷新查看");
+            }
+            if (orderMapper.getByBargainId(bargain.getId()) != null) {
+                throw new SecondHandException("该报价已生成订单，请查看订单");
+            }
+            return createOrderInternal(product, bargain.getBuyerId(), bargain.getOfferPrice(), dto, true);
+        }
         SecondHandProduct product = requireProduct(dto.getProductId());
         return createOrderInternal(product, BaseContext.getCurrentId(), product.getPrice(), dto, false);
     }
@@ -907,7 +941,10 @@ public class SecondHandServiceImpl implements SecondHandService {
             throw new ParamException(MessageConstant.NOT_FOUND_PARAM);
         }
         validateBargainStatus(dto.getStatus());
-        SecondHandBargain bargain = requireBargain(id);
+        SecondHandBargain bargain = requireBargainForUpdate(id);
+        if (isStatus(bargain.getStatus(), SecondHandConstant.BARGAIN_WITHDRAWN)) {
+            throw new SecondHandException("已撤回的报价不可修改");
+        }
         bargain.setStatus(dto.getStatus());
         bargain.setUpdateTime(LocalDateTime.now());
         bargainMapper.update(bargain);
@@ -1068,7 +1105,24 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (pickupSnapshot == null) {
             throw new SecondHandException("商品自提地址缺失");
         }
-        String buyerDeliverySnapshot = trimToNull(dto.getBuyerDeliveryAddressSnapshot());
+        String buyerDeliverySnapshot = null;
+        if (deliveryMode == 1) {
+            if (dto.getBuyerDeliveryAddressId() == null) {
+                throw new ParamException("请选择配送地址");
+            }
+            AddressBook query = new AddressBook();
+            Long addressId = dto.getBuyerDeliveryAddressId();
+            query.setId(addressId);
+            query.setUserId(buyerId);
+            var addresses = addressBookMapper.query(query);
+            var address = addresses.stream().filter(item -> addressId.equals(item.getId())
+                    && buyerId.equals(item.getUserId()) && Integer.valueOf(0).equals(item.getDeleted()))
+                    .findFirst().orElseThrow(() -> new SecondHandException("配送地址不可用，请重新选择"));
+            buyerDeliverySnapshot = trimToNull(java.util.stream.Stream.of(address.getCompusName(), address.getBuildCategoryName(),
+                    address.getBuildingName(), address.getDetails())
+                    .filter(value -> trimToNull(value) != null).map(String::trim)
+                    .collect(java.util.stream.Collectors.joining(" ")));
+        }
         if (deliveryMode == 1 && buyerDeliverySnapshot == null) {
             throw new ParamException("请选择配送地址");
         }
@@ -1119,11 +1173,11 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .updateTime(now)
                 .build();
         orderMapper.insert(order);
-        // 与商品锁和订单共用事务；成交议价已先转为接受，其余待处理报价统一失效。
+        // 已下单的成交报价保留，其余待回复及已接受但未下单的报价失效。
         bargainMapper.expirePendingByProduct(product.getId());
+        bargainMapper.expireAcceptedWithoutOrder(product.getId());
         if (offline) {
-            subscriptions.order(order, negotiated ? buyerId : product.getSellerId(), negotiated ? "待交付" : "新订单",
-                    negotiated ? "议价已接受，¥" + amount.stripTrailingZeros().toPlainString() + " 元" : "买家已下单，请及时处理", now);
+            subscriptions.order(order, product.getSellerId(), "新订单", "买家已下单，请及时处理", now);
         }
         if (offline) {
             productMapper.markTrading(product.getId());
@@ -1630,6 +1684,18 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     private SecondHandProductVO resolveProductImages(SecondHandProductVO product) {
         return resolveProductImages(product, 0);
+    }
+
+    private SecondHandBargain requireBargainForUpdate(Long id) {
+        if (id == null) {
+            throw new ParamException(MessageConstant.NOT_FOUND_PARAM);
+        }
+        // 撤回只锁议价，不再申请商品锁；与接受/下单竞争议价行时不会形成反向锁序。
+        SecondHandBargain bargain = bargainMapper.getByIdForUpdate(id);
+        if (bargain == null) {
+            throw new SecondHandException("议价不存在");
+        }
+        return bargain;
     }
 
     private SecondHandProductVO resolveProductImages(SecondHandProductVO product, int maxWidth) {

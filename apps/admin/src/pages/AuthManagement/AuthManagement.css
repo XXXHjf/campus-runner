@@ -13,3 +13,5 @@
   color: var(--admin-text-secondary);
   font-size: 13px;
 }
+
+.auth-management .auth-reason-error { color: #d54941; margin-top: 8px; }

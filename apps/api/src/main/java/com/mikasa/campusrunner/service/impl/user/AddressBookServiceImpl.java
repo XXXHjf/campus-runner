@@ -55,6 +55,7 @@ public class AddressBookServiceImpl implements AddressBookService {
     @Override
     @Transactional
     public void save(AddressBookDTO addressBookDTO) {
+        addressBookMapper.lockUser(BaseContext.getCurrentId());
         Long compusId = compusMapper.getIdByNumberId(addressBookDTO.getCompusNumberId());
         Long buildCategoryId = buildCategoryMapper.getIdByNumberId(addressBookDTO.getBuildCategoryNumberId());
         Long buildingId = buildingMapper.getIdByNumberId(addressBookDTO.getBuildingNumberId());
@@ -77,6 +78,8 @@ public class AddressBookServiceImpl implements AddressBookService {
                 .build();
 
         int row = addressBookMapper.insert(addressBook);
+        if (row != 1) throw new AddressException("保存失败，请重试");
+        ensureDefault();
     }
 
 
@@ -87,15 +90,19 @@ public class AddressBookServiceImpl implements AddressBookService {
     @Override
     @Transactional
     public void deleteById(Long id) {
+        addressBookMapper.lockUser(BaseContext.getCurrentId());
         AddressBook addressBook = addressBookMapper.getById(id);
 
         if (addressBook == null){
             throw new AddressException(MessageConstant.NOT_FOUND_ADDRESS);
         }
 
+        if (!addressBook.getUserId().equals(BaseContext.getCurrentId())) throw new AddressException("只能修改自己的地址");
         addressBook.setDeleted(DeleteConstant.DELETED);
 
         int row = addressBookMapper.update(addressBook);
+        if (row != 1) throw new AddressException("删除失败，请重试");
+        ensureDefault();
 
     }
 
@@ -169,24 +176,29 @@ public class AddressBookServiceImpl implements AddressBookService {
     @Override
     @Transactional
     public void setDefault(AddressBookDefaultDTO addressBookDefaultDTO) {
-        AddressBook address = addressBookMapper.getById(addressBookDefaultDTO.getId());
-        if (address == null){
-            throw new AddressException(MessageConstant.NOT_FOUND_ADDRESS);
-        }
-        if (!address.getUserId().equals(BaseContext.getCurrentId())){
-            throw new AddressException(MessageConstant.NOT_YOUR_ORDER);
-        }
-        //先全部清零
-        AddressBook addressBook = new AddressBook();
-        addressBook.setUserId(BaseContext.getCurrentId());
-        addressBook.setIsDefault(DefaultStatusConstant.NO_DEFAULT);
-        addressBookMapper.clearDefault(addressBook);
+        AddressBookUpdateDTO dto = new AddressBookUpdateDTO();
+        dto.setId(addressBookDefaultDTO.getId());
+        dto.setIsDefault(1);
+        update(dto);
+    }
 
-        //然后更新
-        addressBook.setId(addressBookDefaultDTO.getId());
-        addressBook.setIsDefault(DefaultStatusConstant.IS_DEFAULT);
-        addressBookMapper.update(addressBook);
-
+    private void ensureDefault() {
+        AddressBook filter = new AddressBook();
+        filter.setUserId(BaseContext.getCurrentId());
+        filter.setDeleted(DeleteConstant.UN_DELETED);
+        filter.setIsDefault(1);
+        List<Long> defaults = addressBookMapper.getIds(filter);
+        if (defaults.size() == 1) return;
+        filter.setIsDefault(null);
+        List<Long> ids = addressBookMapper.getIds(filter);
+        if (ids.isEmpty()) return;
+        // 自增 ID 对应添加顺序；历史缺失或重复默认也在写入时恢复。
+        Long chosen = (defaults.isEmpty() ? ids : defaults).stream().max(Long::compareTo).orElseThrow();
+        addressBookMapper.clearDefault(filter);
+        AddressBook target = new AddressBook();
+        target.setId(chosen);
+        target.setIsDefault(1);
+        if (addressBookMapper.update(target) != 1) throw new AddressException("保存失败，请重试");
     }
 
     /**
@@ -194,7 +206,9 @@ public class AddressBookServiceImpl implements AddressBookService {
      * @param addressBookUpdateDTO
      */
     @Override
+    @Transactional
     public void update(AddressBookUpdateDTO addressBookUpdateDTO) {
+        addressBookMapper.lockUser(BaseContext.getCurrentId());
 
         AddressBook addressBook1 = addressBookMapper.getById(addressBookUpdateDTO.getId());
         if (addressBook1 == null){
@@ -205,10 +219,20 @@ public class AddressBookServiceImpl implements AddressBookService {
         }
 
 
-        Long schoolId = schoolMapper.getIdByNumberId(addressBookUpdateDTO.getSchoolNumberId());
-        Long compusId = compusMapper.getIdByNumberId(addressBookUpdateDTO.getCompusNumberId());
-        Long buildCategoryId = buildCategoryMapper.getIdByNumberId(addressBookUpdateDTO.getBuildCategoryNumberId());
-        Long buildingId = buildingMapper.getIdByNumberId(addressBookUpdateDTO.getBuildingNumberId());
+        Integer state = addressBookUpdateDTO.getIsDefault();
+        if (state != null && state != 0 && state != 1) throw new AddressException("请选择有效的默认地址状态");
+        if (Integer.valueOf(0).equals(state) && Integer.valueOf(1).equals(addressBook1.getIsDefault())) {
+            throw new AddressException("请将其他地址设为默认地址");
+        }
+        if (Integer.valueOf(1).equals(state)) {
+            AddressBook filter = new AddressBook();
+            filter.setUserId(BaseContext.getCurrentId());
+            addressBookMapper.clearDefault(filter);
+        }
+        Long schoolId = addressBookUpdateDTO.getSchoolNumberId() == null ? null : schoolMapper.getIdByNumberId(addressBookUpdateDTO.getSchoolNumberId());
+        Long compusId = addressBookUpdateDTO.getCompusNumberId() == null ? null : compusMapper.getIdByNumberId(addressBookUpdateDTO.getCompusNumberId());
+        Long buildCategoryId = addressBookUpdateDTO.getBuildCategoryNumberId() == null ? null : buildCategoryMapper.getIdByNumberId(addressBookUpdateDTO.getBuildCategoryNumberId());
+        Long buildingId = addressBookUpdateDTO.getBuildingNumberId() == null ? null : buildingMapper.getIdByNumberId(addressBookUpdateDTO.getBuildingNumberId());
 
         AddressBook addressBook = new AddressBook();
         BeanUtils.copyProperties(addressBookUpdateDTO, addressBook);
@@ -219,6 +243,8 @@ public class AddressBookServiceImpl implements AddressBookService {
         addressBook.setUserId(BaseContext.getCurrentId());
 
         int update = addressBookMapper.update(addressBook);
+        if (update != 1) throw new AddressException("保存失败，请重试");
+        ensureDefault();
 
     }
 }

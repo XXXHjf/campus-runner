@@ -10,12 +10,12 @@ const source = fs.readFileSync(path.resolve(
 ), 'utf8');
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 function deferred() {
-  let resolve;
-  const promise = new Promise((yes) => { resolve = yes; });
-  return { promise, resolve };
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
 }
 
-function createHarness({ token = 'session-a', getUserInfo, getSchools, listProducts } = {}) {
+function createHarness({ token = 'session-a', getUserInfo, getSchools, listProducts, listCategories } = {}) {
   const state = {
     user: { id: 7, schoolId: 101 },
     schools: [
@@ -25,6 +25,7 @@ function createHarness({ token = 'session-a', getUserInfo, getSchools, listProdu
     ],
     userReads: 0,
     schoolReads: 0,
+    loadErrors: [],
   };
   const toasts = [];
   const app = {
@@ -37,12 +38,12 @@ function createHarness({ token = 'session-a', getUserInfo, getSchools, listProdu
       page = {
         ...config,
         data: structuredClone(config.data),
-        setData(update) { Object.assign(this.data, update); },
+        setData(update, callback) { Object.assign(this.data, update); callback?.(); },
       };
     },
     getApp: () => app,
     require(id) {
-      if (id.endsWith('feedback')) return feedbackStub({ showToast: ({ title }) => toasts.push(title) });
+      if (id.endsWith('feedback')) return feedbackStub({ showToast: ({ title }) => toasts.push(title) }, (message) => state.loadErrors.push(message));
       if (id.endsWith('tokenManager')) {
         return { getToken: () => app.globalData.userInfo?.token || null };
       }
@@ -60,7 +61,7 @@ function createHarness({ token = 'session-a', getUserInfo, getSchools, listProdu
       }
       if (id.endsWith('secondHandService')) {
         return {
-          listCategories: async () => [],
+          listCategories: listCategories || (async () => []),
           listProducts: listProducts || (async () => [{ id: 1, title: '测试商品', images: 'one.jpg' }]),
         };
       }
@@ -203,4 +204,117 @@ test('product failures show a user-facing message and do not prevent school load
   assert.deepEqual(toasts, []);
   assert.equal(page.data.feedbackLoadError, '商品加载失败，请重试');
   assert.equal(page.data.loading, false);
+});
+
+for (const action of ['search', 'category', 'filter']) {
+  test(`${action}: newer results and stats survive an older late response`, async () => {
+    const requests = [];
+    const { page } = createHarness({ listProducts: (query) => {
+      const pending = deferred();
+      requests.push({ ...pending, query });
+      return pending.promise;
+    } });
+    const oldLoad = page.loadData();
+    if (action === 'search') {
+      page.onSearchChange({ detail: { value: '书' } });
+      page.onSearch();
+    } else if (action === 'category') {
+      page.selectCategory({ currentTarget: { dataset: { id: 3 } } });
+    } else {
+      page.setData({ draftCategoryId: 4, draftPickupAddress: { prefix: '北校区 一栋', displayText: '北校区 一栋' } });
+      page.applyFilterSelection();
+    }
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].query.keyword, '');
+    if (action === 'search') assert.equal(requests[1].query.keyword, '书');
+    if (action === 'category') assert.equal(requests[1].query.categoryId, 3);
+    if (action === 'filter') {
+      assert.equal(requests[1].query.categoryId, 4);
+      assert.equal(requests[1].query.pickupAddressPrefix, '北校区 一栋');
+    }
+    requests[1].resolve([{ id: 2, negotiable: 1 }]);
+    await tick();
+    assert.equal(page.data.loading, false);
+    requests[0].resolve([{ id: 1 }, { id: 3 }]);
+    await oldLoad;
+    assert.equal(page.data.products.length, 1);
+    assert.equal(page.data.products[0].id, 2);
+    assert.equal(page.data.stats.onSale, 1);
+    assert.equal(page.data.stats.negotiable, 1);
+  });
+}
+
+test('older failure cannot stop the latest loading or pull-to-refresh indicator', async () => {
+  const requests = [];
+  const { page, state } = createHarness({ listProducts: () => {
+    const pending = deferred(); requests.push(pending); return pending.promise;
+  } });
+  page.setData({ refreshing: true });
+  const first = page.loadData();
+  page.setData({ keyword: '新查询' });
+  const latest = page.loadData();
+  requests[0].reject(new Error('old failure'));
+  await first;
+  assert.equal(page.data.loading, true);
+  assert.equal(page.data.refreshing, true);
+  assert.equal(state.loadErrors.length, 0);
+  requests[1].resolve([]);
+  await latest;
+  assert.equal(page.data.loading, false);
+  assert.equal(page.data.refreshing, false);
+  assert.equal(page.data.products.length, 0);
+  assert.equal(page.data.feedbackLoadError, '');
+});
+
+test('latest empty results survive an older late failure without showing an error', async () => {
+  const old = deferred();
+  let reads = 0;
+  const { page, state } = createHarness({ listProducts: () => ++reads === 1 ? old.promise : [] });
+  const first = page.loadData();
+  page.setData({ keyword: '无匹配' });
+  await page.loadData();
+  old.reject(new Error('old failure'));
+  await first;
+  assert.equal(page.data.products.length, 0);
+  assert.equal(page.data.stats.onSale, 0);
+  assert.equal(page.data.loading, false);
+  assert.equal(page.data.feedbackLoadError, '');
+  assert.equal(state.loadErrors.length, 0);
+});
+
+test('latest query failure keeps its error after an older success and clears unrelated products', async () => {
+  const old = deferred();
+  let reads = 0;
+  const { page, state } = createHarness({ listProducts: () => ++reads === 1 ? old.promise : Promise.reject(new Error('latest failure')) });
+  page.setData({ products: [{ id: 99 }], stats: { onSale: 1, negotiable: 1 } });
+  const first = page.loadData();
+  page.setData({ keyword: '新查询' });
+  const latest = page.loadData();
+  assert.equal(page.data.products.length, 0);
+  assert.equal(page.data.loading, true);
+  await latest;
+  assert.equal(page.data.feedbackLoadError, '商品加载失败，请重试');
+  old.resolve([{ id: 1 }]);
+  await first;
+  assert.equal(page.data.products.length, 0);
+  assert.equal(page.data.stats.onSale, 0);
+  assert.equal(page.data.feedbackLoadError, '商品加载失败，请重试');
+  assert.equal(state.loadErrors.length, 1);
+});
+
+test('hidden or unloaded list requests cannot change results, errors or loading flags', async () => {
+  for (const lifecycle of ['onHide', 'onUnload']) {
+    for (const failure of [false, true]) {
+      const pending = deferred();
+      const { page, state } = createHarness({ listProducts: () => pending.promise });
+      const loading = page.loadData();
+      page[lifecycle]();
+      const snapshot = JSON.stringify(page.data);
+      if (failure) pending.reject(new Error('late failure'));
+      else pending.resolve([{ id: 5 }]);
+      await loading;
+      assert.equal(JSON.stringify(page.data), snapshot);
+      assert.equal(state.loadErrors.length, 0);
+    }
+  }
 });

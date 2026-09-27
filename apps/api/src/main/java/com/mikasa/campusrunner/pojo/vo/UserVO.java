@@ -33,6 +33,8 @@ public class UserVO {
     private String studentIdCard;//学生证照片链接
     private Long studentIdCardAssetId;
     private Integer studentIdCardReview;//学生证审核状态
+    private String studentIdCardRejectReason;
+    private Long authReviewVersion;
     private Integer score;
     private BigDecimal money;
     private Integer isManager;//是否是管理员
