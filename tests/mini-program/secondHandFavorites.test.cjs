@@ -1,3 +1,4 @@
+const feedbackStub = require('./helpers/feedbackStub.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -59,10 +60,13 @@ function createHarness({ beforeRequest = async () => {} } = {}) {
         };
       },
       require(id) {
+        if (id.endsWith('feedback')) return feedbackStub({ showToast: ({ title }) => toasts.push(title) });
         if (id.endsWith('secondHandService')) return service;
         return { friendlyError: (error, fallback) => error.message || fallback };
       },
       wx: {
+        getWindowInfo: () => ({ statusBarHeight: 24, windowWidth: 375 }),
+        getMenuButtonBoundingClientRect: () => ({ left: 278, width: 87, top: 28, height: 32 }),
         showToast: (options) => toasts.push(options.title),
         stopPullDownRefresh() {},
         navigateTo: (options) => navigation.push(options.url),
@@ -82,14 +86,29 @@ test('cancel keeps the card, changes local state, and can be undone without requ
   page.toggleFavorite(event(1));
   assert.equal(page.data.products.length, 2);
   assert.equal(page.data.products[0].isFavorited, false);
-  assert.equal(page.data.favoriteCount, 1);
+  assert.equal(page.data.filteredProducts.length, 2);
   assert.equal(h.favorites.has(1), true);
   page.toggleFavorite(event('1'));
   assert.equal(page.data.products[0].isFavorited, true);
-  assert.equal(page.data.favoriteCount, 2);
+  assert.equal(page.data.filteredProducts.length, 2);
   await page.onUnload();
   assert.equal(h.calls.filter((call) => call.method !== 'GET').length, 0);
   assert.deepEqual(h.toasts, []);
+});
+
+test('search filters saved cards and keeps local cancellation state', async () => {
+  const h = createHarness();
+  const page = h.createPage();
+  await page.onShow();
+  page.onSearchChange({ detail: { value: '商品二' } });
+  assert.deepEqual(Array.from(page.data.filteredProducts, (item) => item.id), [2]);
+  page.toggleFavorite(event(2));
+  assert.equal(page.data.filteredProducts[0].isFavorited, false);
+  page.clearSearch();
+  assert.deepEqual(Array.from(page.data.filteredProducts, (item) => item.id), [1, 2]);
+  assert.equal(page.data.filteredProducts[1].isFavorited, false);
+  await page.onUnload();
+  assert.equal(h.favorites.has(2), false);
 });
 
 test('refresh and returning from details preserve pending choices until unload', async () => {
@@ -117,7 +136,7 @@ test('cancelling every card does not show an empty list before leaving', async (
   await page.onShow();
   page.toggleFavorite(event(1));
   page.toggleFavorite(event(2));
-  assert.equal(page.data.favoriteCount, 0);
+  assert.equal(page.data.filteredProducts.length, 2);
   assert.equal(page.data.products.length, 2);
   await page.onUnload();
   await page.onUnload();

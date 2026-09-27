@@ -1,3 +1,5 @@
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <!-- 认证须知组件 -->
 <auth-notice 
   show="{{showAuthNotice}}" 
@@ -76,4 +78,5 @@
 </t-picker>
 
 <!-- 轻提示 -->
-<t-toast id="t-toast" />
+</block>
+<ui-feedback id="ui-feedback" />

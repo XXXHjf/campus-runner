@@ -49,7 +49,7 @@ page {
   box-sizing: border-box;
   display: flex;
   width: 100%;
-  height: 84rpx;
+  height: var(--cr-personal-tabs-height);
   padding: 0 8rpx;
   border-bottom: 1rpx solid var(--cr-color-border);
 }
@@ -85,7 +85,7 @@ page {
 }
 
 .my-orders__list {
-  margin: 24rpx var(--cr-page-padding) 48rpx;
+  margin: var(--cr-personal-list-gap) var(--cr-page-padding) 48rpx;
   overflow: hidden;
   border-radius: var(--cr-radius-large);
   background: var(--cr-color-surface);
@@ -93,7 +93,7 @@ page {
 }
 
 .my-orders__item {
-  padding: 28rpx 26rpx 30rpx;
+  padding: var(--cr-personal-item-padding);
 }
 
 .my-orders__item--separated {
@@ -189,7 +189,7 @@ page {
   flex: 0 0 160rpx;
   width: 160rpx;
   margin-left: auto;
-  color: #e7552d;
+  color: var(--cr-color-price);
   font-size: 30rpx;
   font-weight: 700;
   text-align: right;
@@ -224,15 +224,7 @@ page {
   --td-button-default-border-color: var(--cr-color-border);
 }
 
-.my-orders__sheet {
-  padding: 24rpx 32rpx 16rpx;
-}
 
-.my-orders__sheet-separator {
-  height: 1rpx;
-  margin: 12rpx 0;
-  background: var(--cr-color-border);
-}
 
 .my-orders__edit-sheet {
   padding: 32rpx;

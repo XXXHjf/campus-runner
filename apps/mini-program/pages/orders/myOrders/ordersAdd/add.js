@@ -1,4 +1,5 @@
-import Toast from 'tdesign-miniprogram/toast/index';
+const feedback = require('../../../../utils/feedback');
+const { toast: Toast } = require('../../../../utils/feedback');
 
 // 引入服务和工具
 const userOrderService = require('../../../../services/userOrderService');
@@ -68,8 +69,10 @@ Page({
     showUser: null,
     showPhone: null,
     maskedShowPhone: '',
+    contactNameDraft: '',
+    contactPhoneDraft: '',
     // 订单类型
-    category: {},
+    category: [],
     showCategory: {},
     isPurchase: false,
     productAmount: '',
@@ -126,6 +129,9 @@ Page({
     
     // 发布确认弹窗
     showOrderConfirm: false,
+    showReviewFeeHint: false,
+    showFormFeeHint: false,
+    isSubmitting: false,
     
     // 草稿自动保存
     debouncedSaveDraft: null, // 防抖保存函数
@@ -202,10 +208,11 @@ Page({
       });
 
       this._calculateFeePreview();
+      feedback.clearMessage(this, 'fee');
     } catch (error) {
       console.error('[服务费配置] 加载失败:', error);
       this.setData({ feeConfigLoaded: false });
-      showWarningToast(this, '服务费配置加载失败，请稍后重试');
+      feedback.showMessage(this, '费用暂时无法获取，请重试', { persistent: true, key: 'fee', action: '重试', onAction: () => this._loadFeeConfig() });
     }
   },
   
@@ -245,7 +252,7 @@ Page({
     if (!draft) return false;
     
     // 询问用户是否恢复草稿
-    wx.showModal({
+    feedback.showModal(this, {
       title: '发现未完成的订单',
       content: '是否恢复上次填写的内容？',
       confirmText: '恢复',
@@ -258,12 +265,14 @@ Page({
             .map(part => String(part || '').trim())
             .filter(Boolean)
             .join('\n')).slice(0, 100);
-          const isPurchase = restored.showCategory && restored.showCategory.categoryCode === 'PURCHASE';
+          const activeCategory = (this.data.category || []).find(item =>
+            item.id === (restored.showCategory && restored.showCategory.id)) || null;
+          const isPurchase = activeCategory && activeCategory.categoryCode === 'PURCHASE';
           this.setData({
             ...draftFields,
+            showCategory: activeCategory || {},
             isPurchase,
-            title: isPurchase ? ['地点', '清单', '费用'] : STEP_TITLES,
-            priceAccess: isPurchase ? PRICE_MODE.PAID : restored.priceAccess,
+            priceAccess: isPurchase ? PRICE_MODE.PAID : (restored.priceAccess || PRICE_MODE.FREE),
             productAmount: isPurchase ? restored.productAmount : '',
             productAmountError: false,
             note,
@@ -333,7 +342,8 @@ Page({
     var minutesDifference = Math.floor(timeDifference / (1000 * 60));
     this.setData({
       showReachTime: day + defaultTimeList[0].displayTime,
-      gapReach: minutesDifference
+      gapReach: minutesDifference,
+      selectedTime: defaultTimeList[0].time
     });
 
     this.setData({
@@ -679,7 +689,7 @@ Page({
   editAddress(e) {
     const { id } = e.currentTarget.dataset;
     if (!id) {
-      showErrorToast('地址已失效，请重新选择');
+      showErrorToast(this, '地址已失效，请重新选择');
       return;
     }
     wx.navigateTo({
@@ -701,7 +711,9 @@ Page({
   // 下单人信息修改
   upUser(e) {
     this.setData({
-      visibleUser: true
+      visibleUser: true,
+      contactNameDraft: this.data.showUser || '',
+      contactPhoneDraft: this.data.showPhone || ''
     });
   },
   onVisibleChangeUser(e) {
@@ -709,24 +721,31 @@ Page({
       visibleUser: e.detail.visible,
     });
   },
-  cancelAndConfirmUser() {
-    this.setData({
-      visibleUser: false
-    });
-    this.buttonColor();
+  closeContactEditor() {
+    this.setData({ visibleUser: false });
+  },
+  saveContact() {
+    const name = String(this.data.contactNameDraft || '').trim();
+    const phone = String(this.data.contactPhoneDraft || '').trim();
+    if (!name || name.length > 50 || containsEmoji(name)) {
+      errorCilcleToast(this, '请填写不含表情的联系人姓名，最多50字');
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      errorCilcleToast(this, '请输入正确的手机号');
+      return;
+    }
+    this.setData({ showUser: name, showPhone: phone, maskedShowPhone: maskPhone(phone), visibleUser: false });
     this._saveDraftData();
   },
   tiptChangeShowuser(e) {
-    console.log('Name值： ' + e.detail.value)
     this.setData({
-      showUser: e.detail.value
+      contactNameDraft: e.detail.value
     })
   },
   tiptChangePhone(e) {
-    console.log('phone值： ' + e.detail.value)
     this.setData({
-      showPhone: e.detail.value,
-      maskedShowPhone: maskPhone(e.detail.value),
+      contactPhoneDraft: e.detail.value,
     })
   },
   // 订单类别category（使用封装的 service）
@@ -734,9 +753,10 @@ Page({
     try {
       const category = await addressService.getCategories();
       this.setData({ category });
+      return category;
     } catch (error) {
       console.error('获取分类失败:', error);
-      showError('加载分类失败');
+      feedback.showMessage(this, '分类加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.getCategory() });
     }
   },
   // 订单类别category修改
@@ -759,16 +779,22 @@ Page({
   onChangeCategory(event) {
     const Category = event.currentTarget.dataset.item;
     const isPurchase = Category.categoryCode === 'PURCHASE';
+    const wasPurchase = this.data.isPurchase;
+    const hadCategory = Boolean(this.data.showCategory && this.data.showCategory.id);
     this.setData({
       showCategory: Category,
       isPurchase,
+      visibleCategory: false,
       title: isPurchase ? ['地点', '清单', '费用'] : STEP_TITLES,
-      priceAccess: isPurchase ? PRICE_MODE.PAID : this.data.priceAccess,
+      priceAccess: isPurchase ? PRICE_MODE.PAID : (wasPurchase ? PRICE_MODE.FREE : this.data.priceAccess),
       productAmount: isPurchase ? this.data.productAmount : '',
       productAmountError: false,
     });
     this._calculateFeePreview();
     this._saveDraftData(); // 保存草稿
+    if (hadCategory && wasPurchase !== isPurchase) {
+      showWarningToast(this, '类型已更换，请检查需求和费用');
+    }
   },
   // 门禁修改
   handleChangeDoor(e) {
@@ -789,6 +815,10 @@ Page({
   handleAdd(e) {
     const { files } = e.detail;
     (files || []).forEach(file => this.onUpload(file));
+  },
+  onDoorChange(e) {
+    this.setData({ doorAccess: e.detail.value ? DOOR_ACCESS.HAS_GUARD : DOOR_ACCESS.NO_GUARD });
+    this._saveDraftData();
   },
   
   // 上传图片 - 重构版（消除代码重复）
@@ -832,7 +862,7 @@ Page({
       // 更新状态为失败
       const fileIndex = this.data.fileList.findIndex(item => item.uploadKey === uploadKey);
       if (fileIndex >= 0) this.setData({ [`fileList[${fileIndex}].status`]: 'failed' });
-      errorCilcleToast(this, '图片上传失败');
+      showErrorToast(this, '图片上传失败');
     }
   },
   
@@ -960,6 +990,15 @@ Page({
       });
     }
     this._calculateFeePreview();
+    this._saveDraftData();
+  },
+  selectFree() {
+    if (this.data.priceAccess === PRICE_MODE.FREE) return;
+    this.handleChangePrice();
+  },
+  selectPaid() {
+    if (this.data.priceAccess === PRICE_MODE.PAID) return;
+    this.handleChangePrice();
   },
   onPriceInput(e) {
     const value = e.detail.value;
@@ -985,11 +1024,18 @@ Page({
   // 发布订单 - 验证并显示确认弹窗
   async order() {
     if (!await require('../../../../utils/accessGuard').ensureAuthenticated()) return;
+    this.setData({ showReviewFeeHint: false });
     // 数据预处理
     this._prepareOrderData();
 
+    if (!this.data.selectedTime || this.data.selectedTime <= Date.now()) {
+      errorCilcleToast(this, '请重新选择送达时间');
+      return;
+    }
+    this.setData({ gapReach: Math.max(1, Math.floor((this.data.selectedTime - Date.now()) / 60000)) });
+
     if (this.data.priceAccess === PRICE_MODE.PAID && !this.data.feeConfigLoaded) {
-      errorCilcleToast(this, '服务费配置加载失败，请稍后重试');
+      feedback.showMessage(this, '费用暂时无法获取，请重试', { persistent: true, key: 'fee', action: '重试', onAction: () => this._loadFeeConfig() });
       return;
     }
     if (this.data.isPurchase) {
@@ -1041,7 +1087,7 @@ Page({
         showOrderConfirm: true,
       });
     } catch (error) {
-      errorCilcleToast(this, error.message || '金额计算失败，请稍后重试');
+      showErrorToast(this, error.message || '金额计算失败，请稍后重试');
     }
   },
   
@@ -1051,25 +1097,6 @@ Page({
       note: String(this.data.note || '').trim(),
     });
 
-    // 处理价格：免费模式下价格设为 null
-    if (!this.data.isPurchase && (this.data.priceAccess === PRICE_MODE.FREE || this.data.price == 0)) {
-      this.setData({
-        price: null,
-        productAmount: 0,
-        serviceFee: null,
-        payAmount: null,
-        runnerReceivable: null
-      });
-    } else {
-      if (this.data.isPurchase) this.setData({ priceAccess: PRICE_MODE.PAID });
-      this._calculateFeePreview();
-    }
-    
-    // 处理任务时间
-    if (this.data.showGap != null && !this.data.gapError) {
-      this.setData({ gap: this.data.showGap });
-    }
-    
     // 处理自动取消时间
     if (this.data.cancelTime == null) {
       this._setDefaultCancelTime();
@@ -1081,8 +1108,18 @@ Page({
       showOrderConfirm: false
     });
   },
+  onOrderConfirmVisibleChange(e) {
+    this.setData({ showOrderConfirm: e.detail.visible });
+  },
+  toggleReviewFeeHint() {
+    this.setData({ showReviewFeeHint: !this.data.showReviewFeeHint });
+  },
+  toggleFormFeeHint() {
+    this.setData({ showFormFeeHint: !this.data.showFormFeeHint });
+  },
   // 确认发布订单
   async confirmOrder() {
+    if (this.data.isSubmitting) return;
     if (!await require('../../../../utils/accessGuard').ensureAuthenticated()) return;
     const contentValidation = validateContent(this.data);
     if (!contentValidation.valid) {
@@ -1090,9 +1127,7 @@ Page({
       this.setData({ showOrderConfirm: false });
       return;
     }
-    this.setData({
-      showOrderConfirm: false
-    });
+    this.setData({ isSubmitting: true });
     
     try {
       // 请求订阅消息权限
@@ -1101,9 +1136,12 @@ Page({
       
       // 发布订单
       await this._apiPostOrder();
+      this.setData({ showOrderConfirm: false });
     } catch (err) {
       console.error('[订单发布] 失败:', err);
-      errorCilcleToast(this, err.message || '发布订单失败');
+      showErrorToast(this, err.message || '发布订单失败');
+    } finally {
+      this.setData({ isSubmitting: false });
     }
   },
   // 调用后端接口 发布订单（使用封装的 service）
@@ -1111,8 +1149,16 @@ Page({
     showLoading('发布中');
     
     try {
-      const isPaidOrder = this.data.price !== null && this.data.price !== undefined;
+      const isPaidOrder = this.data.priceAccess === PRICE_MODE.PAID;
 
+      // 确认弹窗或订阅授权期间可能跨过截止时间，实际提交前再次校验。
+      if (!this.data.selectedTime || this.data.selectedTime <= Date.now()) {
+        this.setData({ showOrderConfirm: false });
+        throw new Error('预期送达时间已过，请重新选择');
+      }
+      const selectedDate = new Date(this.data.selectedTime);
+      const pad = value => String(value).padStart(2, '0');
+      const expectedDeliveryTime = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())} ${pad(selectedDate.getHours())}:${pad(selectedDate.getMinutes())}:00`;
       // 构建订单数据
       const orderData = {
         pickUpAddress: this.data.showPickUp.id,
@@ -1124,7 +1170,8 @@ Page({
         note: this.data.note,
         imageAssetIds: this.data.fileList.map(file => file.mediaId),
         cancelTime: this.data.cancelTime,
-        gap: this.data.gapReach,
+        expectedDeliveryTime,
+        gap: Math.max(1, Math.ceil((this.data.selectedTime - Date.now()) / 60000)),
         price: isPaidOrder ? Number(this.data.price) : null,
         productAmount: this.data.isPurchase ? Number(this.data.productAmount) : 0,
         serviceFeeRate: isPaidOrder ? Number(this.data.serviceFeeRate) : 0,
@@ -1132,32 +1179,29 @@ Page({
         payAmount: isPaidOrder ? Number(this.data.payAmount) : 0
       };
 
-      console.log("此次发布订单的信息", orderData);
-
       // 创建订单
       const result = await userOrderService.createOrder(orderData);
       const orderID = result.data.id;
       
       hideLoading();
-      checkCilcleToast(this, '下单成功');
       
       // 保存本次使用的地址到缓存（用于下次自动填充）
       this.saveLastUsedAddress(this.data.showPickUp.id, this.data.showRecive.id);
       
       // 清除订单草稿（发布成功后）
+      if (this.debouncedSaveDraft) this.debouncedSaveDraft.cancel();
       clearDraft();
 
       // 如选择有偿，处理微信支付
-      if (this.data.price) {
+      if (isPaidOrder) {
         await this._handlePayment(orderID);
       } else {
         // 免费订单，直接跳转
-        this._redirectToHome();
+        this._redirectToHome('发布成功');
       }
     } catch (error) {
       hideLoading();
       console.error('[订单发布] 创建订单失败:', error);
-      showError('创建订单失败');
       throw error;
     }
   },
@@ -1169,8 +1213,7 @@ Page({
       if (getApp().globalData.MOCK_PAYMENT) {
         await userOrderService.mockPaySuccess(orderID);
         hideLoading();
-        checkCilcleToast(this, '模拟支付成功');
-        this._redirectToHome();
+        this._redirectToHome('模拟支付成功');
         return;
       }
       const transactionRes = await this._apiPostTransaction(orderID);
@@ -1184,19 +1227,17 @@ Page({
       }
       
       hideLoading();
-      checkCilcleToast(this, '发布成功');
       if (!synced) {
-        showWarningToast(this, '支付成功，状态同步稍后刷新');
+        wx.redirectTo({ url: `/pages/orders/myOrders/ordersInfo/info?id=${orderID}&paymentPending=1` });
+      } else {
+        this._redirectToHome('发布成功');
       }
-      this._redirectToHome();
     } catch (error) {
       hideLoading();
       console.error('[订单支付] 支付失败:', error);
-      showError('支付失败，订单已创建');
-      // 支付失败但订单已创建，延迟跳转到订单列表
-      setTimeout(() => {
-        wx.reLaunch({ url: '/pages/orders/myOrders/ordersShow/show' });
-      }, 2000);
+      // The created order remains available even when the user cancels payment.
+      const cancelled = /cancel|取消/i.test(error?.errMsg || error?.message || '');
+      wx.redirectTo({ url: `/pages/orders/myOrders/ordersInfo/info?id=${orderID}${cancelled ? '' : '&paymentFailed=1'}` });
     }
   },
 
@@ -1216,10 +1257,10 @@ Page({
   },
   
   // 跳转到首页
-  _redirectToHome() {
-    setTimeout(() => {
-      wx.reLaunch({ url: '/pages/index/index' });
-    }, 1500);
+  _redirectToHome(message) {
+    wx.reLaunch({ url: '/pages/index/index', success: () => {
+      if (message) wx.nextTick(() => feedback.showToast(feedback.currentPage(), { title: message, theme: 'success' }));
+    } });
   },
   // 微信支付发单，返回prepayID、签名值等
   _apiPostTransaction(orderID) {
@@ -1252,7 +1293,7 @@ Page({
           resolve(res);
         },
         fail: (err) => {
-          reject(new Error("requestPayment failed" + err.message));
+          reject(err);
         }
       })
     })
@@ -1340,7 +1381,7 @@ Page({
       
     } catch (error) {
       console.error('[生命周期] onShow 错误:', error);
-      showWarningToast(this, error.message || '页面加载失败');
+      feedback.showMessage(this, '资料加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.onShow() });
     }
   },
   
@@ -1443,7 +1484,18 @@ Page({
   },
 
   // 预期送达时间对应事件：选择送达时间
-  tapOnReachTime() {
+  async tapOnReachTime() {
+    const selectedTime = this.data.selectedTime;
+    const showReachTime = this.data.showReachTime;
+    this._setDateLabels();
+    await this._generateTimeSlots();
+    if (selectedTime && selectedTime > Date.now()) {
+      this.setData({
+        selectedTime,
+        showReachTime,
+        gapReach: Math.max(1, Math.floor((selectedTime - Date.now()) / 60000))
+      });
+    }
     this.setData({
       isReachTimeVisiable: true
     })

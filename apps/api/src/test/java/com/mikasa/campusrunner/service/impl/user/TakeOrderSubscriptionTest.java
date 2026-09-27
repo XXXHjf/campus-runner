@@ -4,6 +4,11 @@ import com.mikasa.campusrunner.common.context.BaseContext;
 import com.mikasa.campusrunner.common.exception.TakeOrderException;
 import com.mikasa.campusrunner.mapper.OrderMapper;
 import com.mikasa.campusrunner.mapper.TakeOrderMapper;
+import com.mikasa.campusrunner.mapper.UserMapper;
+import com.mikasa.campusrunner.pojo.vo.UserVO;
+import com.mikasa.campusrunner.common.exception.OrderException;
+import java.time.LocalDateTime;
+import org.junit.jupiter.api.AfterEach;
 import com.mikasa.campusrunner.pojo.dto.TakeOrderUpdateStatusDTO;
 import com.mikasa.campusrunner.pojo.entity.Order;
 import com.mikasa.campusrunner.pojo.entity.TakeOrder;
@@ -21,7 +26,49 @@ class TakeOrderSubscriptionTest {
     @Mock TakeOrderMapper takeOrderMapper;
     @Mock OrderMapper orderMapper;
     @Mock MessageSendService messages;
+    @Mock UserMapper userMapper;
     @InjectMocks TakeOrderServiceImpl service;
+
+    @AfterEach void clearContext() { BaseContext.removeCurrentId(); }
+
+    private Order readyToTake() {
+        Order order = new Order();
+        order.setId(2L); order.setStatus(0); order.setGap(30);
+        UserVO user = new UserVO(); user.setAuthentication(1);
+        BaseContext.setCurrentId(3L);
+        when(orderMapper.getById(2L)).thenReturn(order);
+        when(userMapper.getById(3L)).thenReturn(user);
+        return order;
+    }
+
+    @Test void takingOrderNeverMovesChosenDeadline() {
+        Order order = readyToTake();
+        LocalDateTime deadline = LocalDateTime.now().plusMinutes(10).withSecond(0).withNano(0);
+        order.setExpectedDeliveryTime(deadline);
+        service.take(2L);
+        assertEquals(deadline, order.getExceedTime());
+        assertEquals(deadline, order.getExpectedDeliveryTime());
+        verify(takeOrderMapper).save(any());
+    }
+
+    @Test void expiredNewOrderCannotBeTaken() {
+        Order order = readyToTake();
+        order.setExpectedDeliveryTime(LocalDateTime.now().minusMinutes(1));
+        assertThrows(OrderException.class, () -> service.take(2L));
+        assertEquals(0, order.getStatus());
+        verify(orderMapper, never()).update(any());
+        verify(takeOrderMapper, never()).save(any());
+        verifyNoInteractions(messages);
+    }
+
+    @Test void legacyOrderKeepsHistoricalTakeTimeDeadline() {
+        Order order = readyToTake();
+        LocalDateTime before = LocalDateTime.now();
+        service.take(2L);
+        assertFalse(order.getExceedTime().isBefore(before.plusMinutes(30)));
+        assertFalse(order.getExceedTime().isAfter(LocalDateTime.now().plusMinutes(30)));
+        assertNull(order.getExpectedDeliveryTime());
+    }
 
     @Test void repeatedPickupDoesNotSendAgainOrAllowReturningFromFinishedToPickup() {
         TakeOrder take = new TakeOrder();

@@ -39,7 +39,7 @@ page { background: var(--cr-color-background, #f6f8f7); }
   box-sizing: border-box;
   display: flex;
   width: 100%;
-  height: 84rpx;
+  height: var(--cr-personal-tabs-height, 84rpx);
   padding: 0 8rpx;
   border-bottom: 1rpx solid var(--cr-color-border, #edf0f2);
 }
@@ -68,13 +68,13 @@ page { background: var(--cr-color-background, #f6f8f7); }
   content: '';
 }
 .secondhand-orders__list {
-  margin: 24rpx var(--cr-page-padding, 24rpx) 48rpx;
+  margin: var(--cr-personal-list-gap, 24rpx) var(--cr-page-padding, 24rpx) 48rpx;
   overflow: hidden;
   border-radius: var(--cr-radius-large, 24rpx);
   background: var(--cr-color-surface, #fff);
   box-shadow: var(--cr-shadow-card);
 }
-.secondhand-orders__item { padding: 28rpx 26rpx 30rpx; }
+.secondhand-orders__item { padding: var(--cr-personal-item-padding, 28rpx 26rpx 30rpx); }
 .secondhand-orders__item--separated { border-top: 1rpx solid var(--cr-color-border, #edf0f2); }
 .secondhand-orders__item-top,
 .secondhand-orders__item-bottom { display: flex; align-items: center; justify-content: space-between; gap: 14rpx; }
@@ -127,7 +127,7 @@ page { background: var(--cr-color-background, #f6f8f7); }
 .secondhand-orders__amount {
   flex: 0 0 132rpx;
   width: 132rpx;
-  color: #e7552d;
+  color: var(--cr-color-price, #e7552d);
   font-size: 30rpx;
   font-weight: 700;
   text-align: right;
@@ -137,5 +137,4 @@ page { background: var(--cr-color-background, #f6f8f7); }
 .secondhand-orders__more { display: flex; align-items: center; justify-content: center; width: 68rpx; height: 56rpx; }
 .secondhand-orders__more { margin-right: auto; }
 .secondhand-orders__action { flex: none; }
-.secondhand-orders__sheet { padding: 24rpx 32rpx calc(16rpx + env(safe-area-inset-bottom)); }
 .secondhand-orders__feedback { display: flex; justify-content: center; padding: 90rpx 0; }

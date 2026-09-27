@@ -1,3 +1,4 @@
+const feedback = require('../../../utils/feedback');
 const subscriptions = require('../../../services/subscriptionService');
 const secondHandService = require('../../../services/secondHandService');
 const deliveryAddressService = require('../../../services/deliveryAddressService');
@@ -5,6 +6,7 @@ const mediaService = require('../../../services/mediaService');
 const CONDITION_OPTIONS = ['全新', '几乎全新', '轻微使用', '明显使用'];
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     id: null,
     isEdit: false,
@@ -54,8 +56,9 @@ Page({
       const categories = await secondHandService.listCategories();
       this.setData({ categories });
       this.syncCategoryName();
+      feedback.clearMessage(this, 'category');
     } catch (error) {
-      wx.showToast({ title: this.errorText(error, '分类加载失败'), icon: 'none' });
+      feedback.showMessage(this, '分类加载失败，请重试', { persistent: true, key: 'category', theme: 'error', action: '重试', onAction: () => this.loadCategories() });
     }
   },
 
@@ -71,12 +74,13 @@ Page({
       });
     } catch (error) {
       if (showError) {
-        wx.showToast({ title: this.errorText(error, '地址加载失败'), icon: 'none' });
+        feedback.showMessage(this, '地址列表加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.loadAddressBook() });
       }
     }
   },
 
   async loadProduct(id) {
+    feedback.loaded(this);
     try {
       const product = await secondHandService.getProduct(id);
       const assetIds = product.imageAssetIds || [];
@@ -107,7 +111,7 @@ Page({
       });
       this.syncCategoryName();
     } catch (error) {
-      wx.showToast({ title: this.errorText(error, '商品加载失败'), icon: 'none' });
+      feedback.loadError(this, '商品加载失败，请重试', () => this.loadProduct(this.data.id));
     }
   },
 
@@ -133,7 +137,7 @@ Page({
 
   chooseCategory() {
     if (!this.data.categories.length) {
-      wx.showToast({ title: '暂无可选分类', icon: 'none' });
+      feedback.showToast(this, { title: '暂无可选分类', theme: 'warning' });
       return;
     }
     this.setData({ showCategorySheet: true });
@@ -213,7 +217,7 @@ Page({
       this.syncImages();
     } catch (error) {
       this.setData({ [`fileList[${index}].status`]: 'failed' });
-      wx.showToast({ title: this.errorText(error, '图片上传失败'), icon: 'none' });
+      feedback.showToast(this, { title: this.errorText(error, '图片上传失败'), theme: 'error' });
     } finally {
       this.setData({ uploading: false });
     }
@@ -275,11 +279,11 @@ Page({
     if (!await require('../../../utils/accessGuard').ensureAuthenticated()) return;
     const error = this.validateForm();
     if (error) {
-      wx.showToast({ title: error, icon: 'none' });
+      feedback.showToast(this, { title: error, theme: 'warning' });
       return;
     }
     const action = this.data.isEdit ? '保存修改' : '发布闲置';
-    wx.showModal({
+    feedback.showModal(this, {
       title: action,
       content: this.data.form.pickupOnly === 1
         ? '确认后，买家将到你设置的地点取货。'
@@ -311,10 +315,9 @@ Page({
         await subscriptions.requestSecondHandOrder();
       }
       this.submitted = true;
-      wx.showToast({ title: this.data.isEdit ? '已保存' : '已发布', icon: 'success' });
-      setTimeout(() => wx.navigateBack(), 600);
+      feedback.navigate(this, 'navigateBack', {}, this.data.isEdit ? '已保存' : '已发布');
     } catch (error) {
-      wx.showToast({ title: this.errorText(error, '提交失败'), icon: 'none' });
+      feedback.showToast(this, { title: this.errorText(error, '提交失败'), theme: 'error' });
     } finally {
       this.setData({ submitting: false });
     }

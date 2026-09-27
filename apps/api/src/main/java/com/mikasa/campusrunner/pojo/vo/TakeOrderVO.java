@@ -22,8 +22,8 @@ public class TakeOrderVO {
     private BigDecimal productAmount;
     private BigDecimal runnerFee;
     private BigDecimal runnerReceivable;
-    private BigDecimal realPrice;
 
+    private LocalDateTime expectedDeliveryTime; // 用户选定的预期送达时间
     private LocalDateTime deliveryTime;
 
     private LocalDateTime cancelTime;

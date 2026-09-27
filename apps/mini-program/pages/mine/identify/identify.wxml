@@ -1,3 +1,5 @@
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <!-- 认证须知组件 -->
 <auth-notice 
   show="{{showAuthNotice}}" 
@@ -144,15 +146,7 @@
 </view>
 
 <!-- 更改校园认证的弹出层 -->
-<t-dialog
-  visible="{{dialogVisable}}"
-  title="校园认证更正"
-  content="确定更改校园认证信息吗？"
-  confirm-btn="去修改"
-  cancel-btn="取消"
-  bind:confirm="goToChange"
-  bind:cancel="closeDialog"
-/>
+
 
 <!-- 弹出层 -->
 <t-picker visible="{{areaVisible}}" value="{{areaValue}}" title="请选择学校" cancelBtn="取消" confirmBtn="确认" bindchange="onPickerChange" bindpick="onColumnChange" bindcancel="onPickerCancel">
@@ -160,4 +154,5 @@
 </t-picker>
 
 <!-- 轻提示 -->
-<t-toast id="t-toast" />
+</block>
+<ui-feedback id="ui-feedback" />

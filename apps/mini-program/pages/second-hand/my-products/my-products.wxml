@@ -1,3 +1,6 @@
+<t-navbar wx:if="{{feedbackLoadError}}" title="我的闲置" left-arrow bind:go-back="goBack" />
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <view class="my-products-page">
   <view class="my-products-page__controls" style="padding-top: {{statusBarHeight}}px;">
     <view class="my-products-page__nav" style="height: {{navigationBarHeight}}px; padding-right: {{navigationRightPadding}}px;">
@@ -69,10 +72,10 @@
 </view>
 
 <t-popup visible="{{actionSheetVisible}}" placement="bottom" close-on-overlay-click="true" bind:visible-change="onActionSheetChange">
-  <view class="my-products-page__sheet">
-    <t-button block variant="text" theme="{{actionProduct.status == 4 ? 'primary' : 'danger'}}" bind:tap="toggleStatus">{{actionProduct.status == 4 ? '重新上架' : '下架商品'}}</t-button>
+  <view class="cr-action-sheet">
+    <t-button block variant="text" theme="default" bind:tap="toggleStatus">{{actionProduct.status == 4 ? '重新上架' : '下架商品'}}</t-button>
     <t-button block variant="text" bind:tap="showActionProductDetail">查看商品</t-button>
-    <t-button block variant="text" bind:tap="closeActionSheet">关闭</t-button>
+    <t-button block variant="text" class="cr-action-sheet__cancel" bind:tap="closeActionSheet">取消</t-button>
   </view>
 </t-popup>
 
@@ -135,3 +138,7 @@
     >确认改价</t-button>
   </view>
 </t-popup>
+
+
+</block>
+<ui-feedback id="ui-feedback" custom-navigation="{{true}}" />

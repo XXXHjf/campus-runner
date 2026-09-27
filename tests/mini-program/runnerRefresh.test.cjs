@@ -1,3 +1,4 @@
+const feedbackStub = require('./helpers/feedbackStub.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -18,6 +19,7 @@ function harness() {
     console: { log() {}, error() {} },
     wx: { stopPullDownRefresh() { state.stopped++; } },
     require(id) {
+      if (id.endsWith('feedback')) return feedbackStub({}, message => state.errors.push(message));
       if (id.endsWith('tokenManager')) return {
         getToken: () => state.token, hasToken: () => !!state.token, waitForToken: async () => {},
       };
@@ -27,7 +29,7 @@ function harness() {
       };
       if (id.endsWith('orderService')) return { getPublicOrders: async () => [{ id: 9, categoryId: 2, categoryName: '取件', price: 3 }] };
       if (id.endsWith('transformers')) return {
-        showLoading() { state.loading++; }, hideLoading() {}, showError(message) { state.errors.push(message); },
+        showLoading() { state.loading++; }, hideLoading() {}, showError(_, message) { state.errors.push(message); },
       };
       if (id.endsWith('constants')) return { SWIPER_CONFIG: {}, ERROR_MESSAGES: { GET_ORDERS_FAILED: '获取失败' } };
       return {};

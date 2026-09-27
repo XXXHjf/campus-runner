@@ -1,3 +1,4 @@
+const feedback = require('../../../../utils/feedback');
 const takeOrderService = require('../../../../services/takeOrderService');
 const userOrderService = require('../../../../services/userOrderService');
 const { showError } = require('../../../../utils/transformers');
@@ -13,6 +14,7 @@ function formatMoney(value) {
 }
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     statusBarHeight: 0,
     navigationBarHeight: 44,
@@ -173,11 +175,11 @@ Page({
     try {
       const latest = await userOrderService.getMyOrderDetail(order.orderId);
       if (Number(latest.status) !== 1 || latest.businessType === 'PURCHASE') {
-        wx.showToast({ title: '订单状态已变化，请刷新', icon: 'none' });
+        feedback.showToast(this, { title: '订单状态已变化，请刷新', theme: 'warning' });
         shouldReload = true;
         return;
       }
-      const confirmed = await new Promise(resolve => wx.showModal({
+      const confirmed = await new Promise(resolve => feedback.showModal(this, {
         title: '取件完成',
         content: '确认已取到物品？',
         success: ({ confirm }) => resolve(confirm),
@@ -187,9 +189,9 @@ Page({
       shouldReload = true;
       const result = await takeOrderService.updateTakeOrderStatus({ id: order.id, status: 1 });
       if (result.code !== 1) throw new Error(result.msg || '操作失败');
-      wx.showToast({ title: '已开始派送', icon: 'success' });
+      feedback.showToast(this, { title: '已开始派送', icon: 'success' });
     } catch (error) {
-      showError(shouldReload ? '操作失败，请刷新订单后重试' : '获取订单失败，请重试');
+      showError(this, shouldReload ? '操作失败，请刷新订单后重试' : '获取订单失败，请重试');
     } finally {
       if (shouldReload) await this.loadOrders();
       this.setData({ actionBusy: false });
@@ -222,6 +224,7 @@ Page({
   },
 
   async loadOrders() {
+    feedback.loaded(this);
     this.setData({ loading: true });
     try {
       const result = await takeOrderService.getMyTakeOrders();
@@ -230,7 +233,7 @@ Page({
       return true;
     } catch (error) {
       console.error('获取接单失败:', error);
-      showError('获取接单失败，请重试');
+      feedback.loadError(this, '加载失败，请重试', () => this.loadOrders(), !!this.data.orders.length);
       return false;
     } finally {
       this.setData({ loading: false });
@@ -250,8 +253,7 @@ Page({
   },
 
   async onPullDownRefresh() {
-    const success = await this.loadOrders();
+    await this.loadOrders();
     wx.stopPullDownRefresh();
-    if (success) checkCilcleToast(this, '刷新成功');
   },
 });

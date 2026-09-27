@@ -1,3 +1,4 @@
+const feedback = require('../../../utils/feedback');
 // 引入服务和工具
 const deliveryAddressService = require('../../../services/deliveryAddressService');
 const userService = require('../../../services/userService');
@@ -5,18 +6,19 @@ const tokenManager = require('../../../utils/tokenManager');
 const { showLoading, hideLoading, showError } = require('../../../utils/transformers');
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     userInfo: null,
     addressBook: [],
   },
-  
+
   // 跳转新增地址界面
   gotoAdd() {
     wx.navigateTo({
       url: '/pages/address/addressAdd/add',
     })
   },
-  
+
   // 跳转地址详情
   gotoAI(event) {
     const id = event.currentTarget.dataset.item.id;
@@ -24,9 +26,10 @@ Page({
       url: `/pages/address/addressInfo/info?id=${id}`,
     })
   },
-  
+
   // 获取用户地址簿（使用封装的 service）
   async _getAddressBook() {
+    feedback.loaded(this);
     try {
       showLoading('加载中');
       const addressBook = await deliveryAddressService.getMyAddresses();
@@ -35,23 +38,23 @@ Page({
       });
     } catch (error) {
       console.error('获取地址簿失败:', error);
-      showError('获取地址失败');
+      feedback.loadError(this, '加载失败，请重试', () => this._getAddressBook(), !!this.data.addressBook.length);
     } finally {
       hideLoading();
     }
   },
-  
+
   // 获取用户数据（使用封装的 service）
   async getGlobalData() {
     try {
       // 等待 token 就绪
       await tokenManager.waitForToken();
-      
+
       if (!tokenManager.hasToken()) {
         console.warn('未登录');
         return;
       }
-      
+
       const userInfo = await userService.getUserInfo();
       this.setData({
         userInfo: {
@@ -64,7 +67,7 @@ Page({
       console.error('获取用户数据失败', error);
     }
   },
-  
+
   // 生命周期函数--监听页面显示
   async onShow() {
     try {
@@ -79,7 +82,7 @@ Page({
   async onPullDownRefresh() {
     try {
       await this._getAddressBook();
-      wx.showToast({ title: '刷新成功', icon: 'success' });
+
     } finally {
       wx.stopPullDownRefresh();
     }

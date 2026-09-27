@@ -1,4 +1,5 @@
-import Toast from 'tdesign-miniprogram/toast/index';
+const feedback = require('../../utils/feedback');
+const { toast: Toast } = require('../../utils/feedback');
 
 const tokenManager = require('../../utils/tokenManager');
 const addressService = require('../../services/addressService');
@@ -42,7 +43,7 @@ Component({
           await this.changeAddressNew();
         } catch (error) {
           console.error('加载地址数据失败:', error);
-          wx.showToast({
+          feedback.showToast(this, {
             title: '地址数据加载失败',
             icon: 'error',
             duration: 2000
@@ -178,7 +179,7 @@ Component({
         console.error("组件地址加载失败:", err.message);
         // 只在用户操作时显示错误提示
         if (this.data.isVisible) {
-          wx.showToast({
+          feedback.showToast(this, {
             title: '地址加载失败',
             icon: 'error'
           });

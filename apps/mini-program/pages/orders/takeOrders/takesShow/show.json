@@ -7,8 +7,7 @@
     "t-image": "tdesign-miniprogram/image/image",
     "t-button": "tdesign-miniprogram/button/button",
     "t-popup": "tdesign-miniprogram/popup/popup",
-    "t-loading": "tdesign-miniprogram/loading/loading",
-    "t-toast": "tdesign-miniprogram/toast/toast"
+    "t-loading": "tdesign-miniprogram/loading/loading"
   },
   "enablePullDownRefresh": true
 }

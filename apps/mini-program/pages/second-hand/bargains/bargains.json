@@ -1,7 +1,7 @@
 {
   "navigationBarTitleText": "议价记录",
-  "navigationBarBackgroundColor": "#f3f4f5",
-  "backgroundColor": "#f3f4f5",
+  "navigationBarBackgroundColor": "#ffffff",
+  "backgroundColor": "#f5f7fa",
   "usingComponents": {
     "t-button": "tdesign-miniprogram/button/button",
     "t-tabs": "tdesign-miniprogram/tabs/tabs",

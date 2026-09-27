@@ -107,15 +107,23 @@ function restoreFromDraft(draft) {
 function createDebouncedSave(delay = 1000) {
   let timeoutId = null;
   
-  return function(orderData) {
+  const debouncedSave = function(orderData) {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
     
     timeoutId = setTimeout(() => {
+      timeoutId = null;
       saveDraft(orderData);
     }, delay);
   };
+
+  debouncedSave.cancel = function() {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = null;
+  };
+
+  return debouncedSave;
 }
 
 module.exports = {

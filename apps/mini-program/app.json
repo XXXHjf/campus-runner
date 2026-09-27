@@ -61,7 +61,9 @@
     "ui-page": "/components/ui-page/ui-page",
     "ui-section": "/components/ui-section/ui-section",
     "ui-action-bar": "/components/ui-action-bar/ui-action-bar",
-    "ui-empty-state": "/components/ui-empty-state/ui-empty-state"
+    "ui-empty-state": "/components/ui-empty-state/ui-empty-state",
+    "ui-feedback": "/components/ui-feedback/ui-feedback",
+    "t-navbar": "tdesign-miniprogram/navbar/navbar"
   },
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"

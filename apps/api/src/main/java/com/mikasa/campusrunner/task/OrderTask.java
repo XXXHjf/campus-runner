@@ -7,15 +7,12 @@ import com.mikasa.campusrunner.mapper.OrderMapper;
 import com.mikasa.campusrunner.pojo.dto.RefundInfoDTO;
 import com.mikasa.campusrunner.pojo.entity.Order;
 import com.mikasa.campusrunner.pojo.entity.RefundInfo;
-import com.mikasa.campusrunner.pojo.vo.OrderTimeOutVO;
 import com.mikasa.campusrunner.service.user.OrderService;
 import com.mikasa.campusrunner.service.user.RefundInfoService;
 import com.mikasa.campusrunner.service.user.SecondHandService;
 import com.mikasa.campusrunner.service.user.WeChatPayService;
 import com.mikasa.campusrunner.service.user.WeChatTransferService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.ExtendedBeanInfoFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,7 +20,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -181,75 +177,4 @@ public class OrderTask {
             weChatPayService.checkRefundStatus(refundInfo);
         }
     }
-
-
-
-
-
-    /**
-     * 处理订单超时情况
-     * 每隔一分钟执行一次
-     */
-    @Scheduled(cron = "0 0/1 * * * ? ")
-    public void processOrderTimeOut(){
-        log.info("Starting scheduled task: order timeout processing, {}", LocalDateTime.now());
-        LocalDateTime now = LocalDateTime.now();
-
-        List<OrderTimeOutVO> orderTimeOutVOS = orderMapper.getTimeOut(now);
-
-        for (OrderTimeOutVO orderTimeOutVO : orderTimeOutVOS){
-            LocalDateTime exceedTime = orderTimeOutVO.getExceedTime();
-            Long during = getDuring(exceedTime, now);
-            Integer gap = orderTimeOutVO.getGap();
-            //超时的百分比
-            double rate = during / (gap * 1.0);
-            BigDecimal realPrice = getRealPrice(orderTimeOutVO.getPrice(), rate);
-            orderTimeOutVO.setRealPrice(realPrice);
-
-            log.info("Order ID: {}, timeout rate: {}%, exceed time: {}, gap: {}, real price: {}, original price: {}",
-                    orderTimeOutVO.getId(), rate * 100, exceedTime, gap, realPrice, orderTimeOutVO.getPrice());
-
-            //更新订单真实价格
-            Order order = new Order();
-            BeanUtils.copyProperties(orderTimeOutVO, order);
-            orderMapper.update(order);
-        }
-
-    }
-
-    /**
-     * 辅助函数
-     * 计算实际价格
-     * @param price
-     * @param rate
-     * @return
-     */
-    private BigDecimal getRealPrice(BigDecimal price, Double rate){
-        return price.multiply(BigDecimal.valueOf(reductionFunction(rate)));
-    }
-
-    /**
-     * 辅助函数
-     * 计算降价曲线的函数式
-     * e^(-rate)
-     * @param rate
-     * @return
-     */
-    private Double reductionFunction(Double rate){
-        return Math.pow(Math.E, (-1) * rate);
-    }
-
-    /**
-     * 辅助函数，获取时间间隔，返回分钟值
-     * @param start
-     * @param end
-     * @return
-     */
-    private Long getDuring(LocalDateTime start, LocalDateTime end){
-        long startSecond = start.toEpochSecond(ZoneOffset.of("+8"));
-        long endSecond = end.toEpochSecond(ZoneOffset.of("+8"));
-        long between = Math.abs(startSecond - endSecond);
-        return between / 60;
-    }
-
 }

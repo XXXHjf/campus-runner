@@ -145,7 +145,7 @@ function syncPayStatus(orderId) {
     url: `${url}/api/wx-pay/sync/${orderId}`,
     method: 'POST'
   }).then(res => {
-    return res.data;
+    return requireSuccess(res);
   });
 }
 

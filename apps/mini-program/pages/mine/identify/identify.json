@@ -10,8 +10,6 @@
     "t-icon": "tdesign-miniprogram/icon/icon",
     "t-input": "tdesign-miniprogram/input/input",
     "t-button": "tdesign-miniprogram/button/button",
-    "t-dialog": "tdesign-miniprogram/dialog/dialog",
-    "t-toast": "tdesign-miniprogram/toast/toast",
     "auth-notice": "/components/authNotice/authNotice"
   }
 }

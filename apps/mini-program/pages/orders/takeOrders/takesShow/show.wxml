@@ -1,3 +1,6 @@
+<t-navbar wx:if="{{feedbackLoadError}}" title="我的接单" left-arrow bind:go-back="goBack" />
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <view class="take-orders">
   <view class="take-orders__controls" style="padding-top: {{statusBarHeight}}px;">
     <view class="take-orders__nav" style="height: {{navigationBarHeight}}px; padding-right: {{navigationRightPadding}}px;">
@@ -47,14 +50,15 @@
 
   <view class="take-orders__feedback" wx:if="{{loading && !orders.length}}"><t-loading theme="circular" text="加载中" /></view>
   <ui-empty-state wx:elif="{{!filteredOrders.length}}" title="{{orders.length ? '没有找到符合条件的订单' : '暂无接单'}}" />
-  <t-toast id="t-toast" />
+
 </view>
 
 <t-popup visible="{{actionSheetVisible}}" placement="bottom" bind:visible-change="onActionSheetChange" close-on-overlay-click="true">
-  <view class="take-orders__sheet">
+  <view class="cr-action-sheet">
     <t-button wx:if="{{actionOrder.phone && (actionOrder.status == 1 || actionOrder.status == 2 || actionOrder.status == 3)}}" block variant="text" bind:tap="callSender">联系发单人</t-button>
     <t-button block variant="text" bind:tap="showActionOrderDetail">查看详情</t-button>
-    <view class="take-orders__sheet-separator"></view>
-    <t-button block variant="text" bind:tap="closeActionSheet">关闭</t-button>
+    <t-button block variant="text" class="cr-action-sheet__cancel" bind:tap="closeActionSheet">取消</t-button>
   </view>
 </t-popup>
+</block>
+<ui-feedback id="ui-feedback" custom-navigation="{{true}}" />

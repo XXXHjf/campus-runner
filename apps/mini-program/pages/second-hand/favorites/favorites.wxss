@@ -1,42 +1,86 @@
 @import "../../../styles/second-hand-card.wxss";
 
 page {
-  background: #f6f8f7;
+  background: var(--cr-color-background, #f5f7fa);
 }
 
 .favorites-page {
-  display: block;
   min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.favorites-page__controls {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 10;
+  background: var(--cr-color-surface, #fff);
+}
+
+.favorites-page__nav {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-height: 44px;
+  padding-left: 24rpx;
+}
+
+.favorites-page__back {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 62rpx;
+  height: 72rpx;
+}
+
+.favorites-page__nav-title {
+  flex: none;
+  color: var(--cr-color-text, #1d2129);
+  font-size: 30rpx;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.favorites-page__search {
+  flex: 1;
+  min-width: 0;
+  --td-search-height: 68rpx;
+  --td-search-padding: 0 18rpx;
+  --td-search-font-size: 24rpx;
+  --td-search-bg-color: var(--cr-color-background, #f5f7fa);
 }
 
 .favorites-page__body {
-  padding: 0 24rpx 48rpx;
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
 }
 
 .favorites-page__list {
+  margin: var(--cr-personal-list-gap, 24rpx) var(--cr-page-padding, 30rpx) 0;
   overflow: hidden;
-  border-radius: var(--cr-radius-medium, 20rpx);
+  border-radius: var(--cr-radius-large, 28rpx);
+  background: var(--cr-color-surface, #fff);
+  box-shadow: var(--cr-shadow-card);
 }
 
 .favorites-page__row {
+  box-sizing: border-box;
   display: flex;
   gap: 20rpx;
-  padding: 24rpx;
-  background: var(--cr-color-surface, #ffffff);
-  border-bottom: 1rpx solid var(--cr-color-border, #e7eaf0);
-  box-sizing: border-box;
+  padding: var(--cr-personal-item-padding, 28rpx 26rpx 30rpx);
 }
 
-.favorites-page__row:last-child {
-  border-bottom: 0;
+.favorites-page__row--separated {
+  border-top: 1rpx solid var(--cr-color-border, #e7eaf0);
 }
 
 .favorites-page__cover {
-  flex: 0 0 168rpx;
+  flex: none;
   width: 168rpx;
   height: 168rpx;
   overflow: hidden;
-  background: #edf2ee;
   border-radius: var(--cr-radius-medium, 20rpx);
   --td-image-round-radius: var(--cr-radius-medium, 20rpx);
 }
@@ -62,35 +106,34 @@ page {
   min-width: 0;
   overflow: hidden;
   color: var(--cr-color-text, #1d2129);
-  font-size: 28rpx;
-  font-weight: 800;
+  font-size: 29rpx;
+  font-weight: 700;
   line-height: 1.4;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
 .favorites-page__meta {
-  margin-top: 10rpx;
+  margin-top: 12rpx;
   overflow: hidden;
   color: var(--cr-color-text-secondary, #6b778c);
-  font-size: 24rpx;
-  line-height: 36rpx;
+  font-size: 23rpx;
+  line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .favorites-page__bottom {
-  align-items: center;
-  justify-content: flex-start;
+  align-items: flex-end;
   margin-top: auto;
-  padding-top: 16rpx;
+  padding-top: 20rpx;
 }
 
 .favorites-page__price {
-  color: #ff6a3d;
-  font-size: 34rpx;
-  font-weight: 800;
-  line-height: 1.2;
+  color: var(--cr-color-price, #e7552d);
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .favorites-page__favorite-action {

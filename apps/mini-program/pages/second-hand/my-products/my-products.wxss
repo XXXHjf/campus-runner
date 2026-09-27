@@ -44,7 +44,7 @@ page {
 
 .my-products-page__tabs {
   display: flex;
-  height: 84rpx;
+  height: var(--cr-personal-tabs-height, 84rpx);
   border-bottom: 1rpx solid var(--cr-color-border, #edf0f2);
   background: var(--cr-color-surface, #fff);
 }
@@ -72,7 +72,7 @@ page {
 }
 
 .my-products-page__list {
-  margin: 24rpx var(--cr-page-padding, 24rpx) 48rpx;
+  margin: var(--cr-personal-list-gap, 24rpx) var(--cr-page-padding, 24rpx) 48rpx;
   overflow: hidden;
   border-radius: var(--cr-radius-large, 24rpx);
   background: var(--cr-color-surface, #fff);
@@ -80,7 +80,7 @@ page {
 }
 
 .my-products-page__card {
-  padding: 28rpx 26rpx 30rpx;
+  padding: var(--cr-personal-item-padding, 28rpx 26rpx 30rpx);
 }
 .my-products-page__card--separated { border-top: 1rpx solid var(--cr-color-border, #edf0f2); }
 .my-products-page__item-top {
@@ -159,7 +159,7 @@ page {
 .my-products-page__price {
   flex: 0 0 132rpx;
   width: 132rpx;
-  color: #e7552d;
+  color: var(--cr-color-price, #e7552d);
   font-size: 30rpx;
   font-weight: 700;
   text-align: right;
@@ -183,7 +183,6 @@ page {
   margin-right: auto;
 }
 
-.my-products-page__sheet { padding: 24rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); }
 .my-products-page__feedback { display: flex; justify-content: center; padding: 90rpx 0; }
 
 .my-products-page__action-slot {

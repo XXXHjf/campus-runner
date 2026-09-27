@@ -1,4 +1,5 @@
-import Toast from 'tdesign-miniprogram/toast/index';
+const feedback = require('../../../utils/feedback');
+const { toast: Toast } = require('../../../utils/feedback');
 
 // 引入服务和工具
 const userService = require('../../../services/userService');
@@ -46,6 +47,7 @@ const getOptions = (obj, filter) => {
 const match = (v1, v2, size) => v1.toString().slice(0, size) === v2.toString().slice(0, size);
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     userInfo: null,
     defaultAvatarUrl: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
@@ -68,13 +70,13 @@ Page({
     schools: [],
 
     dialogVisable: false,
-    
+
     // 校园认证相关
     studentIdCardUrl: null, // 学生证照片本地路径
     uploadedStudentIdCardAssetId: null,
     refreshTime: Date.now(), // 用于刷新图片缓存的时间戳
     studentIdCardWithTimestamp: '', // 带时间戳的完整图片URL
-    
+
     // 认证须知弹窗
     showAuthNotice: false, // 是否显示认证须知弹窗
     hasAgreedNotice: false, // 是否已同意认证须知
@@ -93,9 +95,9 @@ Page({
 
   // 点击更改认证，修改对话框状态
   tapChangeIdnetify() {
-    this.setData({ dialogVisable: true })
+    feedback.showModal(this, { title: '更改校园认证？', content: '是否前往修改校园认证信息？', confirmText: '去修改', cancelText: '保持不变', success: result => { if (result.confirm) this.goToChange(); } });
   },
-  
+
   // 用户同意认证须知
   onAgreeNotice() {
     this.setData({
@@ -104,7 +106,7 @@ Page({
     });
     console.log('用户已同意认证须知');
   },
-  
+
   // 用户不同意认证须知
   onDisagreeNotice() {
     this.setData({
@@ -140,7 +142,7 @@ Page({
       const schools = await userService.getSchools();
       const addressList = this.convertToListNew(schools);
       this.setData({ addressList });
-      
+
       // 认证成功返回校名
       if (this.data.userInfo?.schoolId) {
         this.setData({
@@ -149,7 +151,7 @@ Page({
       }
     } catch (error) {
       console.error('获取学校列表失败:', error);
-      showError('加载学校列表失败');
+      feedback.showMessage(this, '学校列表加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.getAllAddress() });
       throw error;
     }
   },
@@ -187,7 +189,7 @@ Page({
           areaVisible: true,
           areaValue: [], // 重置选择器的值
         });
-        
+
         await this.getAllAddress();
         const { schools } = this.data.addressList;
         this.setData({
@@ -207,11 +209,11 @@ Page({
     const reviewStatus = Number(this.data.userInfo?.studentIdCardReview ?? AUTH_STATUS.UNREVIEWED);
     if (this.data.isFormReadOnly) {
       if (reviewStatus === AUTH_STATUS.PENDING) {
-        wx.showToast({ title: '审核中，暂不可修改', icon: 'none' });
+        feedback.showMessage(this, '认证材料审核中，暂不可修改', { theme: 'info' });
       } else if (authStatus === 1) {
-        wx.showToast({ title: '已认证，如需修改请点更改认证', icon: 'none' });
+        feedback.showToast(this, { title: '已认证，如需修改请点更改认证', theme: 'warning' });
       } else if (reviewStatus === AUTH_STATUS.APPROVED) {
-        wx.showToast({ title: '材料已通过审核，暂不可修改', icon: 'none' });
+        feedback.showToast(this, { title: '材料已通过审核，暂不可修改', theme: 'warning' });
       }
       return;
     }
@@ -266,19 +268,19 @@ Page({
           fail: reject
         });
       });
-      
+
       const tempFilePath = res.tempFiles[0].tempFilePath;
-      
+
       this.setData({
         studentIdCardUrl: tempFilePath
       });
       console.log('选择学生证照片成功');
     } catch (err) {
+      if (/cancel/i.test(err?.errMsg || err?.message || '')) return;
       console.error('选择图片失败:', err);
-      wx.showToast({
+      feedback.showToast(this, {
         title: '选择图片失败',
-        icon: 'error',
-        duration: 2000
+        theme: 'error',
       });
     }
   },
@@ -311,10 +313,9 @@ Page({
   onImageError(e) {
     console.error('[identify] 证件照片加载失败:', e.detail);
     console.error('[identify] 图片URL:', this.data.userInfo.studentIdCard);
-    wx.showToast({
+    feedback.showToast(this, {
       title: '证件照片加载失败',
-      icon: 'none',
-      duration: 2000
+      theme: 'error',
     });
   },
   // 上传学生证照片到服务器
@@ -380,16 +381,13 @@ Page({
       showLoading('刷新中');
       const userInfo = await this.getGlobalData();
       if (!isProfileComplete(userInfo)) {
-        showError('请先完善头像、昵称和手机号');
-        setTimeout(() => {
-          wx.redirectTo({ url: PROFILE_PAGE });
-        }, 500);
+        feedback.navigate(this, 'redirectTo', { url: PROFILE_PAGE }, '请先完善头像、昵称和手机号', 'warning');
         return;
       }
-      showSuccessToast(this, '已刷新');
+
     } catch (error) {
       console.error('刷新认证状态失败:', error);
-      showError('刷新失败');
+      feedback.showMessage(this, '刷新失败，请重试', { theme: 'error', action: '重试', onAction: () => this.refreshStatus() });
     } finally {
       hideLoading();
     }
@@ -400,18 +398,16 @@ Page({
 
     // 审核中/已通过时，不允许重复提交
     if (reviewStatus === AUTH_STATUS.PENDING) {
-      wx.showToast({
-        title: '审核中，请耐心等待',
-        icon: 'none',
-        duration: 2000,
+      feedback.showToast(this, {
+        title: '认证材料审核中',
+        theme: 'warning',
       });
       return;
     }
     if (reviewStatus === AUTH_STATUS.APPROVED) {
-      wx.showToast({
+      feedback.showToast(this, {
         title: '材料已通过审核',
-        icon: 'none',
-        duration: 2000,
+        theme: 'warning',
       });
       return;
     }
@@ -419,7 +415,7 @@ Page({
     // 审核不通过：二次确认，避免误触直接提交
     if (reviewStatus === AUTH_STATUS.REJECTED) {
       const shouldContinue = await new Promise((resolve) => {
-        wx.showModal({
+        feedback.showModal(this, {
           title: '重新提交审核',
           content: '将重新提交认证信息与材料进行审核，是否继续？',
           confirmText: '重新审核',
@@ -443,38 +439,35 @@ Page({
     const effectiveName = this.data.upName || this.data.userInfo?.realname;
     const effectiveStuId = this.data.upSID || this.data.userInfo?.stuId;
     if (effectiveSchoolId == null || effectiveName == null || effectiveStuId == null) {
-      wx.showToast({
-        title: '未填写完全',
-        icon: "error",
-        duration: 2000,
+      feedback.showToast(this, {
+        title: '请填写完整信息',
+        theme: 'warning',
       });
       return;
     } 
-    
+
     if (effectiveSchoolId === '' || effectiveName === '' || effectiveStuId === '') {
-      wx.showToast({
-        title: '填写内容为空',
-        icon: "error",
-        duration: 2000,
+      feedback.showToast(this, {
+        title: '请填写完整信息',
+        theme: 'warning',
       });
       return;
     }
-    
+
     // 验证是否有证件材料：首次提交必须上传；驳回可沿用原证件或重新上传
     const hasNewLocalImage = !!this.data.studentIdCardUrl;
     const existingAssetId = this.data.userInfo?.studentIdCardAssetId || null;
     if (!hasNewLocalImage && !existingAssetId) {
-      wx.showToast({
+      feedback.showToast(this, {
         title: '请上传证件照片',
-        icon: "error",
-        duration: 2000,
+        theme: 'warning',
       });
       return;
     }
 
     try {
       showLoading('提交中');
-      
+
       // 有新图则上传，否则复用已绑定的媒体资源。
       let studentIdCardAssetId = this.data.uploadedStudentIdCardAssetId
         || existingAssetId
@@ -482,7 +475,7 @@ Page({
       if (hasNewLocalImage && !this.data.uploadedStudentIdCardAssetId) {
         studentIdCardAssetId = await this.uploadStudentIdCard();
       }
-      
+
       // 准备认证数据，调用 /api/user 接口进行认证
       const authData = {
         schoolId: effectiveSchoolId,
@@ -490,7 +483,7 @@ Page({
         stuId: effectiveStuId,
         studentIdCardAssetId
       };
-      
+
       await userService.authenticate(authData);
       console.log('认证信息已提交');
       showSuccessToast(this, "提交成功，等待审核");
@@ -505,7 +498,7 @@ Page({
       await this.getGlobalData();
     } catch (error) {
       console.error('认证失败:', error);
-      showError(error.message || '认证失败');
+      showError(this, error.message || '认证失败');
       throw error;
     } finally {
       hideLoading();
@@ -520,15 +513,15 @@ Page({
         ...userInfo,
         token: app.globalData.userInfo?.token || tokenManager.getToken()
       };
-      
+
       this.setData({ userInfo: userInfoWithToken });
-      
+
       // 更新带时间戳的图片URL
       this.updateStudentIdCardUrl();
       // 同步表单默认值与状态展示
       this._syncFormFromUserInfo();
       this._refreshAuthViewState();
-      
+
       console.log('获取用户数据成功:', userInfo);
       return userInfo;
     } catch (error) {
@@ -543,11 +536,11 @@ Page({
       // 检查URL中是否已经有查询参数
       const separator = baseUrl.includes('?') ? '&' : '?';
       const urlWithTimestamp = `${baseUrl}${separator}t=${this.data.refreshTime}`;
-      
+
       this.setData({
         studentIdCardWithTimestamp: urlWithTimestamp
       });
-      
+
       console.log('[identify] 更新图片URL:', urlWithTimestamp);
     } else {
       this.setData({ studentIdCardWithTimestamp: '' });
@@ -555,35 +548,33 @@ Page({
   },
   // 生命周期函数--监听页面显示
   async onShow() {
+    feedback.loaded(this);
     try {
       // 等待 token 就绪
       await tokenManager.waitForToken();
-      
+
       // 更新时间戳，强制刷新图片（避免缓存）
       const newRefreshTime = Date.now();
       this.setData({
         refreshTime: newRefreshTime
       });
       console.log('[identify] 更新刷新时间戳:', newRefreshTime);
-      
+
       // 强制刷新用户数据（避免从 reIdentify 返回后显示旧数据）
       console.log('[identify] 页面显示，刷新用户数据...');
       const userInfo = await this.getGlobalData();
       if (!isProfileComplete(userInfo)) {
-        showError('请先完善头像、昵称和手机号');
-        setTimeout(() => {
-          wx.redirectTo({ url: PROFILE_PAGE });
-        }, 500);
+        feedback.navigate(this, 'redirectTo', { url: PROFILE_PAGE }, '请先完善头像、昵称和手机号', 'warning');
         return;
       }
       console.log('[identify] 用户数据刷新成功');
       console.log('[identify] authentication:', this.data.userInfo?.authentication);
       console.log('[identify] studentIdCard:', this.data.userInfo?.studentIdCard);
       console.log('[identify] 完整图片URL:', this.data.studentIdCardWithTimestamp);
-      
+
       // 获取学校列表
       await this.getAllAddress();
-      
+
       // 如果是未认证/驳回状态，显示认证须知
       const reviewStatus = Number(this.data.userInfo?.studentIdCardReview ?? AUTH_STATUS.UNREVIEWED);
       if ((reviewStatus === AUTH_STATUS.UNREVIEWED || reviewStatus === AUTH_STATUS.REJECTED) && !this.data.hasAgreedNotice) {
@@ -591,7 +582,7 @@ Page({
       }
     } catch (error) {
       console.error('页面加载失败:', error);
-      showError('加载失败');
+      feedback.loadError(this, '资料加载失败，请重试', () => this.onShow(), !!this.data.userInfo?.id);
     }
   },
 })

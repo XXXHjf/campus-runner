@@ -1,3 +1,4 @@
+const feedbackStub = require('./helpers/feedbackStub.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -41,6 +42,7 @@ function createHarness({ token = 'session-a', getUserInfo, getSchools, listProdu
     },
     getApp: () => app,
     require(id) {
+      if (id.endsWith('feedback')) return feedbackStub({ showToast: ({ title }) => toasts.push(title) });
       if (id.endsWith('tokenManager')) {
         return { getToken: () => app.globalData.userInfo?.token || null };
       }
@@ -197,6 +199,7 @@ test('product failures show a user-facing message and do not prevent school load
   } });
   await page.onShow();
   assert.equal(page.data.schoolName, '测试大学');
-  assert.deepEqual(toasts, ['商品加载失败，请稍后重试']);
+  assert.deepEqual(toasts, []);
+  assert.equal(page.data.feedbackLoadError, '商品加载失败，请重试');
   assert.equal(page.data.loading, false);
 });

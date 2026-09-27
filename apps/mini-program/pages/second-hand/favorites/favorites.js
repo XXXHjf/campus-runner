@@ -1,14 +1,22 @@
+const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
 const { friendlyError } = require('../../../utils/secondHandStatus');
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
+    statusBarHeight: 0,
+    navigationBarHeight: 44,
+    navigationRightPadding: 96,
+    controlsHeight: 44,
+    keyword: '',
     products: [],
+    filteredProducts: [],
     loading: false,
-    favoriteCount: 0,
   },
 
   onLoad() {
+    this.updateNavigationMetrics();
     this.pendingRemovalIds = new Set();
     this.loadVersion = 0;
     this.disposed = false;
@@ -16,6 +24,44 @@ Page({
 
   onShow() {
     return this.loadFavorites();
+  },
+
+  updateNavigationMetrics() {
+    const windowInfo = typeof wx.getWindowInfo === 'function'
+      ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const menuButton = wx.getMenuButtonBoundingClientRect();
+    const statusBarHeight = windowInfo.statusBarHeight || 0;
+    const hasMenuButton = menuButton && menuButton.width > 0 && menuButton.left > 0;
+    const menuGap = hasMenuButton ? Math.max(0, menuButton.top - statusBarHeight) : 0;
+    const navigationBarHeight = hasMenuButton ? Math.max(44, menuButton.height + menuGap * 2) : 44;
+    this.setData({
+      statusBarHeight,
+      navigationBarHeight,
+      navigationRightPadding: hasMenuButton
+        ? Math.max(96, windowInfo.windowWidth - menuButton.left + 4) : 96,
+      controlsHeight: statusBarHeight + navigationBarHeight,
+    });
+  },
+
+  goBack() {
+    if (getCurrentPages().length > 1) wx.navigateBack({ delta: 1 });
+    else wx.switchTab({ url: '/pages/mine/mine/mine' });
+  },
+
+  onSearchChange(e) {
+    const keyword = String(e.detail.value || '');
+    this.setData({ keyword, filteredProducts: this.filterProducts(this.data.products, keyword) });
+  },
+
+  clearSearch() {
+    this.setData({ keyword: '', filteredProducts: this.data.products });
+  },
+
+  filterProducts(products, keyword) {
+    const normalized = String(keyword || '').trim().toLowerCase();
+    if (!normalized) return products;
+    return products.filter((item) => [item.title, item.categoryName, item.conditionLevel]
+      .some((value) => String(value || '').toLowerCase().includes(normalized)));
   },
 
   onUnload() {
@@ -31,17 +77,18 @@ Page({
     ))).then((failures) => {
       const failedCount = failures.filter(Boolean).length;
       if (!failedCount) return;
-      wx.showToast({
-        title: failedCount === ids.length
-          ? '取消收藏失败，请返回重试'
-          : '部分收藏取消失败，请返回重试',
-        icon: 'none',
+      // The save happens on leaving. Report its failure on the active page.
+      feedback.showMessage(feedback.currentPage(), failedCount === ids.length
+        ? '取消收藏失败，请返回重试' : '部分收藏取消失败，请返回重试', {
+        theme: 'error', action: '查看收藏',
+        onAction: () => wx.navigateTo({ url: '/pages/second-hand/favorites/favorites' }),
       });
     });
     return this.commitPromise;
   },
 
   async loadFavorites() {
+    feedback.loaded(this);
     if (this.disposed) return;
     const version = ++this.loadVersion;
     this.setData({ loading: true });
@@ -51,7 +98,7 @@ Page({
       this.updateProducts(products.map((item) => this.decorateProduct(item)));
     } catch (error) {
       if (this.disposed || version !== this.loadVersion) return;
-      wx.showToast({ title: friendlyError(error, '收藏加载失败'), icon: 'none' });
+      feedback.loadError(this, '收藏加载失败，请重试', () => this.loadFavorites(), !!this.data.products.length);
     } finally {
       if (!this.disposed && version === this.loadVersion) {
         this.setData({ loading: false });
@@ -63,7 +110,7 @@ Page({
   updateProducts(products) {
     this.setData({
       products,
-      favoriteCount: products.filter((item) => item.isFavorited).length,
+      filteredProducts: this.filterProducts(products, this.data.keyword),
     });
   },
 

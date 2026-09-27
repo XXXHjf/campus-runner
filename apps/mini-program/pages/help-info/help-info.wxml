@@ -1,10 +1,27 @@
-<view class="page-container">
-  <view wx:if="{{tag=='default'}}">
-    <view>无说明</view>
+<ui-page>
+  <view wx:if="{{tag == 'entranceGuard'}}" class="entrance-help">
+    <view class="entrance-help__intro">
+      <view class="entrance-help__icon"><t-icon name="lock-on" size="52rpx" color="#0052d9" /></view>
+      <view class="entrance-help__title">有门禁时，请提前说明</view>
+    </view>
+    <ui-section plain>
+      <view class="entrance-help__content">
+        <view class="entrance-help__section">
+          <view class="entrance-help__heading">哪些情况算门禁？</view>
+          <view class="entrance-help__text">需要门禁卡、登记，或只在指定时间允许进入。取件或送达地点有这类限制，都请开启门禁选项。</view>
+        </view>
+        <view class="entrance-help__section">
+          <view class="entrance-help__heading">发布时怎么说明？</view>
+          <view class="entrance-help__text">写清可进入时间和交接位置。</view>
+          <view class="entrance-help__example">例如：晚上10点后无法进楼，请在楼下联系我。</view>
+        </view>
+        <view class="entrance-help__section">
+          <view class="entrance-help__heading">无法进入时怎么办？</view>
+          <view class="entrance-help__text">先联系对方，协商双方都能到达的交接地点。</view>
+        </view>
+      </view>
+    </ui-section>
   </view>
-
-  <view wx:if="{{tag=='entranceGuard'}}">
-    <view>1、注意取件、收件地址、配送过程中是否有门禁，或限制限时进入。</view>
-    <view>2、如果遇到门禁情况无法配送到指定位置，请自行与发单人协商。</view>
-  </view>
-</view>
+  <ui-empty-state wx:else title="暂无说明" />
+</ui-page>
+<ui-feedback id="ui-feedback" />

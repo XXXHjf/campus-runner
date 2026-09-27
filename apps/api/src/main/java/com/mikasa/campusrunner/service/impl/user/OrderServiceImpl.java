@@ -115,6 +115,20 @@ public class OrderServiceImpl implements OrderService {
         //TODO 这里订单号用时间流逝来表示了，如需要，在这里修改
         order.setOrderNumber(Long.valueOf(System.currentTimeMillis()).toString());
         order.setCreateTime(now);
+        if (order.getExpectedDeliveryTime() != null) {
+            LocalDateTime deadline = order.getExpectedDeliveryTime().withSecond(0).withNano(0);
+            if (!deadline.isAfter(now)) {
+                throw new ParamException("预期送达时间已过，请重新选择");
+            }
+            order.setExpectedDeliveryTime(deadline);
+            order.setExceedTime(deadline); // 兼容管理端现有“最晚送达”读取。
+            // 仅保留旧客户端及时长相关逻辑所需的兼容快照，不用于还原时间。
+            Duration remaining = Duration.between(now, deadline);
+            long minutes = remaining.toMinutes();
+            order.setGap(Math.toIntExact(minutes + (remaining.minusMinutes(minutes).isZero() ? 0 : 1)));
+        } else if (order.getGap() == null || order.getGap() <= 0) {
+            throw new ParamException("请选择预期送达时间");
+        }
         order.setUserId(BaseContext.getCurrentId());
         boolean purchase = OrderBusinessConstant.CATEGORY_PURCHASE.equals(category.getCategoryCode());
         if (!purchase && (orderSubmitDTO.getPrice() == null ||
@@ -138,7 +152,6 @@ public class OrderServiceImpl implements OrderService {
             order.setPayAmount(amount.getPayAmount());
             order.setRunnerReceivable(amount.getRunnerReceivable());
             order.setStatus(OrderStatusConstant.NO_PAY);
-//            order.setRealPrice(orderSubmitDTO.getPrice());
         }
         order.setDeleted(DeleteConstant.UN_DELETED);
 

@@ -1,26 +1,28 @@
+const feedback = require('./feedback');
 const tokenManager = require('./tokenManager');
 const { PROFILE_PAGE, CAMPUS_AUTH_PAGE, isProfileComplete } = require('./profileStatus');
 let loginPrompt = null;
 let guidanceVisible = false;
 
-function confirm(options) {
-  return new Promise((resolve) => wx.showModal({ ...options,
+function confirm(context, options) {
+  return new Promise((resolve) => feedback.showModal(context, { ...options, allowDuringAction: true,
     success: (res) => resolve(!!res.confirm), fail: () => resolve(false) }));
 }
 
 async function ensureLogin() {
+  const context = feedback.currentPage();
   if (loginPrompt) return loginPrompt;
   loginPrompt = (async () => {
     if (!tokenManager.hasToken() && tokenManager.hasLoginIntent?.()) {
       await getApp().restoreLogin();
     }
     if (!tokenManager.hasToken()) {
-      if (!await confirm({ title: '登录后继续',
+      if (!await confirm(context, { title: '登录后继续',
         content: '此操作需要登录。取消后仍可浏览商品和跑腿服务。',
         confirmText: '去登录', cancelText: '取消' })) return false;
       const ok = await getApp().silentLogin();
       if (!ok) {
-        wx.showToast({ title: '登录失败，请稍后重试', icon: 'none' });
+        feedback.showToast(context, { title: '登录失败，请稍后重试', theme: 'error' });
         return false;
       }
     }
@@ -30,7 +32,7 @@ async function ensureLogin() {
       if (isProfileComplete(user)) return true;
       wx.navigateTo({ url: `${PROFILE_PAGE}?after=login` });
     } catch (error) {
-      wx.showToast({ title: '资料加载失败，请稍后重试', icon: 'none' });
+      feedback.showToast(context, { title: '资料加载失败，请稍后重试', theme: 'error' });
     }
     return false;
   })();
@@ -38,12 +40,13 @@ async function ensureLogin() {
 }
 
 async function guideAuthentication(user = {}) {
+  const context = feedback.currentPage();
   if (guidanceVisible) return;
   guidanceVisible = true;
   try {
     const pending = Number(user.studentIdCardReview) === 1;
     const rejected = Number(user.studentIdCardReview) === 3;
-    const accepted = await confirm({
+    const accepted = await confirm(context, {
       title: pending ? '校园认证审核中' : (rejected ? '校园认证未通过' : '需要校园认证'),
       content: pending ? '认证材料正在审核，通过后即可操作。您可以继续浏览，或查看审核进度。'
         : (rejected ? '请查看未通过原因，修改材料后重新提交。审核通过前仍可继续浏览。'
@@ -56,13 +59,14 @@ async function guideAuthentication(user = {}) {
 }
 
 async function ensureAuthenticated() {
+  const context = feedback.currentPage();
   if (!await ensureLogin()) return false;
   try {
     const user = await require('../services/userService').getUserInfo();
     if (Number(user.authentication) === 1) return true;
     await guideAuthentication(user);
   } catch (error) {
-    wx.showToast({ title: '认证状态加载失败，请稍后重试', icon: 'none' });
+    feedback.showToast(context, { title: '认证状态加载失败，请稍后重试', theme: 'error' });
   }
   return false;
 }

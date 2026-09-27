@@ -1,3 +1,5 @@
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <view class="runner-detail-page">
   <view wx:if="{{orderInfo.id}}" class="runner-detail-sender">
     <t-avatar image="{{orderInfo.senderAvatar || ''}}" icon="user" shape="circle" size="72rpx" />
@@ -96,16 +98,7 @@
   </ui-action-bar>
 </view>
 <!-- 接单提示 -->
-<t-dialog visible="{{showConfirm}}" title="接单提示" confirm-btn="确定" cancel-btn="取消" bind:confirm="closeConfirm" bind:cancel="closeDialog">
-  <!-- 适配skyline，增加type="list" -->
-  <scroll-view slot="content" type="list" scroll-y class="long-content">
-    <view class="content-container">
-      <view>
-        <span>{{orderInfo.businessType === 'PURCHASE' ? '请先与发单方确认商品、规格和预算。接单后请按要求购买，提交购买凭证后开始配送；如遇问题，请联系平台协商处理。' : '为确保服务质量，接单后不可取消订单。平台仅提供交易渠道，服务细节请与发单方确认清楚。'}}</span>
-      </view>
-    </view>
-  </scroll-view>
-</t-dialog>
+
 
 <!-- 派送提示 -->
 <t-popup visible="{{showWithImage}}" bind:visible-change="closeWithImage" placement="bottom">
@@ -125,4 +118,5 @@
 </t-popup>
 
 <!-- 刷新轻提示 -->
-<t-toast id="t-toast" />
+</block>
+<ui-feedback id="ui-feedback" />

@@ -1,5 +1,6 @@
 {
   "component": true,
-  "usingComponents": {}
+  "usingComponents": {
+    "ui-feedback": "/components/ui-feedback/ui-feedback"
+  }
 }
-

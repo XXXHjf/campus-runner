@@ -1,3 +1,5 @@
+const { shareOrder, title: shareTitle, imageUrl: shareImageUrl } = require('../../../../utils/orderShare');
+const feedback = require('../../../../utils/feedback');
 // 引入服务和工具
 const userOrderService = require('../../../../services/userOrderService');
 const takeOrderService = require('../../../../services/takeOrderService');
@@ -12,12 +14,14 @@ const {
   showSuccessToast,
   _logErrInfo,
   _getExpectTimeDisplay,
+  _getExpectedDeliveryDate,
   _parseStrDateTime
 } = require('../../../../utils/commonJs');
 
 const url = getApp().globalData.API_URL;
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     userInfo: null,
     // 步骤条
@@ -66,7 +70,7 @@ Page({
   },
 
   showDialog(e) {
-    this.setData({ showConfirm: true });
+    feedback.showModal(this, { title: '确认接单？', content: this.data.orderInfo.businessType === 'PURCHASE' ? '请先与发单方确认商品、规格和预算。接单后按要求购买并提交购买凭证，再开始配送；如遇问题，请联系平台协商处理。' : '接单后不可取消订单。平台仅提供交易渠道，服务细节请与发单方确认清楚。', confirmText: '接单', cancelText: '暂不接单', success: result => { if (result.confirm) return this.statusTo1(); } });
   },
 
   closeConfirm() {
@@ -82,44 +86,35 @@ Page({
   async statusTo1() {
     if (!await require('../../../../utils/accessGuard').ensureAuthenticated()) return;
     const userInfo = this.data.userInfo;
-    
+
     // 用户未认证的提示
-    
+
     // 用户手机号未填的提示
     if (!userInfo.phone || userInfo.phone === '') {
-      errorCilcleToast(this, "个人信息不完全");
-      setTimeout(() => {
-        wx.navigateTo({ url: '/pages/mine/userInfo/info' });
-      }, 1500);
+      feedback.navigate(this, 'navigateTo', { url: '/pages/mine/userInfo/info' }, '请先完善个人资料', 'warning');
       return;
     }
-    
+
     // 接单逻辑
     try {
       // 检查是否已被接单
       const existingTaker = await takeOrderService.getTakeOrderDetail(this.data.id);
-      
+
       // 修复：正确判断是否已被接单（检查对象是否有id属性，而不是仅判断对象存在）
       if (existingTaker && existingTaker.id) {
-        checkCilcleToast(this, "已被接单");
-        setTimeout(() => {
-          wx.switchTab({ url: '/pages/index/index' });
-        }, 1500);
+        feedback.navigate(this, 'switchTab', { url: '/pages/index/index' }, '订单已被接单', 'warning');
         return;
       }
-      
+
       // 执行接单
       await takeOrderService.acceptOrderById(this.data.id);
       checkCilcleToast(this, "接单成功");
-      
-      
+
+
       await this._loadOrderInfo();
     } catch (error) {
-      console.error("接单错误:", error);
-      errorCilcleToast(this, "接单错误");
-      setTimeout(() => {
-        wx.switchTab({ url: '/pages/index/index' });
-      }, 1500);
+      console.error("接单失败，请重试:", error);
+      feedback.navigate(this, 'switchTab', { url: '/pages/index/index' }, '接单失败，请重试', 'error');
     }
   },
 
@@ -138,12 +133,12 @@ Page({
       });
       this.setData({ imageAssetId: null, fileList: [], image: null });
       checkCilcleToast(this, this.data.orderInfo.businessType === 'PURCHASE' ? '购买信息已提交' : '取件成功');
-      
-      
+
+
       await this._loadOrderInfo();
     } catch (error) {
       console.error('取件失败:', error);
-      showError(this.data.orderInfo.businessType === 'PURCHASE' ? '提交购买信息失败' : '取件失败');
+      showError(this, this.data.orderInfo.businessType === 'PURCHASE' ? '提交购买信息失败' : '取件失败');
     } finally {
       hideLoading();
     }
@@ -173,12 +168,7 @@ Page({
       imageAssetId: null,
       fileList: [],
     });
-    wx.showToast({
-      title: '取消上传',
-      icon: 'none',
-      mask: 'true',
-      duration: 2000
-    });
+
     this._loadOrderInfo();
   },
 
@@ -217,7 +207,7 @@ Page({
       });
     } catch (error) {
       this.setData({ [`fileList[${index}].status`]: 'failed' });
-      errorCilcleToast(this, '图片上传失败');
+      showErrorToast(this, '图片上传失败');
     }
   },
 
@@ -239,7 +229,7 @@ Page({
       this._loadOrderInfo();
       return;
     }
-    
+
     try {
       showLoading('派送中');
       await takeOrderService.updateTakeOrderStatus({
@@ -249,12 +239,12 @@ Page({
       });
       this.setData({ imageAssetId: null, fileList: [] });
       checkCilcleToast(this, "派送成功");
-      
-      
+
+
       await this._loadOrderInfo();
     } catch (error) {
       console.error('派送失败:', error);
-      showError('派送失败');
+      showError(this, '派送失败');
     } finally {
       hideLoading();
     }
@@ -270,7 +260,7 @@ Page({
         const mockResult = await takeOrderService.mockReceiveSuccess(this.data.id);
         if (mockResult.code !== 1) throw new Error('模拟收款失败');
         hideLoading();
-        wx.showToast({
+        feedback.showToast(this, {
           title: '模拟收款成功',
           icon: 'success'
         });
@@ -285,12 +275,14 @@ Page({
         appId: accountInfo.miniProgram.appId,
         package: result.packageInfo,
         success: resolve,
-        fail: () => reject(new Error('收款未完成，请重试')),
+        fail: reject,
       }));
-      wx.showToast({ title: '收款申请已提交', icon: 'none' });
+      feedback.showMessage(this, '收款申请已提交，请查看订单状态', { theme: 'info' });
     } catch (err) {
       hideLoading();
-      errorCilcleToast(this, err.message || '收款失败，请重试');
+      if (!/cancel|取消/i.test(err?.errMsg || err?.message || '')) {
+        feedback.showToast(this, { title: feedback.userText(err?.message, '收款未完成，请重试'), theme: 'error' });
+      }
     } finally {
       await this._loadOrderInfo();
       this.setData({ transferBusy: false });
@@ -323,11 +315,12 @@ Page({
 
   // 集中统一获取、加载、更新订单相关的信息
   async _loadOrderInfo() {
+    feedback.loaded(this);
     try {
       await tokenManager.waitForToken();
       this.setData({ taker: {}, image: null, isMyTaken: false });
       await this._getOrderInfo();
-      
+
       const status = this.data.orderInfo.status;
       if (status > 0 && status != 4) {
         await this._getMyTakeInfo();
@@ -337,7 +330,7 @@ Page({
         }
       }
     } catch (err) {
-      showErrorToast(this, "加载失败");
+      feedback.loadError(this, '加载失败，请重试', () => this._loadOrderInfo(), !!this.data.orderInfo.id);
       _logErrInfo("_loadOrderInfo", err.message);
     }
   },
@@ -357,23 +350,23 @@ Page({
     try {
       const orderInfo = await userOrderService.getMyOrderDetail(this.data.id);
       console.log("请求的orderInfo: ", orderInfo);
-      
+
       // 检查订单数据是否有效
       if (!orderInfo || !orderInfo.id) {
         throw new Error('订单不存在或已被删除');
       }
       orderInfo.images = orderInfo.images?.length ? orderInfo.images : (orderInfo.image ? [orderInfo.image] : []);
-      
+
       // 安全处理地址分割（去掉第一个空格前的内容）
       const addressParts1 = orderInfo.pickUpAddress ? orderInfo.pickUpAddress.split(' ').slice(1) : [];
       const addressParts2 = orderInfo.reciveAddress ? orderInfo.reciveAddress.split(" ").slice(1) : [];
-      orderInfo.expectTime = _getExpectTimeDisplay(orderInfo.createTime, orderInfo.gap);
+      orderInfo.expectTime = _getExpectTimeDisplay(orderInfo.createTime, orderInfo.gap, orderInfo.expectedDeliveryTime);
       const title = orderInfo.businessType === 'PURCHASE'
         ? ['待接单', '待购买', '配送中', '已送达', '已完成']
         : ['待接单', '待取件', '派送中', '已送达', '已完成'];
       const purchaseStatusText = ({ '-4': '退款异常', '-3': '退款成功', '-2': '退款中', '-1': '待支付', 0: '待接单', 1: '待购买', 2: '配送中', 3: '已送达', 4: '已取消', 5: '已完成', 6: '收款成功', 7: '收款失败' })[orderInfo.status] || '订单状态';
       const runnerStatusText = ({ 0: '待接单', 1: '待取件', 2: '派送中', 3: '已送达', 4: '已取消', 5: '已完成', 6: '收款成功', 7: '收款失败' })[orderInfo.status] || '订单状态';
-      
+
       this.setData({
         orderInfo,
         purchaseStatusText,
@@ -383,6 +376,13 @@ Page({
         pickUpAddress: addressParts1,
         reciveAddress: addressParts2
       });
+      wx.showShareMenu({
+        menus: Number(orderInfo.status) === 0
+          ? ['shareAppMessage', 'shareTimeline'] : ['shareAppMessage'],
+      });
+      if (Number(orderInfo.status) !== 0) {
+        wx.hideShareMenu({ menus: ['shareTimeline'] });
+      }
     } catch (error) {
       throw new Error(`获取订单失败：${error.message}`);
     }
@@ -414,14 +414,14 @@ Page({
 
   // 倒计时计算 - 修复：应该显示预期送达时间和当前时间的差值
   time() {
-    // 计算预期送达时间 = 创建时间 + gap（分钟）
-    const createTime = _parseStrDateTime(this.data.orderInfo.createTime);
-    const expectTime = new Date(createTime.getTime() + this.data.orderInfo.gap * 60000);
-    
+    // 使用固定送达时间；旧订单使用兼容计算。
+    const { createTime, gap, expectedDeliveryTime } = this.data.orderInfo;
+    const expectTime = _getExpectedDeliveryDate(createTime, gap, expectedDeliveryTime);
+
     // 计算倒计时 = 预期送达时间 - 当前时间
     const nowTime = new Date();
     const timeDifference = Math.floor(expectTime - nowTime);
-    
+
     this.setData({ time: timeDifference });
   },
 
@@ -437,8 +437,21 @@ Page({
     }
   },
 
+  onShareAppMessage() {
+    return shareOrder(this.data.id, this.data.orderInfo);
+  },
+
+  onShareTimeline() {
+    return {
+      title: shareTitle,
+      imageUrl: shareImageUrl,
+      query: `id=${encodeURIComponent(this.data.id || '')}`,
+    };
+  },
+
   // 生命周期函数
   async onLoad(options) {
+    wx.showShareMenu({ menus: ['shareAppMessage'] });
     console.log('接单详情页 - 接收到的参数:', options);
     console.log('接单详情页 - 订单ID:', options.id);
     this.setData({ id: options.id });
@@ -458,7 +471,7 @@ Page({
   // 下拉刷新
   onPullDownRefresh() {
     this._loadOrderInfo().then(() => {
-      checkCilcleToast(this, '刷新成功');
+
       wx.stopPullDownRefresh();
     });
   },
@@ -467,11 +480,11 @@ Page({
   tapOnImageToPreview(res) {
     const imageUrl = res.currentTarget.dataset.src;
     const ifClickable = res.currentTarget.dataset.flag;
-    
+
     if (ifClickable == 0) {
       return;
     }
-    
+
     const orderImages = this.data.orderInfo.images || [];
     wx.previewImage({
       current: imageUrl,
@@ -485,7 +498,7 @@ Page({
     const type = res.currentTarget.dataset.phone;
     const phoneObject = this.data[type];
     const number = phoneObject.phone;
-    
+
     wx.showActionSheet({
       alertText: number + "可能是微信或电话，你可以",
       itemList: ["呼叫", "复制到剪切板"],

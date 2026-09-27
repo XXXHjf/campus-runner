@@ -1,8 +1,10 @@
+const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
 const userService = require('../../../services/userService');
 const tokenManager = require('../../../utils/tokenManager');
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     schoolName: '',
     keyword: '',
@@ -27,6 +29,7 @@ Page({
   },
 
   onLoad() {
+    wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] });
     this.schoolLoadVersion = 0;
     this.schoolToken = null;
     this.updateNavigationMetrics();
@@ -113,6 +116,7 @@ Page({
   },
 
   async loadData() {
+    feedback.loaded(this);
     this.setData({ loading: true });
     try {
       const [categories, products] = await Promise.all([
@@ -135,7 +139,7 @@ Page({
       });
     } catch (error) {
       console.error('二手首页商品加载失败', error);
-      wx.showToast({ title: '商品加载失败，请稍后重试', icon: 'none' });
+      feedback.loadError(this, '商品加载失败，请重试', () => this.loadData(), !!this.data.products.length);
     } finally {
       this.setData({
         loading: false,

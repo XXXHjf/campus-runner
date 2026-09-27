@@ -5,5 +5,5 @@ import java.time.LocalDateTime;
 
 /** Public preview deliberately excludes contacts, free text, photos and address details. */
 public record PublicOrderVO(Long id, BigDecimal price, BigDecimal productAmount, String businessType,
-                            LocalDateTime createTime, Integer gap, Long categoryId, String categoryName,
+                            LocalDateTime createTime, LocalDateTime expectedDeliveryTime, Integer gap, Long categoryId, String categoryName,
                             String pickUpAddress, String reciveAddress) {}

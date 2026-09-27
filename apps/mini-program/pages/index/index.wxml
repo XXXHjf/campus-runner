@@ -85,7 +85,8 @@
         </view>
       </block>
     </view>
-    <view wx:if="{{!isLoginChecking && !ordersLoading && takes.length === 0}}" style="margin: 50rpx;text-align: center;font-weight: bold;color: darkgray;">暂无可接订单</view>
+    <ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+    <ui-empty-state wx:elif="{{!isLoginChecking && !ordersLoading && takes.length === 0}}" title="暂无可接订单" />
     <view class="runner-feed-bottom-space" />
   </view>
   <view wx:if="{{!filterVisible}}" class="runner-publish-float">
@@ -187,3 +188,4 @@
 </t-picker>
 
 <triple-address-pricker id="triplePicker" bind:confirmSelection="handleConfirmSelection" />
+<ui-feedback id="ui-feedback" custom-navigation="{{true}}" />

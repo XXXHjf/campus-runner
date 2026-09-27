@@ -1,3 +1,5 @@
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <view class="order-detail-page">
   <view class="status-panel">
     <t-icon name="{{order.statusIcon || 'undertake-delivery'}}" size="64rpx" color="{{order.statusTheme=='danger'?'#d54941':'#0052d9'}}" />
@@ -47,14 +49,11 @@
           <text>成交价</text>
           <text class="order-amount">¥{{order.productAmount || order.payAmount}}</text>
         </view>
-        <view class="amount-row">
-          <text>平台服务费</text>
-          <text>卖家承担 ¥{{order.serviceFee || 0}}</text>
-        </view>
         <view class="amount-row strong">
-          <text>卖家实收</text>
+          <view class="secondhand-payment-info__label"><text>卖家实收</text><view class="secondhand-payment-info__button" aria-role="button" aria-label="查看实收金额说明" bind:tap="toggleSellerFeeHint"><t-icon name="info-circle" size="30rpx" color="#8b94a1" /></view></view>
           <text>¥{{order.sellerIncome || 0}}</text>
         </view>
+        <view wx:if="{{showSellerFeeHint}}" class="info-muted">卖家实收金额已扣除本单服务费。</view>
       </view>
 
     </view>
@@ -76,3 +75,7 @@
     </view>
   </ui-action-bar>
 </view>
+
+
+</block>
+<ui-feedback id="ui-feedback" />

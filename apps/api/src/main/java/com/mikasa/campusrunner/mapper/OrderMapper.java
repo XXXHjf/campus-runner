@@ -2,7 +2,6 @@ package com.mikasa.campusrunner.mapper;
 
 import com.mikasa.campusrunner.pojo.entity.Order;
 import com.mikasa.campusrunner.pojo.vo.OrderShowVO;
-import com.mikasa.campusrunner.pojo.vo.OrderTimeOutVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderDetailVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderListVO;
 import org.apache.ibatis.annotations.Mapper;
@@ -128,12 +127,7 @@ public interface OrderMapper {
     List<OrderShowVO> showByCategory(@Param("categoryId") Long id,
                                      @Param("schoolId") Long schoolId);
 
-    /**
-     * 选出超时的订单
-     * @param now
-     * @return
-     */
-    List<OrderTimeOutVO> getTimeOut(LocalDateTime now);
+
 
     /**
      * 根据订单id查找未支付的订单

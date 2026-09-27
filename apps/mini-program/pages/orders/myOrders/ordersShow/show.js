@@ -1,3 +1,4 @@
+const feedback = require('../../../../utils/feedback');
 const userOrderService = require('../../../../services/userOrderService');
 const { showError } = require('../../../../utils/transformers');
 const { checkCilcleToast } = require('../../../../utils/commonJs');
@@ -14,6 +15,7 @@ function formatMoney(value) {
 }
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     statusBarHeight: 0,
     navigationBarHeight: 44,
@@ -94,18 +96,18 @@ Page({
       return;
     }
     if (Number(order.status) !== 3) return;
-    wx.showModal({
+    feedback.showModal(this, {
       title: '确认订单',
       content: '确认已收到物品并完成订单？',
       success: async (result) => {
         if (!result.confirm) return;
         try {
           await userOrderService.confirmOrder(id);
-          wx.showToast({ title: '确认成功', icon: 'success' });
+          feedback.showToast(this, { title: '确认成功', icon: 'success' });
           this.loadOrders();
         } catch (error) {
           console.error('确认订单失败:', error);
-          showError('确认失败，请重试');
+          showError(this, '确认失败，请重试');
         }
       },
     });
@@ -135,10 +137,11 @@ Page({
     const order = this.data.actionOrder;
     this.closeActionSheet();
     if (!order || ![-1, 0].includes(Number(order.status))) return;
-    wx.showModal({
-      title: '取消订单',
+    feedback.showModal(this, {
+      title: '取消订单？',
       content: Number(order.status) === -1 ? '取消后订单无法恢复，确定取消吗？' : '取消后订单无法恢复，已支付的金额将申请退款。',
       confirmText: '取消订单',
+      cancelText: '保留订单',
       confirmColor: '#d54941',
       success: async (result) => {
         if (!result.confirm) return;
@@ -150,16 +153,17 @@ Page({
               await userOrderService.refundOrder(order.orderNumber, '发单人取消订单');
             } catch (error) {
               console.error('退款申请失败:', error);
-              showError('订单已取消，退款申请未成功，请联系客服');
+              feedback.showMessage(this, '订单已取消，退款申请未成功', { persistent: true, key: 'refund', action: '查看订单', onAction: () => wx.navigateTo({ url: `/pages/orders/myOrders/ordersInfo/info?id=${order.id}` }) });
+              await feedback.showModal(this, { title: '退款申请未成功', content: '订单已取消，但退款申请未成功。请查看订单并反馈异常。', confirmText: '查看订单', cancelText: '稍后处理', allowDuringAction: true, success: result => { if (result.confirm) wx.navigateTo({ url: `/pages/orders/myOrders/ordersInfo/info?id=${order.id}` }); } });
               this.loadOrders();
               return;
             }
           }
-          wx.showToast({ title: needsRefund ? '已发起退款' : '已取消', icon: 'none' });
+          feedback.showToast(this, { title: needsRefund ? '已发起退款' : '已取消', theme: 'warning' });
           this.loadOrders();
         } catch (error) {
           console.error('取消订单失败:', error);
-          showError('取消失败，请重试');
+          showError(this, '取消失败，请重试');
           this.loadOrders();
         }
       },
@@ -173,7 +177,7 @@ Page({
     try {
       const order = await userOrderService.getMyOrderDetail(id);
       if (Number(order.status) !== 0) {
-        wx.showToast({ title: '订单状态已变化，请刷新', icon: 'none' });
+        feedback.showToast(this, { title: '订单状态已变化，请刷新', theme: 'warning' });
         this.loadOrders();
         return;
       }
@@ -186,7 +190,7 @@ Page({
         editVisible: true,
       });
     } catch (error) {
-      showError('打开编辑失败，请重试');
+      showError(this, '打开编辑失败，请重试');
     }
   },
 
@@ -214,7 +218,7 @@ Page({
     } catch (error) {
       const index = this.data.editFiles.findIndex(item => item.uploadKey === uploadKey);
       if (index >= 0) this.setData({ [`editFiles[${index}].status`]: 'failed' });
-      showError('图片上传失败，请重试');
+      showError(this, '图片上传失败，请重试');
     }
   },
 
@@ -244,19 +248,19 @@ Page({
     if (this.data.editSaving) return;
     const validation = validateNote(this.data.editNote);
     if (!validation.valid) {
-      showError(validation.message);
+      showError(this, validation.message);
       return;
     }
     if (!this.data.editFiles.length) {
-      showError('请至少上传一张说明图片');
+      showError(this, '请至少上传一张说明图片');
       return;
     }
     if (this.data.editFiles.length > 9) {
-      showError('说明图片最多上传9张');
+      showError(this, '说明图片最多上传9张');
       return;
     }
     if (this.data.editFiles.some(file => !file.mediaId || file.status !== 'done')) {
-      showError('请等待图片上传完成');
+      showError(this, '请等待图片上传完成');
       return;
     }
     this.setData({ editSaving: true });
@@ -265,10 +269,10 @@ Page({
         note: this.data.editNote.trim(), imageAssetIds: this.data.editFiles.map(file => file.mediaId),
       });
       this.setData({ editVisible: false });
-      wx.showToast({ title: '保存成功', icon: 'success' });
+      feedback.showToast(this, { title: '保存成功', icon: 'success' });
       this.loadOrders();
     } catch (error) {
-      showError('保存失败，请刷新订单后重试');
+      showError(this, '保存失败，请刷新订单后重试');
       this.loadOrders();
     } finally {
       this.setData({ editSaving: false });
@@ -370,6 +374,7 @@ Page({
   },
 
   async loadOrders() {
+    feedback.loaded(this);
     this.setData({ loading: true });
     try {
       const result = await userOrderService.getMyOrders();
@@ -378,7 +383,7 @@ Page({
       return true;
     } catch (error) {
       console.error('获取订单失败:', error);
-      showError('获取订单失败，请重试');
+      feedback.loadError(this, '加载失败，请重试', () => this.loadOrders(), !!this.data.orders.length);
       return false;
     } finally {
       this.setData({ loading: false });
@@ -398,8 +403,7 @@ Page({
   },
 
   async onPullDownRefresh() {
-    const success = await this.loadOrders();
+    await this.loadOrders();
     wx.stopPullDownRefresh();
-    if (success) checkCilcleToast(this, '刷新成功');
   },
 });

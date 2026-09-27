@@ -31,6 +31,7 @@ public class OrderSubmitDTO {
     //时间转换
 //    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
 //    private LocalDateTime exceedTime;
+    private LocalDateTime expectedDeliveryTime; // 固定的预期送达时间
     private Integer gap;//超时间隔
     private Integer doorAccess;//门禁
     private String note;

@@ -80,6 +80,10 @@ public class TakeOrderServiceImpl implements TakeOrderService {
 
         //插入接单信息
         LocalDateTime now = LocalDateTime.now();
+        LocalDateTime deadline = order.getExpectedDeliveryTime();
+        if (deadline != null && !deadline.isAfter(now)) {
+            throw new OrderException("已超过预期送达时间，无法接单");
+        }
         TakeOrder takeOrder = new TakeOrder();
         takeOrder.setOrderId(id);
         takeOrder.setUserId(BaseContext.getCurrentId());
@@ -89,7 +93,8 @@ public class TakeOrderServiceImpl implements TakeOrderService {
 
         //改变订单状态
         order.setStatus(OrderStatusConstant.ALREADY_TAKE_ORDER);
-        LocalDateTime exceedTime = now.plusMinutes(order.getGap());
+        // 新订单遵循用户选定的截止时间；旧订单保留接单后计时的历史规则。
+        LocalDateTime exceedTime = deadline != null ? deadline : now.plusMinutes(order.getGap());
         order.setExceedTime(exceedTime);
         int row1 = orderMapper.update(order);
 

@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback');
 /**
  * 校园认证须知组件
  * 用于展示认证相关的法律声明和隐私政策
@@ -51,7 +52,7 @@ Component({
         },
         fail: res => {
           console.error('打开隐私协议失败', res);
-          wx.showToast({
+          feedback.showToast(this, {
             title: '打开隐私协议失败',
             icon: 'none',
             duration: 2000

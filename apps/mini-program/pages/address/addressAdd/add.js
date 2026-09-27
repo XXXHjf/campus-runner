@@ -1,4 +1,5 @@
-import Toast from 'tdesign-miniprogram/toast/index';
+const feedback = require('../../../utils/feedback');
+const { toast: Toast } = require('../../../utils/feedback');
 
 // 引入服务和工具
 const addressService = require('../../../services/addressService');
@@ -16,6 +17,7 @@ const {
 const url = getApp().globalData.API_URL;
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     userInfo: null,
     upSchool: '',
@@ -85,14 +87,10 @@ Page({
       };
 
       await addressService.createUserAddress(addressData);
-      checkCilcleToast(this, "添加成功");
-      
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
+      feedback.navigate(this, 'navigateBack', {}, '添加成功');
     } catch (error) {
       console.error('保存地址失败:', error);
-      showError('保存失败');
+      showError(this, '保存失败');
     } finally {
       hideLoading();
     }
@@ -147,10 +145,8 @@ Page({
       value = value.substring(0, maxLength);
       Toast({
         context: this,
-        selector: '#t-toast',
         message: '详细地址最多20个字',
         theme: 'warning',
-        direction: 'column',
       });
       
       // 更新为截断后的值
@@ -180,10 +176,8 @@ Page({
       value = value.substring(0, maxLength);
       Toast({
         context: this,
-        selector: '#t-toast',
         message: '标签最多20个字',
         theme: 'warning',
-        direction: 'column',
       });
       
       // 更新为截断后的值
@@ -226,6 +220,7 @@ Page({
 
   // 生命周期函数--监听页面显示
   async onShow() {
+    feedback.loaded(this);
     try {
       // 等待 token 就绪
       await tokenManager.waitForToken();
@@ -235,7 +230,7 @@ Page({
       console.log('getGlobalData执行成功');
     } catch (error) {
       console.error('页面加载失败:', error);
-      showError('加载失败');
+      feedback.loadError(this, '资料加载失败，请重试', () => this.onShow(), !!this.data.userInfo?.id);
     }
   },
   onLoad() {}

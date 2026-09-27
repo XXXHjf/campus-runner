@@ -5,7 +5,6 @@
     "t-input": "tdesign-miniprogram/input/input",
     "t-radio": "tdesign-miniprogram/radio/radio",
     "t-cell": "tdesign-miniprogram/cell/cell",
-    "t-toast": "tdesign-miniprogram/toast/toast",
     "triple-address-pricker": "/components/triple-address-pricker/triple-address-pricker"
   },
   "enablePullDownRefresh": true

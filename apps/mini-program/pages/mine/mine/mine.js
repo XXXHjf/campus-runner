@@ -1,3 +1,4 @@
+const feedback = require('../../../utils/feedback');
 // 引入服务和工具
 const userService = require('../../../services/userService');
 const takeOrderService = require('../../../services/takeOrderService');
@@ -14,8 +15,7 @@ const {
   getRequiredOnboardingRoute,
 } = require('../../../utils/profileStatus');
 
-import Dialog from 'tdesign-miniprogram/dialog/index'; //对话框
-import Toast from 'tdesign-miniprogram/toast/index'; // 轻提示
+const { toast: Toast } = require('../../../utils/feedback');
 
 const app = getApp();
 const url = getApp().globalData.API_URL;
@@ -170,25 +170,23 @@ Page({
         wx.navigateTo({ url: route });
       } catch (error) {
         console.error('读取用户资料失败:', error);
-        showError('资料加载失败，请重试');
+        feedback.showMessage(this, '资料加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.onShow() });
       }
       return;
     }
 
     const dialogConfig = {
       context: this,
-      title: '登录',
+      title: '登录后继续',
       content: '登录后可管理个人订单。取消后仍可继续浏览。',
-      confirmBtn: '确定',
-      cancelBtn: '取消',
+      confirmBtn: '去登录',
+      cancelBtn: '暂不登录',
     };
-    Dialog.confirm(dialogConfig)
-      .then(async () => {
+    feedback.showModal(this, { ...dialogConfig, confirmText: dialogConfig.confirmBtn, cancelText: dialogConfig.cancelBtn, success: async result => {
+        if (!result.confirm) return;
         this.setData({ loginLoadShow: true });
         await this._login();
-      })
-      .catch(() => console.log('取消登录'))
-      .finally(() => Dialog.close());
+      } });
   },
   // 调用用户登陆的接口
   async _login() {
@@ -240,7 +238,7 @@ Page({
         app.refreshMineTabRedDot({ force: true, userInfo }).catch(() => {});
 
         if (isProfileComplete(userInfo)) {
-          wx.showToast({ title: '登录成功', icon: 'success', duration: 2000 });
+          feedback.showToast(this, { title: '登录成功', icon: 'success', duration: 2000 });
         } else {
           wx.navigateTo({ url: `${PROFILE_PAGE}?after=login` });
         }
@@ -257,7 +255,7 @@ Page({
         this.showLoginFail();
       }
     } catch (error) {
-      // 如果登陆失败，关闭加载中的遮罩层，弹出登陆失败
+      // 如果登录失败，关闭加载中的遮罩层，弹出登录失败
       console.error('登录失败:', error);
       this.setData({
         loginLoadShow: false
@@ -265,9 +263,9 @@ Page({
       
       // 根据错误类型显示不同的提示
       if (error.errMsg && error.errMsg.includes('timeout')) {
-        wx.showToast({
+        feedback.showToast(this, {
           title: '网络超时，请检查网络连接',
-          icon: 'none',
+          theme: 'warning',
           duration: 3000
         });
       } else {
@@ -286,20 +284,20 @@ Page({
       console.log('更新用户信息成功');
     } catch (error) {
       console.error('更新用户信息失败:', error);
-      showError('更新失败');
+      showError(this, '更新失败');
     }
   },
   // 退出登录
   logoutBtnClick() {
     const dialogConfig = {
       context: this,
-      title: '退出登录',
-      content: '您确定要退出登陆吗？',
-      confirmBtn: '确定',
-      cancelBtn: '取消',
+      title: '退出登录？',
+      content: '退出后仍可浏览，需要操作时请重新登录。',
+      confirmBtn: '退出登录',
+      cancelBtn: '保持登录',
     };
-    Dialog.confirm(dialogConfig)
-      .then(async () => {
+    feedback.showModal(this, { ...dialogConfig, confirmText: dialogConfig.confirmBtn, cancelText: dialogConfig.cancelBtn, success: async result => {
+        if (!result.confirm) return;
         // 清除页面数据
         this.setData({
           userInfo: null,
@@ -317,9 +315,7 @@ Page({
         wx.reLaunch({
           url: '/pages/mine/mine/mine'
         });
-      })
-      .catch(() => console.log('点击了取消'))
-      .finally(() => Dialog.close());
+      } });
   },
   // 未收款订单跳转 - 优化：跳转到我的接单页面
   tapToReceive() {
@@ -564,8 +560,7 @@ Page({
   showLoginFail() {
     Toast({
       context: this,
-      selector: '#t-toast',
-      message: '登陆失败，请稍后重试',
+      message: '登录失败，请稍后重试',
       icon: 'close-circle',
     });
   },

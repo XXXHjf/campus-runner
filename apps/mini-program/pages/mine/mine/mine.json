@@ -1,6 +1,5 @@
 {
   "usingComponents": {
-    "t-dialog": "tdesign-miniprogram/dialog/dialog",
     "t-overlay": "tdesign-miniprogram/overlay/overlay",
     "t-loading": "tdesign-miniprogram/loading/loading",
     "t-image": "tdesign-miniprogram/image/image",
@@ -10,7 +9,6 @@
     "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
     "t-cell": "tdesign-miniprogram/cell/cell",
     "t-badge": "tdesign-miniprogram/badge/badge",
-    "t-button": "tdesign-miniprogram/button/button",
-    "t-toast": "tdesign-miniprogram/toast/toast"
+    "t-button": "tdesign-miniprogram/button/button"
   }
 }

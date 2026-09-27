@@ -1,9 +1,10 @@
+const feedback = require('../../../utils/feedback');
 // 引入服务和工具
 const addressService = require('../../../services/addressService');
 const tokenManager = require('../../../utils/tokenManager');
 const { showLoading, hideLoading, showError, showSuccess } = require('../../../utils/transformers');
 // 轻提示
-import Toast from 'tdesign-miniprogram/toast/index';
+const { toast: Toast } = require('../../../utils/feedback');
 
 const url = getApp().globalData.API_URL;
 const ADDRESS_SAVE_NOT_APPLIED = 'ADDRESS_SAVE_NOT_APPLIED';
@@ -22,6 +23,7 @@ const getOptions = (obj, filter) => {
 const match = (v1, v2, size) => v1.toString().slice(0, size) === v2.toString().slice(0, size);
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     userInfo: null,
     id: null,
@@ -43,17 +45,16 @@ Page({
   },
   // 删除（使用封装的 service）
   async b1() {
+    const result = await feedback.showModal(this, { title: '删除地址？', content: '删除后需要重新添加该地址。', confirmText: '删除', cancelText: '保留', danger: true });
+    if (!result.confirm) return;
     try {
       showLoading('删除中');
       const id = this.data.addressInfo.id;
       await addressService.deleteUserAddress(id);
-      showSuccess('删除成功');
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
+      feedback.navigate(this, 'navigateBack', {}, '删除成功');
     } catch (error) {
       console.error('删除地址失败:', error);
-      showError('删除失败');
+      showError(this, '删除失败');
     } finally {
       hideLoading();
     }
@@ -102,14 +103,10 @@ Page({
         }
       }
 
-      showSuccess('更新成功');
-
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
+      feedback.navigate(this, 'navigateBack', {}, '更新成功');
     } catch (error) {
       console.error('更新地址失败:', error);
-      showError(error && error.code === ADDRESS_SAVE_NOT_APPLIED ? '保存未生效，请稍后重试' : '更新失败');
+      showError(this, error && error.code === ADDRESS_SAVE_NOT_APPLIED ? '保存未生效，请稍后重试' : '更新失败');
     } finally {
       hideLoading();
     }
@@ -141,10 +138,8 @@ Page({
       value = value.substring(0, maxLength);
       Toast({
         context: this,
-        selector: '#t-toast',
         message: '详细地址最多30个字',
         theme: 'warning',
-        direction: 'column',
       });
       
       // 更新为截断后的值
@@ -185,10 +180,8 @@ Page({
       value = value.substring(0, 3);
       Toast({
         context: this,
-        selector: '#t-toast',
         message: '标签最多3个字',
         theme: 'warning',
-        direction: 'column',
       });
       
       // 更新为截断后的值
@@ -265,6 +258,7 @@ Page({
   },
   // 获取传入的地址（使用封装的 service）
   async getAddressInfo() {
+    feedback.loaded(this);
     try {
       const id = this.data.id;
       const addressInfo = await addressService.getUserAddressDetail(id);
@@ -283,7 +277,7 @@ Page({
       });
     } catch (error) {
       console.error('获取地址详情失败:', error);
-      showError('加载失败');
+      feedback.loadError(this, '资料加载失败，请重试', () => this.getAddressInfo(), !!this.data.addressInfo.id);
     }
   },
   // 修改当前地址-选择器
@@ -398,7 +392,7 @@ Page({
       this.setData({ addressList });
     } catch (error) {
       console.error('获取地址列表失败:', error);
-      showError('加载地址失败');
+      feedback.showMessage(this, '地址列表加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.getAllAddress() });
       throw error;
     }
   },
@@ -445,7 +439,7 @@ Page({
       await this.getAddressInfo();
     } catch (error) {
       console.error('页面加载失败:', error);
-      showError('加载失败');
+      feedback.loadError(this, '资料加载失败，请重试', () => this.getAddressInfo(), !!this.data.addressInfo.id);
     }
   },
   // 下拉刷新事件
@@ -453,16 +447,7 @@ Page({
     // 这里加上要刷新的逻辑
     this.getAddressInfo()
     // ------------
-    this.showHorizontalText()
     wx.stopPullDownRefresh()
   },
-  // 轻展示的方法
-  showHorizontalText() {
-    Toast({
-      context: this,
-      selector: '#t-toast',
-      message: '刷新成功',
-      icon: 'check-circle',
-    });
-  },
+
 })

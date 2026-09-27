@@ -1,0 +1,3 @@
+<t-toast id="feedback-toast" style="--td-toast-max-width: 560rpx;" />
+<t-message id="feedback-message" bind:link-click="onAction" />
+<t-dialog id="feedback-dialog" />

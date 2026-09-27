@@ -1,3 +1,4 @@
+const feedback = require('./feedback');
 const secondHandService = require('../services/secondHandService');
 const { friendlyError } = require('./secondHandStatus');
 
@@ -6,11 +7,12 @@ function maskPhone(phone) {
 }
 
 async function showOrderContact(orderId, roleLabel) {
+  const context = feedback.currentPage();
   try {
     const order = await secondHandService.getOrderDetail(orderId);
     const phone = String(order.counterpartyPhone || '').trim();
     if (!phone) {
-      wx.showToast({ title: '对方暂未提供联系方式', icon: 'none' });
+      feedback.showToast(context, { title: '对方暂未提供联系方式', icon: 'none' });
       return;
     }
     wx.showActionSheet({
@@ -21,7 +23,7 @@ async function showOrderContact(orderId, roleLabel) {
       },
     });
   } catch (error) {
-    wx.showToast({ title: friendlyError(error, '暂时无法获取联系方式'), icon: 'none' });
+    feedback.showToast(context, { title: friendlyError(error, '暂时无法获取联系方式'), theme: 'error' });
   }
 }
 

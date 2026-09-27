@@ -1,3 +1,4 @@
+const feedback = require('../../utils/feedback');
 var app = getApp();
 const url = getApp().globalData.API_URL;
 const tokenManager = require('../../utils/tokenManager');
@@ -22,6 +23,7 @@ const {
 } = require('../../utils/constants');
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     userInfo: {},
     schoolName: '',
@@ -83,6 +85,7 @@ Page({
   },
 
   onLoad() {
+    wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] });
     this.updateNavigationMetrics();
     this.getCategory();
     this.loadBanners();
@@ -182,7 +185,7 @@ Page({
       ? `购：${item.pickUpAddress || '暂未提供'}\n送：${item.reciveAddress || '暂未提供'}\n商品 ¥${item.productAmount || 0}，跑腿报酬 ¥${item.price || 0}\n接单前需完成校园认证，购买清单仅向已认证用户提供。`
       : `取：${item.pickUpAddress || '暂未提供'}\n收：${item.reciveAddress || '暂未提供'}\n${item.price == null ? '无偿帮忙' : `报酬 ¥${item.price}`}\n接单前需完成校园认证，取件说明仅向已认证用户提供。`;
     if (!tokenManager.hasToken() || Number(this.data.userInfo.authentication) !== 1) {
-      const accept = await new Promise((resolve) => wx.showModal({
+      const accept = await new Promise((resolve) => feedback.showModal(this, {
         title: item.categoryName || '跑腿服务',
         content: summary,
         confirmText: '去接单',
@@ -361,6 +364,7 @@ Page({
     const version = (this._ordersVersion || 0) + 1;
     this._ordersVersion = version;
     const isCurrent = () => version === this._ordersVersion && token === tokenManager.getToken();
+    feedback.loaded(this);
     this.setData({ ordersLoading: true });
     const promise = (async () => {
       try {
@@ -390,7 +394,7 @@ Page({
       } catch (error) {
         if (isCurrent()) {
           console.error('获取订单失败:', error);
-          showError(ERROR_MESSAGES.GET_ORDERS_FAILED);
+          feedback.loadError(this, '订单加载失败，请重试', () => this.applyFilters(), !!this.data.takes.length);
         }
         return false;
       } finally {
@@ -575,7 +579,7 @@ Page({
       this.setData({ category: Array.isArray(category) ? category : [] });
     } catch (error) {
       console.error('获取分类失败:', error);
-      showError(ERROR_MESSAGES.GET_CATEGORY_FAILED);
+      showError(this, ERROR_MESSAGES.GET_CATEGORY_FAILED);
     }
   },
   // 首次使用（本地无缓存）提示
@@ -607,11 +611,9 @@ Page({
   },
   // 无token提示
   noToken() {
-    wx.showToast({
+    feedback.showToast(this, {
       title: '请先登录',
-      icon: 'error',
-      mask: true,
-      duration: 2000
+      theme: 'warning',
     })
   },
   // 获取用户协议
@@ -650,20 +652,20 @@ Page({
                 this.setData({ userInfo: userData });
                 resolve(userData);
               } else {
-                wx.showToast({ title: '登录失败', icon: 'error' });
+                feedback.showToast(this, { title: '登录失败', theme: 'error' });
                 reject(new Error('登录失败'));
               }
             },
             fail: (err) => {
               wx.hideLoading();
-              wx.showToast({ title: '网络错误', icon: 'error' });
+              feedback.showToast(this, { title: '网络错误', theme: 'error' });
               reject(err);
             }
           });
         },
         fail: (err) => {
           wx.hideLoading();
-          wx.showToast({ title: '登录失败', icon: 'error' });
+          feedback.showToast(this, { title: '登录失败', theme: 'error' });
           reject(err);
         }
       });
@@ -730,7 +732,7 @@ Page({
           this.loadSchoolName(userInfo, token)]);
         return loaded;
       } catch (error) {
-        if (version === this._refreshVersion) showError('刷新失败，请稍后重试');
+        if (version === this._refreshVersion) feedback.showMessage(this, '刷新失败，请重试', { theme: 'error', action: '重试', onAction: () => this.onPullDownRefresh() });
         return false;
       } finally {
         if (version === this._refreshVersion) {

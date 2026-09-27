@@ -1,3 +1,5 @@
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <view class="conversation-page">
   <view class="conversation-product" bindtap="gotoProduct">
     <t-image class="conversation-product-cover" src="{{product.coverImage}}" mode="aspectFill" />
@@ -46,3 +48,7 @@
     <t-button theme="primary" loading="{{sending}}" disabled="{{sending}}" bind:tap="sendMessage">发送</t-button>
   </view>
 </view>
+
+
+</block>
+<ui-feedback id="ui-feedback" />

@@ -1,3 +1,5 @@
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <view class="detail-page">
   <view wx:if="{{product.id}}" class="detail-seller-bar">
     <t-avatar image="{{product.sellerAvatar || ''}}" icon="user" shape="circle" size="72rpx" />
@@ -128,3 +130,7 @@
     </view>
   </ui-action-bar>
 </view>
+
+
+</block>
+<ui-feedback id="ui-feedback" />

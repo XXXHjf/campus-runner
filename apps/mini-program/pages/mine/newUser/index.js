@@ -1,3 +1,4 @@
+const feedback = require('../../../utils/feedback');
 // 引入服务和工具
 const userService = require('../../../services/userService');
 const mediaService = require('../../../services/mediaService');
@@ -13,12 +14,14 @@ const {
 const {
   containsEmoji,
   errorCilcleToast,
-  showSuccessToast
+  showSuccessToast,
+  showErrorToast,
 } = require('../../../utils/commonJs');
 
 const defaultAvatarUrl = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0';
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   cancelRegister() {
     require('../../../utils/accessGuard').returnToBrowse();
   },
@@ -39,6 +42,8 @@ Page({
   
   // 生命周期 - 初始化 token
   async onLoad(options = {}) {
+    this._feedbackLoadOptions = options;
+    feedback.loaded(this);
     this._afterLogin = options.after === 'login';
     try {
       await tokenManager.waitForToken();
@@ -54,7 +59,7 @@ Page({
       });
     } catch (error) {
       console.error('[注册资料加载失败]:', error);
-      errorCilcleToast(this, '资料加载失败，请重试');
+      feedback.loadError(this, '资料加载失败，请重试', () => this.onLoad(this._feedbackLoadOptions), !!this.data.token);
     }
   },
   // 确定注册
@@ -104,22 +109,18 @@ Page({
         token: this.data.token,
       });
       
-      showSuccessToast(this, "注册成功");
-      
-      setTimeout(() => {
-        if (this._afterLogin) {
-          require('../../../utils/accessGuard').returnToBrowse();
-        } else {
-          wx.redirectTo({ url: CAMPUS_AUTH_PAGE });
-        }
-      }, 800);
+      if (this._afterLogin) {
+        feedback.navigate(this, 'navigateBack', { fail: () => feedback.navigate(this, 'switchTab', { url: '/pages/second-hand/index/index' }, '注册成功') }, '注册成功');
+      } else {
+        feedback.navigate(this, 'redirectTo', { url: CAMPUS_AUTH_PAGE }, '注册成功');
+      }
     } catch (error) {
       if (this.data.headImgAssetId) {
         mediaService.releaseTemporaryImage(this.data.headImgAssetId).catch(() => {});
         this.setData({ headImgAssetId: null });
       }
       console.error('[注册失败]:', error);
-      errorCilcleToast(this, error.message || "注册失败，请重试");
+      showErrorToast(this, error.message || "注册失败，请重试");
     } finally {
       hideLoading();
       this.setData({ isSubmitting: false });

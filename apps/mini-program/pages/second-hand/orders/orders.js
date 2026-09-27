@@ -1,3 +1,4 @@
+const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
 const { orderStatus, friendlyError } = require('../../../utils/secondHandStatus');
 const { showOrderContact } = require('../../../utils/secondHandContact');
@@ -7,6 +8,7 @@ function normalizeSearchText(value) {
 }
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     statusBarHeight: 0,
     navigationBarHeight: 44,
@@ -60,12 +62,13 @@ Page({
   },
 
   async loadOrders() {
+    feedback.loaded(this);
     this.setData({ loading: true });
     try {
       const orders = (await secondHandService.listBuyerOrders()).map((order) => this.decorateOrder(order));
       this.setData({ orders, filteredOrders: this.filterOrders(orders, this.data.tabValue, this.data.keyword) });
     } catch (error) {
-      wx.showToast({ title: friendlyError(error, '订单加载失败'), icon: 'none' });
+      feedback.loadError(this, '订单加载失败，请重试', () => this.loadOrders(), !!this.data.orders.length);
     } finally {
       this.setData({ loading: false });
       wx.stopPullDownRefresh();
@@ -143,20 +146,21 @@ Page({
     const order = this.data.actionOrder;
     this.closeActionSheet();
     if (!order.canCancel || this.data.actionBusy) return;
-    wx.showModal({
-      title: '取消订单',
+    feedback.showModal(this, {
+      title: '取消订单？',
       content: order.isOffline ? '取消后双方无需继续本次交易。确认取消？'
         : (Number(order.status) === 1 ? '卖家交付前取消会发起退款，确认继续？' : '确认取消订单？'),
-      confirmText: '确认取消',
+      confirmText: '取消订单',
+      cancelText: '保留订单',
       confirmColor: '#d54941',
       success: async (res) => {
         if (!res.confirm || this.data.actionBusy) return;
         this.setData({ actionBusy: true });
         try {
           await secondHandService.cancelOrder(order.id, order.isOffline ? '买家取消线下交易' : '买家取消订单');
-          wx.showToast({ title: '已取消', icon: 'success' });
+          feedback.showToast(this, { title: '已取消', icon: 'success' });
         } catch (error) {
-          wx.showToast({ title: friendlyError(error, '取消失败'), icon: 'none' });
+          feedback.showToast(this, { title: friendlyError(error, '取消失败'), theme: 'error' });
         } finally {
           this.setData({ actionBusy: false });
           this.loadOrders();

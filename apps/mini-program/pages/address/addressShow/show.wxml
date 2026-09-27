@@ -1,3 +1,5 @@
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <view class="address-page">
   <view class="address-hero">
     <view class="hero-icon">
@@ -49,3 +51,5 @@
     <text>新增地址</text>
   </view>
 </view>
+</block>
+<ui-feedback id="ui-feedback" />

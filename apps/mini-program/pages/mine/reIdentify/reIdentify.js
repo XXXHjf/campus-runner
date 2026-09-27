@@ -1,4 +1,5 @@
-import Toast from 'tdesign-miniprogram/toast/index';
+const feedback = require('../../../utils/feedback');
+const { toast: Toast } = require('../../../utils/feedback');
 
 // 引入服务和工具
 const userService = require('../../../services/userService');
@@ -22,6 +23,7 @@ const {
 } = require('../../../utils/authStatus');
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
 
   /**
    * 页面的初始数据
@@ -73,7 +75,7 @@ Page({
   // 点击"选择学校"，跳出选择器
   changeSchoolNew() {
     if (!this.data.canSubmit) {
-      wx.showToast({ title: '审核中，暂不可修改', icon: 'none' });
+      feedback.showMessage(this, '认证材料审核中，暂不可修改', { theme: 'info' });
       return;
     }
     if (this.data.schools) {
@@ -110,7 +112,7 @@ Page({
       return await userService.getSchools();
     } catch (error) {
       console.error('获取学校列表失败:', error);
-      showError('加载学校列表失败');
+      feedback.showMessage(this, '学校列表加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.onShow() });
       throw error;
     }
   },
@@ -146,18 +148,18 @@ Page({
       });
       console.log('选择学生证照片成功');
     } catch (err) {
+      if (/cancel/i.test(err?.errMsg || err?.message || '')) return;
       console.error('选择图片失败:', err);
-      wx.showToast({
+      feedback.showToast(this, {
         title: '选择图片失败',
-        icon: 'error',
-        duration: 2000
+        theme: 'error',
       });
     }
   },
   // 删除学生证照片
   deleteStudentIdCard() {
     if (!this.data.canSubmit) {
-      wx.showToast({ title: '审核中，暂不可修改', icon: 'none' });
+      feedback.showMessage(this, '认证材料审核中，暂不可修改', { theme: 'info' });
       return;
     }
     if (this.data.uploadedStudentIdCardAssetId) {
@@ -192,7 +194,7 @@ Page({
   async identify() {
     const status = Number(this.data.userInfo?.studentIdCardReview ?? AUTH_STATUS.UNREVIEWED);
     if (status === AUTH_STATUS.PENDING) {
-      errorCilcleToast(this, "审核中，暂不可重复提交");
+      feedback.showMessage(this, '认证材料审核中，请勿重复提交', { theme: 'info' });
       return;
     }
 
@@ -206,12 +208,12 @@ Page({
     const effectiveStuId = this.data.upSID || this.data.userInfo?.stuId;
 
     if (effectiveSchoolId == null || effectiveName == null || effectiveStuId == null) {
-      errorCilcleToast(this, "未填写完全");
+      errorCilcleToast(this, "请填写完整信息");
       return;
     }
     
     if (effectiveSchoolId === '' || effectiveName === '' || effectiveStuId === '') {
-      errorCilcleToast(this, "未填写完整");
+      errorCilcleToast(this, "请填写完整信息");
       return;
     }
     
@@ -244,14 +246,10 @@ Page({
       await userService.authenticate(authData);
       this.setData({ uploadedStudentIdCardAssetId: null });
       console.log('确认修改成功');
-      showSuccessToast(this, "提交成功，等待审核");
-      
-      setTimeout(() => {
-        wx.navigateBack({});
-      }, 2000);
+      feedback.navigate(this, 'navigateBack', {}, '提交成功，等待审核');
     } catch (error) {
       console.error('重新认证失败:', error);
-      showError(error.message || '修改失败');
+      showError(this, error.message || '修改失败');
     } finally {
       hideLoading();
     }
@@ -298,6 +296,7 @@ Page({
    * 生命周期函数--监听页面显示
    */
   async onShow() {
+    feedback.loaded(this);
     try {
       // 等待 token 就绪
       await tokenManager.waitForToken();
@@ -331,7 +330,7 @@ Page({
       }
     } catch (error) {
       console.error("页面加载失败:", error);
-      showError('加载失败');
+      feedback.loadError(this, '资料加载失败，请重试', () => this.onShow(), !!this.data.userInfo?.id);
     }
   },
 

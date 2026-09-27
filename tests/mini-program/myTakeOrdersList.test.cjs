@@ -1,3 +1,4 @@
+const feedbackStub = require('./helpers/feedbackStub.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,7 +20,7 @@ function createPage({ takeService = {}, orderService = {}, wxOverrides = {} } = 
   vm.runInNewContext(source, {
     console,
     wx,
-    require: (name) => name.includes('takeOrderService') ? takeService
+    require: (name) => name.endsWith('feedback') ? feedbackStub(wx) : name.includes('takeOrderService') ? takeService
       : name.includes('userOrderService') ? orderService
         : name.includes('transformers') ? { showError: () => {} }
           : {},

@@ -1,3 +1,4 @@
+const feedbackStub = require('./helpers/feedbackStub.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -18,8 +19,8 @@ function createPage({ services = {}, wxOverrides = {}, showError = () => {} } = 
     console,
     Date,
     wx,
-    require: (name) => name.includes('userOrderService') ? services
-      : name.includes('transformers') ? { showError }
+    require: (name) => name.endsWith('feedback') ? feedbackStub(wx) : name.includes('userOrderService') ? services
+      : name.includes('transformers') ? { showError: (_, message) => showError(message) }
       : name.includes('validators') ? { validateNote: () => ({ valid: true }) }
       : {},
     Page(config) {

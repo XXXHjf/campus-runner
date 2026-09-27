@@ -1,3 +1,4 @@
+const feedbackStub = require('./helpers/feedbackStub.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -15,6 +16,7 @@ function guardHarness({ token = null, confirm = false, user = {}, profileError =
   const state = { token, logins: 0, routes: [], modals: [] };
   const guard = load('utils/accessGuard.js', {
     require(id) {
+      if (id.endsWith('feedback')) return feedbackStub({ showModal(options) { state.modals.push(options); options.success({ confirm }); } });
       if (id.includes('tokenManager')) return { hasToken: () => !!state.token };
       if (id.includes('profileStatus')) return { PROFILE_PAGE: '/profile', CAMPUS_AUTH_PAGE: '/auth', isProfileComplete: (u) => !!u.profileCompleted };
       if (id.includes('userService')) return { getUserInfo: async () => {
@@ -100,6 +102,7 @@ test('我的主动登录按资料完整度分流', async () => {
     vm.runInNewContext(source, {
       console, getApp: () => app,
       require(id) {
+        if (id.endsWith('feedback')) return feedbackStub({ showToast: ({ title }) => toasts.push(title) });
         if (id.endsWith('userService')) return { getUserInfo: async () => ({ profileCompleted }) };
         if (id.endsWith('tokenManager')) return { updateToken() {} };
         if (id.endsWith('privacy')) return { maskPhone: () => '' };
@@ -127,6 +130,7 @@ test('注册保存经确认后，登录入口返回来源页、认证入口继�
     const routes = [];
     load('pages/mine/newUser/index.js', {
       require(id) {
+        if (id.endsWith('feedback')) return feedbackStub({ navigateBack: () => routes.push('back'), redirectTo: ({ url }) => routes.push(url) });
         if (id.endsWith('profileStatus')) return require(path.join(root, 'utils/profileStatus'));
         if (id.endsWith('userService')) return { getUserInfo: async () => ({ profileCompleted: true }) };
         if (id.endsWith('tokenManager')) return { waitForToken: async () => {}, getToken: () => 'test' };

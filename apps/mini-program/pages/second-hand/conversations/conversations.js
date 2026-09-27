@@ -1,7 +1,9 @@
+const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
 const { friendlyError } = require('../../../utils/secondHandStatus');
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     conversations: [],
     loading: false,
@@ -12,12 +14,13 @@ Page({
   },
 
   async loadConversations() {
+    feedback.loaded(this);
     this.setData({ loading: true });
     try {
       const conversations = await secondHandService.listConversations();
       this.setData({ conversations: conversations.map((item) => this.decorateConversation(item)) });
     } catch (error) {
-      wx.showToast({ title: friendlyError(error, '私信加载失败'), icon: 'none' });
+      feedback.loadError(this, '加载失败，请重试', () => this.loadConversations(), !!this.data.conversations.length);
     } finally {
       this.setData({ loading: false });
       wx.stopPullDownRefresh();

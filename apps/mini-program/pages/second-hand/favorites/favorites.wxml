@@ -1,53 +1,70 @@
-<ui-page class="favorites-page" compact>
-  <ui-page-header
-    title="我的收藏"
-    subtitle="{{loading ? '正在加载收藏' : favoriteCount + ' 件收藏'}}"
-  />
+<t-navbar wx:if="{{feedbackLoadError}}" title="" left-arrow bind:go-back="goBack" />
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
+<view class="favorites-page">
+  <view class="favorites-page__controls" style="padding-top: {{statusBarHeight}}px;">
+    <view class="favorites-page__nav" style="height: {{navigationBarHeight}}px; padding-right: {{navigationRightPadding}}px;">
+      <view class="favorites-page__back" role="button" aria-label="返回" bind:tap="goBack"><t-icon name="chevron-left" size="44rpx" color="#1d2129" /></view>
+      <text class="favorites-page__nav-title">我的收藏</text>
+      <view class="favorites-page__search">
+        <t-search value="{{keyword}}" shape="round" placeholder="搜索收藏" bind:change="onSearchChange" bind:clear="clearSearch" />
+      </view>
+    </view>
+  </view>
+  <view class="favorites-page__controls-spacer" style="height: {{controlsHeight}}px;"></view>
 
   <view class="favorites-page__body">
-    <ui-section wx:if="{{products.length>0}}" plain>
-      <view class="favorites-page__list">
-        <view
-          wx:for="{{products}}"
-          wx:key="id"
-          class="favorites-page__row"
-          data-id="{{item.id}}"
-          bindtap="gotoDetail"
-        >
-          <t-image class="favorites-page__cover" src="{{item.coverImage}}" mode="aspectFill" shape="round" />
-          <view class="favorites-page__info">
-            <view class="favorites-page__top">
-              <view class="favorites-page__product-title">{{item.title}}</view>
-              <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
-            </view>
-            <view class="favorites-page__meta">{{item.categoryName || '闲置好物'}} · {{item.conditionLevel || '成色良好'}}</view>
-            <view class="favorites-page__bottom">
-              <text class="favorites-page__price">¥{{item.price}}</text>
-              <view class="favorites-page__favorite-action">
-                <t-button
-                  t-class="cr-secondhand-capsule {{item.isFavorited ? 'cr-secondhand-capsule--highlight' : 'cr-secondhand-capsule--outline'}}"
-                  size="small"
-                  shape="round"
-                  theme="{{item.isFavorited ? 'primary' : 'default'}}"
-                  variant="{{item.isFavorited ? 'base' : 'outline'}}"
-                  data-id="{{item.id}}"
-                  disabled="{{loading}}"
-                  catch:tap="toggleFavorite"
-                >{{item.isFavorited ? '取消收藏' : '收藏'}}</t-button>
-              </view>
+    <view wx:if="{{filteredProducts.length > 0}}" class="favorites-page__list">
+      <view
+        wx:for="{{filteredProducts}}"
+        wx:for-item="product"
+        wx:for-index="index"
+        wx:key="id"
+        class="favorites-page__row {{index > 0 ? 'favorites-page__row--separated' : ''}}"
+        data-id="{{product.id}}"
+        bindtap="gotoDetail"
+      >
+        <t-image class="favorites-page__cover" src="{{product.coverImage}}" mode="aspectFill" shape="round" width="168rpx" height="168rpx" />
+        <view class="favorites-page__info">
+          <view class="favorites-page__top">
+            <text class="favorites-page__product-title">{{product.title}}</text>
+            <t-tag size="small" theme="{{product.statusTheme}}" variant="light">{{product.statusText}}</t-tag>
+          </view>
+          <text class="favorites-page__meta">{{product.categoryName || '闲置好物'}} · {{product.conditionLevel || '成色良好'}}</text>
+          <view class="favorites-page__bottom">
+            <text class="favorites-page__price">¥{{product.price}}</text>
+            <view class="favorites-page__favorite-action">
+              <t-button
+                t-class="cr-secondhand-capsule cr-secondhand-capsule--outline"
+                size="small"
+                shape="round"
+                theme="default"
+                variant="outline"
+                data-id="{{product.id}}"
+                disabled="{{loading}}"
+                catch:tap="toggleFavorite"
+              >{{product.isFavorited ? '取消收藏' : '收藏'}}</t-button>
             </view>
           </view>
         </view>
       </view>
-    </ui-section>
+    </view>
 
-    <ui-section wx:if="{{!loading && products.length==0}}" plain>
-      <ui-empty-state
-        title="还没有收藏商品"
-        description="看到喜欢的校园闲置，可以先收藏再慢慢比较"
-        action-text="去逛逛"
-        bind:action="gotoMarket"
-      />
-    </ui-section>
+    <ui-empty-state
+      wx:elif="{{!loading && keyword && products.length > 0}}"
+      title="没有找到相关收藏"
+      description="换个关键词试试"
+    />
+    <ui-empty-state
+      wx:elif="{{!loading && products.length == 0}}"
+      title="还没有收藏商品"
+      description="看到喜欢的校园闲置，可以先收藏再慢慢比较"
+      action-text="去逛逛"
+      bind:action="gotoMarket"
+    />
   </view>
-</ui-page>
+</view>
+
+
+</block>
+<ui-feedback id="ui-feedback" custom-navigation="{{true}}" />

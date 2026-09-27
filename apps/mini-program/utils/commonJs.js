@@ -1,7 +1,7 @@
 /**
  * 此JS文件用于封装公共函数，以减少代码冗余
  */
-import Toast from 'tdesign-miniprogram/toast/index';
+const { toast: Toast } = require('./feedback');
 
 const url = getApp().globalData.API_URL;
 
@@ -15,81 +15,22 @@ function containsEmoji(str) {
   return emojiRegex.test(str);
 };
 
-/**
- * 一行的简易提示，图标为error-circle(一个感叹号！)
- * @param {context} context - 显式地传入当前上下文 
- * @param {*} title - 提示的文案
- */
+// Compatibility names remain while all feedback uses the shared TDesign policy.
 function errorCilcleToast(context, title) {
-  return Toast({
-    context: context,
-    selector: '#t-toast',
-    message: title,
-    icon: 'error-circle',
-  })
-};
-
-/**
- * 一行的简易提示，图标为check-circle(一个对号√)
- * @param {context} context - 显式地传入当前上下文 
- * @param {*} title - 提示的文案
- */
+  return Toast({ context, message: title, theme: 'warning' });
+}
 function checkCilcleToast(context, title) {
-  return Toast({
-    context: context,
-    selector: '#t-toast',
-    message: title,
-    icon: 'check-circle',
-  })
-};
-
-/**
- * 两行（上图标下文案）的警告提示，有遮罩
- * @param {context} context - 显式地传入当前上下文 
- * @param {str} title - 提示的文案
- */
+  return Toast({ context, message: title, theme: 'success' });
+}
 function showWarningToast(context, title) {
-  Toast({
-    context: context,
-    selector: '#t-toast',
-    message: title,
-    theme: 'warning',
-    direction: 'column',
-    preventScrollThrough: true,
-  });
-};
-
-/**
- * 两行（上图标下文案）的错误提示，有遮罩
- * @param {context} context - 显式地传入当前上下文 
- * @param {str} title - 提示的文案
- */
+  return Toast({ context, message: title, theme: 'warning' });
+}
 function showErrorToast(context, title) {
-  Toast({
-    context: context,
-    selector: '#t-toast',
-    message: title,
-    theme: 'error',
-    direction: 'column',
-    preventScrollThrough: true,
-  });
-};
-
-/**
- * 两行（上图标下文案）的成功提示，有遮罩
- * @param {context} context - 显式地传入当前上下文 
- * @param {str} title - 提示的文案
- */
+  return Toast({ context, message: title, theme: 'error' });
+}
 function showSuccessToast(context, title) {
-  Toast({
-    context: context,
-    selector: '#t-toast',
-    message: title,
-    theme: 'success',
-    direction: 'column',
-    preventScrollThrough: true,
-  });
-};
+  return Toast({ context, message: title, theme: 'success' });
+}
 
 /**
  * 通过提供的 token 获取用户信息
@@ -248,12 +189,12 @@ function _formatTime(date) {
 };
 
 /**
- * 根据字符串时间(例:2025-01-06 13:42:40)、该时间gap分钟后，获取字符串形式的时间(例:4月8日 15:30)
- * @param {String} timeString - 字符串形式的时间
- * @param {int} gap - 时间间隔
- * @returns {Sting} -字符串月日时分，例:4月8日 15:30
+ * 返回统一的预期送达截止时间。
+ * 新订单直接读取用户选定时间；旧订单保留创建时间加分钟并进位的显示规则。
+ * @returns {Date}
  */
-function _getExpectTimeDisplay(timeString, gap) {
+function _getExpectedDeliveryDate(timeString, gap, expectedDeliveryTime) {
+  if (expectedDeliveryTime) return _parseStrDateTime(expectedDeliveryTime);
   const createTime = _parseStrDateTime(timeString);
   var expectTime = new Date(createTime.getTime() + gap * 60000);
   // 强制进位到下一分钟的起始点（如 15:30:30 → 15:31:00）
@@ -262,8 +203,11 @@ function _getExpectTimeDisplay(timeString, gap) {
     expectTime.setSeconds(0);
     expectTime.setMilliseconds(0);
   }
-  const timeStr = _formatTime(expectTime);
-  return timeStr;
+  return expectTime;
+};
+
+function _getExpectTimeDisplay(timeString, gap, expectedDeliveryTime) {
+  return _formatTime(_getExpectedDeliveryDate(timeString, gap, expectedDeliveryTime));
 };
 
 /**
@@ -303,5 +247,6 @@ module.exports = {
   _isTomorrow: _isTomorrow,
   _formatTime: _formatTime,
   _getExpectTimeDisplay: _getExpectTimeDisplay,
+  _getExpectedDeliveryDate: _getExpectedDeliveryDate,
   _schlsAll2schlNameOnly: _schlsAll2schlNameOnly
 }

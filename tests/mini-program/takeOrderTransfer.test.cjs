@@ -1,3 +1,4 @@
+const feedbackStub = require('./helpers/feedbackStub.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -18,7 +19,7 @@ function createPage(wxOverrides = {}) {
     console,
     wx,
     getApp: () => ({ globalData: { API_URL: 'https://example.test', MOCK_PAYMENT: false } }),
-    require: (name) => name.includes('tokenManager') ? { getToken: () => 'test-token' }
+    require: (name) => name.endsWith('feedback') ? feedbackStub(wx) : name.includes('tokenManager') ? { getToken: () => 'test-token' }
       : name.includes('transformers') ? { showLoading: () => {}, hideLoading: () => {}, showError: () => {} }
         : name.includes('commonJs') ? { errorCilcleToast: () => {} }
           : {},

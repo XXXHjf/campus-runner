@@ -1,91 +1,56 @@
-<ui-page class="bargains-page" compact>
-  <view class="bargains-page__subtitle">报价仅买卖双方可见</view>
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
+<view class="bargains-page">
+  <view class="bargains-page__tabs">
+    <t-tabs theme="line" show-bottom-line="{{false}}" value="{{tab}}" bind:click="onTabsClick">
+      <t-tab-panel label="我收到的" value="received" />
+      <t-tab-panel label="我发出的" value="issued" />
+    </t-tabs>
+  </view>
 
   <view class="bargains-page__body">
-    <view class="bargains-page__summary">
-        <view class="bargains-page__summary-item">
-          <text class="bargains-page__summary-value">{{summary.pending}}</text>
-          <text class="bargains-page__summary-label">待回复</text>
+    <view wx:if="{{tab == 'received' ? received.length > 0 : issued.length > 0}}" class="bargains-page__list">
+      <view
+        wx:for="{{tab == 'received' ? received : issued}}"
+        wx:for-item="record"
+        wx:for-index="index"
+        wx:key="id"
+        class="bargains-page__row {{index > 0 ? 'bargains-page__row--separated' : ''}}"
+        data-status="{{record.status}}"
+        data-order-id="{{record.orderId}}"
+        data-product-id="{{record.productId}}"
+        bindtap="gotoRecord"
+      >
+        <t-image class="bargains-page__cover" src="{{record.coverImage}}" mode="aspectFill" shape="round" width="124rpx" height="124rpx" />
+        <view class="bargains-page__content">
+          <view class="bargains-page__top">
+            <text class="bargains-page__title">{{record.productTitle}}</text>
+            <t-tag size="small" theme="{{record.statusTheme}}" variant="light">{{record.statusText}}</t-tag>
+          </view>
+          <text class="bargains-page__meta">{{tab == 'received' ? '买家' : '卖家'}} {{tab == 'received' ? (record.buyerName || '同学') : (record.sellerName || '同学')}} · 第{{record.attemptNo}}次</text>
+          <view wx:if="{{record.message}}" class="bargains-page__message">{{record.message}}</view>
+          <view class="bargains-page__bottom">
+            <view class="bargains-page__price-line">
+              <text class="bargains-page__price-label">报价</text>
+              <text class="bargains-page__price">¥{{record.offerPrice}}</text>
+            </view>
+            <view wx:if="{{tab == 'received' && record.status == 0}}" class="bargains-page__actions" catchtap="noop">
+              <t-button t-class="cr-secondhand-capsule cr-secondhand-capsule--outline" size="small" shape="round" theme="default" variant="outline" disabled="{{actionLoadingId != null}}" data-id="{{record.id}}" catch:tap="reject">拒绝</t-button>
+              <t-button t-class="cr-secondhand-capsule" size="small" shape="round" theme="primary" variant="base" loading="{{actionLoadingId == record.id}}" disabled="{{actionLoadingId != null}}" data-id="{{record.id}}" catch:tap="accept">接受</t-button>
+            </view>
+          </view>
         </view>
-        <view class="bargains-page__summary-item">
-          <text class="bargains-page__summary-value">{{summary.accepted}}</text>
-          <text class="bargains-page__summary-label">已接受</text>
-        </view>
-        <view class="bargains-page__summary-item">
-          <text class="bargains-page__summary-value">{{summary.rejected}}</text>
-          <text class="bargains-page__summary-label">已拒绝</text>
-        </view>
+      </view>
     </view>
 
-    <ui-section plain>
-      <view class="bargains-page__tabs">
-        <t-tabs theme="line" show-bottom-line="{{false}}" value="{{tab}}" bind:click="onTabsClick">
-          <t-tab-panel label="我收到的" value="received" />
-          <t-tab-panel label="我发出的" value="issued" />
-        </t-tabs>
-      </view>
-
-      <view wx:if="{{tab=='received' && received.length>0}}" class="bargains-page__list">
-        <view wx:for="{{received}}" wx:key="id" class="bargains-page__row" data-status="{{item.status}}" data-order-id="{{item.orderId}}" data-product-id="{{item.productId}}" bindtap="gotoRecord">
-          <view class="bargains-page__cover-link">
-            <t-image class="bargains-page__cover" src="{{item.coverImage}}" mode="aspectFill" shape="round" />
-          </view>
-          <view class="bargains-page__content">
-            <view class="bargains-page__top">
-              <view class="bargains-page__title">{{item.productTitle}}</view>
-              <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
-            </view>
-            <view class="bargains-page__meta">买家：{{item.buyerName || '同学'}} · 第{{item.attemptNo}}次</view>
-            <view wx:if="{{item.message}}" class="bargains-page__message">{{item.message}}</view>
-            <view class="bargains-page__bottom">
-              <view class="bargains-page__price-line">
-                <text class="bargains-page__price-label">报价</text>
-                <text class="bargains-page__price">¥{{item.offerPrice}}</text>
-              </view>
-              <view wx:if="{{item.status==0}}" class="bargains-page__actions" catchtap="noop">
-                <block wx:if="{{item.status==0}}">
-                  <t-button t-class="cr-secondhand-capsule cr-secondhand-capsule--outline bargains-page__button" size="small" shape="round" variant="outline" disabled="{{actionLoadingId!=null}}" data-id="{{item.id}}" catch:tap="reject">拒绝</t-button>
-                  <t-button t-class="cr-secondhand-capsule bargains-page__button" size="small" shape="round" theme="primary" loading="{{actionLoadingId==item.id}}" disabled="{{actionLoadingId!=null}}" data-id="{{item.id}}" catch:tap="accept">接受</t-button>
-                </block>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <ui-empty-state
-        wx:if="{{tab=='received' && received.length==0}}"
-        title="暂无收到的议价"
-        description="买家提交报价后，会显示在这里"
-      />
-
-      <view wx:if="{{tab=='issued' && issued.length>0}}" class="bargains-page__list">
-        <view wx:for="{{issued}}" wx:key="id" class="bargains-page__row" data-status="{{item.status}}" data-order-id="{{item.orderId}}" data-product-id="{{item.productId}}" bindtap="gotoRecord">
-          <view class="bargains-page__cover-link">
-            <t-image class="bargains-page__cover" src="{{item.coverImage}}" mode="aspectFill" shape="round" />
-          </view>
-          <view class="bargains-page__content">
-            <view class="bargains-page__top">
-              <view class="bargains-page__title">{{item.productTitle}}</view>
-              <t-tag size="small" theme="{{item.statusTheme}}" variant="light">{{item.statusText}}</t-tag>
-            </view>
-            <view class="bargains-page__meta">卖家：{{item.sellerName || '同学'}} · 第{{item.attemptNo}}次</view>
-            <view wx:if="{{item.message}}" class="bargains-page__message">{{item.message}}</view>
-            <view class="bargains-page__bottom">
-              <view class="bargains-page__price-line">
-                <text class="bargains-page__price-label">报价</text>
-                <text class="bargains-page__price">¥{{item.offerPrice}}</text>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <ui-empty-state
-        wx:if="{{tab=='issued' && issued.length==0}}"
-        title="暂无发出的议价"
-        description="在商品详情提交报价后，会显示在这里"
-      />
-    </ui-section>
+    <ui-empty-state
+      wx:else
+      title="{{tab == 'received' ? '暂无收到的议价' : '暂无发出的议价'}}"
+      description="{{tab == 'received' ? '买家提交报价后，会显示在这里' : '在商品详情提交报价后，会显示在这里'}}"
+    />
   </view>
-</ui-page>
+</view>
+
+
+</block>
+<ui-feedback id="ui-feedback" />

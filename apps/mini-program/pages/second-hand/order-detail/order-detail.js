@@ -1,3 +1,4 @@
+const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
 const userService = require('../../../services/userService');
 const tokenManager = require('../../../utils/tokenManager');
@@ -9,7 +10,12 @@ const {
 } = require('../../../utils/secondHandStatus');
 
 Page({
+  toggleSellerFeeHint() {
+    this.setData({ showSellerFeeHint: !this.data.showSellerFeeHint });
+  },
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
+    showSellerFeeHint: false,
     id: null,
     order: {},
     role: 'buyer',
@@ -43,6 +49,7 @@ Page({
   },
 
   async loadDetail() {
+    feedback.loaded(this);
     this.setData({ loading: true });
     try {
       const order = await secondHandService.getOrderDetail(this.data.id);
@@ -79,7 +86,7 @@ Page({
       });
       this.startPayTimer();
     } catch (error) {
-      wx.showToast({ title: this.errorText(error, '加载失败'), icon: 'none' });
+      feedback.loadError(this, '订单加载失败，请重试', () => this.loadDetail(), !!this.data.order.id);
     } finally {
       this.setData({ loading: false });
       wx.stopPullDownRefresh();
@@ -194,11 +201,11 @@ Page({
   pay() {
     if (!SECOND_HAND_ONLINE_PAYMENT_ENABLED || this.data.actionLoading || !this.data.canPay) return;
     if (this.data.payRemainSeconds <= 0) {
-      wx.showToast({ title: '订单已超时，请刷新查看', icon: 'none' });
+      feedback.showToast(this, { title: '订单已超时，请刷新查看', theme: 'warning' });
       this.loadDetail();
       return;
     }
-    wx.showModal({
+    feedback.showModal(this, {
       title: '确认支付',
       content: `将通过平台担保支付 ¥${this.data.order.payAmount}，确认收货后卖家收款。`,
       confirmText: '去支付',
@@ -208,7 +215,7 @@ Page({
           this.setData({ actionLoading: 'pay' });
           if (getApp().globalData.MOCK_PAYMENT) {
             await secondHandService.mockPaySuccess(this.data.id);
-            wx.showToast({ title: '支付成功', icon: 'success' });
+            feedback.showToast(this, { title: '支付成功', icon: 'success' });
             this.loadDetail();
             return;
           }
@@ -222,7 +229,8 @@ Page({
             complete: () => this.loadDetail(),
           });
         } catch (error) {
-          wx.showToast({ title: this.errorText(error, '支付失败'), icon: 'none' });
+          if (/cancel/i.test(error?.errMsg || error?.message || '')) return;
+          feedback.showToast(this, { title: this.errorText(error, '支付失败'), theme: 'error' });
           this.loadDetail();
         } finally {
           this.setData({ actionLoading: '' });
@@ -234,12 +242,13 @@ Page({
   cancelOrder() {
     if (this.data.actionLoading || !this.data.canCancel) return;
     const isOffline = Boolean(this.data.order.isOffline);
-    wx.showModal({
-      title: '取消订单',
+    feedback.showModal(this, {
+      title: '取消订单？',
       content: isOffline
         ? '取消后商品将重新展示，双方无需继续本次交易。确认取消？'
         : (Number(this.data.order.status) === 1 ? '卖家交付前取消会发起退款，确认继续？' : '取消后商品将重新上架，确认继续？'),
-      confirmText: '确认取消',
+      confirmText: '取消订单',
+      cancelText: '保留订单',
       confirmColor: '#d54941',
       success: async (res) => {
         if (!res.confirm) return;
@@ -251,10 +260,10 @@ Page({
               ? `${this.data.role === 'seller' ? '卖家' : '买家'}取消线下交易`
               : '买家取消订单',
           );
-          wx.showToast({ title: '已取消', icon: 'success' });
+          feedback.showToast(this, { title: '已取消', icon: 'success' });
           this.loadDetail();
         } catch (error) {
-          wx.showToast({ title: this.errorText(error, '取消失败'), icon: 'none' });
+          feedback.showToast(this, { title: this.errorText(error, '取消失败'), theme: 'error' });
           this.loadDetail();
         } finally {
           this.setData({ actionLoading: '' });
@@ -266,7 +275,7 @@ Page({
   markDelivered() {
     if (this.data.actionLoading || !this.data.canDeliver) return;
     const order = this.data.order;
-    wx.showModal({
+    feedback.showModal(this, {
       title: '标记已交付',
       content: order.isOffline
         ? `请确认已在${Number(order.deliveryMode) === 1 ? '配送地址' : '约定地点'}完成商品交接。标记后将等待买家确认交易完成。`
@@ -279,10 +288,10 @@ Page({
         try {
           this.setData({ actionLoading: 'deliver' });
           await secondHandService.markDelivered(this.data.id);
-          wx.showToast({ title: '已标记交付', icon: 'success' });
+          feedback.showToast(this, { title: '已标记交付', icon: 'success' });
           this.loadDetail();
         } catch (error) {
-          wx.showToast({ title: this.errorText(error, '操作失败'), icon: 'none' });
+          feedback.showToast(this, { title: this.errorText(error, '操作失败'), theme: 'error' });
           this.loadDetail();
         } finally {
           this.setData({ actionLoading: '' });
@@ -294,7 +303,7 @@ Page({
   confirmReceipt() {
     if (this.data.actionLoading || !this.data.canConfirm) return;
     const isOffline = Boolean(this.data.order.isOffline);
-    wx.showModal({
+    feedback.showModal(this, {
       title: isOffline ? '确认交易完成' : '确认收货',
       content: isOffline
         ? '请确认你已与卖家完成商品和款项交接。平台不会核验双方的付款情况。'
@@ -306,16 +315,16 @@ Page({
           this.setData({ actionLoading: 'confirm' });
           await secondHandService.confirmOrder(this.data.id);
           if (isOffline) {
-            wx.showToast({ title: '交易已完成', icon: 'success' });
+            feedback.showToast(this, { title: '交易已完成', icon: 'success' });
           } else if (getApp().globalData.MOCK_PAYMENT) {
             await secondHandService.mockReceiveSuccess(this.data.id);
-            wx.showToast({ title: '交易已完成', icon: 'success' });
+            feedback.showToast(this, { title: '交易已完成', icon: 'success' });
           } else {
-            wx.showToast({ title: '已确认收货，卖家收款处理中', icon: 'none' });
+            feedback.showMessage(this, '已确认收货，卖家收款处理中', { theme: 'info' });
           }
           this.loadDetail();
         } catch (error) {
-          wx.showToast({ title: this.errorText(error, '确认失败'), icon: 'none' });
+          feedback.showToast(this, { title: this.errorText(error, '确认失败'), theme: 'error' });
           this.loadDetail();
         } finally {
           this.setData({ actionLoading: '' });
@@ -330,12 +339,12 @@ Page({
       this.setData({ actionLoading: 'receive' });
       const claim = await secondHandService.getTransferClaim(this.data.id);
       if (claim.state === 'SUCCESS') {
-        wx.showToast({ title: '收款已到账', icon: 'success' });
+        feedback.showToast(this, { title: '收款已到账', icon: 'success' });
         this.loadDetail();
         return;
       }
       if (!wx.canIUse('requestMerchantTransfer')) {
-        wx.showModal({
+        feedback.showModal(this, {
           title: '微信版本过低',
           content: '请升级微信后重新打开订单确认收款。',
           showCancel: false,
@@ -351,12 +360,12 @@ Page({
           fail: reject,
         });
       });
-      wx.showToast({ title: '已打开收款页面，请按提示确认', icon: 'none' });
+      feedback.showMessage(this, '请在收款页面确认收款', { theme: 'info' });
       this.loadDetail();
     } catch (error) {
       const message = error && (error.errMsg || error.message);
       if (!message || !String(message).includes('cancel')) {
-        wx.showToast({ title: this.errorText(error, '暂时无法确认收款'), icon: 'none' });
+        feedback.showToast(this, { title: this.errorText(error, '暂时无法确认收款'), theme: 'warning' });
       }
       this.loadDetail();
     } finally {

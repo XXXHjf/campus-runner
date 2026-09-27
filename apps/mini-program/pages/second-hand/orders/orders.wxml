@@ -1,3 +1,6 @@
+<t-navbar wx:if="{{feedbackLoadError}}" title="我买到的" left-arrow bind:go-back="goBack" />
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <view class="secondhand-orders">
   <view class="secondhand-orders__controls" style="padding-top: {{statusBarHeight}}px;">
     <view class="secondhand-orders__nav" style="height: {{navigationBarHeight}}px; padding-right: {{navigationRightPadding}}px;">
@@ -40,9 +43,13 @@
 </view>
 
 <t-popup visible="{{actionSheetVisible}}" placement="bottom" close-on-overlay-click="true" bind:visible-change="onActionSheetChange">
-  <view class="secondhand-orders__sheet">
-    <t-button wx:if="{{actionOrder.canCancel}}" block variant="text" theme="danger" bind:tap="cancelActionOrder">取消订单</t-button>
+  <view class="cr-action-sheet">
+    <t-button wx:if="{{actionOrder.canCancel}}" block variant="text" theme="default" bind:tap="cancelActionOrder">取消订单</t-button>
     <t-button block variant="text" bind:tap="showActionOrderDetail">{{actionOrder.isRefund ? '查看退款详情' : '查看详情'}}</t-button>
-    <t-button block variant="text" bind:tap="closeActionSheet">关闭</t-button>
+    <t-button block variant="text" class="cr-action-sheet__cancel" bind:tap="closeActionSheet">取消</t-button>
   </view>
 </t-popup>
+
+
+</block>
+<ui-feedback id="ui-feedback" custom-navigation="{{true}}" />

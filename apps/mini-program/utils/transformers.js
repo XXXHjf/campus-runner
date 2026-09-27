@@ -1,3 +1,4 @@
+const feedback = require('./feedback');
 /**
  * 数据处理工具
  * 统一处理各种数据转换和格式化
@@ -19,7 +20,7 @@ function addExpectTime(orders) {
   }
   
   return orders.map(item => {
-    item.expectTime = _getExpectTimeDisplay(item.createTime, item.gap);
+    item.expectTime = _getExpectTimeDisplay(item.createTime, item.gap, item.expectedDeliveryTime);
     return item;
   });
 }
@@ -88,8 +89,8 @@ function hideLoading() {
  * 显示成功提示
  * @param {string} title - 提示文字
  */
-function showSuccess(title) {
-  wx.showToast({
+function showSuccess(context, title) {
+  feedback.showToast(context, {
     title,
     icon: 'success',
     duration: 2000
@@ -100,8 +101,8 @@ function showSuccess(title) {
  * 显示错误提示
  * @param {string} title - 提示文字
  */
-function showError(title) {
-  wx.showToast({
+function showError(context, title) {
+  feedback.showToast(context, {
     title,
     icon: 'error',
     duration: 2000

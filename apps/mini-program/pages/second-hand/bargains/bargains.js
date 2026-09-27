@@ -1,9 +1,11 @@
+const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
 const userService = require('../../../services/userService');
 const tokenManager = require('../../../utils/tokenManager');
 const { bargainStatus, friendlyError } = require('../../../utils/secondHandStatus');
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     tab: 'received',
     issued: [],
@@ -21,6 +23,7 @@ Page({
   },
 
   async loadList() {
+    feedback.loaded(this);
     try {
       const user = await this.getCurrentUser();
       const list = await secondHandService.listMyBargains();
@@ -42,7 +45,7 @@ Page({
         },
       });
     } catch (error) {
-      wx.showToast({ title: this.errorText(error, '加载失败'), icon: 'none' });
+      feedback.loadError(this, '议价记录加载失败，请重试', () => this.loadList(), !!(this.data.received.length + this.data.issued.length));
     } finally {
       wx.stopPullDownRefresh();
     }
@@ -75,7 +78,7 @@ Page({
     if (this.data.actionLoadingId) return;
     const bargain = this.findBargain(e.currentTarget.dataset.id);
     if (!bargain) return;
-    wx.showModal({
+    feedback.showModal(this, {
       title: '接受议价',
       content: `接受 ¥${bargain.offerPrice} 后，将按该价格创建订单，商品进入交易中。`,
       confirmText: '接受',
@@ -87,10 +90,10 @@ Page({
             productId: bargain.productId,
             bargainId: bargain.id,
           });
-          wx.showToast({ title: '已接受', icon: 'success' });
+          feedback.showToast(this, { title: '已接受', icon: 'success' });
           wx.navigateTo({ url: `/pages/second-hand/order-detail/order-detail?id=${order.id}` });
         } catch (error) {
-          wx.showToast({ title: this.errorText(error, '接受失败'), icon: 'none' });
+          feedback.showToast(this, { title: this.errorText(error, '接受失败'), theme: 'error' });
           this.loadList();
         } finally {
           this.setData({ actionLoadingId: null });
@@ -103,7 +106,7 @@ Page({
     if (this.data.actionLoadingId) return;
     const bargain = this.findBargain(e.currentTarget.dataset.id);
     if (!bargain) return;
-    wx.showModal({
+    feedback.showModal(this, {
       title: '拒绝议价',
       content: '确认拒绝这次报价？',
       confirmText: '拒绝',
@@ -113,10 +116,10 @@ Page({
         try {
           this.setData({ actionLoadingId: bargain.id });
           await secondHandService.rejectBargain(bargain.id);
-          wx.showToast({ title: '已拒绝', icon: 'success' });
+          feedback.showToast(this, { title: '已拒绝', icon: 'success' });
           this.loadList();
         } catch (error) {
-          wx.showToast({ title: this.errorText(error, '拒绝失败'), icon: 'none' });
+          feedback.showToast(this, { title: this.errorText(error, '拒绝失败'), theme: 'error' });
           this.loadList();
         } finally {
           this.setData({ actionLoadingId: null });
@@ -145,7 +148,7 @@ Page({
       wx.navigateTo({ url: `/pages/second-hand/order-detail/order-detail?id=${orderId}` });
       return;
     }
-    wx.showToast({ title: '订单尚未生成', icon: 'none' });
+    feedback.showToast(this, { title: '订单尚未生成', theme: 'warning' });
   },
 
   findBargain(id) {

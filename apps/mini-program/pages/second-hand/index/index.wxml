@@ -1,3 +1,6 @@
+<t-navbar wx:if="{{feedbackLoadError}}" title="校园二手" />
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <view class="second-hand-page">
   <view class="market-controls">
     <view class="market-nav-shell" style="padding-top: {{statusBarHeight}}px;">
@@ -164,3 +167,7 @@
   id="secondHandAddressPicker"
   bind:confirmSelection="handleFilterAddressConfirm"
 />
+
+
+</block>
+<ui-feedback id="ui-feedback" custom-navigation="{{true}}" />

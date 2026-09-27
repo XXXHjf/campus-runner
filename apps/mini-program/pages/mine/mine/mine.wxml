@@ -130,7 +130,7 @@
 </view>
 
 <!-- 微信授权登录弹窗 -->
-<t-dialog id="t-dialog" />
+
 
 <!-- 登录加载动画 -->
 <t-overlay class="loadingBox" visible="{{loginLoadShow}}" duration="{{500}}" backgroundColor="rgb(255,255,255,0.5)">
@@ -138,4 +138,4 @@
 </t-overlay>
 
 <!-- 登陆失败的轻提示 -->
-<t-toast id="t-toast" />
+<ui-feedback id="ui-feedback" />

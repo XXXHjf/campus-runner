@@ -1,3 +1,5 @@
+<ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
+<block wx:if="{{!feedbackLoadError}}">
 <ui-page safe-bottom>
   <ui-section title="个人信息" icon="user-list">
     <t-cell title="头像" arrow>
@@ -19,5 +21,5 @@
     <t-button class="profile-save-button" block theme="primary" bind:tap="save">保存信息</t-button>
   </ui-action-bar>
 </ui-page>
-
-<t-toast id="t-toast" />
+</block>
+<ui-feedback id="ui-feedback" />

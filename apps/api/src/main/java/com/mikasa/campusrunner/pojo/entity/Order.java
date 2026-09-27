@@ -29,8 +29,8 @@ public class Order {
     private BigDecimal serviceFee; //服务费
     private BigDecimal payAmount; //用户支付总额
     private BigDecimal runnerReceivable;
-    private BigDecimal realPrice;// 禁用 实际成交价格
 
+    private LocalDateTime expectedDeliveryTime; // 用户选定的预期送达时间
     private LocalDateTime deliveryTime;
 
     private LocalDateTime cancelTime;

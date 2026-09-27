@@ -1,314 +1,152 @@
 <ui-page safe-bottom>
-<!-- 步骤栏 -->
-<view class="step">
-  <t-steps theme="dot" current="{{count - 1}}">
-    <t-step-item wx:for="{{3}}" wx:key="index" title="{{title[index]}}">
-      <t-icon name="chevron-right" size="22" color="rgba(0, 0, 0, .4)" slot="title-right" />
-    </t-step-item>
-  </t-steps>
-</view>
-
-<!-- 地址 -->
-<ui-section title="{{isPurchase ? '购买与送达地址' : '取件与收件地址'}}" icon="map" wx:if="{{count == 1}}">
-  <!-- 取件地址 -->
-  <view class="box1" bind:tap="tapOnPickAddr">
-    <view class="text-address">{{isPurchase ? '购买地点' : '取件地址'}}</view>
-    <view>
-      <view class="address" style="font-weight: 600; color: {{showPickUp?'black':'gray'}};">
-        {{showPickUp.compusName || (isPurchase ? '点击选择购买地点' : '点击选择取件地址')}} {{showPickUp.buildCategoryName}} {{showPickUp.buildingName}}
+  <view class="order-add-page">
+    <view class="order-add-category" bind:tap="upCategory">
+      <view class="order-add-category__heading">
+        <t-icon name="send" size="36rpx" color="var(--cr-color-primary, #0052d9)" />
+        <text class="order-add-category__label">跑腿类型</text>
       </view>
-      <view class="address" wx:if="{{showPickUp.details}}" style="color: {{showPickUp?'black':'gray'}};">{{showPickUp.details}}</view>
+      <view class="order-add-category__value">
+        <text class="{{showCategory.id ? '' : 'order-add-muted'}}">{{showCategory.categoryName || '请选择'}}</text>
+        <t-icon name="chevron-right" size="36rpx" color="#8b94a1" />
+      </view>
     </view>
-  </view>
-  <!-- 收件地址 -->
-  <view class="box1" bind:tap="upRecive">
 
-    <text class="text-address">{{isPurchase ? '送达地点' : '收件地址'}}</text>
-    <view>
-      <view class="address" style="font-weight: 600; color: {{showRecive?'black':'gray'}};">
-        {{showRecive.compusName || (isPurchase ? '点击选择送达地点' : '点击选择收件地址')}} {{showRecive.buildCategoryName}} {{showRecive.buildingName}}
-      </view>
-      <view class="address" wx:if="{{showRecive.details}}" style="color: {{showRecive?'black':'gray'}};">{{showRecive.details}}</view>
-    </view>
-  </view>
-
-  <!-- 门禁情况 -->
-  <view wx:if="{{count == 1 && !isPurchase}}">
-    <view class="door-container">
-      <view class="door-left" bind:tap="handleChangeDoor">
-        <view class="box1">
-          <text class="text-address">门禁</text>
-        </view>
-        <t-switch value="{{doorAccess==0?false:true}}" icon="{{['check', 'close']}}" size="small" slot="note" />
-      </view>
-      
-      <!-- 醒目的帮助说明按钮 -->
-      <view class="door-help-btn" bind:tap="ticonTapToExplain" catchtap="ticonTapToExplain">
-        <view class="help-btn-content">
-          <text class="help-btn-text">什么是门禁？</text>
-          <!-- <t-icon name="help-circle" size="32rpx" color="#FFFFFF" class="help-icon-pulse" /> -->
+    <ui-section title="{{isPurchase ? '购买与送达地点' : '取送地点'}}">
+      <view class="order-add-section-body">
+      <view class="order-add-route">
+        <view class="order-add-route__rail"><view class="order-add-route__dot" /><view class="order-add-route__line" /><view class="order-add-route__dot order-add-route__dot--end" /></view>
+        <view class="order-add-route__rows">
+          <view class="order-add-row" bind:tap="tapOnPickAddr">
+            <text class="order-add-row__label">{{isPurchase ? '购买地点' : '取件地点'}}</text>
+            <view class="order-add-row__content">
+              <text wx:if="{{showPickUp}}">{{showPickUp.compusName}} {{showPickUp.buildCategoryName}} {{showPickUp.buildingName}} {{showPickUp.details}}</text>
+              <text wx:else class="order-add-muted">请选择地点</text>
+            </view>
+            <t-icon name="chevron-right" size="34rpx" color="#8b94a1" />
+          </view>
+          <view class="order-add-row" bind:tap="upRecive">
+            <text class="order-add-row__label">送达地点</text>
+            <view class="order-add-row__content">
+              <text wx:if="{{showRecive}}">{{showRecive.compusName}} {{showRecive.buildCategoryName}} {{showRecive.buildingName}} {{showRecive.details}}</text>
+              <text wx:else class="order-add-muted">请选择地点</text>
+            </view>
+            <t-icon name="chevron-right" size="34rpx" color="#8b94a1" />
+          </view>
         </view>
       </view>
-    </view>
-  </view>
-
-  <!-- 联系方式 -->
-  <view class="contact-contanier" bind:tap="upUser">
-    <view class="contact-box">
-      <view style="font-weight: 600;"> {{showUser || '暂无'}} </view>
-    </view>
-    <view class="contact-box" style="margin-left: 20rpx;">
-      <view style="font-weight: 600;"> {{maskedShowPhone || '暂无'}} </view>
-    </view>
-    <view class="edit-box">
-      <t-icon name="edit" bind:click="onIconTap" />
-    </view>
-  </view>
-</ui-section>
-
-<!-- 联系方式 -->
-<!-- <view class="card" hidden="{{!(count==1)}}">
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="chat-bubble" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">联系方式</view>
-  </view>
-  <t-divider class="drvider" />
-  <view class="user" bind:tap="upUser">
-    <view class="box1">
-      <text class="text-address">下单昵称</text>
-      <view class="address" style="font-weight: 600;"> {{showUser || '暂无'}} </view>
-    </view>
-    <view class="box1">
-      <text class="text-address">联系方式</text>
-      <view class="address" style="font-weight: 600;"> {{showPhone || '暂无'}} </view>
-    </view>
-  </view>
-</view> -->
-
-<!-- 跑腿类型 -->
-<ui-section title="跑腿类型" icon="send" wx:if="{{count == 1}}">
-  <!-- 跑腿类型  -->
-  <view bind:tap="upCategory">
-    <view class="box1">
-      <text class="text-address">跑腿类型</text>
-      <view class="address" style="font-weight: 600;"> {{showCategory.categoryName || '请选择跑腿分类'}} </view>
-      <view wx:if="{{showCategory.categoryName==null}}" style="font-size: smaller;color: gray;margin-right: 48rpx;">未选择</view>
-      <t-image wx:else class="categoryImage" src="{{showCategory.image || '/images/tabBar/orderAdd-selected.png'}}" loading="slot" error="slot" mode="widthFix" height="48rpx" width="48rpx" style="margin-right: 40rpx;" />
-    </view>
-  </view>
-</ui-section>
-
-<!-- 门禁情况说明 -->
-<!-- <view class="card" hidden="{{!(count==1)}}"> -->
-<!-- 卡片名 -->
-<!-- <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="lock-on" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">门禁说明</view>
-  </view> -->
-<!-- 分割线 -->
-<!-- <t-divider class="drvider" /> -->
-<!-- 门禁情况说明  -->
-<!-- <view bind:tap="handleChangeDoor">
-    <view class="box1">
-      <text class="text-address">门禁情况</text>
-      <view class="address" style="font-weight: 600;"> {{door[doorAccess]}} </view>
-      <t-switch value="{{doorAccess==0?false:true}}" icon="{{['check', 'close']}}" size="small" slot="note" style="margin-right: 42rpx;" />
-    </view>
-    <view hidden="{{doorAccess==1}}" class="address" style="text-align: end;margin-top: 4rpx;"> 注意取件与收件地址是否有门禁，或限时进入！ </view>
-  </view> -->
-<!-- </view> -->
-
-<!-- 跑腿内容说明 -->
-<ui-section title="{{isPurchase ? '购买清单' : '内容说明'}}" icon="attach" wx:if="{{count == 2}}">
-  <view class="content-field">
-    <text class="text-address">描述</text>
-    <t-textarea
-      t-class="external-class"
-      t-class-indicator="{{skylineRender?'skyline-indicator':''}}"
-      value="{{note}}"
-      placeholder="{{isPurchase ? '请描述商品、规格和购买要求' : '请描述跑腿内容和注意事项'}}"
-      bordered
-      maxlength="100"
-      disableDefaultPadding="{{true}}"
-      indicator
-      bindchange="onNoteInput"
-      style="margin: 20rpx 30rpx"
-    />
-  </view>
-  <view>
-    <text class="text-address">{{isPurchase ? '商品参考图片' : '图片说明'}}</text>
-    <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{9}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="margin: 20rpx 30rpx" />
-  </view>
-</ui-section>
-
-<!--
-<view class="card" hidden="{{!(count==3)}}">
-  <view style="display: flex; align-items: center;">
-    <t-icon class="cardIcon" name="delete-time" size="16" color="#0052d9" style="padding: 0 0 0 30rpx;" />
-    <view class="cardName">自动取消</view>
-  </view>
-  <t-divider class="drvider" />
-  <view bind:tap="showPicker">
-    <view class="box1">
-      <text class="text-address">自动取消时间</text>
-      <view class="address" style="font-weight: 600;"> {{showCancel || '默认在12小时后取消'}} </view>
-    </view>
-    <view class="address" style="text-align: end;margin-top: 4rpx;"> 在此时间内无人接单，系统将会自动取消该跑腿！ </view>
-  </view>
-  <t-date-time-picker title="在此时间后取消订单" visible="{{visible}}" value="{{value}}" format="HH:mm:ss" mode="{{['null', 'minute']}}" steps="{{ { minute: 15 } }}" bindchange="onConfirm" bindpick="onColumnChange" bindcancel="hidePicker" />
-</view>
--->
-
-<!-- 任务时间 -->
-<ui-section title="任务时间" icon="user-time" wx:if="{{count == 3}}">
-  <!-- 任务说明  -->
-  <!-- <view>
-    <view class="box1">
-      <text class="text-address">跑腿任务时间</text>
-      <t-input class="input custom-input" placeholder="{{showGap}}" suffix="分钟" align="left" type="number" bindchange="onGapInput" borderless style="padding: 0 0 0 30rpx !important;" />
-      <view class="address" style="font-weight: 600;text-align: right;" />
-    </view>
-    <view hidden="{{gapError==0}}" class="address" style="text-align: end;margin-top: 4rpx;color: #ed7b2f"> 请输入正确的时间(分钟)，最长时间为120分钟。 </view>
-    <view class="address" style="text-align: end;margin-top: 4rpx;"> 用户指定，希望在跑腿任务时间内收到物品。 </view>
-  </view> -->
-
-  <!-- 修改==预期送达时间 -->
-  <view bind:tap="tapOnReachTime">
-    <view class="box1" style="justify-content: space-between;">
-      <text class="text-address">预期送达时间</text>
-      <view class="box1" style="margin-right: 42rpx;">
-        <text style="color: #0052d9;">{{showReachTime}}</text>
-        <t-icon name="chevron-right" size="46rpx" color="gray" />
+      <view wx:if="{{!isPurchase}}" class="order-add-door">
+        <text>取送地点有门禁</text>
+        <view class="order-add-door__control">
+          <t-icon name="help-circle" size="30rpx" color="#8b94a1" bind:tap="ticonTapToExplain" />
+          <t-switch value="{{doorAccess == 1}}" size="small" bind:change="onDoorChange" />
+        </view>
       </view>
-      <!-- <t-input class="input custom-input" placeholder="{{showGap}}" suffix="分钟" align="left" type="number" bindchange="onGapInput" borderless style="padding: 0 0 0 30rpx !important;" /> -->
-      <!-- <view class="address" style="font-weight: 600;text-align: right;" /> -->
-    </view>
-    <view class="address" style="margin-top: 4rpx;">送达时间可能随接单人情况波动</view>
-  </view>
-</ui-section>
-
-<!-- 付费信息 -->
-<ui-section title="{{isPurchase ? '代买费用' : '跑腿付费'}}" icon="user-vip" wx:if="{{count == 3}}">
-  <!-- 付费信息  -->
-  <view wx:if="{{isPurchase}}" class="order-add__purchase-fee">
-    <view class="order-add__amount-row">
-      <text class="text-address">商品金额</text>
-      <t-input class="input custom-input" value="{{productAmount}}" placeholder="输入确认后的金额" align="right" type="digit" bind:change="onProductAmountInput" borderless />
-      <text class="order-add__amount-unit">元</text>
-    </view>
-    <view wx:if="{{productAmountError}}" class="order-add__amount-error">请输入大于 0 且最多两位小数的金额</view>
-    <view class="order-add__amount-row">
-      <text class="text-address">跑腿报酬</text>
-      <t-input class="input custom-input" value="{{price}}" placeholder="输入跑腿报酬" align="right" type="digit" bind:change="onPriceInput" borderless />
-      <text class="order-add__amount-unit">元</text>
-    </view>
-    <view wx:if="{{priceError}}" class="order-add__amount-error">请输入大于 0 且最多两位小数的跑腿报酬</view>
-    <view class="order-add__fee-summary">
-      <view class="order-add__fee-line"><text>服务费</text><text>¥{{serviceFee || 0}}</text></view>
-      <view class="order-add__fee-line"><text>预计实付</text><text class="order-add__fee-total">¥{{payAmount || 0}}</text></view>
-    </view>
-    <view class="order-add__fee-hint">请与接单人确认商品最终价格后再发布</view>
-  </view>
-  <view wx:else>
-    <view class="box1">
-      <text class="text-address">是否选择有偿</text>
-      <view wx:if="{{!(priceAccess==0)}}" class="address">
-        <t-input class="input custom-input" value="{{price}}" placeholder="{{price}}" suffix="元" align="left" type="digit" bindchange="onPriceInput" borderless style="padding: 0 !important;" />
       </view>
-      <view class="address" style="font-weight: 600;text-align: right;" />
-      <t-switch value="{{priceAccess==0?false:true}}" icon="{{['check', 'close']}}" size="small" slot="note" style="margin-right: 42rpx;" bind:tap="handleChangePrice" />
-    </view>
-    <view hidden="{{(priceError==0)}}" class="address" style="text-align: end;margin-top: 4rpx;color: #ed7b2f;"> 请输入正确的价格（单位：元）。 </view>
-    <view hidden="{{(priceAccess==0)}}" class="address" style="margin-top: 10rpx;color: #ed5126;"> 发布价格为骑手可得金额。 </view>
-    <view hidden="{{(priceAccess==0)}}" class="address" style="margin-top: 6rpx;color:#0052d9;font-weight:600;">预计实付金额：¥{{payAmount || 0}}</view>
-  </view>
-</ui-section>
+    </ui-section>
 
-<ui-action-bar fixed>
-  <view class="order-add__action">
-    <t-button block variant="outline" theme="default" disabled="{{count==1}}" bind:tap="toPrev">上一步</t-button>
+    <ui-section title="{{isPurchase ? '购买清单' : '需要帮忙做什么'}}">
+      <view class="order-add-section-body">
+      <view class="order-add-content">
+        <t-textarea value="{{note}}" placeholder="{{isPurchase ? '写清商品、规格、数量和购买要求' : '写清物品和注意事项'}}" maxlength="100" indicator bordered disableDefaultPadding="{{true}}" bind:change="onNoteInput" />
+        <view class="order-add-content__image-title">{{isPurchase ? '商品参考图片' : '需求图片'}} <text class="order-add-required">（必传）</text></view>
+        <t-upload mediaType="{{['image']}}" max="{{9}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" />
+        <text class="order-add-hint">至少上传 1 张，最多 9 张</text>
+      </view>
+      </view>
+    </ui-section>
+
+    <ui-section title="希望送达">
+      <view class="order-add-section-body">
+      <view class="order-add-row" bind:tap="tapOnReachTime">
+        <text class="order-add-row__label">预期送达</text>
+        <view class="order-add-row__content order-add-row__content--right">{{showReachTime || '选择时间'}}</view>
+        <t-icon name="chevron-right" size="34rpx" color="#8b94a1" />
+      </view>
+      <text class="order-add-hint">实际送达时间可能随接单情况变化</text>
+      </view>
+    </ui-section>
+
+    <ui-section title="{{isPurchase ? '代买费用' : '报酬设置'}}">
+      <view class="order-add-section-body">
+      <view wx:if="{{!isPurchase}}" class="order-add-modes">
+        <view class="order-add-mode" bind:tap="selectPaid">
+          <t-radio value="paid" label="提供报酬" content="接单同学完成后获得报酬" checked="{{priceAccess == 1}}" block="{{false}}" borderless bind:change="selectPaid" style="--td-radio-icon-size: 36rpx; --td-radio-label-line-height: 42rpx; --td-radio-font-size: 29rpx; --td-radio-content-font-size: 24rpx; --td-radio-content-line-height: 36rpx;" />
+        </view>
+        <view wx:if="{{priceAccess == 1}}" class="order-add-mode__amount">
+          <text>跑腿报酬</text>
+          <view class="order-add-mode__input"><t-input value="{{price}}" placeholder="输入金额" type="digit" align="right" borderless style="--td-input-bg-color: transparent; --td-input-vertical-padding: 0;" bind:change="onPriceInput" /></view>
+          <text>元</text>
+        </view>
+        <view class="order-add-mode" bind:tap="selectFree">
+          <t-radio value="free" label="无偿求助" content="不支付跑腿报酬" checked="{{priceAccess == 0}}" block="{{false}}" borderless bind:change="selectFree" style="--td-radio-icon-size: 36rpx; --td-radio-label-line-height: 42rpx; --td-radio-font-size: 29rpx; --td-radio-content-font-size: 24rpx; --td-radio-content-line-height: 36rpx;" />
+        </view>
+      </view>
+      <view wx:if="{{isPurchase}}" class="order-add-row">
+        <text class="order-add-row__label">商品金额</text>
+        <t-input t-class="order-add-money-input" value="{{productAmount}}" placeholder="输入金额" type="digit" align="right" borderless bind:change="onProductAmountInput" />
+        <text class="order-add-unit">元</text>
+      </view>
+      <text wx:if="{{productAmountError}}" class="order-add-error">请输入大于 0 且最多两位小数的商品金额</text>
+      <view wx:if="{{isPurchase}}" class="order-add-row">
+        <text class="order-add-row__label">跑腿报酬</text>
+        <t-input t-class="order-add-money-input" value="{{price}}" placeholder="输入金额" type="digit" align="right" borderless bind:change="onPriceInput" />
+        <text class="order-add-unit">元</text>
+      </view>
+      <text wx:if="{{priceAccess == 1 && priceError}}" class="order-add-error">请输入大于 0 且最多两位小数的跑腿报酬</text>
+      <view wx:if="{{priceAccess == 1}}" class="order-add-fee">
+        <view class="order-add-fee__line order-add-fee__line--total">
+          <view class="order-add-review__total-label"><text>预计实付</text><view class="order-add-review__info" aria-role="button" aria-label="查看实付金额说明" bind:tap="toggleFormFeeHint"><t-icon name="info-circle" size="30rpx" color="#8b94a1" /></view></view>
+          <text>{{payAmount === null ? '计算中' : '¥' + payAmount}}</text>
+        </view>
+        <view wx:if="{{showFormFeeHint}}" class="order-add-review__fee-hint">实付金额已包含本单服务费。</view>
+      </view>
+      <text wx:if="{{isPurchase}}" class="order-add-hint">请先与接单同学确认商品价格</text>
+      </view>
+    </ui-section>
+
+    <ui-section title="联系方式">
+      <view class="order-add-section-body">
+      <view class="order-add-row" bind:tap="upUser">
+        <text class="order-add-row__label">联系人</text>
+        <view class="order-add-row__content order-add-row__content--right">{{showUser || '请填写'}} · {{maskedShowPhone || '手机号'}}</view>
+        <t-icon name="chevron-right" size="34rpx" color="#8b94a1" />
+      </view>
+      </view>
+    </ui-section>
   </view>
-  <view class="order-add__action">
-    <t-button block variant="{{variant}}" theme="{{theme}}" open-type="agreePrivacyAuthorization" bind:tap="{{count==3?'order':'toNext'}}">{{count==3?(isPurchase?'发布代买':'发布跑腿'):'下一步'}}</t-button>
-  </view>
-</ui-action-bar>
+
+  <ui-action-bar fixed>
+    <t-button block theme="primary" bind:tap="order">下一步 · 核对订单</t-button>
+  </ui-action-bar>
 </ui-page>
 
-<!-- 发布订单确认弹窗 -->
-<t-dialog 
-  visible="{{showOrderConfirm}}" 
-  title="确认发布订单" 
-  confirm-btn="确认发布" 
-  cancel-btn="再看看"
-  bind:confirm="confirmOrder"
-  bind:cancel="cancelOrder">
-  <view slot="content" class="order-confirm-content-compact">
-    <!-- 订单摘要卡片 -->
-    <view class="confirm-card-compact">
-      <!-- 联系人姓名 -->
-      <view class="confirm-item-compact confirm-highlight-bg">
-        <t-icon name="user" size="32rpx" color="#0052d9" class="confirm-icon-td" />
-        <text class="confirm-label-compact">联系人</text>
-        <text class="confirm-value-compact highlight-text-compact">{{showUser}}</text>
+<t-popup visible="{{showOrderConfirm}}" placement="bottom" bind:visible-change="onOrderConfirmVisibleChange">
+  <view class="order-add-review">
+    <view class="order-add-review__title">核对订单</view>
+    <scroll-view scroll-y class="order-add-review__body">
+      <view class="order-add-review__row"><text>跑腿类型</text><text>{{showCategory.categoryName}}</text></view>
+      <view class="order-add-review__row"><text>{{isPurchase ? '购买地点' : '取件地点'}}</text><text>{{showPickUp.compusName}} {{showPickUp.buildCategoryName}} {{showPickUp.buildingName}} {{showPickUp.details}}</text></view>
+      <view class="order-add-review__row"><text>送达地点</text><text>{{showRecive.compusName}} {{showRecive.buildCategoryName}} {{showRecive.buildingName}} {{showRecive.details}}</text></view>
+      <view class="order-add-review__row"><text>预期送达</text><text>{{showReachTime}}</text></view>
+      <view class="order-add-review__row"><text>联系人</text><text>{{showUser}} · {{maskedShowPhone}}</text></view>
+      <view wx:if="{{doorAccess == 1 && !isPurchase}}" class="order-add-review__row"><text>门禁</text><text>有门禁</text></view>
+      <view wx:if="{{isPurchase}}" class="order-add-review__row"><text>商品金额</text><text>¥{{productAmount}}</text></view>
+      <view class="order-add-review__row"><text>跑腿报酬</text><text>{{priceAccess == 1 ? '¥' + price : '无偿求助'}}</text></view>
+      <view class="order-add-review__row order-add-review__row--total">
+        <view class="order-add-review__total-label">
+          <text>{{priceAccess == 1 ? '实付金额' : '无需支付'}}</text>
+          <view wx:if="{{priceAccess == 1}}" class="order-add-review__info" aria-role="button" aria-label="查看实付金额说明" bind:tap="toggleReviewFeeHint"><t-icon name="info-circle" size="30rpx" color="#8b94a1" /></view>
+        </view>
+        <text wx:if="{{priceAccess == 1}}">¥{{payAmount}}</text>
       </view>
-      
-      <!-- 联系电话 -->
-      <view class="confirm-item-compact confirm-highlight-bg">
-        <t-icon name="mobile" size="32rpx" color="#0052d9" class="confirm-icon-td" />
-        <text class="confirm-label-compact">联系电话</text>
-        <text class="confirm-value-compact highlight-text-compact">{{maskedShowPhone}}</text>
-      </view>
-      
-      <!-- 取件地址 -->
-      <view class="confirm-item-compact">
-        <t-icon name="location" size="32rpx" color="#666666" class="confirm-icon-td" />
-        <text class="confirm-label-compact">{{isPurchase ? '购买' : '取件'}}</text>
-        <text class="confirm-value-compact">{{showPickUp.buildingName}} {{showPickUp.details}}</text>
-      </view>
-      
-      <!-- 收件地址 -->
-      <view class="confirm-item-compact">
-        <t-icon name="flag" size="32rpx" color="#666666" class="confirm-icon-td" />
-        <text class="confirm-label-compact">{{isPurchase ? '送达' : '收件'}}</text>
-        <text class="confirm-value-compact">{{showRecive.buildingName}} {{showRecive.details}}</text>
-      </view>
-      
-      <!-- 送达时间 -->
-      <view class="confirm-item-compact">
-        <t-icon name="time" size="32rpx" color="#666666" class="confirm-icon-td" />
-        <text class="confirm-label-compact">预期送达</text>
-        <text class="confirm-value-compact">{{showReachTime}}</text>
-      </view>
-      
-      <!-- 商品金额 -->
-      <view class="confirm-item-compact confirm-highlight-bg" wx:if="{{isPurchase}}">
-        <t-icon name="money" size="32rpx" color="#FF6B00" class="confirm-icon-td" />
-        <text class="confirm-label-compact">商品金额</text>
-        <text class="price-text-compact">¥{{productAmount}}</text>
-      </view>
-
-      <!-- 价格 -->
-      <view class="confirm-item-compact confirm-highlight-bg" wx:if="{{price && priceAccess == 1}}">
-        <t-icon name="money" size="32rpx" color="#FF6B00" class="confirm-icon-td" />
-        <text class="confirm-label-compact">{{isPurchase ? '跑腿报酬' : '发布价格'}}</text>
-        <text class="price-text-compact">¥{{price}}</text>
-      </view>
-
-      <!-- 门禁提示（如果有） -->
-      <view class="confirm-item-compact confirm-warning-item" wx:if="{{doorAccess == 1 && !isPurchase}}">
-        <t-icon name="lock-on" size="32rpx" color="#FF6B00" class="confirm-icon-td" />
-        <text class="warning-text-compact">有门禁，请提前沟通</text>
-      </view>
-    </view>
-    
-    <view class="confirm-tips-compact" wx:if="{{priceAccess == 1}}">
-      <t-icon name="info-circle-filled" size="28rpx" color="#FFB800" class="tips-icon-td" />
-      <text class="tips-text-compact">服务费 ¥{{serviceFee || 0}}，预计实付 ¥{{payAmount || 0}}</text>
+      <view wx:if="{{priceAccess == 1 && showReviewFeeHint}}" class="order-add-review__fee-hint">实付金额已包含本单服务费。</view>
+    </scroll-view>
+    <view class="order-add-review__actions">
+      <view class="order-add-review__action"><t-button block theme="default" variant="outline" disabled="{{isSubmitting}}" bind:tap="cancelOrder">返回修改</t-button></view>
+      <view class="order-add-review__action"><t-button block theme="primary" loading="{{isSubmitting}}" disabled="{{isSubmitting}}" bind:tap="confirmOrder">{{priceAccess == 1 ? '确认并支付' : '确认发布'}}</t-button></view>
     </view>
   </view>
-</t-dialog>
-
-
+</t-popup>
 <!-- 取件地址修改弹出层 -->
 <t-popup visible="{{visiblePickUp}}" bind:visible-change="onVisibleChangePickUp" placement="bottom" close-on-overlay-click="true">
   <view class="block">
@@ -394,77 +232,36 @@
   </view>
 </t-popup>
 
-<!-- 用户信息修改弹出层 -->
+<!-- 联系方式编辑 -->
 <t-popup visible="{{visibleUser}}" bind:visible-change="onVisibleChangeUser" placement="bottom">
-  <view class="block">
-    <view class="header">
-      <view class="btn btn--cancel" aria-role="button" bind:tap="cancelAndConfirmUser">取消</view>
-      <view class="title">个人信息修改</view>
-      <view class="btn btn--confirm" aria-role="button" bind:tap="cancelAndConfirmUser">确定</view>
+  <view class="order-add-contact-editor">
+    <view class="order-add-contact-editor__header">
+      <text>联系方式</text>
+      <t-icon name="close" size="36rpx" color="#6b778c" bind:tap="closeContactEditor" />
     </view>
-    <view class="user-info-body">
-      <!-- 下单昵称 -->
-      <view class="user-info-item">
-        <view class="user-info-label">
-          <t-icon name="user" size="32rpx" color="#0052d9" class="label-icon-td" />
-          <text class="label-text">下单昵称</text>
-        </view>
-        <view class="user-info-input-wrapper">
-          <t-input 
-            class="user-info-input" 
-            value="{{showUser}}"
-            placeholder="请输入昵称" 
-            bind:change="tiptChangeShowuser" 
-            maxlength="50" 
-            confirm-type="next"
-            clearable="{{true}}">
-          </t-input>
-        </view>
-        <view class="user-info-tip">用于接单展示</view>
-      </view>
-      
-      <!-- 联系方式 -->
-      <view class="user-info-item">
-        <view class="user-info-label">
-          <t-icon name="mobile" size="32rpx" color="#0052d9" class="label-icon-td" />
-          <text class="label-text">联系方式</text>
-        </view>
-        <view class="user-info-input-wrapper">
-          <t-input 
-            class="user-info-input" 
-            value="{{showPhone}}"
-            placeholder="请输入手机号" 
-            bind:change="tiptChangePhone" 
-            type="number"
-            maxlength="11"
-            clearable="{{true}}">
-          </t-input>
-        </view>
-        <view class="user-info-tip">用于骑手联系您</view>
-      </view>
-    </view>
+    <view class="order-add-contact-editor__description">用于接单同学联系你</view>
+    <view class="order-add-contact-editor__label">联系人</view>
+    <view class="order-add-contact-editor__field"><t-input value="{{contactNameDraft}}" placeholder="请输入联系人" maxlength="50" confirm-type="next" borderless style="--td-input-bg-color: transparent; --td-input-vertical-padding: 0;" bind:change="tiptChangeShowuser" /></view>
+    <view class="order-add-contact-editor__label">手机号</view>
+    <view class="order-add-contact-editor__field"><t-input value="{{contactPhoneDraft}}" placeholder="请输入手机号" type="number" maxlength="11" borderless style="--td-input-bg-color: transparent; --td-input-vertical-padding: 0;" bind:change="tiptChangePhone" /></view>
+    <view class="order-add-contact-editor__save"><t-button block theme="primary" bind:tap="saveContact">保存</t-button></view>
   </view>
 </t-popup>
-<!--跑腿类型修改弹出层 -->
+<!-- 跑腿类型选择 -->
 <t-popup visible="{{visibleCategory}}" bind:visible-change="onVisibleChangeCategory" placement="bottom">
-
-  <view class="block">
-    <view class="header">
-      <view class="btn btn--cancel" aria-role="button" bind:tap="cancelAndConfirmCategory">取消</view>
-      <view class="title">跑腿类型选择</view>
-      <view class="btn btn--confirm" aria-role="button" bind:tap="cancelAndConfirmCategory">确定</view>
+  <view class="order-add-category-picker">
+    <view class="order-add-category-picker__header">
+      <text>选择跑腿类型</text>
+      <t-icon name="close" size="36rpx" color="#6b778c" bind:tap="cancelAndConfirmCategory" />
     </view>
-    <view class="body" style="height: auto; overflow-y: auto;">
-      <block wx:for="{{category}}" wx:key="id">
-        <view class="show-cart" style="padding: 30rpx;margin:30rpx 40rpx;" bindtap="onChangeCategory" data-item="{{item}}">
-          <view class="box1" style="margin: 4rpx 20rpx;">
-            <t-image class="categoryImage" src="{{item.image}}" loading="slot" error="slot" mode="widthFix" shape="square" style="width:60rpx;height:60rpx;" />
-            <view class="categoryName" style="font-weight: bold;flex-grow: 1; ">{{item.categoryName}}</view>
-            <t-radio value="{{item.id}}" placement="right" style="margin-left: auto; " checked="{{item.id==showCategory.id?true:false}}" />
-          </view>
-        </view>
-      </block>
-    </view>
+    <scroll-view scroll-y class="order-add-category-picker__list">
+      <view wx:if="{{!category.length}}" class="order-add-category-picker__empty">暂无可选类型</view>
+      <view wx:for="{{category}}" wx:key="id" class="order-add-category-picker__option" bind:tap="onChangeCategory" data-item="{{item}}">
+        <t-image wx:if="{{item.image}}" src="{{item.image}}" width="48rpx" height="48rpx" />
+        <text class="order-add-category-picker__name">{{item.categoryName}}</text>
+        <t-radio value="{{item.id}}" checked="{{item.id == showCategory.id}}" borderless />
+      </view>
+    </scroll-view>
   </view>
 </t-popup>
 <!-- 预期送达时间弹出层 -->
@@ -479,7 +276,7 @@
       <view class="reach-tab {{activeTab === 'tomorrow' ? 'active' : ''}}" bindtap="switchTab" data-tab="tomorrow">明日（{{tomorrowLabel}}）</view>
     </view>
     <!-- 时间列表 -->
-    <scroll-view 	scroll-y="false" class="time-list">
+    <scroll-view scroll-y="true" class="time-list">
       <block wx:if="{{activeTab === 'today'}}">
         <view wx:for="{{todayTimes}}" wx:key="index" class="time-item {{selectedTime === item.time ? 'selected' : ''}} {{item.isRecommended ? 'time-item-recommended' : ''}}" bindtap="selectTime" data-time="{{item}}">
           <view class="time-row">
@@ -502,4 +299,4 @@
 </t-popup>
 
 <!-- 轻提示根显示 -->
-<t-toast id="t-toast" />
+<ui-feedback id="ui-feedback" />

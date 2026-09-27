@@ -1,3 +1,4 @@
+const feedback = require('../../../utils/feedback');
 // 引入服务和工具
 const userService = require('../../../services/userService');
 const mediaService = require('../../../services/mediaService');
@@ -7,10 +8,12 @@ const { isProfileComplete } = require('../../../utils/profileStatus');
 const {
   containsEmoji,
   checkCilcleToast,
-  errorCilcleToast
+  errorCilcleToast,
+  showErrorToast
 } = require('../../../utils/commonJs');
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     userInfo: null,
     defaultAvatarUrl: 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0',
@@ -77,11 +80,7 @@ Page({
       this.setData({ newAvatarAssetId: null });
       
       hideLoading();
-      checkCilcleToast(this, "保存成功");
-      
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
+      feedback.navigate(this, 'navigateBack', {}, '保存成功');
     } catch (error) {
       if (this.data.newAvatarAssetId) {
         mediaService.releaseTemporaryImage(this.data.newAvatarAssetId).catch(() => {});
@@ -89,7 +88,7 @@ Page({
       }
       hideLoading();
       console.error('[保存失败]:', error);
-      errorCilcleToast(this, error.message || "保存失败，请重试");
+      showErrorToast(this, error.message || "保存失败，请重试");
     }
   },
   
@@ -184,6 +183,7 @@ Page({
   },
   // 生命周期函数--监听页面显示
   async onShow() {
+    feedback.loaded(this);
     try {
       // 等待 token 就绪
       await tokenManager.waitForToken();
@@ -193,7 +193,7 @@ Page({
       console.log('页面显示时获取用户数据成功');
     } catch (error) {
       console.error('页面显示时获取用户数据失败:', error);
-      showError('加载失败');
+      feedback.loadError(this, '资料加载失败，请重试', () => this.onShow(), !!this.data.userInfo?.id);
     }
   },
 })

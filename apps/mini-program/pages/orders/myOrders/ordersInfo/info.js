@@ -1,3 +1,5 @@
+const { shareOrder } = require('../../../../utils/orderShare');
+const feedback = require('../../../../utils/feedback');
 // 引入服务和工具
 const userOrderService = require('../../../../services/userOrderService');
 const takeOrderService = require('../../../../services/takeOrderService');
@@ -9,6 +11,7 @@ const {
   showErrorToast, 
   showSuccessToast,
   _getExpectTimeDisplay,
+  _getExpectedDeliveryDate,
   _parseStrDateTime
 } = require('../../../../utils/commonJs');
 
@@ -16,12 +19,19 @@ const url = getApp().globalData.API_URL;
 const UNPAID_TIMEOUT_MS = 30 * 60 * 1000;
 
 Page({
+  togglePaymentFeeHint() {
+    this.setData({ showPaymentFeeHint: !this.data.showPaymentFeeHint });
+  },
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
+    showPaymentFeeHint: false,
     // 步骤条
     title: ['待接单', '待取件', '派送中', '已送达', '已完成'],
     // 订单内容
     id: null,
     orderInfo: {},
+    orderStatusText: '',
+    progressStep: 0,
     takeInfo: {},
     pickUpAddress: [],
     reciveAddress: [],
@@ -84,16 +94,16 @@ Page({
     else if (status === -4)
       this.gotoFeedback();
     else
-      this.setData({ dltDialogVisable: true });
+      feedback.showModal(this, { title: '删除订单？', content: '删除后无法找回该订单或申请售后。', confirmText: '删除', cancelText: '保留', danger: true, success: result => { if (result.confirm) return this.delOrder(); } });
   },
 
   // 按钮样式
   buttonColor() {
     const status = Number(this.data.orderInfo.status);
     if (status === 0) {
-      this.setData({ theme: 'primary', buttonText: '取消订单', buttonDisabled: false });
+      this.setData({ theme: 'default', buttonText: '取消订单', buttonDisabled: false });
     } else if (status === 3) {
-      this.setData({ theme: 'primary', buttonText: '确认订单', buttonDisabled: false });
+      this.setData({ theme: 'primary', buttonText: '确认收货', buttonDisabled: false });
     } else if (status === 1 || status === 2) {
       this.setData({ theme: 'default', buttonText: '订单进行中', buttonDisabled: true });
     } else if (status === -2) {
@@ -109,11 +119,7 @@ Page({
     wx.switchTab({
       url: '/pages/mine/mine/mine',
       success: () => {
-        wx.showToast({
-          title: '请在“我的-意见反馈”提交异常',
-          icon: 'none',
-          duration: 2200
-        });
+        wx.nextTick(() => feedback.showMessage(feedback.currentPage(), '请通过意见反馈提交异常', { theme: 'info' }));
       }
     });
   },
@@ -140,14 +146,15 @@ Page({
 
       await this._loadOrderInfo();
       if (refundError) {
-        const msg = refundError && refundError.message ? refundError.message : '请稍后在订单列表查看退款状态';
-        showErrorToast(this, `取消成功，但退款申请失败：${msg}`);
+        hideLoading();
+        feedback.showMessage(this, '订单已取消，退款申请未成功', { persistent: true, key: 'refund', action: '反馈异常', onAction: () => this.gotoFeedback() });
+        await feedback.showModal(this, { title: '退款申请未成功', content: '订单已取消，但退款申请未成功。请通过意见反馈提交异常。', confirmText: '反馈异常', cancelText: '稍后处理', success: result => { if (result.confirm) this.gotoFeedback(); } });
       } else {
         checkCilcleToast(this, shouldRefund ? "取消成功，退款申请已提交" : "取消成功");
       }
     } catch (error) {
       console.error('取消订单失败:', error);
-      showError('取消失败');
+      showError(this, '取消失败');
     } finally {
       hideLoading();
     }
@@ -176,7 +183,7 @@ Page({
     const cancelReason = current == 3 ? 
       (this.data.note || '未填写说明') : 
       this.data.radio[current];
-    
+
     this.setData({ cancelReason, visible: false });
     this.cancelOrder();
   },
@@ -192,6 +199,8 @@ Page({
 
   // 确认收货
   async tbtnTapConfirm() {
+    const result = await feedback.showModal(this, { title: '确认订单完成？', content: '请确认跑腿服务已完成。', confirmText: '确认完成', cancelText: '暂不确认' });
+    if (!result.confirm) return;
     try {
       showLoading('确认中');
       await userOrderService.confirmOrder(this.data.id);
@@ -223,10 +232,12 @@ Page({
         synced = false;
         console.error('支付状态同步失败:', syncError);
       }
-      showSuccessToast(this, "支付成功");
       await this._loadOrderInfo();
       if (!synced) {
-        showErrorToast(this, "支付成功，状态同步稍后刷新");
+        feedback.showMessage(this, '支付已完成，订单状态待更新', { persistent: true, key: 'payment', action: '刷新', onAction: () => this._loadOrderInfo() });
+      } else {
+        feedback.clearMessage(this, 'payment');
+        showSuccessToast(this, '支付成功');
       }
     } catch (error) {
       console.error('订单支付失败:', error);
@@ -240,7 +251,8 @@ Page({
           console.error('支付状态同步失败:', syncError);
         }
       }
-      const message = error && error.message ? error.message : '支付失败';
+      if (/cancel|取消/i.test(error?.errMsg || error?.message || '')) return;
+      const message = feedback.userText(error?.message, '支付失败，请重试');
       showErrorToast(this, message);
     } finally {
       hideLoading();
@@ -316,11 +328,10 @@ Page({
       showLoading('删除中');
       await userOrderService.deleteOrder(this.data.id);
       this.setData({ dltDialogVisable: false });
-      checkCilcleToast(this, "删除成功");
-      setTimeout(() => wx.navigateBack(), 1500);
+      feedback.navigate(this, 'navigateBack', {}, '删除成功');
     } catch (error) {
       console.error('删除订单失败:', error);
-      showError('删除失败');
+      showError(this, '删除失败');
     } finally {
       hideLoading();
     }
@@ -328,19 +339,21 @@ Page({
 
   // 集中统一获取、加载、更新订单相关的信息
   async _loadOrderInfo() {
+    feedback.loaded(this);
     try {
       await tokenManager.waitForToken();
       await this._getOrderInfo();
       this._updateUnpaidCountdown();
-      
+
       const status = this.data.orderInfo.status;
       if (status > 0 && status != 4) {
         await this._getTaker();
       }
       await this._getTakeImage();
       this.buttonColor();
+      if (Number(this.data.orderInfo.status) !== -1) feedback.clearMessage(this, 'payment');
     } catch (err) {
-      showErrorToast(this, "加载失败");
+      feedback.loadError(this, '订单加载失败，请重试', () => this._loadOrderInfo(), !!this.data.orderInfo.id);
     }
   },
 
@@ -350,23 +363,25 @@ Page({
       const orderInfoRaw = await userOrderService.getMyOrderDetail(this.data.id);
       const orderInfo = this._normalizeAmountFields(orderInfoRaw);
       orderInfo.images = orderInfo.images?.length ? orderInfo.images : (orderInfo.image ? [orderInfo.image] : []);
-      
+
       // 检查订单数据是否有效
       if (!orderInfo || !orderInfo.id) {
         throw new Error('订单不存在或已被删除');
       }
-      
+
       // 安全处理地址分割
       const addressParts1 = orderInfo.pickUpAddress ? orderInfo.pickUpAddress.split(" ") : [];
       const addressParts2 = orderInfo.reciveAddress ? orderInfo.reciveAddress.split(" ") : [];
-      orderInfo.expectTime = _getExpectTimeDisplay(orderInfo.createTime, orderInfo.gap);
+      orderInfo.expectTime = _getExpectTimeDisplay(orderInfo.createTime, orderInfo.gap, orderInfo.expectedDeliveryTime);
       const title = orderInfo.businessType === 'PURCHASE'
         ? ['待接单', '待购买', '配送中', '已送达', '已完成']
         : ['待接单', '待取件', '派送中', '已送达', '已完成'];
-      
+
       this.setData({
         orderInfo,
         title,
+        orderStatusText: ({ '-4': '退款异常', '-3': '退款成功', '-2': '退款中', '-1': '待支付', 0: '待接单', 1: title[1], 2: title[2], 3: '已送达', 4: '已取消', 5: '已完成', 6: '收款成功', 7: '收款失败' })[orderInfo.status] || '订单状态',
+        progressStep: Math.min(Math.max(Number(orderInfo.status) || 0, 0), 4),
         pickUpAddress: addressParts1,
         reciveAddress: addressParts2
       });
@@ -401,23 +416,33 @@ Page({
 
   // 倒计时计算 - 修复：应该显示预期送达时间和当前时间的差值
   time() {
-    // 计算预期送达时间 = 创建时间 + gap（分钟）
-    const createTime = _parseStrDateTime(this.data.orderInfo.createTime);
-    const expectTime = new Date(createTime.getTime() + this.data.orderInfo.gap * 60000);
-    
+    // 使用固定送达时间；旧订单使用兼容计算。
+    const { createTime, gap, expectedDeliveryTime } = this.data.orderInfo;
+    const expectTime = _getExpectedDeliveryDate(createTime, gap, expectedDeliveryTime);
+
     // 计算倒计时 = 预期送达时间 - 当前时间
     const nowTime = new Date();
     const timeDifference = Math.floor(expectTime - nowTime);
-    
+
     this.setData({ time: timeDifference });
+  },
+
+  onShareAppMessage() {
+    return shareOrder(this.data.id, this.data.orderInfo);
   },
 
   // 生命周期函数
   async onLoad(options) {
+    wx.showShareMenu({ menus: ['shareAppMessage'] });
     console.log('订单详情页 - 接收到的参数:', options);
     console.log('订单详情页 - 订单ID:', options.id);
     this.setData({ id: options.id });
     await this._loadOrderInfo();
+    if (options.paymentPending === '1' && Number(this.data.orderInfo.status) === -1) {
+      feedback.showMessage(this, '支付已完成，订单状态待更新', { persistent: true, key: 'payment', action: '刷新', onAction: () => this._loadOrderInfo() });
+    } else if (options.paymentFailed === '1') {
+      feedback.showMessage(this, '支付未完成，可在订单中继续支付', { theme: 'warning' });
+    }
     if (options.pay === '1' && Number(this.data.orderInfo.status) === -1) {
       this.payOrder();
     }
@@ -467,10 +492,7 @@ Page({
 
     try {
       await userOrderService.deleteOrder(this.data.id);
-      showSuccessToast(this, '订单超时未支付，已自动删除');
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1000);
+      feedback.navigate(this, 'navigateBack', {}, '订单超时未支付，已自动删除');
     } catch (error) {
       console.error('自动删除未支付订单失败:', error);
       showErrorToast(this, '订单超时，请手动刷新');
@@ -481,7 +503,7 @@ Page({
   // 下拉刷新
   onPullDownRefresh() {
     this._loadOrderInfo().then(() => {
-      checkCilcleToast(this, '刷新成功');
+
       wx.stopPullDownRefresh();
     });
   },
@@ -498,7 +520,7 @@ Page({
     const type = res.currentTarget.dataset.phone;
     const phoneObject = this.data[type];
     const number = phoneObject.phone;
-    
+
     wx.showActionSheet({
       alertText: number + "可能是微信或电话，你可以",
       itemList: ["呼叫", "复制到剪切板"],

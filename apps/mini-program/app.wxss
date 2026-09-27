@@ -9,12 +9,17 @@ page {
   --cr-color-border: #e7eaf0;
   --cr-color-danger: #d54941;
   --cr-color-success: #2ba471;
+  --cr-color-price: #e7552d;
   --cr-radius-small: 12rpx;
   --cr-radius-medium: 20rpx;
   --cr-radius-large: 28rpx;
   --cr-shadow-card: 0 4rpx 18rpx rgba(31, 35, 41, 0.05);
   --cr-page-padding: 30rpx;
   --cr-section-gap: 24rpx;
+  /* 跑腿和二手个人列表：顶部分栏 + 连续白色列表。 */
+  --cr-personal-tabs-height: 84rpx;
+  --cr-personal-list-gap: 24rpx;
+  --cr-personal-item-padding: 28rpx 26rpx 30rpx;
   background-color: var(--cr-color-background);
   color: var(--cr-color-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -29,4 +34,18 @@ page {
   justify-content: space-between;
   height: 100%;
   padding: 200rpx 0;
+}
+.cr-action-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  padding: 24rpx 32rpx;
+  --td-button-default-color: #111;
+  --td-button-font-weight: 400;
+  --td-button-medium-height: 80rpx;
+  --td-button-medium-font-size: 30rpx;
+}
+
+.cr-action-sheet__cancel {
+  --td-button-default-color: #999;
 }

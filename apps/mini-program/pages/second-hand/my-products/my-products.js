@@ -1,7 +1,9 @@
+const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
 const { friendlyError } = require('../../../utils/secondHandStatus');
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     statusBarHeight: 0,
     navigationBarHeight: 44,
@@ -53,13 +55,14 @@ Page({
   },
 
   async loadProducts() {
+    feedback.loaded(this);
     this.setData({ loading: true });
     try {
       const products = await secondHandService.listMyProducts();
       const decorated = products.map((item) => this.decorateProduct(item));
       this.setData({ products: decorated, filteredProducts: this.filterProducts(decorated, this.data.tab) });
     } catch (error) {
-      wx.showToast({ title: this.errorText(error, '加载失败'), icon: 'none' });
+      feedback.loadError(this, '商品加载失败，请重试', () => this.loadProducts(), !!this.data.products.length);
     } finally {
       this.setData({ loading: false });
       wx.stopPullDownRefresh();
@@ -130,11 +133,11 @@ Page({
     if (this.data.priceSubmitting) return;
     const product = this.data.products.find((item) => Number(item.id) === Number(e.currentTarget.dataset.id));
     if (!this.canChangePrice(product)) {
-      wx.showToast({ title: '当前商品暂不能改价', icon: 'none' });
+      feedback.showToast(this, { title: '当前商品暂不能改价', theme: 'warning' });
       return;
     }
     if (!Number.isFinite(Number(product.price)) || Number(product.price) <= 0) {
-      wx.showToast({ title: '请刷新后重试', icon: 'none' });
+      feedback.showToast(this, { title: '请刷新后重试', theme: 'warning' });
       return;
     }
     this.setData({
@@ -206,7 +209,7 @@ Page({
         priceKeyboardHeight: 0,
       });
       this.setData({ filteredProducts: this.filterProducts(this.data.products, this.data.tab) });
-      wx.showToast({ title: '已改价', icon: 'success' });
+      feedback.showToast(this, { title: '已改价', icon: 'success' });
     } catch (error) {
       this.setData({ priceError: this.errorText(error, '改价失败，请重试') });
     } finally {
@@ -220,19 +223,20 @@ Page({
     this.closeActionSheet();
     const isOffShelf = Number(product.status) === 4;
     const nextStatus = isOffShelf ? 0 : 4;
-    wx.showModal({
+    feedback.showModal(this, {
       title: isOffShelf ? '重新上架' : '下架商品',
       content: isOffShelf ? '重新上架后买家可以继续下单和议价。' : '下架后买家将无法继续下单或议价。',
       confirmText: isOffShelf ? '上架' : '下架',
+      cancelText: '保持不变',
       confirmColor: isOffShelf ? '#19a66a' : '#d54941',
       success: async (res) => {
         if (!res.confirm) return;
         try {
           await secondHandService.updateProductStatus(product.id, nextStatus);
-          wx.showToast({ title: isOffShelf ? '已上架' : '已下架', icon: 'success' });
+          feedback.showToast(this, { title: isOffShelf ? '已上架' : '已下架', icon: 'success' });
           this.loadProducts();
         } catch (error) {
-          wx.showToast({ title: this.errorText(error, '操作失败'), icon: 'none' });
+          feedback.showToast(this, { title: this.errorText(error, '操作失败'), theme: 'error' });
         }
       },
     });

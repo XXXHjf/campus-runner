@@ -1,3 +1,4 @@
+const feedback = require('../../../utils/feedback');
 const subscriptions = require('../../../services/subscriptionService');
 const secondHandService = require('../../../services/secondHandService');
 const deliveryAddressService = require('../../../services/deliveryAddressService');
@@ -7,6 +8,7 @@ const { ensureAuthenticated } = require('../../../utils/accessGuard');
 const { friendlyError } = require('../../../utils/secondHandStatus');
 
 Page({
+  retryFeedbackLoad() { return this._feedbackRetry?.(); },
   data: {
     id: null,
     product: {},
@@ -28,6 +30,7 @@ Page({
   },
 
   onLoad(options) {
+    wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] });
     this.setData({ id: options.id });
     this.loadDetail();
   },
@@ -43,6 +46,7 @@ Page({
   },
 
   async loadDetail() {
+    feedback.loaded(this);
     this._detailToken = tokenManager.getToken();
     this.setData({ loading: true });
     try {
@@ -57,7 +61,7 @@ Page({
         currentUserId: user.id || null,
       });
     } catch (error) {
-      wx.showToast({ title: this.errorText(error, '详情加载失败'), icon: 'none' });
+      feedback.loadError(this, '详情加载失败，请重试', () => this.loadDetail(), !!this.data.product.id);
     } finally {
       this.setData({ loading: false });
     }
@@ -118,7 +122,7 @@ Page({
     const product = this.data.product;
     if (!product.id) return;
     if (!product.canBuy) {
-      wx.showToast({ title: '商品当前不可下单', icon: 'none' });
+      feedback.showToast(this, { title: '商品当前不可下单', theme: 'warning' });
       return;
     }
     this.setData({
@@ -140,7 +144,7 @@ Page({
   chooseDeliveryMode(e) {
     const mode = Number(e.currentTarget.dataset.mode);
     if (mode === 1 && this.data.product.pickupOnly === 1) {
-      wx.showToast({ title: '该商品仅支持自提', icon: 'none' });
+      feedback.showToast(this, { title: '该商品仅支持自提', theme: 'warning' });
       return;
     }
     this.setData({ selectedDeliveryMode: mode });
@@ -160,7 +164,7 @@ Page({
       });
     } catch (error) {
       if (showError) {
-        wx.showToast({ title: this.errorText(error, '地址加载失败'), icon: 'none' });
+        feedback.showMessage(this, '地址列表加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.loadAddressBook() });
       }
     }
   },
@@ -182,14 +186,15 @@ Page({
     const product = this.data.product;
     const deliveryMode = Number(this.data.selectedDeliveryMode);
     if (deliveryMode === 1 && !this.data.selectedBuyerAddressText) {
-      wx.showToast({ title: '请选择配送地址', icon: 'none' });
+      feedback.showToast(this, { title: '请选择配送地址', theme: 'warning' });
       return;
     }
     const addressText = deliveryMode === 1 ? this.data.selectedBuyerAddressText : product.pickupAddressText;
-    wx.showModal({
+    feedback.showModal(this, {
       title: '确认下单',
       content: `${deliveryMode === 1 ? '卖家配送到' : '买家自提于'}：${addressText}\n约定价格 ¥${product.price}。下单后商品将进入交易中，请与卖家自行协商付款和交付。`,
       confirmText: '创建订单',
+      cancelText: '再看看',
       success: async (res) => {
         if (!res.confirm) return;
         await this.createOrder();
@@ -212,10 +217,9 @@ Page({
       const order = await secondHandService.createOrder(payload);
       await subscriptions.requestSecondHandOrder();
       this.setData({ showBuySheet: false });
-      wx.showToast({ title: '下单成功', icon: 'success' });
-      wx.navigateTo({ url: `/pages/second-hand/order-detail/order-detail?id=${order.id}` });
+      feedback.navigate(this, 'navigateTo', { url: `/pages/second-hand/order-detail/order-detail?id=${order.id}` }, '下单成功');
     } catch (error) {
-      wx.showToast({ title: this.errorText(error, '下单失败'), icon: 'none' });
+      feedback.showToast(this, { title: this.errorText(error, '下单失败'), theme: 'error' });
     } finally {
       this.setData({ buySubmitting: false });
     }
@@ -224,7 +228,7 @@ Page({
   async openBargain() {
     if (!await ensureAuthenticated()) return;
     if (!this.data.product.canBargain) {
-      wx.showToast({ title: '当前不可议价', icon: 'none' });
+      feedback.showToast(this, { title: '当前不可议价', theme: 'warning' });
       return;
     }
     this.setData({ showBargain: true });
@@ -246,17 +250,18 @@ Page({
     if (this.data.bargainSubmitting) return;
     const price = Number(this.data.bargainPrice);
     if (!price || price <= 0) {
-      wx.showToast({ title: '请输入有效报价', icon: 'none' });
+      feedback.showToast(this, { title: '请输入有效报价', theme: 'warning' });
       return;
     }
     if (price >= Number(this.data.product.price)) {
-      wx.showToast({ title: '报价需低于售价', icon: 'none' });
+      feedback.showToast(this, { title: '报价需低于售价', theme: 'warning' });
       return;
     }
-    wx.showModal({
+    feedback.showModal(this, {
       title: '发送议价',
       content: `向卖家报价 ¥${price}，请确认后发送。`,
       confirmText: '发送',
+      cancelText: '暂不发送',
       success: async (res) => {
         if (!res.confirm) return;
         try {
@@ -268,9 +273,9 @@ Page({
           });
           await subscriptions.requestSecondHandOrder();
           this.setData({ showBargain: false, bargainPrice: '', bargainMessage: '' });
-          wx.showToast({ title: '已发送议价', icon: 'success' });
+          feedback.showToast(this, { title: '已发送议价', icon: 'success' });
         } catch (error) {
-          wx.showToast({ title: this.errorText(error, '议价失败'), icon: 'none' });
+          feedback.showToast(this, { title: this.errorText(error, '议价失败'), theme: 'error' });
         } finally {
           this.setData({ bargainSubmitting: false });
         }
@@ -299,9 +304,9 @@ Page({
           favoriteCount: Math.max(0, product.favoriteCount + (nextFavorited ? 1 : -1)),
         },
       });
-      wx.showToast({ title: nextFavorited ? '已收藏' : '已取消收藏', icon: 'success' });
+      // The favorite button already reflects the saved result.
     } catch (error) {
-      wx.showToast({ title: this.errorText(error, '操作失败'), icon: 'none' });
+      feedback.showToast(this, { title: this.errorText(error, '操作失败'), theme: 'error' });
     } finally {
       this.setData({ favoriteSubmitting: false });
     }
@@ -316,18 +321,19 @@ Page({
     if (!product.isOwner || ![0, 4].includes(Number(product.status))) return;
     const nextStatus = Number(product.status) === 4 ? 0 : 4;
     const actionText = nextStatus === 0 ? '上架' : '下架';
-    wx.showModal({
+    feedback.showModal(this, {
       title: `${actionText}商品`,
       content: `${actionText}后将${nextStatus === 0 ? '重新对同校买家展示' : '暂停买家下单'}，确认继续？`,
       confirmText: actionText,
+      cancelText: '保持不变',
       success: async (res) => {
         if (!res.confirm) return;
         try {
           await secondHandService.updateProductStatus(product.id, nextStatus);
-          wx.showToast({ title: `已${actionText}`, icon: 'success' });
+          feedback.showToast(this, { title: `已${actionText}`, icon: 'success' });
           this.loadDetail();
         } catch (error) {
-          wx.showToast({ title: this.errorText(error, '操作失败'), icon: 'none' });
+          feedback.showToast(this, { title: this.errorText(error, '操作失败'), theme: 'error' });
         }
       },
     });
