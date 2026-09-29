@@ -9,41 +9,47 @@ import type {
   AdminOrderItem,
   AdminOrderDetailResponse,
   AdminOrderStatistics,
+  AdminOrderActionResult,
 } from '../types/admin'
 
 export async function listAll(
   page: number,
   pageSize: number,
+  keyword = '',
 ): Promise<PageResponse<AdminOrderItem>> {
-  return get<PageResponse<AdminOrderItem>>('/admin/api/orders/all', { page, pageSize })
+  return get<PageResponse<AdminOrderItem>>('/admin/api/orders/all', { page, pageSize, keyword })
 }
 
 export async function listWaiting(
   page: number,
   pageSize: number,
+  keyword = '',
 ): Promise<PageResponse<AdminOrderItem>> {
-  return get<PageResponse<AdminOrderItem>>('/admin/api/orders/waiting', { page, pageSize })
+  return get<PageResponse<AdminOrderItem>>('/admin/api/orders/waiting', { page, pageSize, keyword })
 }
 
 export async function listInProgress(
   page: number,
   pageSize: number,
+  keyword = '',
 ): Promise<PageResponse<AdminOrderItem>> {
-  return get<PageResponse<AdminOrderItem>>('/admin/api/orders/in-progress', { page, pageSize })
+  return get<PageResponse<AdminOrderItem>>('/admin/api/orders/in-progress', { page, pageSize, keyword })
 }
 
 export async function listCompleted(
   page: number,
   pageSize: number,
+  keyword = '',
 ): Promise<PageResponse<AdminOrderItem>> {
-  return get<PageResponse<AdminOrderItem>>('/admin/api/orders/completed', { page, pageSize })
+  return get<PageResponse<AdminOrderItem>>('/admin/api/orders/completed', { page, pageSize, keyword })
 }
 
 export async function listCanceled(
   page: number,
   pageSize: number,
+  keyword = '',
 ): Promise<PageResponse<AdminOrderItem>> {
-  return get<PageResponse<AdminOrderItem>>('/admin/api/orders/canceled', { page, pageSize })
+  return get<PageResponse<AdminOrderItem>>('/admin/api/orders/canceled', { page, pageSize, keyword })
 }
 
 export async function detail(id: number): Promise<AdminOrderDetailResponse> {
@@ -120,10 +126,10 @@ export async function statistics(): Promise<AdminOrderStatistics> {
   return get<AdminOrderStatistics>('/admin/api/orders/statistics')
 }
 
-export async function cancelOrder(id: number, reason: string): Promise<string> {
-  return post<string>(`/admin/api/orders/${id}/cancel`, { reason })
+export async function cancelOrder(id: number, reason: string): Promise<AdminOrderActionResult> {
+  return post<AdminOrderActionResult>(`/admin/api/orders/${id}/cancel`, { reason })
 }
 
-export async function refundOrder(id: number, reason: string): Promise<string> {
-  return post<string>(`/admin/api/orders/${id}/refund`, { reason })
+export async function refundOrder(id: number, reason: string): Promise<AdminOrderActionResult> {
+  return post<AdminOrderActionResult>(`/admin/api/orders/${id}/refund`, { reason })
 }

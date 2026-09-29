@@ -4,6 +4,7 @@ const { showError } = require('../../../../utils/transformers');
 const { checkCilcleToast } = require('../../../../utils/commonJs');
 const mediaService = require('../../../../services/mediaService');
 const { validateNote } = require('../../../../utils/validators');
+const { shareOrder } = require('../../../../utils/orderShare');
 
 function normalizeSearchText(value) {
   return String(value == null ? '' : value).replace(/\s+/g, '').toLocaleLowerCase();
@@ -279,17 +280,10 @@ Page({
     }
   },
 
-  onShareAppMessage() {
+  onShareAppMessage(e) {
     const order = this.data.actionOrder;
     this.closeActionSheet();
-    if (!order || Number(order.status) !== 0) {
-      return { title: '帮帮校园送', path: '/pages/index/index' };
-    }
-    return {
-      title: order.displayNote || '帮帮校园送',
-      path: `/pages/orders/takeOrders/takesInfo/info?id=${order.id}`,
-      ...(order.image ? { imageUrl: order.image } : {}),
-    };
+    return shareOrder(e?.from === 'button' ? order.id : null, order);
   },
 
   getStatusDescription(order) {

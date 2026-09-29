@@ -32,6 +32,12 @@ import java.util.Map;
 public class WeChatPayController {
 
     @Autowired
+    private com.mikasa.campusrunner.mapper.OrderMapper orderMapper;
+
+    @Autowired
+    private com.mikasa.campusrunner.service.OrderCancellationService cancellationService;
+
+    @Autowired
     private WeChatPayService weChatPayService;
 
     @Autowired
@@ -127,7 +133,10 @@ public class WeChatPayController {
     @Operation(summary = "微信支付退款")
     public Result refunds(@RequestBody RefundInfoDTO refundInfoDTO) throws Exception {
         log.info("WeChat Pay refund, {}", refundInfoDTO);
-        weChatPayService.refunds(refundInfoDTO);
+        var order = orderMapper.getByOrderNumber(refundInfoDTO.getOrderNumber());
+        if (order == null) throw new com.mikasa.campusrunner.common.exception.OrderException("订单不存在");
+        cancellationService.cancel(order.getId(), refundInfoDTO.getReason(),
+                com.mikasa.campusrunner.common.context.BaseContext.getCurrentId());
         return Result.success();
     }
 

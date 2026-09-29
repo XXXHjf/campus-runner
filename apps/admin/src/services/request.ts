@@ -74,22 +74,11 @@ instance.interceptors.response.use(
     // 统一按后端 code 判断
     if (respObj && 'code' in respObj) {
       const success =
-        codeNum === 0 ||
         codeNum === 1 ||
-        codeRaw === '0' ||
         codeRaw === '1' ||
         codeNum === HTTP_STATUS.OK
 
-      // 后端部分接口可能返回非 0/200 但 data 内含有效数据，允许通过
       if (!success) {
-        const data = respObj.data
-        const hasPayload =
-          Array.isArray(data) || (isRecord(data) && Object.keys(data).length > 0)
-        const hasToken = isRecord(data) && ('adminToken' in data || 'token' in data)
-        if (hasToken || hasPayload) {
-          return response
-        }
-
         const message =
           (typeof respObj.message === 'string' && respObj.message) ||
           (typeof respObj.msg === 'string' && respObj.msg) ||

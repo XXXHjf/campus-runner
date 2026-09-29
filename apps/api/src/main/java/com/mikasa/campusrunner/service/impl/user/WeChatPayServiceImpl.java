@@ -40,7 +40,6 @@ import java.security.GeneralSecurityException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * author  Edith
@@ -80,7 +79,6 @@ public class WeChatPayServiceImpl implements WeChatPayService {
     @Autowired
     private PaymentLogMapper paymentLogMapper;
 
-    private ReentrantLock lock = new ReentrantLock();
 
 
     /**
@@ -200,7 +198,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
     @Override
     @Transactional
     public void syncPaidOrder(Long orderId) throws Exception {
-        Order order = orderMapper.getById(orderId);
+        Order order = orderMapper.getByIdForUpdate(orderId);
         if (order == null) {
             throw new OrderException(MessageConstant.NOT_FOUND_ORDER);
         }
@@ -249,40 +247,23 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         //获取系统内部的订单号
         String orderNumber = (String) plainTextMap.get(WeChatPayConstant.OUT_TRADE_NO);
 
-        /*在对业务数据进行状态检查和处理之前，
-        要采用数据锁进行并发控制，
-        以避免函数重入造成的数据混乱*/
-        //尝试获取锁：
-        // 成功获取则立即返回true，获取失败则立即返回false。不必一直等待锁的释放
-        if (lock.tryLock()) {
-            log.info("Lock acquired");
-
-            try {
-                //处理重复通知
-                //保证接口调用的幂等性：无论接口被调用多少次，产生的结果是一致的
-                Integer status = orderService.getStatusByOrderNumber(orderNumber);
-                //如果不是 未支付 状态，那就不用更新支付状态
-                if (!OrderStatusConstant.NO_PAY.equals(status)) {
-                    return;
-                }
-
-                //只更新订单状态为 未支付 状态的订单
-
-                //更新订单状态
-                //TODO 需要协调订单状态的表示
-                log.info("Updating order status...");
-                orderService.updateStatusByOrderNumber(orderNumber, OrderStatusConstant.WAIT_TO_TAKE_ORDER);
-
-                //记录支付日志
-                log.info("Recording payment log...");
-                paymentLogService.savePaymentInfoLog(plainText);
-            } finally {
-                log.info("Lock released");
-                lock.unlock();
-            }
-        } else {
-            log.info("Failed to acquire lock");
+        if (!"SUCCESS".equals(plainTextMap.get("trade_state"))) return;
+        Order order = orderMapper.getByOrderNumberForUpdate(orderNumber);
+        if (order == null) throw new OrderException("订单不存在");
+        if (OrderStatusConstant.CANCELED.equals(order.getStatus())) {
+            // A legacy cancellation may have preceded its payment notification.
+            paymentLogService.savePaymentInfoLog(plainText);
+            orderService.updateStatusByOrderNumber(orderNumber, OrderStatusConstant.REFUND_PROCESSING);
+            RefundInfoDTO dto = new RefundInfoDTO();
+            dto.setOrderNumber(orderNumber);
+            dto.setReason("订单已取消");
+            refundInfoService.saveRefundInfoByOrderId(dto);
+            // The scheduled reconciler submits this durable intent after this transaction commits.
+            return;
         }
+        if (!OrderStatusConstant.NO_PAY.equals(order.getStatus())) return;
+        orderService.updateStatusByOrderNumber(orderNumber, OrderStatusConstant.WAIT_TO_TAKE_ORDER);
+        paymentLogService.savePaymentInfoLog(plainText);
     }
 
     /**
@@ -293,39 +274,24 @@ public class WeChatPayServiceImpl implements WeChatPayService {
      * @param order
      */
     @Override
+    @Transactional
     public void checkOrderStatus(Order order) throws Exception {
+        order = orderMapper.getByIdForUpdate(order.getId());
+        if (order == null || !OrderStatusConstant.NO_PAY.equals(order.getStatus())) return;
         log.warn("Checking overdue order status by order number ===> {}", order.getOrderNumber());
         String orderNumber = order.getOrderNumber();
         //获取微信支付端的支付状态
         String result = this.weChatQueryOrder(orderNumber);
 
-        if (result.substring(0, 5).equals("ERROR")) {
-            log.info("Order query failed, canceling...");
-            LocalDateTime now = LocalDateTime.now();
-            Order order1 = Order.builder()
-                    .id(order.getId())
-                    .orderNumber(orderNumber)
-                    .cancelReson(result)
-                    .cancelTime(now)
-                    .status(OrderStatusConstant.CANCELED).build();
-
-            orderMapper.update(order1);
-
-            //更新支付单日志
-            log.info("Updating payment log...");
-            PaymentLog paymentLog = PaymentLog.builder()
-                    .orderNumber(orderNumber)
-                    .paymentType(WeChatPayConstant.PAYMENT_TYPE)
-                    .content(result).build();
-            paymentLogMapper.insert(paymentLog);
-            return;
+        if (result == null || result.startsWith("ERROR")) {
+            return; // Query failures cannot prove the order is unpaid or closed.
         }
 
         Map map = JSONObject.parseObject(result, HashMap.class);
 
         //获取支付状态
         String tradeState = (String) map.get(WeChatPayConstant.TRADE_STATE);
-        if (tradeState.equals(WeChatPayConstant.TRADE_SUCCESS)) {
+        if (WeChatPayConstant.TRADE_SUCCESS.equals(tradeState)) {
             log.info("Order payment verified ===> {}", orderNumber);
             //Update order status
             log.info("Updating order status...");
@@ -335,10 +301,20 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             log.info("Recording payment log...");
             paymentLogService.savePaymentInfoLog(result);
 
-        } else if (tradeState.equals(WeChatPayConstant.TRADE_NOTPAY)) {
+        } else if (WeChatPayConstant.TRADE_NOTPAY.equals(tradeState) || "CLOSED".equals(tradeState)) {
             log.info("Order payment not paid ===> {}", orderNumber);
             //Order is unpaid, close it and update DB
-            weChatPayUtil.closeOrder(orderNumber);
+            try {
+                if (!"CLOSED".equals(tradeState)) weChatPayUtil.closeOrder(orderNumber);
+            } catch (Exception e) {
+                String latest = weChatQueryOrder(orderNumber);
+                if (latest != null && !latest.startsWith("ERROR")
+                        && "SUCCESS".equals(JSONObject.parseObject(latest).getString("trade_state"))) {
+                    orderService.updateStatusByOrderNumber(orderNumber, OrderStatusConstant.WAIT_TO_TAKE_ORDER);
+                    paymentLogService.savePaymentInfoLog(latest);
+                }
+                return;
+            }
 
             //Update order status in DB
             log.info("Order unpaid timeout, status updated to: Canceled");
@@ -403,12 +379,22 @@ public class WeChatPayServiceImpl implements WeChatPayService {
      * @param refundInfoDTO
      */
     @Override
-    @Transactional
     public void refunds(RefundInfoDTO refundInfoDTO) throws Exception {
         log.info("Creating refund record");
         //根据订单id创建退款单
         RefundInfo refundInfo = refundInfoService.saveRefundInfoByOrderId(refundInfoDTO);
 
+        if ("SUCCESS".equals(refundInfo.getRefundStatus())) return;
+        // Provider has already accepted this refund; duplicate submissions only reconcile it.
+        if ("PROCESSING".equals(refundInfo.getRefundStatus()) && refundInfo.getRefundId() != null) {
+            String result = queryRefunds(refundInfo.getRefundNumber());
+            if (result == null || result.startsWith("ERROR")) {
+                throw new IOException("退款状态暂未确认，请稍后查看");
+            }
+            refundInfoService.updateRefund(result);
+            requireActiveRefund(result);
+            return;
+        }
         log.info("Calling unified refund API");
         //构造url
         String url = weChatProperties.getWxDomain().concat(WeChatPayConstant.REFUNDS_URL);
@@ -421,7 +407,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         //商户退款单号 户系统内部的退款单号，商户系统内部唯一，只能是数字、大小写字母_-|*@ ，同一商户退款单号多次请求只退一笔。不可超过64个字节数。
         paramsMap.put("out_refund_no", refundInfo.getRefundNumber());
         //退款原因
-        paramsMap.put("reason", refundInfoDTO.getReason());
+        paramsMap.put("reason", refundInfo.getReason());
         //退款结果回调url
         paramsMap.put("notify_url", weChatProperties.getNotifyUrl().concat(WeChatPayConstant.REFUND_NOTIFY));
 
@@ -444,44 +430,33 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         httpPost.setHeader("Accept", "application/json");
         ;//设置响应报文格式
         //完成签名并执行请求
-        CloseableHttpResponse response = wxPayClient.execute(httpPost);
-        try {
-            String bodyAsString = EntityUtils.toString(response.getEntity());//响应体
-            int statusCode = response.getStatusLine().getStatusCode();//响应状态码
-            if (statusCode == 200) { //处理成功
-                log.info("Success, response = " + bodyAsString);
-            } else if (statusCode == 204) { //处理成功，无返回Body
-                log.info("Success");
-            } else {
-                log.info("Mini-program refund failed, response code = " + statusCode + ", body = " +
-                        bodyAsString);
-                //Update order status
-                log.info("Updating order status ===> Refund failed");
-                orderService.updateStatusByOrderNumber(refundInfo.getOrderNumber(), OrderStatusConstant.REFUND_ABNORMAL);
-                //Update refund record status
-                log.info("Updating refund record status ===> Refund failed");
-                Map<String, String> resultMap = JSONObject.parseObject(bodyAsString, HashMap.class);
-                if (resultMap.get("out_refund_no") == null) {
-                    resultMap.put("out_refund_no", refundInfo.getRefundNumber());
+        try (CloseableHttpResponse response = wxPayClient.execute(httpPost)) {
+            String body = response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity());
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode != 200) {
+                // A 5xx/timeout is uncertain; keep the durable PROCESSING record for query/retry.
+                if (statusCode >= 400 && statusCode < 500) {
+                    JSONObject failure = new JSONObject();
+                    failure.put("out_refund_no", refundInfo.getRefundNumber());
+                    failure.put("status", "REQUEST_FAILED");
+                    refundInfoService.updateRefund(failure.toJSONString());
+                    throw new com.mikasa.campusrunner.common.exception.OrderException("退款申请失败，请核对后重试");
                 }
-                if (resultMap.get("status") == null) {
-                    resultMap.put("status", "ABNORMAL");
-                }
-                refundInfoService.updateRefund(JSONObject.toJSONString(resultMap));
-                throw new IOException("request failed " + bodyAsString);//修改异常返回结果，使得前端显示更清晰
+                throw new IOException("退款申请暂未确认，请稍后查看退款状态或重试");
             }
-            //响应结果
+            refundInfoService.updateRefund(body);
+            requireActiveRefund(body);
+        }
+    }
 
-            //Update order status
-            log.info("Order status updated ===> Refunding");
-            orderService.updateStatusByOrderNumber(refundInfo.getOrderNumber(), OrderStatusConstant.REFUND_PROCESSING);
-
-            //Update refund record
-            log.info("Refund record updated ===> Refunding");
-            refundInfoService.updateRefund(bodyAsString);
-
-        } finally {
-            response.close();
+    private void requireActiveRefund(String content) {
+        JSONObject result = JSONObject.parseObject(content);
+        String status = result.getString("status");
+        if ("ABNORMAL".equals(status) || "CLOSED".equals(status)) {
+            throw new com.mikasa.campusrunner.common.exception.OrderException("退款失败，请在微信商户平台核对并处理");
+        }
+        if (!"PROCESSING".equals(status) && !"SUCCESS".equals(status)) {
+            throw new com.mikasa.campusrunner.common.exception.OrderException("退款状态暂未确认，请稍后查看");
         }
     }
 
@@ -536,47 +511,8 @@ public class WeChatPayServiceImpl implements WeChatPayService {
      * @param bodyMap
      */
     @Override
-    @Transactional
     public void processRefund(Map<String, Object> bodyMap) throws Exception {
-        log.info("Processing refund order...");
-
-        //解密
-        String plainText = decryptFromResource(bodyMap);
-
-        Map plainTextMap = JSONObject.parseObject(plainText, HashMap.class);
-
-        String orderNumber = (String) plainTextMap.get(WeChatPayConstant.OUT_TRADE_NO);
-
-        if (lock.tryLock()) {
-            try {
-                //String orderStatus = orderInfoService.getOrderStatus(orderNumber);
-                Integer orderStatus = orderService.getStatusByOrderNumber(orderNumber);
-                if (!orderStatus.equals(OrderStatusConstant.REFUND_PROCESSING)) {
-                    //如果不是退款中，就跳过
-                    return;
-                }
-                if (!plainTextMap.get("refund_status").equals("SUCCESS")) {
-                    //处理退款异常
-                    orderService.updateStatusByOrderNumber(orderNumber, OrderStatusConstant.REFUND_ABNORMAL);
-                    refundInfoService.updateRefund(plainText);
-                }else {
-                    //只处理在退款中的订单
-                    //更新订单状态
-//                orderInfoService.updateStatusByOrderNo(orderNo,
-//                        OrderStatus.REFUND_SUCCESS);
-                    orderService.updateStatusByOrderNumber(orderNumber, OrderStatusConstant.REFUND_SUCCESS);
-
-                    //更新退款单
-//                refundsInfoService.updateRefund(plainText);
-                    refundInfoService.updateRefund(plainText);
-                }
-
-            } finally {
-                //要主动释放锁
-                lock.unlock();
-            }
-        }
-
+        refundInfoService.updateRefund(decryptFromResource(bodyMap));
     }
 
 
@@ -585,56 +521,23 @@ public class WeChatPayServiceImpl implements WeChatPayService {
      * @param refundInfo
      */
     @Override
-    @Transactional
-    public void checkRefundStatus(RefundInfo refundInfo) throws Exception{
-        String refundNumber = refundInfo.getRefundNumber();
-        log.warn("Checking refund status by refund number ===> {}", refundNumber);
-        //调用查询退款单接口
-        String result = this.queryRefunds(refundNumber);
-        if (result.substring(0, 5).equals("ERROR")) {
-            log.warn("Refund check abnormal ===> {}", refundNumber);
-            //如果确认退款成功，则更新订单状态
-            orderService.updateStatusByOrderNumber(refundInfo.getOrderNumber(), OrderStatusConstant.REFUND_ABNORMAL);
-            //更新退款单
-//            refundInfoService.updateRefund(result);
-
-            RefundInfo refundInfo1 = RefundInfo.builder()
-                    .orderNumber(refundInfo.getOrderNumber())
-                    .refundNumber(refundNumber)
-                    .contentNotify(result).build();
-
-            refundInfoMapper.insert(refundInfo1);
-            return;
+    public void checkRefundStatus(RefundInfo refundInfo) throws Exception {
+        String result = queryRefunds(refundInfo.getRefundNumber());
+        if (result == null || result.startsWith("ERROR")) {
+            // A missing provider record covers a crash before submission. Reuse the saved number.
+            if (result != null && result.startsWith("ERROR 404 ")
+                    && ("REQUESTED".equals(refundInfo.getRefundStatus())
+                    || ("PROCESSING".equals(refundInfo.getRefundStatus()) && refundInfo.getRefundId() == null))) {
+                RefundInfoDTO dto = new RefundInfoDTO();
+                dto.setOrderNumber(refundInfo.getOrderNumber());
+                dto.setReason(refundInfo.getReason());
+                refunds(dto);
+            }
+            return; // A failed query is never evidence of a failed refund.
         }
-        //组装json请求体字符串
-        Map<String, String> resultMap = JSONObject.parseObject(result, HashMap.class);
-        //获取微信支付端退款状态
-        String status = resultMap.get("status");
-        String orderNo = resultMap.get("out_trade_no");
-        if (RefundStatusConstant.SUCCESS.equals(status)) {
-            log.warn("Refund verified successful ===> {}", refundNumber);
-            //如果确认退款成功，则更新订单状态
-            orderService.updateStatusByOrderNumber(orderNo, OrderStatusConstant.REFUND_SUCCESS);
-//            orderInfoService.updateStatusByOrderNo(orderNo,
-//                    OrderStatus.REFUND_SUCCESS);
-            //更新退款单
-            refundInfoService.updateRefund(result);
-        }
-        if (RefundStatusConstant.ABNORMAL.equals(status)) {
-            log.warn("Refund check abnormal ===> {}", refundNumber);
-            //Update order status to refund abnormal
-            orderService.updateStatusByOrderNumber(orderNo, OrderStatusConstant.REFUND_ABNORMAL);
-//            orderInfoService.updateStatusByOrderNo(orderNo,
-//                    OrderStatus.REFUND_ABNORMAL);
-            //更新退款单
-            RefundInfo refundInfo1 = RefundInfo.builder()
-                    .orderNumber(refundInfo.getOrderNumber())
-                    .refundNumber(refundNumber)
-                    .contentNotify(result).build();
-
-            refundInfoMapper.insert(refundInfo1);
-        }
+        refundInfoService.updateRefund(result);
     }
+
 
     /**
      * 辅助方法，解密报文中的resource信息

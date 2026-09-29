@@ -52,15 +52,17 @@
             <view class="categoryName">{{item.categoryName}}</view>
             <!-- 时间tag -->
             <view>
-              <!-- <t-tag class="margin-16" size="small " variant="light" theme="primary"> 任务时间：{{item.gap<60?item.gap+'分钟':item.gap/60+'小时'}} </t-tag> -->
-              <t-tag class="margin-16" size="small " variant="light" theme="primary">预期{{item.expectTime}}</t-tag>
+              <t-tag class="margin-16" size="small" variant="light" theme="primary">{{item.displayDeliveryTime}}送达</t-tag>
             </view>
             <!-- 门禁tag -->
             <view wx:if="{{item.businessType !== 'PURCHASE' && item.doorAccess!=0}}">
               <t-tag class="margin-16" size="small" variant="light" theme="primary">门禁</t-tag>
             </view>
             <!-- 金额tag -->
-            <view wx:if="{{item.price!=null}}">
+            <view wx:if="{{item.isFree}}">
+              <t-tag class="margin-16" size="small" variant="light" theme="success">无偿</t-tag>
+            </view>
+            <view wx:elif="{{item.price!=null}}">
               <t-tag class="margin-16" size="small" variant="light" theme="warning">{{item.businessType === 'PURCHASE' ? '报酬 ' : ''}}￥{{item.price}}</t-tag>
               <t-tag wx:if="{{item.businessType === 'PURCHASE'}}" class="margin-16" size="small" variant="light" theme="primary">商品 ￥{{item.productAmount}}</t-tag>
             </view>
@@ -76,8 +78,8 @@
             <!-- 订单说明文字 -->
             <view class="box2-1">
               <view class="note">{{item.note||item.categoryName||'跑腿服务'}}</view>
-              <view class="pick">{{item.displayPickUpLabel}}：{{item.pickUpAddress}}</view>
-              <view class="recive">{{item.displayReciveLabel}}：{{item.reciveAddress}}</view>
+              <view class="pick">{{item.displayPickUpLabel}}：{{item.displayPickUpAddress}}</view>
+              <view class="recive">{{item.displayReciveLabel}}：{{item.displayReciveAddress}}</view>
             </view>
 
           </view>

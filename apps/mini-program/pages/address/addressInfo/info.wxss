@@ -32,3 +32,8 @@
   flex: 1;
   min-width: 0;
 }
+
+.address-info__default-cell {
+  width: 100%;
+  --td-cell-horizontal-padding: 0rpx;
+}

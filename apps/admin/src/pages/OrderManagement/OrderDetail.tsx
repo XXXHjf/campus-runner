@@ -6,7 +6,7 @@
 import { Descriptions, Tag, Image, Skeleton, Empty } from 'antd'
 import type { AdminOrderDetailResponse } from '../../types/admin'
 import { DOOR_ACCESS_LABELS } from '../../constants'
-import { formatDateTime, formatPrice, formatPhone } from '../../utils/format'
+import { formatDateTime, formatPrice, formatPhone, formatRefundStatus } from '../../utils/format'
 
 /** 订单状态映射（覆盖后端全部状态码 -4 ~ 7） */
 const orderStatusMap: Record<number, { label: string; color: string }> = {
@@ -65,7 +65,8 @@ export default function OrderDetail({ detail, loading }: OrderDetailProps) {
           {order.orderNumber}
         </Descriptions.Item>
         <Descriptions.Item label="订单状态">
-          {getOrderStatusTag(order.status)}
+          {order.status === -2 && refund?.refundStatus === 'REQUESTED'
+            ? <Tag color="orange">申请已受理</Tag> : getOrderStatusTag(order.status)}
         </Descriptions.Item>
         <Descriptions.Item label="分类">
           {order.categoryName || '-'}
@@ -239,7 +240,7 @@ export default function OrderDetail({ detail, loading }: OrderDetailProps) {
             </span>
           </Descriptions.Item>
           <Descriptions.Item label="退款状态">
-            {refund.refundStatus || '-'}
+            {formatRefundStatus(refund.refundStatus)}
           </Descriptions.Item>
           <Descriptions.Item label="退款原因" span={2}>
             {refund.reason || '-'}

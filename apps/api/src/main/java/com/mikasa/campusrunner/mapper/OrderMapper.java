@@ -6,6 +6,7 @@ import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderDetailVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderListVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -18,6 +19,11 @@ import java.util.List;
  */
 @Mapper
 public interface OrderMapper {
+    @Select("SELECT * FROM tb_orders WHERE id = #{id} AND deleted = 0 FOR UPDATE")
+    Order getByIdForUpdate(@Param("id") Long id);
+
+    @Select("SELECT * FROM tb_orders WHERE order_number = #{orderNumber} FOR UPDATE")
+    Order getByOrderNumberForUpdate(@Param("orderNumber") String orderNumber);
     List<com.mikasa.campusrunner.pojo.vo.PublicOrderVO> listPublicOrders();
 
     /**
@@ -219,10 +225,14 @@ public interface OrderMapper {
 
     // ========== Admin Order Management ==========
 
-    List<AdminOrderListVO> listAllOrders(@Param("offset") int offset, @Param("limit") int limit);
+    List<AdminOrderListVO> listAllOrders(@Param("offset") int offset, @Param("limit") int limit,
+                                         @Param("keyword") String keyword);
 
     List<AdminOrderListVO> listOrdersByStatus(@Param("statuses") List<Integer> statuses,
-                                               @Param("offset") int offset, @Param("limit") int limit);
+                                               @Param("offset") int offset, @Param("limit") int limit,
+                                               @Param("keyword") String keyword);
+
+    Long countAdminOrders(@Param("statuses") List<Integer> statuses, @Param("keyword") String keyword);
 
     AdminOrderDetailVO getAdminOrderDetail(@Param("id") Long id);
 

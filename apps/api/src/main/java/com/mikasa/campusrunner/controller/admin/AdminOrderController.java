@@ -2,6 +2,7 @@ package com.mikasa.campusrunner.controller.admin;
 
 import com.mikasa.campusrunner.common.result.Result;
 import com.mikasa.campusrunner.pojo.dto.PageResult;
+import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderActionVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderDetailVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderListVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderStatisticsVO;
@@ -25,41 +26,46 @@ public class AdminOrderController {
 
     @GetMapping("/all")
     @Operation(summary = "全部订单", description = "分页查询所有订单，返回订单基本信息、接单员信息、地址详情和退款信息")
-    public Result<PageResult<AdminOrderListVO>> all(@RequestParam int page, @RequestParam int pageSize) {
+    public Result<PageResult<AdminOrderListVO>> all(@RequestParam int page, @RequestParam int pageSize,
+                                                    @RequestParam(required = false) String keyword) {
         log.info("List all orders...");
-        PageResult<AdminOrderListVO> result = adminOrderService.listAll(page, pageSize);
+        PageResult<AdminOrderListVO> result = adminOrderService.listAll(page, pageSize, keyword);
         return Result.success(result);
     }
 
     @GetMapping("/waiting")
     @Operation(summary = "待接单订单", description = "查询所有待接单状态的订单（status=0），返回订单基本信息和发单人地址")
-    public Result<PageResult<AdminOrderListVO>> waiting(@RequestParam int page, @RequestParam int pageSize) {
+    public Result<PageResult<AdminOrderListVO>> waiting(@RequestParam int page, @RequestParam int pageSize,
+                                                        @RequestParam(required = false) String keyword) {
         log.info("List waiting orders...");
-        PageResult<AdminOrderListVO> result = adminOrderService.listWaiting(page, pageSize);
+        PageResult<AdminOrderListVO> result = adminOrderService.listWaiting(page, pageSize, keyword);
         return Result.success(result);
     }
 
     @GetMapping("/in-progress")
     @Operation(summary = "进行中订单", description = "查询所有进行中状态的订单（status=1/2/3），包含配送流程中的订单信息")
-    public Result<PageResult<AdminOrderListVO>> inProgress(@RequestParam int page, @RequestParam int pageSize) {
+    public Result<PageResult<AdminOrderListVO>> inProgress(@RequestParam int page, @RequestParam int pageSize,
+                                                           @RequestParam(required = false) String keyword) {
         log.info("List in-progress orders...");
-        PageResult<AdminOrderListVO> result = adminOrderService.listInProgress(page, pageSize);
+        PageResult<AdminOrderListVO> result = adminOrderService.listInProgress(page, pageSize, keyword);
         return Result.success(result);
     }
 
     @GetMapping("/completed")
     @Operation(summary = "已完成订单", description = "查询所有已完成状态的订单（status=5/6/7），包含已送达和已结算的订单信息")
-    public Result<PageResult<AdminOrderListVO>> completed(@RequestParam int page, @RequestParam int pageSize) {
+    public Result<PageResult<AdminOrderListVO>> completed(@RequestParam int page, @RequestParam int pageSize,
+                                                          @RequestParam(required = false) String keyword) {
         log.info("List completed orders...");
-        PageResult<AdminOrderListVO> result = adminOrderService.listCompleted(page, pageSize);
+        PageResult<AdminOrderListVO> result = adminOrderService.listCompleted(page, pageSize, keyword);
         return Result.success(result);
     }
 
     @GetMapping("/canceled")
     @Operation(summary = "已取消/退款订单", description = "查询已取消或已退款的订单（status=4/-2/-3/-4），包含取消原因和退款处理结果")
-    public Result<PageResult<AdminOrderListVO>> canceled(@RequestParam int page, @RequestParam int pageSize) {
+    public Result<PageResult<AdminOrderListVO>> canceled(@RequestParam int page, @RequestParam int pageSize,
+                                                         @RequestParam(required = false) String keyword) {
         log.info("List canceled/refund orders...");
-        PageResult<AdminOrderListVO> result = adminOrderService.listCanceled(page, pageSize);
+        PageResult<AdminOrderListVO> result = adminOrderService.listCanceled(page, pageSize, keyword);
         return Result.success(result);
     }
 
@@ -81,19 +87,17 @@ public class AdminOrderController {
 
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消订单", description = "管理员手动取消指定订单，需填写取消原因，取消后将自动处理退款")
-    public Result<String> cancel(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public Result<AdminOrderActionVO> cancel(@PathVariable Long id, @RequestBody Map<String, String> body) {
         log.info("Cancel order id={}", id);
         String reason = body.get("reason");
-        adminOrderService.cancel(id, reason);
-        return Result.success("ok");
+        return Result.success(adminOrderService.cancel(id, reason));
     }
 
     @PostMapping("/{id}/refund")
     @Operation(summary = "订单退款", description = "对已支付的订单执行退款操作，需填写退款原因，将调用微信支付接口进行退款")
-    public Result<String> refund(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public Result<AdminOrderActionVO> refund(@PathVariable Long id, @RequestBody Map<String, String> body) {
         log.info("Refund order id={}", id);
         String reason = body.get("reason");
-        adminOrderService.refund(id, reason);
-        return Result.success("ok");
+        return Result.success(adminOrderService.refund(id, reason));
     }
 }

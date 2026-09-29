@@ -4,7 +4,7 @@
  * 基于 URL path 切换 Tab
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Tabs,
@@ -40,18 +40,18 @@ import {
 import './UserManagement.css'
 
 /** Tab 配置映射 */
-const TAB_CONFIG: Record<string, { label: string; api: (page: number, pageSize: number) => Promise<{ total: number; list: AdminUserItem[] }> }> = {
+const TAB_CONFIG: Record<string, { label: string; api: (page: number, pageSize: number, keyword: string) => Promise<{ total: number; list: AdminUserItem[] }> }> = {
   all: {
     label: '全部用户',
-    api: (page, pageSize) => userService.listAllUsers(page, pageSize),
+    api: (page, pageSize, keyword) => userService.listAllUsers(page, pageSize, keyword),
   },
   authenticated: {
     label: '已认证',
-    api: (page, pageSize) => userService.listAuthenticated(page, pageSize),
+    api: (page, pageSize, keyword) => userService.listAuthenticated(page, pageSize, keyword),
   },
   'pending-auth': {
     label: '待审核',
-    api: (page, pageSize) => userService.listPendingReview(page, pageSize),
+    api: (page, pageSize, keyword) => userService.listPendingReview(page, pageSize, keyword),
   },
 }
 
@@ -81,6 +81,8 @@ export default function UserManagement() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [keyword, setKeyword] = useState('')
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const listRequestId = useRef(0)
 
   // Detail drawer state
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -98,18 +100,21 @@ export default function UserManagement() {
   const loadList = async (currentTab: string) => {
     const config = TAB_CONFIG[currentTab]
     if (!config) return
+    const requestId = ++listRequestId.current
     setLoading(true)
     try {
-      const res = await config.api(page, PAGE_SIZE)
+      const res = await config.api(page, PAGE_SIZE, searchKeyword)
+      if (requestId !== listRequestId.current) return
       setList(res.list)
       setTotal(res.total)
     } catch (err) {
+      if (requestId !== listRequestId.current) return
       console.error('获取用户列表失败', err)
       message.error('获取用户列表失败')
       setList([])
       setTotal(0)
     } finally {
-      setLoading(false)
+      if (requestId === listRequestId.current) setLoading(false)
     }
   }
 
@@ -131,7 +136,15 @@ export default function UserManagement() {
     if (isListTab) {
       loadList(tabKey)
     }
-  }, [page, tabKey])
+  }, [page, tabKey, searchKeyword])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1)
+      setSearchKeyword(keyword.trim())
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [keyword])
 
   useEffect(() => {
     if (!isListTab) {
@@ -143,21 +156,8 @@ export default function UserManagement() {
   useEffect(() => {
     setPage(1)
     setKeyword('')
+    setSearchKeyword('')
   }, [tabKey])
-
-  // Frontend keyword filtering
-  const filteredList = useMemo(() => {
-    if (!keyword.trim()) return list
-    const kw = keyword.trim().toLowerCase()
-    return list.filter(
-      (item) =>
-        item.username.toLowerCase().includes(kw) ||
-        item.realname.toLowerCase().includes(kw) ||
-        item.phone.includes(kw) ||
-        item.schoolName.toLowerCase().includes(kw) ||
-        String(item.id).includes(kw),
-    )
-  }, [list, keyword])
 
   // Open detail drawer
   const openDetail = async (id: number) => {
@@ -338,7 +338,10 @@ export default function UserManagement() {
               placeholder="搜索用户昵称、姓名、手机号、学校或 ID"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              onSearch={(value) => setKeyword(value)}
+              onSearch={(value) => {
+                setPage(1)
+                setSearchKeyword(value.trim())
+              }}
               style={{ width: 360 }}
               allowClear
             />
@@ -346,7 +349,7 @@ export default function UserManagement() {
 
           <AdminContentCard flush>
             <Table
-              dataSource={filteredList}
+              dataSource={list}
               columns={columns}
               rowKey="id"
               loading={loading}

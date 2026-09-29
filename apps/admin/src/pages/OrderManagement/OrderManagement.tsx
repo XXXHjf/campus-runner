@@ -4,7 +4,7 @@
  * 基于 URL path 切换 Tab
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Tabs,
@@ -21,7 +21,7 @@ import {
 } from 'antd'
 import type { AdminOrderItem, AdminOrderDetailResponse, AdminOrderStatistics } from '../../types/admin'
 import { orderService } from '../../services'
-import { formatDateTime, formatPrice, formatPhone } from '../../utils/format'
+import { formatDateTime, formatPrice, formatPhone, formatRefundStatus, formatOrderActionResult } from '../../utils/format'
 import {
   AdminContentCard,
   AdminCount,
@@ -57,26 +57,26 @@ function getOrderStatusTag(status: number) {
 }
 
 /** Tab 配置映射 */
-const TAB_CONFIG: Record<string, { label: string; api: (page: number, pageSize: number) => Promise<{ total: number; list: AdminOrderItem[] }> }> = {
+const TAB_CONFIG: Record<string, { label: string; api: (page: number, pageSize: number, keyword: string) => Promise<{ total: number; list: AdminOrderItem[] }> }> = {
   all: {
     label: '全部',
-    api: (page, pageSize) => orderService.listAll(page, pageSize),
+    api: (page, pageSize, keyword) => orderService.listAll(page, pageSize, keyword),
   },
   pending: {
     label: '待接单',
-    api: (page, pageSize) => orderService.listWaiting(page, pageSize),
+    api: (page, pageSize, keyword) => orderService.listWaiting(page, pageSize, keyword),
   },
   progress: {
     label: '进行中',
-    api: (page, pageSize) => orderService.listInProgress(page, pageSize),
+    api: (page, pageSize, keyword) => orderService.listInProgress(page, pageSize, keyword),
   },
   completed: {
     label: '已完成',
-    api: (page, pageSize) => orderService.listCompleted(page, pageSize),
+    api: (page, pageSize, keyword) => orderService.listCompleted(page, pageSize, keyword),
   },
   canceled: {
     label: '已取消/退款',
-    api: (page, pageSize) => orderService.listCanceled(page, pageSize),
+    api: (page, pageSize, keyword) => orderService.listCanceled(page, pageSize, keyword),
   },
 }
 
@@ -99,6 +99,8 @@ export default function OrderManagement() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [keyword, setKeyword] = useState('')
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const listRequestId = useRef(0)
 
   // Detail modal state
   const [detailModal, setDetailModal] = useState<{
@@ -108,6 +110,7 @@ export default function OrderManagement() {
   }>({ open: false, loading: false, data: null })
 
   // Action (cancel/refund) modal state
+  const actionSubmitting = useRef(false)
   const [actionModal, setActionModal] = useState<{
     open: boolean
     type: 'cancel' | 'refund'
@@ -127,18 +130,21 @@ export default function OrderManagement() {
   const loadList = async (currentTab: string) => {
     const config = TAB_CONFIG[currentTab]
     if (!config) return
+    const requestId = ++listRequestId.current
     setLoading(true)
     try {
-      const res = await config.api(page, PAGE_SIZE)
+      const res = await config.api(page, PAGE_SIZE, searchKeyword)
+      if (requestId !== listRequestId.current) return
       setList(res.list)
       setTotal(res.total)
     } catch (err) {
+      if (requestId !== listRequestId.current) return
       console.error('获取订单列表失败', err)
       message.error('获取订单列表失败')
       setList([])
       setTotal(0)
     } finally {
-      setLoading(false)
+      if (requestId === listRequestId.current) setLoading(false)
     }
   }
 
@@ -160,7 +166,15 @@ export default function OrderManagement() {
     if (isListTab) {
       loadList(tabKey)
     }
-  }, [page, tabKey])
+  }, [page, tabKey, searchKeyword])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1)
+      setSearchKeyword(keyword.trim())
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [keyword])
 
   useEffect(() => {
     if (!isListTab) {
@@ -172,19 +186,8 @@ export default function OrderManagement() {
   useEffect(() => {
     setPage(1)
     setKeyword('')
+    setSearchKeyword('')
   }, [tabKey])
-
-  // Frontend keyword filtering
-  const filteredList = useMemo(() => {
-    if (!keyword.trim()) return list
-    const kw = keyword.trim().toLowerCase()
-    return list.filter(
-      (item) =>
-        item.orderNumber.toLowerCase().includes(kw) ||
-        item.username.toLowerCase().includes(kw) ||
-        item.phone.includes(kw),
-    )
-  }, [list, keyword])
 
   // Open detail modal
   const openDetail = async (id: number) => {
@@ -206,6 +209,7 @@ export default function OrderManagement() {
 
   // Confirm action (cancel / refund)
   const confirmAction = async () => {
+    if (actionSubmitting.current) return
     const { type, id, reason } = actionModal
     if (!id) return
     if (!reason.trim()) {
@@ -216,21 +220,30 @@ export default function OrderManagement() {
       setActionModal((prev) => ({ ...prev, error: '原因至少需要2个字符' }))
       return
     }
+    if (new TextEncoder().encode(reason.trim()).length > 80) {
+      setActionModal((prev) => ({ ...prev, error: '原因过长，请简短描述' }))
+      return
+    }
 
+    actionSubmitting.current = true
     setActionModal((prev) => ({ ...prev, submitting: true, error: '' }))
     try {
-      if (type === 'cancel') {
-        await orderService.cancelOrder(id, reason.trim())
-      } else {
-        await orderService.refundOrder(id, reason.trim())
-      }
-      message.success(type === 'cancel' ? '订单已取消' : '退款已处理')
+      const result = type === 'cancel'
+        ? await orderService.cancelOrder(id, reason.trim())
+        : await orderService.refundOrder(id, reason.trim())
+      const feedback = formatOrderActionResult(result)
+      message[feedback.type](feedback.content)
       setActionModal({ open: false, type: 'cancel', id: null, reason: '', submitting: false, error: '' })
       // Refresh current list
       loadList(tabKey)
     } catch (err) {
       console.error(`操作失败`, err)
-      setActionModal((prev) => ({ ...prev, error: '操作失败，请稍后重试', submitting: false }))
+      const errorMessage = typeof err === 'object' && err !== null && 'message' in err
+        && typeof err.message === 'string' ? err.message : '操作失败，请稍后重试'
+      setActionModal((prev) => ({ ...prev, error: errorMessage, submitting: false }))
+      loadList(tabKey)
+    } finally {
+      actionSubmitting.current = false
     }
   }
 
@@ -248,7 +261,9 @@ export default function OrderManagement() {
   const canCancel = (status: number) => status === 0 || status === -1
 
   // Determine if a row can be refunded
-  const canRefund = (status: number) => status > 0 && status !== 6 && status !== 7
+  const canRefund = (record: AdminOrderItem) => record.payAmount > 0
+    && [0, 4, -2, -4].includes(record.status)
+    && !['REQUESTED', 'PROCESSING', 'SUCCESS', 'ABNORMAL', 'CLOSED'].includes(record.refundStatus || '')
 
   // Base columns for all list tabs
   const baseColumns = [
@@ -269,7 +284,8 @@ export default function OrderManagement() {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: number) => getOrderStatusTag(status),
+      render: (status: number, record: AdminOrderItem) => status === -2 && record.refundStatus === 'REQUESTED'
+        ? <Tag color="orange">申请已受理</Tag> : getOrderStatusTag(status),
     },
     {
       title: '分类',
@@ -362,7 +378,7 @@ export default function OrderManagement() {
               取消订单
             </Button>
           )}
-          {canRefund(record.status) && (
+          {canRefund(record) && (
             <Button type="link" size="small" danger onClick={() => openActionModal('refund', record.id)}>
               退款
             </Button>
@@ -434,7 +450,7 @@ export default function OrderManagement() {
       dataIndex: 'refundStatus',
       key: 'refundStatus',
       width: 100,
-      render: (refundStatus: string | undefined) => refundStatus || '-',
+      render: (refundStatus: string | undefined) => formatRefundStatus(refundStatus),
     },
   ]
 
@@ -485,7 +501,10 @@ export default function OrderManagement() {
               placeholder="搜索订单编号、发单人或联系电话"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              onSearch={(value) => setKeyword(value)}
+              onSearch={(value) => {
+                setPage(1)
+                setSearchKeyword(value.trim())
+              }}
               style={{ width: 360 }}
               allowClear
             />
@@ -493,7 +512,7 @@ export default function OrderManagement() {
 
           <AdminContentCard flush>
             <Table
-              dataSource={filteredList}
+              dataSource={list}
               columns={columns}
               rowKey="id"
               loading={loading}
@@ -583,9 +602,13 @@ export default function OrderManagement() {
       <Modal
         title={actionModalTitle}
         open={actionModal.open}
-        onCancel={() => setActionModal({ open: false, type: 'cancel', id: null, reason: '', submitting: false, error: '' })}
+        onCancel={() => { if (!actionSubmitting.current) setActionModal({ open: false, type: 'cancel', id: null, reason: '', submitting: false, error: '' }) }}
         onOk={confirmAction}
         confirmLoading={actionModal.submitting}
+        closable={!actionModal.submitting}
+        maskClosable={!actionModal.submitting}
+        keyboard={!actionModal.submitting}
+        cancelButtonProps={{ disabled: actionModal.submitting }}
         okText="确认"
         cancelText="取消"
         destroyOnHidden
@@ -607,7 +630,7 @@ export default function OrderManagement() {
                 setActionModal((prev) => ({ ...prev, reason: e.target.value, error: '' }))
               }
               disabled={actionModal.submitting}
-              maxLength={500}
+              maxLength={80}
               showCount
             />
           </div>

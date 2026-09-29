@@ -1,108 +1,164 @@
-/* 总体布局 */
-.show {
-  --mine-card-gap: 20rpx;
-  position: relative;
+.mine-page {
+  --cr-radius-medium: 20rpx;
+  --cr-section-gap: 22rpx;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  padding-bottom: 40rpx;
-  background: #f5f6f8;
+  padding-bottom: 24rpx;
+  background: var(--cr-color-background);
   box-sizing: border-box;
 }
 
-.box1 {
+.mine-page .mine-profile {
   order: 0;
-  border-radius: 20rpx;
-  margin: var(--mine-card-gap) 30rpx 0;
-  background-color: white;
-  padding: 20rpx 25rpx;
+  padding: 2rpx 38rpx 32rpx;
 }
 
-.box1-1 {
+.mine-page .mine-profile__main {
   display: flex;
   align-items: center;
-  margin-bottom: 20rpx;
+  gap: 28rpx;
+  min-height: 128rpx;
 }
 
-.avatar {
-  border-radius: 30px;
+.mine-page .mine-profile__avatar {
+  flex-shrink: 0;
   display: block;
-  width: 56px;
-  height: 56px;
-  margin: 0 30rpx;
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  background: #fceef3;
 }
 
-.info {
-  margin-left: 20rpx;
+.mine-page .mine-profile__info {
+  flex: 1;
+  min-width: 0;
 }
 
-.nickname {
-  font-weight: bold;
+.mine-page .mine-profile__identity {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
 }
 
-.tag {
-  margin-left: 30rpx;
+.mine-page .mine-profile__nickname {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 34rpx;
+  font-weight: 600;
+  line-height: 48rpx;
+  color: var(--cr-color-text);
 }
 
-.text {
-  margin: 5rpx 0;
-  font-size: small;
-  color: #5f6772;
+.mine-page .mine-profile__phone {
+  display: block;
+  margin-top: 10rpx;
+  color: var(--cr-color-text-secondary);
+  font-size: 26rpx;
+  line-height: 38rpx;
 }
 
-.menu-section {
+.mine-page .menu-section {
   order: 3;
-  margin: var(--mine-card-gap) 30rpx 0;
-  padding: 24rpx;
-  background: #ffffff;
-  border-radius: 20rpx;
-  box-shadow: 0 8rpx 24rpx rgba(15, 35, 80, 0.05);
+  margin: 0 24rpx;
 }
 
-.menu-section-title {
-  margin-bottom: 18rpx;
-  color: #111827;
-  font-size: 30rpx;
-  font-weight: 700;
-}
-
-.menu-grid {
+.mine-page .menu-grid {
   display: grid;
-  gap: 16rpx;
+  padding: 0 26rpx 22rpx;
 }
 
-.menu-grid.two {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.menu-grid.three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.menu-card {
-  min-height: 126rpx;
-  padding: 20rpx 18rpx;
-  background: #f7f9fc;
-  border: 1rpx solid #eef2f7;
-  border-radius: 16rpx;
+.mine-page .menu-card {
+  display: flex;
+  align-items: center;
+  min-width: 0;
   box-sizing: border-box;
 }
 
-.menu-icon {
+.mine-page .menu-icon {
   position: relative;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 58rpx;
-  height: 58rpx;
-  background: #eaf2ff;
-  border-radius: 18rpx;
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 50%;
+  background: #f0f5ff;
 }
 
-.menu-badge {
+.mine-page .menu-copy {
+  min-width: 0;
+}
+
+.mine-page .menu-label {
+  color: var(--cr-color-text);
+  font-size: 27rpx;
+  font-weight: 500;
+  line-height: 40rpx;
+  white-space: nowrap;
+}
+
+.mine-page .menu-grid--runner {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 12rpx;
+  padding-bottom: 32rpx;
+}
+
+.mine-page .menu-grid--runner .menu-card {
+  position: relative;
+  justify-content: center;
+  gap: 16rpx;
+  min-height: 90rpx;
+}
+
+.mine-page .menu-grid--runner .menu-card + .menu-card::before {
   position: absolute;
-  top: -10rpx;
-  right: -14rpx;
+  left: 0;
+  top: 14rpx;
+  bottom: 14rpx;
+  width: 1rpx;
+  background: var(--cr-color-border);
+  content: '';
+}
+
+.mine-page .menu-grid--trade {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  row-gap: 36rpx;
+  padding-top: 8rpx;
+  padding-bottom: 36rpx;
+}
+
+.mine-page .menu-grid--trade .menu-card {
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.mine-page .menu-grid--account .menu-card {
+  gap: 24rpx;
+  min-height: 104rpx;
+}
+
+.mine-page .menu-grid--account .menu-card + .menu-card {
+  border-top: 1rpx solid var(--cr-color-border);
+}
+
+.mine-page .menu-grid--account .menu-icon,
+.mine-page .mine-support .menu-icon {
+  width: 68rpx;
+  height: 68rpx;
+}
+
+.mine-page .menu-grid--account .menu-copy {
+  flex: 1;
+}
+
+.mine-page .menu-badge {
+  position: absolute;
+  top: -6rpx;
+  right: -8rpx;
   min-width: 30rpx;
   padding: 2rpx 7rpx;
   color: #ffffff;
@@ -110,63 +166,74 @@
   border: 2rpx solid #ffffff;
   border-radius: 999rpx;
   font-size: 19rpx;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 28rpx;
   text-align: center;
   box-sizing: border-box;
 }
 
-.menu-copy {
-  margin-top: 14rpx;
-  min-width: 0;
-}
-
-.menu-label {
-  color: #1f2937;
-  font-size: 27rpx;
-  font-weight: 700;
-  line-height: 1.25;
-  white-space: nowrap;
-}
-.box2 {
+.mine-page .mine-support {
   order: 4;
-  margin: var(--mine-card-gap) 0 0;
+  margin: 0 24rpx;
 }
 
-.button {
+.mine-page .mine-support__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 22rpx 16rpx;
+}
+
+.mine-page .mine-support__grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mine-page .mine-support__button {
+  --td-button-medium-height: 76rpx;
+  --td-button-medium-padding-horizontal: 10rpx;
+  --td-button-medium-font-size: 27rpx;
+  --td-button-font-weight: 500;
+  --td-button-default-color: var(--cr-color-text);
+}
+
+.mine-page .mine-support__button--feedback {
+  border-left: 1rpx solid var(--cr-color-border);
+}
+
+.mine-page .mine-support__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14rpx;
+}
+
+.mine-page .mine-logout {
   order: 5;
-  margin: var(--mine-card-gap) 30rpx 0;
-  border-radius: 10rpx;
-  background-color: white;
+  display: flex;
+  justify-content: center;
+  padding: 0 24rpx 8rpx;
+  --td-button-default-color: var(--cr-color-text-secondary);
+  --td-button-font-weight: 400;
+  --td-button-medium-font-size: 26rpx;
 }
 
-.t-button {
-  border: none !important;
-}
-
-.t-button--ghost::after {
-  border-color: rgba(255, 255, 255, 0) !important;
-}
-
-.loadingBox {
-  /* 加载动画居中 */
+.mine-loading {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 /* 待收款提醒样式 - 优化版 */
-.pending-payment-section {
+.mine-page .pending-payment-section {
   order: 2;
   margin: var(--mine-card-gap) 30rpx 0;
 }
 
-.pending-unpaid-section {
+.mine-page .pending-unpaid-section {
   order: 2;
   margin: var(--mine-card-gap) 30rpx 0;
 }
 
-.task-center-heading {
+.mine-page .task-center-heading {
   order: 1;
   display: flex;
   align-items: center;
@@ -177,13 +244,13 @@
   font-weight: 700;
 }
 
-.task-center-count {
+.mine-page .task-center-count {
   color: #0052d9;
   font-size: 24rpx;
   font-weight: 600;
 }
 
-.pending-unpaid-card {
+.mine-page .pending-unpaid-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -196,7 +263,7 @@
   overflow: hidden;
 }
 
-.pending-unpaid-card::before {
+.mine-page .pending-unpaid-card::before {
   content: '';
   position: absolute;
   right: -20rpx;
@@ -207,7 +274,7 @@
   border-radius: 50%;
 }
 
-.pending-payment-card {
+.mine-page .pending-payment-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -221,7 +288,7 @@
 }
 
 /* 添加微妙的背景装饰 */
-.pending-payment-card::before {
+.mine-page .pending-payment-card::before {
   content: '';
   position: absolute;
   right: -20rpx;
@@ -232,18 +299,18 @@
   border-radius: 50%;
 }
 
-.payment-content {
+.mine-page .payment-content {
   display: flex;
   align-items: center;
   flex: 1;
 }
 
-.payment-icon-wrapper {
+.mine-page .payment-icon-wrapper {
   position: relative;
   margin-right: 24rpx;
 }
 
-.payment-badge {
+.mine-page .payment-badge {
   position: absolute;
   top: -8rpx;
   right: -8rpx;
@@ -258,11 +325,11 @@
   box-shadow: 0 2rpx 8rpx rgba(227, 77, 89, 0.3);
 }
 
-.payment-info {
+.mine-page .payment-info {
   flex: 1;
 }
 
-.payment-title {
+.mine-page .payment-title {
   display: flex;
   align-items: center;
   font-size: 30rpx;
@@ -271,17 +338,17 @@
   margin-bottom: 8rpx;
 }
 
-.payment-desc {
+.mine-page .payment-desc {
   font-size: 24rpx;
   color: #ed7b2f;
   font-weight: 500;
 }
 
-.unpaid-desc {
+.mine-page .unpaid-desc {
   color: #e34d59;
 }
 
-.payment-arrow {
+.mine-page .payment-arrow {
   margin-left: 20rpx;
   display: flex;
   align-items: center;

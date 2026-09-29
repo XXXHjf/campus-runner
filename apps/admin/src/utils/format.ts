@@ -107,3 +107,28 @@ export function calculateExpectTime(createdAt: string, gapMinutes: number): stri
   return formatDateTime(expect)
 }
 
+
+/** 面向管理员的退款状态。 */
+export function formatRefundStatus(status?: string | null): string {
+  if (!status) return '-'
+  const labels: Record<string, string> = {
+    REQUESTED: '申请已受理，待确认', PROCESSING: '退款中', SUCCESS: '退款到账', ABNORMAL: '退款失败，需处理',
+    CLOSED: '退款已关闭', REQUEST_FAILED: '申请失败，可重试',
+  }
+  return labels[status] || '状态待确认'
+}
+
+export function formatOrderActionResult(result?: { orderStatus: number; refundStatus: string | null }): {
+  type: 'success' | 'info' | 'error'; content: string
+} {
+  if (!result || typeof result.orderStatus !== 'number') {
+    return { type: 'error', content: '处理结果暂未确认，请刷新订单查看' }
+  }
+  if (result?.refundStatus === 'SUCCESS') return { type: 'success', content: '退款已到账' }
+  if (result?.refundStatus === 'PROCESSING') return { type: 'info', content: '退款中，请稍后查看结果' }
+  if (['ABNORMAL', 'CLOSED', 'REQUEST_FAILED'].includes(result?.refundStatus || '')) {
+    return { type: 'error', content: formatRefundStatus(result?.refundStatus) }
+  }
+  if (result.orderStatus === 4 && !result.refundStatus) return { type: 'success', content: '订单已取消' }
+  return { type: 'info', content: '申请已受理，请稍后查看退款状态' }
+}

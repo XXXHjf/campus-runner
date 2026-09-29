@@ -27,30 +27,33 @@ public class AdminUserServiceImpl implements AdminUserService {
     private MediaAssetService mediaAssetService;
 
     @Override
-    public PageResult<AdminUserListVO> listAll(int page, int pageSize) {
+    public PageResult<AdminUserListVO> listAll(int page, int pageSize, String keyword) {
         log.info("Listing all users, page={}, pageSize={}", page, pageSize);
         int offset = (page - 1) * pageSize;
-        List<AdminUserListVO> list = userMapper.getAllUsers(offset, pageSize);
+        keyword = normalizeKeyword(keyword);
+        List<AdminUserListVO> list = userMapper.getAllUsers(offset, pageSize, keyword);
         list.forEach(this::resolveListAvatar);
-        long total = userMapper.getAllUsersNum();
+        long total = userMapper.countAdminUsers(null, null, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
 
     @Override
-    public PageResult<AdminUserListVO> listAuthenticated(int page, int pageSize) {
+    public PageResult<AdminUserListVO> listAuthenticated(int page, int pageSize, String keyword) {
         log.info("Listing authenticated users, page={}, pageSize={}", page, pageSize);
         int offset = (page - 1) * pageSize;
-        List<AdminUserListVO> list = userMapper.getAuthenticatedUsers(offset, pageSize);
+        keyword = normalizeKeyword(keyword);
+        List<AdminUserListVO> list = userMapper.getAuthenticatedUsers(offset, pageSize, keyword);
         list.forEach(this::resolveListAvatar);
-        long total = userMapper.countByAuthStatus(1);
+        long total = userMapper.countAdminUsers(1, null, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
 
     @Override
-    public PageResult<AdminUserListVO> listPendingReview(int page, int pageSize) {
+    public PageResult<AdminUserListVO> listPendingReview(int page, int pageSize, String keyword) {
         log.info("Listing pending review users, page={}, pageSize={}", page, pageSize);
         int offset = (page - 1) * pageSize;
-        List<AdminUserListVO> list = userMapper.getPendingReviewUsers(offset, pageSize);
+        keyword = normalizeKeyword(keyword);
+        List<AdminUserListVO> list = userMapper.getPendingReviewUsers(offset, pageSize, keyword);
         list.forEach(user -> {
             resolveListAvatar(user);
             var studentCards = mediaAssetService.resolveAuthorizedBinding(
@@ -62,7 +65,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 user.setStudentIdCard(studentCards.get(0).getUrl());
             }
         });
-        long total = userMapper.countByReviewStatus(1);
+        long total = userMapper.countAdminUsers(null, 1, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
 
@@ -90,6 +93,10 @@ public class AdminUserServiceImpl implements AdminUserService {
         vo.setTodayNewCount(userMapper.countTodayNew(startTime, endTime).intValue());
 
         return vo;
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return keyword == null || keyword.trim().isEmpty() ? null : keyword.trim();
     }
 
     private void resolveListAvatar(AdminUserListVO user) {

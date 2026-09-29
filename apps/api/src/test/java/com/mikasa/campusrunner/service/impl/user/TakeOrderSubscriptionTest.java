@@ -36,7 +36,7 @@ class TakeOrderSubscriptionTest {
         order.setId(2L); order.setStatus(0); order.setGap(30);
         UserVO user = new UserVO(); user.setAuthentication(1);
         BaseContext.setCurrentId(3L);
-        when(orderMapper.getById(2L)).thenReturn(order);
+        when(orderMapper.getByIdForUpdate(2L)).thenReturn(order);
         when(userMapper.getById(3L)).thenReturn(user);
         return order;
     }

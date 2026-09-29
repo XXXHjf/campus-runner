@@ -22,6 +22,7 @@ function createPage({ services = {}, wxOverrides = {}, showError = () => {} } = 
     require: (name) => name.endsWith('feedback') ? feedbackStub(wx) : name.includes('userOrderService') ? services
       : name.includes('transformers') ? { showError: (_, message) => showError(message) }
       : name.includes('validators') ? { validateNote: () => ({ valid: true }) }
+      : name.includes('orderShare') ? require('../../apps/mini-program/utils/orderShare')
       : {},
     Page(config) {
       page = {
@@ -115,14 +116,17 @@ test('更多操作绑定当前订单，待接单订单分享跳转接单详情',
   page.openActionSheet({ currentTarget: { dataset: { id: 42 } } });
   assert.equal(page.data.actionSheetVisible, true);
   assert.equal(page.data.actionOrder.id, 42);
-  const share = page.onShareAppMessage();
+  const share = page.onShareAppMessage({ from: 'button' });
   assert.equal(share.path, '/pages/orders/takeOrders/takesInfo/info?id=42');
-  assert.equal(share.title, '一份晚饭');
+  assert.equal(share.title, '帮帮校园送 · 校园跑腿');
+  assert.equal(share.imageUrl, '/images/tabBar/tab-runner-selected.png');
+  assert.equal(page.onShareAppMessage({ from: 'menu' }).path, '/pages/index/index');
   assert.equal(page.data.actionSheetVisible, false);
   page.data.orders = [page.prepareOrder({ id: 43, status: 5, categoryName: '外卖', note: '已完成订单' })];
   page.openActionSheet({ currentTarget: { dataset: { id: 43 } } });
   assert.equal(page.data.actionSheetVisible, true);
   assert.equal(page.data.actionOrder.id, 43);
+  assert.equal(page.onShareAppMessage({ from: 'button' }).path, '/pages/index/index');
 });
 
 test('待支付卡片进入支付流程，其他操作只在对应状态生效', () => {
@@ -222,6 +226,7 @@ test('支付入口只对加载后的待支付订单拉起支付', async () => {
   let detail;
   vm.runInNewContext(detailSource, {
     console,
+    wx: { showShareMenu() {} },
     getApp: () => ({ globalData: { API_URL: 'https://example.com' } }),
     require: () => ({}),
     Page(config) {

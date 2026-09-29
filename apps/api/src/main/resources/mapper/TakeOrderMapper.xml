@@ -367,6 +367,25 @@
     </select>
 
 
+    <sql id="adminTakeOrderKeyword">
+        <if test="keyword != null">
+            AND (LOCATE(LOWER(#{keyword}), LOWER(COALESCE(o.order_number, ''))) &gt; 0
+              OR LOCATE(LOWER(#{keyword}), LOWER(COALESCE(pub_user.realname, ''))) &gt; 0
+              OR LOCATE(LOWER(#{keyword}), LOWER(COALESCE(tk_user.realname, ''))) &gt; 0
+              OR LOCATE(#{keyword}, COALESCE(tk_user.phone, '')) &gt; 0)
+        </if>
+    </sql>
+
+    <select id="countAdminTakeOrders" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tb_take_orders tk
+        INNER JOIN tb_orders o ON tk.order_id = o.id AND o.deleted = 0
+        LEFT JOIN tb_user tk_user ON tk.user_id = tk_user.id
+        LEFT JOIN tb_user pub_user ON o.user_id = pub_user.id
+        WHERE tk.deleted = 0
+        <if test="unpaid">AND o.status IN (5, 7)</if>
+        <include refid="adminTakeOrderKeyword"/>
+    </select>
+
     <select id="listAllTakeOrders" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminTakeOrderListVO">
         SELECT tk.id, tk.order_id, o.order_number, o.status AS order_status,
                tk.status AS take_order_status, c.category_name, o.price,
@@ -395,6 +414,7 @@
               AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
         ) ar ON o.recive_address = ar.id
         WHERE tk.deleted = 0
+        <include refid="adminTakeOrderKeyword"/>
         ORDER BY tk.create_time DESC
         LIMIT #{offset}, #{limit}
     </select>
@@ -427,6 +447,7 @@
               AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
         ) ar ON o.recive_address = ar.id
         WHERE tk.deleted = 0 AND o.status IN (5, 7)
+        <include refid="adminTakeOrderKeyword"/>
         ORDER BY tk.create_time DESC
         LIMIT #{offset}, #{limit}
     </select>

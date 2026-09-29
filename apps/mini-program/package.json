@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "postinstall": "node scripts/patch-picker.cjs",
+    "patch:picker": "node scripts/patch-picker.cjs"
+  },
   "dependencies": {
     "tdesign-miniprogram": "^1.4.1"
   }

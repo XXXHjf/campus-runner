@@ -6,3 +6,12 @@
   flex: 1;
   min-width: 0;
 }
+
+.address-add__label-row {
+  margin: 0 30rpx;
+  border-top: 1rpx solid var(--cr-color-border);
+}
+
+.address-add__label-input {
+  margin: 0 -30rpx;
+}

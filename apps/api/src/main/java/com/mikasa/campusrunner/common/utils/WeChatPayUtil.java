@@ -79,7 +79,7 @@ public class WeChatPayUtil {
                 log.info("Success 204");
             } else {
                 log.info("Order close failed, response code = " + statusCode);
-//                throw new IOException("request failed");
+                throw new IOException("关闭支付失败，请稍后重试");
             }
         } finally {
             response.close();

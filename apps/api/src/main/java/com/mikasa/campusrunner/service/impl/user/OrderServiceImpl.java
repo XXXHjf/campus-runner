@@ -76,6 +76,10 @@ public class OrderServiceImpl implements OrderService {
 
 
 
+    @Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.mikasa.campusrunner.service.OrderCancellationService cancellationService;
+
     /**
      * 根据价格优先排序
      *
@@ -358,56 +362,7 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public void cancel(OrderCancelDTO orderCancelDTO) throws Exception {
-        Long id = orderCancelDTO.getId();
-        String orderNumber = orderCancelDTO.getOrderNumber();
-        String cancelReason = orderCancelDTO.getCancelReason();
-        //TODO 这里要对订单状态进行约束 如要，进行修改 --> 已约束
-        if (StringUtils.isEmpty(cancelReason)) {
-            throw new ParamException(MessageConstant.NO_CANCELR_EASON);
-        }
-
-        Order order1 = orderMapper.getById(id);
-        //判断订单是否是当前用户的订单
-        if (!order1.getUserId().equals(BaseContext.getCurrentId())) {
-            throw new OrderException(MessageConstant.NOT_YOUR_ORDER);
-        }
-        //只有处在待接单和未支付状态的才能取消
-        if (order1.getStatus().equals(OrderStatusConstant.WAIT_TO_TAKE_ORDER)) {
-            log.info("Order status is 'waiting to be taken', canceling...");
-            LocalDateTime now = LocalDateTime.now();
-            Order order = Order.builder()
-                    .id(id)
-                    .cancelReson(cancelReason)
-                    .cancelTime(now)
-                    .status(OrderStatusConstant.CANCELED).build();
-//            order.setId(id);
-//            order.setCancelReson(cancelReason);
-//            order.setCancelTime(now);
-//            order.setStatus(OrderStatusConstant.CANCELED);
-
-            orderMapper.update(order);
-        } else if (order1.getStatus().equals(OrderStatusConstant.NO_PAY)) {
-            //关闭当前微信支付订单
-            log.info("Order status is 'unpaid', closing order...");
-//            weChatPayService.closeOrder(orderNumber);
-            weChatPayUtil.closeOrder(orderNumber);
-
-            //更新数据库订单状态
-            log.info("Order status: unpaid ===> canceled");
-            LocalDateTime now = LocalDateTime.now();
-            Order order = Order.builder()
-                    .id(id)
-                    .orderNumber(orderNumber)
-                    .cancelReson(cancelReason)
-                    .cancelTime(now)
-                    .status(OrderStatusConstant.CANCELED).build();
-
-            orderMapper.update(order);
-
-
-        } else {
-            throw new OrderException(MessageConstant.STATUS_NOT_WAIT_TO_TAKE_ORDER);
-        }
+        cancellationService.cancel(orderCancelDTO.getId(), orderCancelDTO.getCancelReason(), BaseContext.getCurrentId());
     }
 
 
@@ -477,7 +432,7 @@ public class OrderServiceImpl implements OrderService {
             throw new OrderException("订单尚未送达，请刷新后重试");
         }
         order.setStatus(OrderStatusConstant.SENDER_CONFIRMS_RECEIPT);
-        orderMapper.update(order);
+        orderMapper.update(Order.builder().id(order.getId()).status(order.getStatus()).build());
     }
 
     /**

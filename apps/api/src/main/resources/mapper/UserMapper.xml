@@ -100,6 +100,25 @@
         </set>
         where id = #{id}
     </update>
+    <sql id="adminUserKeyword">
+        <if test="keyword != null">
+            AND (LOCATE(LOWER(#{keyword}), LOWER(COALESCE(u.username, ''))) &gt; 0
+              OR LOCATE(LOWER(#{keyword}), LOWER(COALESCE(u.realname, ''))) &gt; 0
+              OR LOCATE(#{keyword}, COALESCE(u.phone, '')) &gt; 0
+              OR LOCATE(LOWER(#{keyword}), LOWER(COALESCE(s.school_name, ''))) &gt; 0
+              OR LOCATE(#{keyword}, CAST(u.id AS CHAR)) &gt; 0)
+        </if>
+    </sql>
+
+    <select id="countAdminUsers" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tb_user u
+        LEFT JOIN tb_school s ON u.school_id = s.id
+        WHERE u.deleted = 0
+        <if test="authentication != null">AND u.authentication = #{authentication}</if>
+        <if test="studentIdCardReview != null">AND u.student_id_card_review = #{studentIdCardReview}</if>
+        <include refid="adminUserKeyword"/>
+    </select>
+
     <select id="getAllUsers" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminUserListVO">
         SELECT u.id, u.username, u.realname, u.sex, u.phone,
                s.school_name, u.stu_id, u.authentication, u.student_id_card_review,
@@ -109,6 +128,7 @@
         FROM tb_user u
         LEFT JOIN tb_school s ON u.school_id = s.id
         WHERE u.deleted = 0
+        <include refid="adminUserKeyword"/>
         ORDER BY u.create_time DESC
         LIMIT #{offset}, #{limit}
     </select>
@@ -122,6 +142,7 @@
         FROM tb_user u
         LEFT JOIN tb_school s ON u.school_id = s.id
         WHERE u.deleted = 0 AND u.authentication = 1
+        <include refid="adminUserKeyword"/>
         ORDER BY u.create_time DESC
         LIMIT #{offset}, #{limit}
     </select>
@@ -135,6 +156,7 @@
         FROM tb_user u
         LEFT JOIN tb_school s ON u.school_id = s.id
         WHERE u.deleted = 0 AND u.student_id_card_review = 1
+        <include refid="adminUserKeyword"/>
         ORDER BY u.create_time DESC
         LIMIT #{offset}, #{limit}
     </select>

@@ -60,7 +60,7 @@ public class TakeOrderServiceImpl implements TakeOrderService {
     @Transactional
     public void take(Long id) {
         //检查一下是否有这个订单
-        Order order = orderMapper.getById(id);
+        Order order = orderMapper.getByIdForUpdate(id);
         if (order == null){
             throw new OrderException(MessageConstant.NOT_FOUND_ORDER);
         }
@@ -96,7 +96,8 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         // 新订单遵循用户选定的截止时间；旧订单保留接单后计时的历史规则。
         LocalDateTime exceedTime = deadline != null ? deadline : now.plusMinutes(order.getGap());
         order.setExceedTime(exceedTime);
-        int row1 = orderMapper.update(order);
+        int row1 = orderMapper.update(Order.builder()
+                .id(order.getId()).status(order.getStatus()).exceedTime(exceedTime).build());
 
         int row2 = takeOrderMapper.save(takeOrder);
         var notification = new com.mikasa.campusrunner.pojo.dto.MessageTakeOrderDTO();
@@ -170,7 +171,8 @@ public class TakeOrderServiceImpl implements TakeOrderService {
 
         //更新
         int row1 = takeOrderMapper.update(takeOrder);
-        int row2 = orderMapper.update(order);
+        int row2 = orderMapper.update(Order.builder()
+                .id(order.getId()).status(order.getStatus()).deliveryTime(order.getDeliveryTime()).build());
         if (purchase && canPickUp && takeOrderUpdateStatusDTO.getImageAssetId() != null) {
             mediaAssetService.replaceBinding(
                     List.of(takeOrderUpdateStatusDTO.getImageAssetId()),

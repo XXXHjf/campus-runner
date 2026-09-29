@@ -193,33 +193,42 @@ Page({
   async handleAdd(e) {
     const files = e.detail.files || [];
     for (const file of files) {
+      if (this._unloaded) break;
       await this.uploadImage(file);
     }
   },
 
   async uploadImage(file) {
-    const index = this.data.fileList.length;
+    if (this._unloaded) return;
+    const uploadId = this._nextUploadId = (this._nextUploadId || 0) + 1;
     this.setData({
       uploading: true,
-      fileList: [...this.data.fileList, { ...file, status: 'loading' }],
+      fileList: [...this.data.fileList, { ...file, uploadId, status: 'loading' }],
     });
     try {
       const uploaded = await mediaService.uploadImage(
         file.url,
         'SECOND_HAND_PRODUCT_IMAGE',
       );
+      // Deletion can shift indices or replace a file while its upload is pending.
+      const index = this.data.fileList.findIndex((item) => item.uploadId === uploadId);
+      if (this._unloaded || index === -1) {
+        mediaService.releaseTemporaryImage(uploaded.mediaId).catch(() => {});
+        return;
+      }
       this.setData({
         [`fileList[${index}].url`]: uploaded.previewUrl,
         [`fileList[${index}].mediaId`]: uploaded.mediaId,
         [`fileList[${index}].temporary`]: true,
         [`fileList[${index}].status`]: 'done',
       });
-      this.syncImages();
     } catch (error) {
+      const index = this.data.fileList.findIndex((item) => item.uploadId === uploadId);
+      if (this._unloaded || index === -1) return;
       this.setData({ [`fileList[${index}].status`]: 'failed' });
       feedback.showToast(this, { title: this.errorText(error, '图片上传失败'), theme: 'error' });
     } finally {
-      this.setData({ uploading: false });
+      if (!this._unloaded) this.syncImages();
     }
   },
 
@@ -243,6 +252,7 @@ Page({
       .map((file) => file.mediaId);
     this.setData({
       'form.imageAssetIds': imageAssetIds,
+      uploading: this.data.fileList.some((file) => file.status === 'loading'),
     });
   },
 
@@ -324,6 +334,7 @@ Page({
   },
 
   onUnload() {
+    this._unloaded = true;
     if (this.submitted) return;
     this.data.fileList
       .filter((file) => file.temporary && file.mediaId)

@@ -5,6 +5,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
 const source = fs.readFileSync(path.resolve(__dirname, '../../apps/mini-program/pages/index/index.js'), 'utf8');
+const commonContext = { module: { exports: {} }, require: () => ({}), getApp: () => ({ globalData: {} }) };
+vm.runInNewContext(fs.readFileSync(path.resolve(__dirname, '../../apps/mini-program/utils/commonJs.js'), 'utf8'), commonContext);
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function deferred() {
   let resolve;
@@ -20,6 +22,7 @@ function harness() {
     wx: { stopPullDownRefresh() { state.stopped++; } },
     require(id) {
       if (id.endsWith('feedback')) return feedbackStub({}, message => state.errors.push(message));
+      if (id.endsWith('commonJs')) return commonContext.module.exports;
       if (id.endsWith('tokenManager')) return {
         getToken: () => state.token, hasToken: () => !!state.token, waitForToken: async () => {},
       };
@@ -43,6 +46,40 @@ function harness() {
   page.loadBanners = async () => {};
   return { page, state };
 }
+test('首页送达时间区分今天和次日，无偿兼容零金额与旧空金额', () => {
+  const { page } = harness();
+  const now = new Date();
+  const timestamp = (offset) => {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} 09:00:00`;
+  };
+  const items = page._decorateTakes([
+    { expectedDeliveryTime: timestamp(0), price: '0.00' },
+    { expectedDeliveryTime: timestamp(1), price: null },
+    { expectedDeliveryTime: timestamp(0), price: 3 },
+    { expectedDeliveryTime: timestamp(0), price: 0, businessType: 'PURCHASE', productAmount: 20 },
+    { createTime: timestamp(1).replace('09:00:00', '08:30:30'), gap: 29, price: 0 },
+  ]);
+  assert.equal(items[0].displayDeliveryTime, '9:00');
+  assert.equal(items[1].displayDeliveryTime, '次日9:00');
+  assert.equal(items[4].displayDeliveryTime, '次日9:00');
+  assert.deepEqual(Array.from(items, item => item.isFree), [true, true, false, false, true]);
+});
+test('首页地址只展示楼宇和具体位置，保留完整地址供搜索与详情使用', () => {
+  const { page } = harness();
+  const order = {
+    pickUpAddress: '浙大城市学院 南校区 寝室楼 弘毅楼 寝室楼下 靠东门',
+    reciveAddress: '浙大城市学院 北校区 教学楼 理工楼 302室',
+  };
+  const [item] = page._decorateTakes([order]);
+  assert.equal(item.displayPickUpAddress, '弘毅楼 寝室楼下 靠东门');
+  assert.equal(item.displayReciveAddress, '理工楼 302室');
+  assert.equal(item.pickUpAddress, order.pickUpAddress);
+  assert.equal(item.reciveAddress, order.reciveAddress);
+  assert.equal(page._formatCardAddress('浙大城市学院 南校区 寝室楼 弘毅楼'), '弘毅楼');
+  assert.equal(page._formatCardAddress('弘毅楼 楼下'), '弘毅楼 楼下');
+  assert.equal(page._formatCardAddress(null), '');
+});
 test('切页保留已有订单，合并刷新且下拉等待数据，不显示全局加载', async () => {
   const { page, state } = harness();
   page.data.userInfo = { id: 1, schoolId: 1, authentication: 1, token: 'a' };

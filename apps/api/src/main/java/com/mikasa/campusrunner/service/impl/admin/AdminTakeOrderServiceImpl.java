@@ -26,22 +26,24 @@ public class AdminTakeOrderServiceImpl implements AdminTakeOrderService {
     private MediaAssetService mediaAssetService;
 
     @Override
-    public PageResult<AdminTakeOrderListVO> listAll(int page, int pageSize) {
+    public PageResult<AdminTakeOrderListVO> listAll(int page, int pageSize, String keyword) {
         log.info("Listing all take orders...");
         int offset = (page - 1) * pageSize;
-        List<AdminTakeOrderListVO> list = takeOrderMapper.listAllTakeOrders(offset, pageSize);
+        keyword = normalizeKeyword(keyword);
+        List<AdminTakeOrderListVO> list = takeOrderMapper.listAllTakeOrders(offset, pageSize, keyword);
         list.forEach(this::resolveProofImage);
-        long total = takeOrderMapper.countAll();
+        long total = takeOrderMapper.countAdminTakeOrders(false, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
 
     @Override
-    public PageResult<AdminTakeOrderListVO> listUnpaid(int page, int pageSize) {
+    public PageResult<AdminTakeOrderListVO> listUnpaid(int page, int pageSize, String keyword) {
         log.info("Listing unpaid take orders...");
         int offset = (page - 1) * pageSize;
-        List<AdminTakeOrderListVO> list = takeOrderMapper.listUnpaidTakeOrders(offset, pageSize);
+        keyword = normalizeKeyword(keyword);
+        List<AdminTakeOrderListVO> list = takeOrderMapper.listUnpaidTakeOrders(offset, pageSize, keyword);
         list.forEach(this::resolveProofImage);
-        long total = takeOrderMapper.countUnpaid();
+        long total = takeOrderMapper.countAdminTakeOrders(true, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
 
@@ -60,6 +62,10 @@ public class AdminTakeOrderServiceImpl implements AdminTakeOrderService {
         vo.setTodayCompletedAmount(takeOrderMapper.sumTodayCompletedAmount(startTime, endTime));
 
         return vo;
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return keyword == null || keyword.trim().isEmpty() ? null : keyword.trim();
     }
 
     private void resolveProofImage(AdminTakeOrderListVO takeOrder) {

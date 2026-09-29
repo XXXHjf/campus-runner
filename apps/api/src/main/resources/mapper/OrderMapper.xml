@@ -949,7 +949,7 @@
             <if test="productAmount != null">product_amount = #{productAmount}, </if>
             <if test="businessType != null and businessType != ''">business_type = #{businessType}, </if>
             <if test="serviceFeeRate != null">service_fee_rate = #{serviceFeeRate}, </if>
-            <if test="serviceFeeRate != null">service_fee = #{serviceFeeRate}, </if>
+            <if test="serviceFee != null">service_fee = #{serviceFee}, </if>
             <if test="payAmount != null">pay_amount = #{payAmount}, </if>
             <if test="deliveryTime != null">delivery_time = #{deliveryTime}, </if>
             <if test="cancelTime != null">cancel_time = #{cancelTime}, </if>
@@ -980,13 +980,41 @@
         where order_number = #{orderNumber}
     </update>
 
+    <sql id="latestAdminRefundJoin">
+        LEFT JOIN tb_refund_info ri ON ri.id = (
+            SELECT MAX(r.id) FROM tb_refund_info r
+            WHERE r.order_number = o.order_number AND r.total_fee &gt; 0 AND r.refund &gt; 0
+        )
+    </sql>
+
+    <sql id="adminOrderKeyword">
+        <if test="keyword != null">
+            AND (LOCATE(LOWER(#{keyword}), LOWER(COALESCE(o.order_number, ''))) &gt; 0
+              OR LOCATE(LOWER(#{keyword}), LOWER(COALESCE(o.username, ''))) &gt; 0
+              OR LOCATE(#{keyword}, COALESCE(o.phone, '')) &gt; 0)
+        </if>
+    </sql>
+
+    <select id="countAdminOrders" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tb_orders o
+        WHERE o.deleted = 0
+        <if test="statuses != null">
+            AND o.status IN
+            <foreach collection="statuses" item="status" open="(" separator="," close=")">
+                #{status}
+            </foreach>
+        </if>
+        <include refid="adminOrderKeyword"/>
+    </select>
+
     <select id="listAllOrders" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminOrderListVO">
         SELECT o.id, o.order_number, o.status, c.category_name,
                o.price, o.product_amount, o.business_type,
                (o.product_amount + o.price) AS runner_receivable,
                o.service_fee, o.pay_amount,
                o.username, o.phone, o.note, o.door_access, o.create_time,
-               ap.address AS pick_up_address, ar.address AS recive_address
+               ap.address AS pick_up_address, ar.address AS recive_address,
+               ri.refund / 100.0 AS refund_amount, ri.refund_status
         FROM tb_orders o
         LEFT JOIN tb_category c ON o.category_id = c.id
         LEFT JOIN (
@@ -1001,7 +1029,9 @@
             WHERE ad.school_id = s.id AND ad.compus_id = cp.id
               AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
         ) ar ON o.recive_address = ar.id
+        <include refid="latestAdminRefundJoin"/>
         WHERE o.deleted = 0
+        <include refid="adminOrderKeyword"/>
         ORDER BY o.create_time DESC
         LIMIT #{offset}, #{limit}
     </select>
@@ -1015,7 +1045,8 @@
                o.cancel_time, o.cancel_reson AS cancel_reason, o.delivery_time,
                ap.address AS pick_up_address, ar.address AS recive_address,
                tk_user.realname AS taker_name, tk_user.phone AS taker_phone,
-               tk.create_time AS take_order_time
+               tk.create_time AS take_order_time,
+               ri.refund / 100.0 AS refund_amount, ri.refund_status
         FROM tb_orders o
         LEFT JOIN tb_category c ON o.category_id = c.id
         LEFT JOIN (
@@ -1032,11 +1063,13 @@
         ) ar ON o.recive_address = ar.id
         LEFT JOIN tb_take_orders tk ON o.id = tk.order_id AND tk.deleted = 0
         LEFT JOIN tb_user tk_user ON tk.user_id = tk_user.id
+        <include refid="latestAdminRefundJoin"/>
         WHERE o.deleted = 0
           AND o.status IN
           <foreach collection="statuses" item="s" open="(" separator="," close=")">
               #{s}
           </foreach>
+        <include refid="adminOrderKeyword"/>
         ORDER BY o.create_time DESC
         LIMIT #{offset}, #{limit}
     </select>
@@ -1074,7 +1107,7 @@
         LEFT JOIN tb_take_orders tk ON o.id = tk.order_id AND tk.deleted = 0
         LEFT JOIN tb_user tk_user ON tk.user_id = tk_user.id
         LEFT JOIN tb_payment_log pl ON o.order_number = pl.order_number
-        LEFT JOIN tb_refund_info ri ON o.order_number = ri.order_number
+        <include refid="latestAdminRefundJoin"/>
         WHERE o.id = #{id} AND o.deleted = 0
     </select>
 

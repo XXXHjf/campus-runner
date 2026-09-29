@@ -23,25 +23,28 @@ public class AdminUserController {
 
     @GetMapping("/all")
     @Operation(summary = "全部用户", description = "分页查询所有注册用户，包含用户基本信息、认证状态、发单数和接单数")
-    public Result<PageResult<AdminUserListVO>> all(@RequestParam int page, @RequestParam int pageSize) {
+    public Result<PageResult<AdminUserListVO>> all(@RequestParam int page, @RequestParam int pageSize,
+                                                   @RequestParam(required = false) String keyword) {
         log.info("List all users, page={}, pageSize={}", page, pageSize);
-        PageResult<AdminUserListVO> result = adminUserService.listAll(page, pageSize);
+        PageResult<AdminUserListVO> result = adminUserService.listAll(page, pageSize, keyword);
         return Result.success(result);
     }
 
     @GetMapping("/authenticated")
     @Operation(summary = "已认证用户", description = "分页查询已完成学生认证的用户列表，包含用户基本信息和认证信息")
-    public Result<PageResult<AdminUserListVO>> authenticated(@RequestParam int page, @RequestParam int pageSize) {
+    public Result<PageResult<AdminUserListVO>> authenticated(@RequestParam int page, @RequestParam int pageSize,
+                                                             @RequestParam(required = false) String keyword) {
         log.info("List authenticated users, page={}, pageSize={}", page, pageSize);
-        PageResult<AdminUserListVO> result = adminUserService.listAuthenticated(page, pageSize);
+        PageResult<AdminUserListVO> result = adminUserService.listAuthenticated(page, pageSize, keyword);
         return Result.success(result);
     }
 
     @GetMapping("/pending-review")
     @Operation(summary = "待审核用户", description = "分页查询学生证待审核的用户列表（studentIdCardReview=1），包含学生证照片信息")
-    public Result<PageResult<AdminUserListVO>> pendingReview(@RequestParam int page, @RequestParam int pageSize) {
+    public Result<PageResult<AdminUserListVO>> pendingReview(@RequestParam int page, @RequestParam int pageSize,
+                                                             @RequestParam(required = false) String keyword) {
         log.info("List pending review users, page={}, pageSize={}", page, pageSize);
-        PageResult<AdminUserListVO> result = adminUserService.listPendingReview(page, pageSize);
+        PageResult<AdminUserListVO> result = adminUserService.listPendingReview(page, pageSize, keyword);
         return Result.success(result);
     }
 

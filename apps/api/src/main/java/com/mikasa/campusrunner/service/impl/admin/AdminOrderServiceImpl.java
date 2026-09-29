@@ -1,26 +1,21 @@
 package com.mikasa.campusrunner.service.impl.admin;
 
-import com.mikasa.campusrunner.common.constant.MessageConstant;
 import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
 import com.mikasa.campusrunner.common.constant.MediaPurpose;
 import com.mikasa.campusrunner.common.constant.OrderStatusConstant;
-import com.mikasa.campusrunner.common.exception.OrderException;
 import com.mikasa.campusrunner.mapper.OrderMapper;
+import com.mikasa.campusrunner.mapper.RefundInfoMapper;
+import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderActionVO;
 import com.mikasa.campusrunner.pojo.dto.PageResult;
-import com.mikasa.campusrunner.pojo.dto.RefundInfoDTO;
-import com.mikasa.campusrunner.pojo.entity.Order;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderDetailVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderListVO;
 import com.mikasa.campusrunner.pojo.vo.admin.AdminOrderStatisticsVO;
 import com.mikasa.campusrunner.service.MediaAssetService;
 import com.mikasa.campusrunner.service.admin.AdminOrderService;
-import com.mikasa.campusrunner.service.user.WeChatPayService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -33,77 +28,66 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     private OrderMapper orderMapper;
 
     @Autowired
+    private RefundInfoMapper refundInfoMapper;
+
+    @Autowired
     private MediaAssetService mediaAssetService;
 
-    @Autowired(required = false)
-    private WeChatPayService weChatPayService;
-
     @Override
-    public PageResult<AdminOrderListVO> listAll(int page, int pageSize) {
+    public PageResult<AdminOrderListVO> listAll(int page, int pageSize, String keyword) {
         log.info("Listing all orders, page={}, pageSize={}", page, pageSize);
         int offset = (page - 1) * pageSize;
-        List<AdminOrderListVO> list = orderMapper.listAllOrders(offset, pageSize);
-        long total = orderMapper.getAllOrdersNum();
+        keyword = normalizeKeyword(keyword);
+        List<AdminOrderListVO> list = orderMapper.listAllOrders(offset, pageSize, keyword);
+        long total = orderMapper.countAdminOrders(null, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
 
     @Override
-    public PageResult<AdminOrderListVO> listWaiting(int page, int pageSize) {
+    public PageResult<AdminOrderListVO> listWaiting(int page, int pageSize, String keyword) {
         log.info("Listing waiting orders...");
         int offset = (page - 1) * pageSize;
-        List<AdminOrderListVO> list = orderMapper.listOrdersByStatus(
-            Arrays.asList(OrderStatusConstant.WAIT_TO_TAKE_ORDER), offset, pageSize);
-        long total = orderMapper.getAllOrdersByStatus(OrderStatusConstant.WAIT_TO_TAKE_ORDER);
+        keyword = normalizeKeyword(keyword);
+        List<Integer> statuses = Arrays.asList(OrderStatusConstant.WAIT_TO_TAKE_ORDER);
+        List<AdminOrderListVO> list = orderMapper.listOrdersByStatus(statuses, offset, pageSize, keyword);
+        long total = orderMapper.countAdminOrders(statuses, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
 
     @Override
-    public PageResult<AdminOrderListVO> listInProgress(int page, int pageSize) {
+    public PageResult<AdminOrderListVO> listInProgress(int page, int pageSize, String keyword) {
         log.info("Listing in-progress orders...");
         int offset = (page - 1) * pageSize;
-        List<AdminOrderListVO> list = orderMapper.listOrdersByStatus(
-            Arrays.asList(OrderStatusConstant.ALREADY_TAKE_ORDER,
-                          OrderStatusConstant.DELIVERYING,
-                          OrderStatusConstant.ORDER_FINISH),
-            offset, pageSize);
-        long total = orderMapper.countOrdersByStatuses(
-            Arrays.asList(OrderStatusConstant.ALREADY_TAKE_ORDER,
-                          OrderStatusConstant.DELIVERYING,
-                          OrderStatusConstant.ORDER_FINISH));
+        keyword = normalizeKeyword(keyword);
+        List<Integer> statuses = Arrays.asList(OrderStatusConstant.ALREADY_TAKE_ORDER,
+                OrderStatusConstant.DELIVERYING, OrderStatusConstant.ORDER_FINISH);
+        List<AdminOrderListVO> list = orderMapper.listOrdersByStatus(statuses, offset, pageSize, keyword);
+        long total = orderMapper.countAdminOrders(statuses, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
 
     @Override
-    public PageResult<AdminOrderListVO> listCompleted(int page, int pageSize) {
+    public PageResult<AdminOrderListVO> listCompleted(int page, int pageSize, String keyword) {
         log.info("Listing completed orders...");
         int offset = (page - 1) * pageSize;
-        List<AdminOrderListVO> list = orderMapper.listOrdersByStatus(
-            Arrays.asList(OrderStatusConstant.SENDER_CONFIRMS_RECEIPT,
-                          OrderStatusConstant.WITHDRAWAL_SUCCEEDED,
-                          OrderStatusConstant.WITHDRAWAL_FAILED),
-            offset, pageSize);
-        long total = orderMapper.countOrdersByStatuses(
-            Arrays.asList(OrderStatusConstant.SENDER_CONFIRMS_RECEIPT,
-                          OrderStatusConstant.WITHDRAWAL_SUCCEEDED,
-                          OrderStatusConstant.WITHDRAWAL_FAILED));
+        keyword = normalizeKeyword(keyword);
+        List<Integer> statuses = Arrays.asList(OrderStatusConstant.SENDER_CONFIRMS_RECEIPT,
+                OrderStatusConstant.WITHDRAWAL_SUCCEEDED, OrderStatusConstant.WITHDRAWAL_FAILED);
+        List<AdminOrderListVO> list = orderMapper.listOrdersByStatus(statuses, offset, pageSize, keyword);
+        long total = orderMapper.countAdminOrders(statuses, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
 
     @Override
-    public PageResult<AdminOrderListVO> listCanceled(int page, int pageSize) {
+    public PageResult<AdminOrderListVO> listCanceled(int page, int pageSize, String keyword) {
         log.info("Listing canceled/refund orders...");
         int offset = (page - 1) * pageSize;
-        List<AdminOrderListVO> list = orderMapper.listOrdersByStatus(
-            Arrays.asList(OrderStatusConstant.CANCELED,
-                          OrderStatusConstant.REFUND_PROCESSING,
-                          OrderStatusConstant.REFUND_SUCCESS,
-                          OrderStatusConstant.REFUND_ABNORMAL),
-            offset, pageSize);
-        long total = orderMapper.countOrdersByStatuses(
-            Arrays.asList(OrderStatusConstant.CANCELED,
-                          OrderStatusConstant.REFUND_PROCESSING,
-                          OrderStatusConstant.REFUND_SUCCESS,
-                          OrderStatusConstant.REFUND_ABNORMAL));
+        keyword = normalizeKeyword(keyword);
+        List<Integer> statuses = Arrays.asList(OrderStatusConstant.CANCELED,
+                OrderStatusConstant.REFUND_PROCESSING, OrderStatusConstant.REFUND_SUCCESS,
+                OrderStatusConstant.REFUND_ABNORMAL);
+        List<AdminOrderListVO> list = orderMapper.listOrdersByStatus(statuses, offset, pageSize, keyword);
+        long total = orderMapper.countAdminOrders(statuses, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
 
@@ -173,54 +157,29 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         return vo;
     }
 
+    @Autowired
+    private com.mikasa.campusrunner.service.OrderCancellationService cancellationService;
+
     @Override
-    @Transactional
-    public void cancel(Long id, String reason) {
-        log.info("Admin canceling order id={}, reason={}", id, reason);
-        Order order = orderMapper.getById(id);
-        if (order == null) {
-            throw new OrderException(MessageConstant.NOT_FOUND_ORDER);
-        }
-        Integer status = order.getStatus();
-        if (!status.equals(OrderStatusConstant.WAIT_TO_TAKE_ORDER) &&
-            !status.equals(OrderStatusConstant.NO_PAY)) {
-            throw new OrderException("当前订单状态不能取消");
-        }
-        order.setStatus(OrderStatusConstant.CANCELED);
-        order.setCancelReson(reason);
-        order.setCancelTime(LocalDateTime.now());
-        orderMapper.update(order);
+    public AdminOrderActionVO cancel(Long id, String reason) {
+        cancellationService.cancel(id, reason, null);
+        return actionResult(id);
     }
 
     @Override
-    @Transactional
-    public void refund(Long id, String reason) {
-        log.info("Admin refunding order id={}, reason={}", id, reason);
-        Order order = orderMapper.getById(id);
-        if (order == null) {
-            throw new OrderException(MessageConstant.NOT_FOUND_ORDER);
-        }
-        if (order.getPayAmount() == null || order.getPayAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new OrderException("该订单没有可退款金额");
-        }
-        if (order.getStatus().equals(OrderStatusConstant.WITHDRAWAL_SUCCEEDED) ||
-            order.getStatus().equals(OrderStatusConstant.WITHDRAWAL_FAILED)) {
-            throw new OrderException("该订单已完成收款，不能退款");
-        }
+    public AdminOrderActionVO refund(Long id, String reason) {
+        cancellationService.refund(id, reason);
+        return actionResult(id);
+    }
 
-        order.setStatus(OrderStatusConstant.REFUND_PROCESSING);
-        order.setCancelReson(reason);
-        orderMapper.update(order);
+    private String normalizeKeyword(String keyword) {
+        return keyword == null || keyword.trim().isEmpty() ? null : keyword.trim();
+    }
 
-        if (weChatPayService != null) {
-            try {
-                RefundInfoDTO dto = new RefundInfoDTO();
-                dto.setOrderNumber(order.getOrderNumber());
-                dto.setReason(reason);
-                weChatPayService.refunds(dto);
-            } catch (Exception e) {
-                log.error("Refund failed for order: {}", order.getOrderNumber(), e);
-            }
-        }
+    private AdminOrderActionVO actionResult(Long id) {
+        var order = orderMapper.getById(id);
+        var refund = refundInfoMapper.findLatestByOrderNumber(order.getOrderNumber());
+        return new AdminOrderActionVO(order.getStatus(), refund == null ? null : refund.getRefundNumber(),
+                refund == null ? null : refund.getRefundStatus());
     }
 }

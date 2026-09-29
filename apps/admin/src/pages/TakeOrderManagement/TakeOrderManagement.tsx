@@ -4,7 +4,7 @@
  * 基于 URL path 切换 Tab
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Tabs,
@@ -68,16 +68,16 @@ const TAB_CONFIG: Record<
   string,
   {
     label: string
-    api: (page: number, pageSize: number) => Promise<{ total: number; list: AdminTakeOrderItem[] }>
+    api: (page: number, pageSize: number, keyword: string) => Promise<{ total: number; list: AdminTakeOrderItem[] }>
   }
 > = {
   all: {
     label: '全部接单',
-    api: (page, pageSize) => takeOrderService.listAll(page, pageSize),
+    api: (page, pageSize, keyword) => takeOrderService.listAll(page, pageSize, keyword),
   },
   withdrawn: {
     label: '未收款订单',
-    api: (page, pageSize) => takeOrderService.listUnpaid(page, pageSize),
+    api: (page, pageSize, keyword) => takeOrderService.listUnpaid(page, pageSize, keyword),
   },
 }
 
@@ -100,6 +100,8 @@ export default function TakeOrderManagement() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [keyword, setKeyword] = useState('')
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const listRequestId = useRef(0)
 
   // Order detail modal state
   const [detailModal, setDetailModal] = useState<{
@@ -124,18 +126,21 @@ export default function TakeOrderManagement() {
   const loadList = async (currentTab: string) => {
     const config = TAB_CONFIG[currentTab]
     if (!config) return
+    const requestId = ++listRequestId.current
     setLoading(true)
     try {
-      const res = await config.api(page, PAGE_SIZE)
+      const res = await config.api(page, PAGE_SIZE, searchKeyword)
+      if (requestId !== listRequestId.current) return
       setList(res.list)
       setTotal(res.total)
     } catch (err) {
+      if (requestId !== listRequestId.current) return
       console.error('获取接单列表失败', err)
       message.error('获取接单列表失败')
       setList([])
       setTotal(0)
     } finally {
-      setLoading(false)
+      if (requestId === listRequestId.current) setLoading(false)
     }
   }
 
@@ -157,7 +162,15 @@ export default function TakeOrderManagement() {
     if (isListTab) {
       loadList(tabKey)
     }
-  }, [page, tabKey])
+  }, [page, tabKey, searchKeyword])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1)
+      setSearchKeyword(keyword.trim())
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [keyword])
 
   useEffect(() => {
     if (!isListTab) {
@@ -169,20 +182,8 @@ export default function TakeOrderManagement() {
   useEffect(() => {
     setPage(1)
     setKeyword('')
+    setSearchKeyword('')
   }, [tabKey])
-
-  // Frontend keyword filtering
-  const filteredList = useMemo(() => {
-    if (!keyword.trim()) return list
-    const kw = keyword.trim().toLowerCase()
-    return list.filter(
-      (item) =>
-        item.orderNumber.toLowerCase().includes(kw) ||
-        item.publisherName.toLowerCase().includes(kw) ||
-        item.takerName.toLowerCase().includes(kw) ||
-        item.takerPhone.includes(kw),
-    )
-  }, [list, keyword])
 
   // Handle tab change
   const onTabChange = (key: string) => {
@@ -402,7 +403,10 @@ export default function TakeOrderManagement() {
               placeholder="搜索订单编号、发单人、接单人或联系电话"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              onSearch={(value) => setKeyword(value)}
+              onSearch={(value) => {
+                setPage(1)
+                setSearchKeyword(value.trim())
+              }}
               style={{ width: 400 }}
               allowClear
             />
@@ -410,7 +414,7 @@ export default function TakeOrderManagement() {
 
           <AdminContentCard flush>
             <Table
-              dataSource={filteredList}
+              dataSource={list}
               columns={columns}
               rowKey="id"
               loading={loading}

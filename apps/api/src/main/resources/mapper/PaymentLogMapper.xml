@@ -47,6 +47,7 @@
         WHERE
             deleted = 0 AND
             order_number = #{orderNumber}
+        ORDER BY id DESC LIMIT 1
     </select>
 
 </mapper>

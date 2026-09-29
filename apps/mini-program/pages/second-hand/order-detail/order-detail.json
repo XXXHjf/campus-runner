@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "璁㈠崟璇︽儏",
+  "navigationBarTitleText": "订单详情",
   "usingComponents": {
     "t-button": "tdesign-miniprogram/button/button",
     "t-image": "tdesign-miniprogram/image/image",

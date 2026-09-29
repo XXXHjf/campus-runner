@@ -87,11 +87,15 @@ public interface UserMapper {
 //
 //    Integer insert(User user);
 
-    List<AdminUserListVO> getAllUsers(@Param("offset") int offset, @Param("limit") int limit);
+    List<AdminUserListVO> getAllUsers(@Param("offset") int offset, @Param("limit") int limit, @Param("keyword") String keyword);
 
-    List<AdminUserListVO> getAuthenticatedUsers(@Param("offset") int offset, @Param("limit") int limit);
+    List<AdminUserListVO> getAuthenticatedUsers(@Param("offset") int offset, @Param("limit") int limit, @Param("keyword") String keyword);
 
-    List<AdminUserListVO> getPendingReviewUsers(@Param("offset") int offset, @Param("limit") int limit);
+    List<AdminUserListVO> getPendingReviewUsers(@Param("offset") int offset, @Param("limit") int limit, @Param("keyword") String keyword);
+
+    Long countAdminUsers(@Param("authentication") Integer authentication,
+                         @Param("studentIdCardReview") Integer studentIdCardReview,
+                         @Param("keyword") String keyword);
 
     AdminUserDetailVO getAdminUserDetail(@Param("id") Long id);
 

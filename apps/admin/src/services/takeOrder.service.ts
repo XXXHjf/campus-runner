@@ -13,15 +13,17 @@ import type {
 export async function listAll(
   page: number,
   pageSize: number,
+  keyword = '',
 ): Promise<PageResponse<AdminTakeOrderItem>> {
-  return get<PageResponse<AdminTakeOrderItem>>('/admin/api/take-orders/all', { page, pageSize })
+  return get<PageResponse<AdminTakeOrderItem>>('/admin/api/take-orders/all', { page, pageSize, keyword })
 }
 
 export async function listUnpaid(
   page: number,
   pageSize: number,
+  keyword = '',
 ): Promise<PageResponse<AdminTakeOrderItem>> {
-  return get<PageResponse<AdminTakeOrderItem>>('/admin/api/take-orders/unpaid', { page, pageSize })
+  return get<PageResponse<AdminTakeOrderItem>>('/admin/api/take-orders/unpaid', { page, pageSize, keyword })
 }
 
 export async function statistics(): Promise<AdminTakeOrderStatistics> {

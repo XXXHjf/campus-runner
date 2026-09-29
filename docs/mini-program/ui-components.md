@@ -50,6 +50,21 @@
   `app.wxss` 的 `cr-action-sheet`：操作黑字、取消灰字，无分隔线，按钮间距 24rpx。
   底部安全区由 TDesign `t-popup` 提供，内容区不再叠加安全区留白。
 
+## 选择滚轮依赖补丁
+
+TDesign 1.4.1 的 `picker-item` 未绑定选项点击，且拖动时使用 240ms 过渡、
+位移超过阈值时突然加速。`apps/mini-program/scripts/patch-picker.cjs` 为该版本
+补充点击选中、无动画拖动、松手吸附及首末项边界限制，保留原有外观和 `pick` 联动事件。
+所有使用 `t-picker-item` 的地址及学校选择入口共享此修复。
+
+`npm install` / `npm ci` 的 `postinstall` 自动应用补丁；已有依赖可在
+`apps/mini-program` 执行 `npm run patch:picker`，再在微信开发者工具执行“构建 npm”。
+脚本也同步本地已有的 `miniprogram_npm` 副本。不要只手改生成目录。
+升级 TDesign 时需复核补丁，脚本遇到不匹配的源码会报错。
+最小逻辑检查为 `node --test tests/mini-program/pickerInteraction.test.cjs`（仓库根目录执行，
+需已有构建 npm 产物）；真机人工检查点击、逐项滑动、三列联动及确认结果。
+回退时移除补丁脚本与 npm 脚本配置，重新安装依赖并构建 npm，恢复原版组件。
+
 ## 验证边界
 
 只做与改动直接相关的最低必要静态检查；页面视觉和交互由用户在微信开发者工具或

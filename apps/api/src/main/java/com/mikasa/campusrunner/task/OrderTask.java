@@ -58,6 +58,9 @@ public class OrderTask {
 
 
 
+    @Autowired
+    private com.mikasa.campusrunner.service.OrderCancellationService cancellationService;
+
     /**
      * 处理自动取消订单
      */
@@ -70,27 +73,11 @@ public class OrderTask {
 
         List<Order> list = orderMapper.getByStatusAndCancelTimeLT(OrderStatusConstant.WAIT_TO_TAKE_ORDER, now);
 
-        for (Order order : list){
-            //处理退款
-            if (order.getPayAmount() != null && order.getPayAmount().compareTo(BigDecimal.ZERO) > 0) {
-                //表示有金额
-                order.setCancelReson(MessageConstant.ORDER_TIME_OUT_TO_AUTO_REFUND);
-                order.setStatus(OrderStatusConstant.REFUND_PROCESSING);
-                int row = orderMapper.update(order);
-                if (row == 0) continue;
-                RefundInfoDTO dto = new RefundInfoDTO();
-                dto.setOrderNumber(order.getOrderNumber());
-                dto.setReason(order.getCancelReson());
-                //退款
-                try {
-                    weChatPayService.refunds(dto);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }else {
-                order.setCancelReson(MessageConstant.ORDER_TIME_OUT_TO_AUTO_CANCEL);
-                order.setStatus(OrderStatusConstant.CANCELED);
-                orderMapper.update(order);
+        for (Order order : list) {
+            try {
+                cancellationService.cancel(order.getId(), "超时无人接单", null);
+            } catch (Exception e) {
+                log.warn("Auto cancellation needs attention, order={}", order.getOrderNumber());
             }
         }
     }
@@ -143,7 +130,11 @@ public class OrderTask {
                     order.getId(), order.getOrderNumber(), order.getCreateTime());
 
             //核实订单状态，分别处理订单
-            weChatPayService.checkOrderStatus(order);
+            try {
+                weChatPayService.checkOrderStatus(order);
+            } catch (Exception e) {
+                log.warn("Payment reconciliation deferred, order={}", order.getOrderNumber());
+            }
         }
     }
 
@@ -174,7 +165,11 @@ public class OrderTask {
                     refundInfo.getId(), refundInfo.getOrderNumber(), refundInfo.getRefundNumber(), refundInfo.getCreateTime());
 
             //核实订单状态，分别处理订单 调用微信支付查询退款接口
-            weChatPayService.checkRefundStatus(refundInfo);
+            try {
+                weChatPayService.checkRefundStatus(refundInfo);
+            } catch (Exception e) {
+                log.warn("Refund reconciliation deferred, refund={}", refundInfo.getRefundNumber());
+            }
         }
     }
 }

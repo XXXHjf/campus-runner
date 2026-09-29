@@ -52,8 +52,10 @@
 
     <select id="getRefundingOrderByTimeOut" resultType="com.mikasa.campusrunner.pojo.entity.RefundInfo">
         select * from tb_refund_info
-        where refund_status = #{refundStatus} AND
-              create_time &lt; #{time}
+        where refund_status in (#{refundStatus}, 'REQUESTED', 'REQUEST_FAILED') AND
+              total_fee &gt; 0 AND refund &gt; 0 AND
+              update_time &lt; #{time}
+              AND EXISTS (SELECT 1 FROM tb_orders o WHERE o.order_number = tb_refund_info.order_number)
 
     </select>
 </mapper>

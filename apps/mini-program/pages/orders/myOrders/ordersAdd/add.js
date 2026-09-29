@@ -1450,23 +1450,15 @@ Page({
       this.setData({
         reciveList: addrList,
         pickUpList: addrList,
-        addrList: addrList
+        addrList: addrList,
+        // 按 ID 同步最新内容；地址已删除时清空当前选择。
+        showPickUp: this.data.showPickUp
+          ? this.findAddressById(addrList, this.data.showPickUp.id) || null
+          : null,
+        showRecive: this.data.showRecive
+          ? this.findAddressById(addrList, this.data.showRecive.id) || null
+          : null
       });
-      
-      // 验证当前选中的地址是否仍然有效
-      if (this.data.showPickUp) {
-        const pickUpExists = addrList.some(addr => addr.id === this.data.showPickUp.id);
-        if (!pickUpExists) {
-          this.setData({ showPickUp: null });
-        }
-      }
-      
-      if (this.data.showRecive) {
-        const reciveExists = addrList.some(addr => addr.id === this.data.showRecive.id);
-        if (!reciveExists) {
-          this.setData({ showRecive: null });
-        }
-      }
     } catch (error) {
       console.error('[数据刷新] 刷新地址失败:', error);
     }

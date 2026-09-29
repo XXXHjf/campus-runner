@@ -108,6 +108,19 @@ Page({
     if (id) wx.navigateTo({ url: `/pages/second-hand/detail/detail?id=${id}` });
   },
 
+  onShareAppMessage(e) {
+    const product = this.data.actionProduct;
+    this.closeActionSheet();
+    if (e?.from !== 'button' || !product.id || Number(product.status) !== 0) {
+      return { title: '帮帮校园送 · 校园二手好物', path: '/pages/second-hand/index/index' };
+    }
+    return {
+      title: `${product.title} · ¥${product.price}`,
+      path: `/pages/second-hand/detail/detail?id=${encodeURIComponent(product.id)}`,
+      ...(product.coverImage ? { imageUrl: product.coverImage } : {}),
+    };
+  },
+
   firstImage(images) {
     if (!images) return '';
     return String(images).split(',').filter(Boolean)[0] || '';

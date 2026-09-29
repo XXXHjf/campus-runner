@@ -6,6 +6,7 @@ const {
   _getOptions,
   _compareFirstNChars,
   _parseStrDateTime,
+  _getExpectedDeliveryDate,
   _isTomorrow,
   _formatTime
 } = require('../../utils/commonJs');
@@ -309,9 +310,31 @@ Page({
   _decorateTakes(takes) {
     return (Array.isArray(takes) ? takes : []).map((item) => ({
       ...item,
+      displayDeliveryTime: this._formatDeliveryTime(item),
+      isFree: item.businessType !== 'PURCHASE' && (item.price == null || Number(item.price) === 0),
+      displayPickUpAddress: this._formatCardAddress(item.pickUpAddress),
+      displayReciveAddress: this._formatCardAddress(item.reciveAddress),
       displayPickUpLabel: item.businessType === 'PURCHASE' ? '购' : '取',
       displayReciveLabel: item.businessType === 'PURCHASE' ? '送' : '收',
     }));
+  },
+  _formatCardAddress(address) {
+    const fullAddress = String(address || '').trim();
+    // 地址按“学校 校区 类型 楼宇 具体位置”拼接，仅缩短卡片展示。
+    const match = fullAddress.match(/^\S+\s+\S+\s+\S+\s+([\s\S]+)$/);
+    return match ? match[1] : fullAddress;
+  },
+  _formatDeliveryTime(item) {
+    if (!item.expectedDeliveryTime && !item.createTime) return item.expectTime || '';
+    const date = _getExpectedDeliveryDate(item.createTime, item.gap, item.expectedDeliveryTime);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const time = `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+    if (+day === +today) return time;
+    if (+day === +tomorrow) return `次日${time}`;
+    return item.expectTime || _formatTime(date);
   },
   _sortTakes(takes) {
     if (this.data.sortMode !== 'price') return takes;

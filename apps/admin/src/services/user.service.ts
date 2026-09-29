@@ -14,16 +14,16 @@ export async function login(data: AdminLoginRequest): Promise<AdminLoginResponse
   return post<AdminLoginResponse>('/admin/api/login', data)
 }
 
-export async function listAllUsers(page: number, pageSize: number): Promise<PageResponse<AdminUserItem>> {
-  return get<PageResponse<AdminUserItem>>('/admin/api/users/all', { page, pageSize })
+export async function listAllUsers(page: number, pageSize: number, keyword = ''): Promise<PageResponse<AdminUserItem>> {
+  return get<PageResponse<AdminUserItem>>('/admin/api/users/all', { page, pageSize, keyword })
 }
 
-export async function listAuthenticated(page: number, pageSize: number): Promise<PageResponse<AdminUserItem>> {
-  return get<PageResponse<AdminUserItem>>('/admin/api/users/authenticated', { page, pageSize })
+export async function listAuthenticated(page: number, pageSize: number, keyword = ''): Promise<PageResponse<AdminUserItem>> {
+  return get<PageResponse<AdminUserItem>>('/admin/api/users/authenticated', { page, pageSize, keyword })
 }
 
-export async function listPendingReview(page: number, pageSize: number): Promise<PageResponse<AdminUserItem>> {
-  return get<PageResponse<AdminUserItem>>('/admin/api/users/pending-review', { page, pageSize })
+export async function listPendingReview(page: number, pageSize: number, keyword = ''): Promise<PageResponse<AdminUserItem>> {
+  return get<PageResponse<AdminUserItem>>('/admin/api/users/pending-review', { page, pageSize, keyword })
 }
 
 export async function userDetail(id: number): Promise<AdminUserDetail> {

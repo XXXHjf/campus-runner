@@ -12,6 +12,12 @@ export interface PageResponse<T> {
 
 // ----- Order Management -----
 
+export interface AdminOrderActionResult {
+  orderStatus: number
+  refundNumber: string | null
+  refundStatus: string | null
+}
+
 export interface AdminOrderItem {
   id: number
   orderNumber: string

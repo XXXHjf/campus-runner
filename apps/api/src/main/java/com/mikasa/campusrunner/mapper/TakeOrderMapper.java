@@ -93,9 +93,13 @@ public interface TakeOrderMapper {
                                      @Param("schoolId") Long schoolId,
                                      @Param("orderStatus") Integer orderStatus);
 
-    List<AdminTakeOrderListVO> listAllTakeOrders(@Param("offset") int offset, @Param("limit") int limit);
+    List<AdminTakeOrderListVO> listAllTakeOrders(@Param("offset") int offset, @Param("limit") int limit,
+                                                @Param("keyword") String keyword);
 
-    List<AdminTakeOrderListVO> listUnpaidTakeOrders(@Param("offset") int offset, @Param("limit") int limit);
+    List<AdminTakeOrderListVO> listUnpaidTakeOrders(@Param("offset") int offset, @Param("limit") int limit,
+                                                   @Param("keyword") String keyword);
+
+    Long countAdminTakeOrders(@Param("unpaid") boolean unpaid, @Param("keyword") String keyword);
 
     Long countTodayNew(@Param("startTime") String startTime, @Param("endTime") String endTime);
 

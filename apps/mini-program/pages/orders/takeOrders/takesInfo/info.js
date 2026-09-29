@@ -1,5 +1,6 @@
 const { shareOrder, title: shareTitle, imageUrl: shareImageUrl } = require('../../../../utils/orderShare');
 const feedback = require('../../../../utils/feedback');
+const detailRefresh = require('../../../../utils/detailRefresh');
 // 引入服务和工具
 const userOrderService = require('../../../../services/userOrderService');
 const takeOrderService = require('../../../../services/takeOrderService');
@@ -50,6 +51,8 @@ Page({
     fileList: [],
     image: null,
     imageAssetId: null,
+    proofUploading: false,
+    proofSubmitting: false,
     transferBusy: false,
   },
 
@@ -131,14 +134,16 @@ Page({
         status: 1,
         imageAssetId: this.data.orderInfo.businessType === 'PURCHASE' ? this.data.imageAssetId : null,
       });
-      this.setData({ imageAssetId: null, fileList: [], image: null });
+      this.setData({ imageAssetId: null, fileList: [] });
       checkCilcleToast(this, this.data.orderInfo.businessType === 'PURCHASE' ? '购买信息已提交' : '取件成功');
 
 
       await this._loadOrderInfo();
+      return true;
     } catch (error) {
       console.error('取件失败:', error);
       showError(this, this.data.orderInfo.businessType === 'PURCHASE' ? '提交购买信息失败' : '取件失败');
+      return false;
     } finally {
       hideLoading();
     }
@@ -146,19 +151,39 @@ Page({
 
   // 图片上传提示
   showDialogWithImage(purpose = 'DELIVERY_PROOF') {
+    if (this._detailRequest) {
+      this._resumeRefreshPending = true;
+      detailRefresh.hide(this);
+      this._detailHidden = false;
+    }
     this.setData({ showWithImage: true, proofPurpose: purpose });
   },
 
-  closeConfirmWithImage() {
-    this.setData({ showWithImage: false });
-    if (this.data.proofPurpose === 'PURCHASE_PROOF') {
-      this.statusTo2();
-    } else {
-      this.statusTo3();
+  async closeConfirmWithImage() {
+    if (this.data.proofSubmitting) return;
+    if (this.data.proofUploading) {
+      errorCilcleToast(this, '图片正在上传，请稍候');
+      return;
+    }
+    if (!this.data.imageAssetId) {
+      errorCilcleToast(this, this.data.proofPurpose === 'PURCHASE_PROOF'
+        ? '请先上传购买凭证或商品照片' : '请先上传送达图片');
+      return;
+    }
+    this.setData({ proofSubmitting: true });
+    try {
+      const submitted = this.data.proofPurpose === 'PURCHASE_PROOF'
+        ? await this.statusTo2() : await this.statusTo3();
+      if (submitted) this.setData({ showWithImage: false, proofPurpose: 'DELIVERY_PROOF' });
+    } finally {
+      this.setData({ proofSubmitting: false });
+      this._resumeOrderRefresh();
     }
   },
 
-  closeWithImage() {
+  closeWithImage(e) {
+    if (e?.detail?.visible === true || this.data.proofSubmitting) return;
+    this._proofUploadVersion = (this._proofUploadVersion || 0) + 1;
     if (this.data.imageAssetId) {
       mediaService.releaseTemporaryImage(this.data.imageAssetId).catch(() => {});
     }
@@ -167,9 +192,9 @@ Page({
       proofPurpose: 'DELIVERY_PROOF',
       imageAssetId: null,
       fileList: [],
+      proofUploading: false,
     });
-
-    this._loadOrderInfo();
+    this._resumeOrderRefresh();
   },
 
   // 图片上传
@@ -181,8 +206,11 @@ Page({
   },
 
   async onUpload(file) {
+    if (!this.data.showWithImage || this.data.proofSubmitting || this.data.proofUploading) return;
+    const version = this._proofUploadVersion = (this._proofUploadVersion || 0) + 1;
     const index = 0;
     this.setData({
+      proofUploading: true,
       fileList: [{ ...file, status: 'loading' }],
     });
 
@@ -192,26 +220,36 @@ Page({
         file.url,
         purpose,
         (progress) => {
-          this.setData({ [`fileList[${index}].percent`]: progress });
+          if (version === this._proofUploadVersion) {
+            this.setData({ [`fileList[${index}].percent`]: progress });
+          }
         },
       );
+      if (version !== this._proofUploadVersion) {
+        await mediaService.releaseTemporaryImage(uploaded.mediaId).catch(() => {});
+        return;
+      }
       if (this.data.imageAssetId) {
-        await mediaService.releaseTemporaryImage(this.data.imageAssetId).catch(() => {});
+        mediaService.releaseTemporaryImage(this.data.imageAssetId).catch(() => {});
       }
       this.setData({
         [`fileList[${index}].status`]: 'done',
         [`fileList[${index}].url`]: uploaded.previewUrl,
         [`fileList[${index}].mediaId`]: uploaded.mediaId,
-        image: uploaded.previewUrl,
         imageAssetId: uploaded.mediaId,
       });
     } catch (error) {
+      if (version !== this._proofUploadVersion) return;
       this.setData({ [`fileList[${index}].status`]: 'failed' });
       showErrorToast(this, '图片上传失败');
+    } finally {
+      if (version === this._proofUploadVersion) this.setData({ proofUploading: false });
     }
   },
 
   handleRemove(e) {
+    if (this.data.proofSubmitting) return;
+    this._proofUploadVersion = (this._proofUploadVersion || 0) + 1;
     const { index } = e.detail;
     const { fileList } = this.data;
     const removed = fileList[index];
@@ -219,14 +257,13 @@ Page({
       mediaService.releaseTemporaryImage(removed.mediaId).catch(() => {});
     }
     fileList.splice(index, 1);
-    this.setData({ fileList, image: null, imageAssetId: null });
+    this.setData({ fileList, imageAssetId: null, proofUploading: false });
   },
 
   // 已取件2->已派送3（使用封装的 service）
   async statusTo3() {
     if (!this.data.imageAssetId) {
-      errorCilcleToast(this, "未上传图片");
-      this._loadOrderInfo();
+      errorCilcleToast(this, '请先上传送达图片');
       return;
     }
 
@@ -242,9 +279,11 @@ Page({
 
 
       await this._loadOrderInfo();
+      return true;
     } catch (error) {
       console.error('派送失败:', error);
       showError(this, '派送失败');
+      return false;
     } finally {
       hideLoading();
     }
@@ -314,30 +353,46 @@ Page({
   },
 
   // 集中统一获取、加载、更新订单相关的信息
-  async _loadOrderInfo() {
+  _loadOrderInfo(fresh = true) {
+    if (fresh && !this._detailHidden && !this._detailDisposed) this._resumeRefreshPending = false;
+    return detailRefresh.refresh(this, current => this._refreshOrderInfo(current), fresh);
+  },
+
+  async _refreshOrderInfo(current) {
     feedback.loaded(this);
     try {
       await tokenManager.waitForToken();
-      this.setData({ taker: {}, image: null, isMyTaken: false });
-      await this._getOrderInfo();
+      if (!current()) return;
+      await this.getGlobalData(current);
+      if (!current()) return;
+      await this._getOrderInfo(current);
+      if (!current()) return;
 
       const status = this.data.orderInfo.status;
       if (status > 0 && status != 4) {
-        await this._getMyTakeInfo();
+        await this._getMyTakeInfo(current);
+        if (!current()) return;
         if (this.data.isMyTaken) {
-          await this._getTaker();
-          await this._getTakeImage();
+          await this._getTaker(current);
+          if (!current()) return;
+          await this._getTakeImage(current);
+        } else {
+          this.setData({ taker: {}, image: null });
         }
+      } else {
+        this.setData({ taker: {}, image: null, isMyTaken: false });
       }
     } catch (err) {
+      if (!current()) return;
       feedback.loadError(this, '加载失败，请重试', () => this._loadOrderInfo(), !!this.data.orderInfo.id);
       _logErrInfo("_loadOrderInfo", err.message);
     }
   },
 
-  async _getMyTakeInfo() {
+  async _getMyTakeInfo(current = () => true) {
     try {
       const orders = await takeOrderService.getMyTakeOrders();
+      if (!current()) return;
       const myOrder = orders.find(order => String(order.orderId) === String(this.data.id));
       this.setData({ isMyTaken: Boolean(myOrder) });
     } catch (error) {
@@ -346,9 +401,10 @@ Page({
   },
 
   // 获取订单详情（使用封装的 service）
-  async _getOrderInfo() {
+  async _getOrderInfo(current = () => true) {
     try {
       const orderInfo = await userOrderService.getMyOrderDetail(this.data.id);
+      if (!current()) return;
       console.log("请求的orderInfo: ", orderInfo);
 
       // 检查订单数据是否有效
@@ -389,9 +445,10 @@ Page({
   },
 
   // 获取送达图片（使用封装的 service）
-  async _getTakeImage() {
+  async _getTakeImage(current = () => true) {
     try {
       const image = await takeOrderService.getDeliveryImage(this.data.id);
+      if (!current()) return;
       this.setData({ image });
     } catch (error) {
       console.warn('获取送达图片失败:', error);
@@ -399,9 +456,10 @@ Page({
   },
 
   // 获取接单人信息（使用封装的 service）
-  async _getTaker() {
+  async _getTaker(current = () => true) {
     try {
       const taker = await takeOrderService.getTakeOrderDetail(this.data.id);
+      if (!current()) return;
       // 只有当获取到有效的接单人信息时才设置数据
       if (taker && taker.id) {
         this.setData({ taker });
@@ -426,10 +484,12 @@ Page({
   },
 
   // 获取用户数据（使用封装的 service）
-  async getGlobalData() {
+  async getGlobalData(current = () => true) {
     try {
       await tokenManager.waitForToken();
+      if (!current()) return;
       const userInfo = await userService.getUserInfo();
+      if (!current()) return;
       userInfo.token = tokenManager.getToken();
       this.setData({ userInfo });
     } catch (err) {
@@ -451,13 +511,12 @@ Page({
 
   // 生命周期函数
   async onLoad(options) {
+    this._skipInitialShow = true;
     wx.showShareMenu({ menus: ['shareAppMessage'] });
     console.log('接单详情页 - 接收到的参数:', options);
     console.log('接单详情页 - 订单ID:', options.id);
     this.setData({ id: options.id });
     try {
-      await this.getGlobalData();
-      console.log('getGlobalData执行成功');
       await this._loadOrderInfo();
     } catch (err) {
       console.error('页面加载失败', err);
@@ -465,15 +524,39 @@ Page({
   },
 
   onShow() {
-    this.getGlobalData();
+    this._detailHidden = false;
+    if (this._skipInitialShow) {
+      this._skipInitialShow = false;
+      return;
+    }
+    this._resumeRefreshPending = true;
+    return this._resumeOrderRefresh();
+  },
+
+  _resumeOrderRefresh() {
+    if (!this._resumeRefreshPending || this._detailHidden || this._detailDisposed
+      || this.data.showWithImage || this.data.proofUploading || this.data.proofSubmitting) return;
+    this._resumeRefreshPending = false;
+    return this._loadOrderInfo(false);
+  },
+
+  onHide() {
+    detailRefresh.hide(this);
+  },
+
+  onUnload() {
+    detailRefresh.hide(this, true);
+    this._proofUploadVersion = (this._proofUploadVersion || 0) + 1;
   },
 
   // 下拉刷新
   onPullDownRefresh() {
-    this._loadOrderInfo().then(() => {
-
+    if (this.data.showWithImage || this.data.proofUploading || this.data.proofSubmitting) {
+      this._resumeRefreshPending = true;
       wx.stopPullDownRefresh();
-    });
+      return;
+    }
+    return this._loadOrderInfo(false).finally(() => wx.stopPullDownRefresh());
   },
 
   // 预览图片

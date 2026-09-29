@@ -1,4 +1,5 @@
 const feedback = require('../../../utils/feedback');
+const detailRefresh = require('../../../utils/detailRefresh');
 const secondHandService = require('../../../services/secondHandService');
 const userService = require('../../../services/userService');
 const tokenManager = require('../../../utils/tokenManager');
@@ -40,20 +41,42 @@ Page({
   },
 
   onLoad(options) {
+    this._skipInitialShow = true;
     this.setData({ id: options.id });
-    this.loadDetail();
+    return this.loadDetail();
   },
 
-  onUnload() {
+  onShow() {
+    this._detailHidden = false;
+    if (this._skipInitialShow) {
+      this._skipInitialShow = false;
+      return;
+    }
+    return this.loadDetail(false);
+  },
+
+  onHide() {
+    detailRefresh.hide(this);
     this.clearPayTimer();
   },
 
-  async loadDetail() {
+  onUnload() {
+    detailRefresh.hide(this, true);
+    this.clearPayTimer();
+  },
+
+  loadDetail(fresh = true) {
+    return detailRefresh.refresh(this, current => this._refreshDetail(current), fresh);
+  },
+
+  async _refreshDetail(current) {
     feedback.loaded(this);
-    this.setData({ loading: true });
+    this.setData({ loading: !this.data.order.id });
     try {
       const order = await secondHandService.getOrderDetail(this.data.id);
+      if (!current()) return;
       const user = await this.getCurrentUser();
+      if (!current()) return;
       const role = this.resolveRole(order, user);
       const counterpartyLabel = role === 'buyer' ? '卖家' : '买家';
       const counterpartyName = role === 'buyer' ? order.sellerName : order.buyerName;
@@ -86,10 +109,10 @@ Page({
       });
       this.startPayTimer();
     } catch (error) {
+      if (!current()) return;
       feedback.loadError(this, '订单加载失败，请重试', () => this.loadDetail(), !!this.data.order.id);
     } finally {
-      this.setData({ loading: false });
-      wx.stopPullDownRefresh();
+      if (current()) this.setData({ loading: false });
     }
   },
 
@@ -435,6 +458,6 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.loadDetail();
+    return this.loadDetail(false).finally(() => wx.stopPullDownRefresh());
   },
 });

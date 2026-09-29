@@ -1,5 +1,6 @@
 const { shareOrder } = require('../../../../utils/orderShare');
 const feedback = require('../../../../utils/feedback');
+const detailRefresh = require('../../../../utils/detailRefresh');
 // 引入服务和工具
 const userOrderService = require('../../../../services/userOrderService');
 const takeOrderService = require('../../../../services/takeOrderService');
@@ -338,29 +339,41 @@ Page({
   },
 
   // 集中统一获取、加载、更新订单相关的信息
-  async _loadOrderInfo() {
+  _loadOrderInfo(fresh = true) {
+    return detailRefresh.refresh(this, current => this._refreshOrderInfo(current), fresh);
+  },
+
+  async _refreshOrderInfo(current) {
     feedback.loaded(this);
     try {
       await tokenManager.waitForToken();
-      await this._getOrderInfo();
+      if (!current()) return;
+      await this._getOrderInfo(current);
+      if (!current()) return;
       this._updateUnpaidCountdown();
 
       const status = this.data.orderInfo.status;
       if (status > 0 && status != 4) {
-        await this._getTaker();
+        await this._getTaker(current);
+      } else {
+        this.setData({ taker: {} });
       }
-      await this._getTakeImage();
+      if (!current()) return;
+      await this._getTakeImage(current);
+      if (!current()) return;
       this.buttonColor();
       if (Number(this.data.orderInfo.status) !== -1) feedback.clearMessage(this, 'payment');
     } catch (err) {
+      if (!current()) return;
       feedback.loadError(this, '订单加载失败，请重试', () => this._loadOrderInfo(), !!this.data.orderInfo.id);
     }
   },
 
   // 获取订单详情（使用封装的 service）
-  async _getOrderInfo() {
+  async _getOrderInfo(current = () => true) {
     try {
       const orderInfoRaw = await userOrderService.getMyOrderDetail(this.data.id);
+      if (!current()) return;
       const orderInfo = this._normalizeAmountFields(orderInfoRaw);
       orderInfo.images = orderInfo.images?.length ? orderInfo.images : (orderInfo.image ? [orderInfo.image] : []);
 
@@ -385,15 +398,17 @@ Page({
         pickUpAddress: addressParts1,
         reciveAddress: addressParts2
       });
+      this.buttonColor();
     } catch (error) {
       throw new Error(`获取订单失败：${error.message}`);
     }
   },
 
   // 获取送达图片（使用封装的 service）
-  async _getTakeImage() {
+  async _getTakeImage(current = () => true) {
     try {
       const image = await takeOrderService.getDeliveryImage(this.data.id);
+      if (!current()) return;
       this.setData({ image });
     } catch (error) {
       console.warn('获取送达图片失败:', error);
@@ -401,9 +416,10 @@ Page({
   },
 
   // 获取接单人信息（使用封装的 service）
-  async _getTaker() {
+  async _getTaker(current = () => true) {
     try {
       const taker = await takeOrderService.getTakeOrderDetail(this.data.id);
+      if (!current()) return;
       // 只有当获取到有效的接单人信息时才设置数据
       if (taker && taker.id) {
         this.setData({ taker });
@@ -433,11 +449,13 @@ Page({
 
   // 生命周期函数
   async onLoad(options) {
+    this._skipInitialShow = true;
     wx.showShareMenu({ menus: ['shareAppMessage'] });
     console.log('订单详情页 - 接收到的参数:', options);
     console.log('订单详情页 - 订单ID:', options.id);
     this.setData({ id: options.id });
     await this._loadOrderInfo();
+    if (this._detailHidden || this._detailDisposed) return;
     if (options.paymentPending === '1' && Number(this.data.orderInfo.status) === -1) {
       feedback.showMessage(this, '支付已完成，订单状态待更新', { persistent: true, key: 'payment', action: '刷新', onAction: () => this._loadOrderInfo() });
     } else if (options.paymentFailed === '1') {
@@ -446,6 +464,20 @@ Page({
     if (options.pay === '1' && Number(this.data.orderInfo.status) === -1) {
       this.payOrder();
     }
+  },
+
+  onShow() {
+    this._detailHidden = false;
+    if (this._skipInitialShow) {
+      this._skipInitialShow = false;
+      return;
+    }
+    return this._loadOrderInfo(false);
+  },
+
+  onHide() {
+    detailRefresh.hide(this);
+    this._clearUnpaidTimer();
   },
 
   _clearUnpaidTimer() {
@@ -502,10 +534,7 @@ Page({
 
   // 下拉刷新
   onPullDownRefresh() {
-    this._loadOrderInfo().then(() => {
-
-      wx.stopPullDownRefresh();
-    });
+    return this._loadOrderInfo(false).finally(() => wx.stopPullDownRefresh());
   },
 
   // 预览图片
@@ -543,6 +572,7 @@ Page({
   },
 
   onUnload() {
+    detailRefresh.hide(this, true);
     this._clearUnpaidTimer();
   }
 });

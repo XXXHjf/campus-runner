@@ -112,7 +112,7 @@
     </view>
     <view style="margin-bottom: 30rpx;">
       <view class="address">{{proofPurpose === 'PURCHASE_PROOF' ? '请上传实际购买的商品照片或小票（一张）' : '请选择送达图片上传（一张）'}}</view>
-      <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{1}}" files="{{fileList}}" bind:add="handleAdd" bind:remove="handleRemove" style="text-align: center;" />
+      <t-upload t-class="external-class" mediaType="{{['image']}}" max="{{1}}" files="{{fileList}}" disabled="{{proofSubmitting}}" bind:add="handleAdd" bind:remove="handleRemove" style="text-align: center;" />
     </view>
   </view>
 </t-popup>

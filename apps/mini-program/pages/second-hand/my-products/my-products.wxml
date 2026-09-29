@@ -75,6 +75,7 @@
   <view class="cr-action-sheet">
     <t-button block variant="text" theme="default" bind:tap="toggleStatus">{{actionProduct.status == 4 ? '重新上架' : '下架商品'}}</t-button>
     <t-button block variant="text" bind:tap="showActionProductDetail">查看商品</t-button>
+    <t-button wx:if="{{actionProduct.status == 0}}" block variant="text" open-type="share">分享</t-button>
     <t-button block variant="text" class="cr-action-sheet__cancel" bind:tap="closeActionSheet">取消</t-button>
   </view>
 </t-popup>

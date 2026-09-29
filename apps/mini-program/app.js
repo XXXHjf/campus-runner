@@ -117,7 +117,7 @@ App({
     userInfo: null,
     silentLoginPromise: null,
     // Local development only. Turn on together with backend mock-payment-enabled when testing without real WeChat Pay.
-    MOCK_PAYMENT: true,
+    MOCK_PAYMENT: false,
     //后端访问地址
     // API_URL: 'http://localhost:8080',
     // API_URL : 'http://47.99.105.120:8080',

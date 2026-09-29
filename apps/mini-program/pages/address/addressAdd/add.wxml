@@ -7,10 +7,11 @@
       <t-cell wx:else class="address-add__pending" title="校区楼栋" hover arrow note="请选择" />
     </view>
     <t-input label="详细地址" placeholder="如门牌号、宿舍号（选填）" align="right" bind:change="tiptChangeDetail" bind:blur="tiptChangeDetailBlur" clearable clear-trigger="focus" borderless />
-  </ui-section>
-
-  <ui-section title="地址标签" icon="map-marked" description="添加易于识别的简称">
-    <t-input label="标签" placeholder="如宿舍、实验室（选填）" align="right" bind:change="tiptChangeLabel" bind:blur="tiptChangeLabelBlur" clearable clear-trigger="focus" borderless />
+    <view class="address-add__label-row">
+      <view class="address-add__label-input">
+        <t-input label="地址标签" placeholder="如宿舍、实验室（选填）" align="right" bind:change="tiptChangeLabel" bind:blur="tiptChangeLabelBlur" clearable clear-trigger="focus" borderless />
+      </view>
+    </view>
   </ui-section>
 
   <ui-action-bar fixed>
