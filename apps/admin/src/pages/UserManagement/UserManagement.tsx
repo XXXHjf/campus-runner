@@ -12,6 +12,7 @@ import {
   Input,
   Button,
   Drawer,
+  Modal,
   Descriptions,
   Tag,
   Avatar,
@@ -26,7 +27,7 @@ import {
 } from 'antd'
 import type { AdminUserItem, AdminUserDetail, AdminUserStatistics } from '../../types/admin'
 import { AuthReviewStatus } from '../../types/auth'
-import { userService } from '../../services'
+import { authService, userService } from '../../services'
 import { GENDER_LABELS } from '../../constants'
 import { formatDateTime, formatPhone, formatPrice } from '../../utils/format'
 import {
@@ -88,7 +89,12 @@ export default function UserManagement() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detail, setDetail] = useState<AdminUserDetail | null>(null)
+  const detailRequestId = useRef(0)
   const [studentCardError, setStudentCardError] = useState(false)
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [reviewError, setReviewError] = useState('')
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
 
   // Stats state
   const [statsLoading, setStatsLoading] = useState(false)
@@ -161,18 +167,59 @@ export default function UserManagement() {
 
   // Open detail drawer
   const openDetail = async (id: number) => {
+    const requestId = ++detailRequestId.current
     setDrawerOpen(true)
     setDetailLoading(true)
     setDetail(null)
     setStudentCardError(false)
+    setReviewAction(null)
     try {
       const data = await userService.userDetail(id)
-      setDetail(data)
+      if (requestId === detailRequestId.current) setDetail(data)
     } catch (err) {
+      if (requestId !== detailRequestId.current) return
       console.error('获取用户详情失败', err)
       message.error('获取用户详情失败')
     } finally {
-      setDetailLoading(false)
+      if (requestId === detailRequestId.current) setDetailLoading(false)
+    }
+  }
+
+  const submitReview = async () => {
+    if (!detail || !reviewAction) return
+    const reason = rejectReason.trim()
+    if (reviewAction === 'reject' && (!reason || Array.from(reason).length > 100)) {
+      setReviewError('请填写1至100字的驳回原因')
+      return
+    }
+    if (detail.authReviewVersion == null) {
+      message.error('申请信息未加载完整，请刷新后重试')
+      return
+    }
+    setReviewSubmitting(true)
+    try {
+      await authService.reviewAuth({
+        userID: detail.id,
+        authReviewVersion: detail.authReviewVersion,
+        review: reviewAction === 'approve' ? AuthReviewStatus.APPROVED : AuthReviewStatus.REJECTED,
+        ...(reviewAction === 'reject' ? { studentIdCardRejectReason: reason } : {}),
+      })
+      message.success(reviewAction === 'approve' ? '已通过认证' : '已驳回申请')
+      setReviewAction(null)
+      setDrawerOpen(false)
+      if (page > 1 && list.length === 1) setPage(page - 1)
+      else void loadList(tabKey)
+    } catch (err) {
+      const errorMessage = err && typeof err === 'object' && 'message' in err
+        && typeof err.message === 'string' ? err.message : '审核失败，请稍后重试'
+      message.error(errorMessage)
+      if (errorMessage.includes('状态已更新')) {
+        setReviewAction(null)
+        void openDetail(detail.id)
+        void loadList(tabKey)
+      }
+    } finally {
+      setReviewSubmitting(false)
     }
   }
 
@@ -278,27 +325,30 @@ export default function UserManagement() {
     },
   ]
 
-  // Additional column for pending-auth tab
+  // Keep the review queue compact; supporting details and actions stay in the drawer.
   const pendingColumns = [
-    ...baseColumns.slice(0, 3),
     {
-      title: '实名材料',
-      dataIndex: 'studentIdCard',
-      key: 'studentIdCard',
-      width: 100,
-      render: (studentIdCard: string | undefined) =>
-        studentIdCard ? (
-          <Button
-            type="link"
-            onClick={() => window.open(studentIdCard, '_blank')}
-          >
-            查看材料
-          </Button>
-        ) : (
-          '-'
-        ),
+      title: '用户',
+      key: 'user',
+      render: (_: unknown, user: AdminUserItem) => (
+        <div className="review-user-cell">
+          <Avatar src={user.headImg || undefined} size={32} alt="头像" />
+          <div><div>{user.username || '-'}</div><span>ID: {user.id}</span></div>
+        </div>
+      ),
     },
-    ...baseColumns.slice(3),
+    { title: '姓名', dataIndex: 'realname', key: 'realname', render: (name: string) => name || '-' },
+    { title: '学校', dataIndex: 'schoolName', key: 'schoolName', render: (name: string) => name || '-' },
+    {
+      title: '最近更新', dataIndex: 'updateTime', key: 'updateTime', width: 170,
+      render: (value: string) => value ? formatDateTime(value) : '-',
+    },
+    {
+      title: '操作', key: 'review', width: 110,
+      render: (_: unknown, user: AdminUserItem) => (
+        <Button type="link" onClick={() => openDetail(user.id)}>查看资料</Button>
+      ),
+    },
   ]
 
   const columns = tabKey === 'pending-auth' ? pendingColumns : baseColumns
@@ -331,11 +381,8 @@ export default function UserManagement() {
       {isListTab ? (
         <>
           <AdminFilterBar extra={<AdminCount>共 {total} 条</AdminCount>}>
-            {tabKey === 'pending-auth' && (
-              <Button type="primary" onClick={() => navigate('/auth')}>处理认证审核</Button>
-            )}
             <Input.Search
-              placeholder="搜索用户昵称、姓名、手机号、学校或 ID"
+              placeholder="搜索昵称、姓名、手机号、学校或 ID"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               onSearch={(value) => {
@@ -353,8 +400,10 @@ export default function UserManagement() {
               columns={columns}
               rowKey="id"
               loading={loading}
-              locale={createAdminTableLocale('暂无用户数据')}
-              scroll={{ x: 1400 }}
+              locale={createAdminTableLocale(tabKey === 'pending-auth'
+                ? (searchKeyword ? <span>没有符合条件的申请 <Button type="link" onClick={() => setKeyword('')}>清空搜索</Button></span> : '暂无待审核申请')
+                : '暂无用户数据')}
+              scroll={{ x: tabKey === 'pending-auth' ? 760 : 1400 }}
               pagination={{
                 current: page,
                 pageSize: PAGE_SIZE,
@@ -404,12 +453,19 @@ export default function UserManagement() {
       )}
 
       <Drawer
-        title="用户详情"
+        rootClassName="user-management"
+        title={tabKey === 'pending-auth' ? '认证资料' : '用户详情'}
         placement="right"
         size={560}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         loading={detailLoading}
+        footer={tabKey === 'pending-auth' && detail?.studentIdCardReview === AuthReviewStatus.REVIEWING ? (
+          <div className="review-drawer-actions">
+            <Button onClick={() => { setRejectReason(''); setReviewError(''); setReviewAction('reject') }}>驳回</Button>
+            <Button type="primary" onClick={() => setReviewAction('approve')}>通过</Button>
+          </div>
+        ) : undefined}
       >
         {detail && (
           <>
@@ -451,7 +507,7 @@ export default function UserManagement() {
                     <Alert
                       type="warning"
                       showIcon
-                      title="照片加载失败，请刷新后重试"
+                      title="材料加载失败，请刷新后重试"
                       action={<Button size="small" onClick={() => openDetail(detail.id)}>刷新</Button>}
                     />
                   ) : (
@@ -465,12 +521,12 @@ export default function UserManagement() {
                     />
                   )
                 ) : (
-                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无学生证照片" />
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无认证材料" />
                 )}
               </Descriptions.Item>
             </Descriptions>
 
-            <Descriptions title="数据统计" column={2} bordered size="small" className="detail-descriptions">
+            {tabKey !== 'pending-auth' && <Descriptions title="数据统计" column={2} bordered size="small" className="detail-descriptions">
               <Descriptions.Item label="发单数">{detail.orderCount}</Descriptions.Item>
               <Descriptions.Item label="接单数">{detail.takeOrderCount}</Descriptions.Item>
               <Descriptions.Item label="累计收入" span={2}>
@@ -478,10 +534,36 @@ export default function UserManagement() {
                   {formatPrice(detail.totalEarned)}
                 </span>
               </Descriptions.Item>
-            </Descriptions>
+            </Descriptions>}
           </>
         )}
       </Drawer>
+
+      <Modal
+        rootClassName="user-management"
+        title={reviewAction === 'reject' ? '驳回认证申请' : '确认通过认证'}
+        open={reviewAction !== null}
+        onCancel={() => { if (!reviewSubmitting) setReviewAction(null) }}
+        onOk={() => void submitReview()}
+        okText={reviewAction === 'reject' ? '确认驳回' : '确认通过'}
+        okButtonProps={{ danger: reviewAction === 'reject' }}
+        confirmLoading={reviewSubmitting}
+        cancelButtonProps={{ disabled: reviewSubmitting }}
+        closable={!reviewSubmitting}
+        maskClosable={!reviewSubmitting}
+      >
+        {reviewAction === 'reject' ? (
+          <div>
+            <label htmlFor="review-reject-reason">驳回原因（将展示给申请人）</label>
+            <Input.TextArea id="review-reject-reason" rows={3} value={rejectReason}
+              placeholder="请说明需要修改的内容"
+              count={{ show: true, max: 100, strategy: (value) => Array.from(value).length }}
+              status={reviewError ? 'error' : undefined}
+              onChange={(event) => { setRejectReason(event.target.value); setReviewError('') }} />
+            {reviewError && <div className="review-reason-error" role="alert">{reviewError}</div>}
+          </div>
+        ) : <p>确认通过{detail?.realname || detail?.username || '该用户'}的认证申请？</p>}
+      </Modal>
     </AdminPage>
   )
 }

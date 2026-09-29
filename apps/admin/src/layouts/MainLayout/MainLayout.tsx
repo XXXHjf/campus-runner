@@ -92,12 +92,6 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    key: 'auth',
-    label: '审核管理',
-    icon: <AuditOutlined />,
-    path: '/auth',
-  },
-  {
     key: 'address',
     label: '地址管理',
     icon: <EnvironmentOutlined />,

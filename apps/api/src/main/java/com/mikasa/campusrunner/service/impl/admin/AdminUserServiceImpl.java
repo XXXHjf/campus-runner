@@ -54,17 +54,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         int offset = (page - 1) * pageSize;
         keyword = normalizeKeyword(keyword);
         List<AdminUserListVO> list = userMapper.getPendingReviewUsers(offset, pageSize, keyword);
-        list.forEach(user -> {
-            resolveListAvatar(user);
-            var studentCards = mediaAssetService.resolveAuthorizedBinding(
-                    MediaAssetConstant.BOUND_USER_STUDENT_CARD,
-                    user.getId(),
-                    MediaPurpose.STUDENT_CARD.name());
-            if (!studentCards.isEmpty()) {
-                user.setStudentIdCardAssetId(studentCards.get(0).getMediaId());
-                user.setStudentIdCard(studentCards.get(0).getUrl());
-            }
-        });
+        list.forEach(this::resolveListAvatar);
         long total = userMapper.countAdminUsers(null, 1, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }

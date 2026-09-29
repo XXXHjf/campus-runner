@@ -18,6 +18,7 @@ public class AdminUserDetailVO {
     private String studentIdCard;
     private Long studentIdCardAssetId;
     private Integer studentIdCardReview;
+    private Long authReviewVersion;
     private Integer score;
     private BigDecimal money;
     private Integer isManager;

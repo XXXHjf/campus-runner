@@ -17,8 +17,10 @@ public class AdminUserListVO {
     private Long studentIdCardAssetId;
     private Integer authentication;
     private Integer studentIdCardReview;
+    private Long authReviewVersion;
     private Integer score;
     private Integer orderCount;
     private Integer takeOrderCount;
     private String createTime;
+    private String updateTime;
 }

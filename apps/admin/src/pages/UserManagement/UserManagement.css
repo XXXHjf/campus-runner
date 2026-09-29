@@ -1,1 +1,5 @@
 /* User-specific overrides */
+.user-management .review-user-cell { display: flex; align-items: center; gap: 10px; }
+.user-management .review-user-cell span { color: var(--admin-text-secondary); font-size: 12px; }
+.user-management .review-drawer-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.user-management .review-reason-error { color: #d54941; margin-top: 8px; }

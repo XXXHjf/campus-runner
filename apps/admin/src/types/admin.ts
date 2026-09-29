@@ -133,6 +133,8 @@ export interface AdminUserItem {
   takeOrderCount: number
   createTime: string
   studentIdCard?: string
+  authReviewVersion?: number
+  updateTime?: string
 }
 
 export interface AdminUserDetail {
@@ -147,6 +149,7 @@ export interface AdminUserDetail {
   authentication: number
   studentIdCard: string
   studentIdCardReview: number
+  authReviewVersion?: number
   score: number
   isManager: number
   orderCount: number

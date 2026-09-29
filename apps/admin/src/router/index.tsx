@@ -13,7 +13,6 @@ import UserManagement from '../pages/UserManagement/UserManagement'
 import OrderManagement from '../pages/OrderManagement/OrderManagement'
 import TakeOrderManagement from '../pages/TakeOrderManagement/TakeOrderManagement'
 import SchoolManagement from '../pages/SchoolManagement/SchoolManagement'
-import AuthManagement from '../pages/AuthManagement/AuthManagement'
 import BannerManagement from '../pages/BannerManagement/BannerManagement'
 import SystemConfigManagement from '../pages/SystemConfigManagement/SystemConfigManagement'
 import SecondHandManagement from '../pages/SecondHandManagement/SecondHandManagement'
@@ -122,7 +121,7 @@ export const router = createBrowserRouter([
       // 审核管理
       {
         path: 'auth',
-        element: <AuthManagement />,
+        element: <Navigate to="/users/pending-auth" replace />,
       },
 
       // 地址管理

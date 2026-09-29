@@ -149,8 +149,8 @@
 
     <select id="getPendingReviewUsers" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminUserListVO">
         SELECT u.id, u.username, u.realname, u.sex, u.phone,
-               s.school_name, u.stu_id, u.authentication, u.student_id_card_review,
-               u.score, u.create_time,
+               s.school_name, u.stu_id, u.authentication, u.student_id_card_review, u.auth_review_version,
+               u.score, u.create_time, u.update_time,
                (SELECT COUNT(*) FROM tb_orders WHERE user_id = u.id AND deleted = 0) AS order_count,
                (SELECT COUNT(*) FROM tb_take_orders tk2 WHERE tk2.user_id = u.id AND tk2.deleted = 0) AS take_order_count
         FROM tb_user u
@@ -164,7 +164,7 @@
     <select id="getAdminUserDetail" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminUserDetailVO">
         SELECT u.id, u.username, u.realname, u.sex, u.phone,
                s.school_name, u.stu_id, u.authentication,
-               u.student_id_card_review, u.score, u.money,
+               u.student_id_card_review, u.auth_review_version, u.score, u.money,
                u.is_manager, u.create_time, u.update_time,
                (SELECT COUNT(*) FROM tb_orders WHERE user_id = u.id AND deleted = 0) AS order_count,
                (SELECT COUNT(*) FROM tb_take_orders tk2 WHERE tk2.user_id = u.id AND tk2.deleted = 0) AS take_order_count,

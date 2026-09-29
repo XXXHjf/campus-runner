@@ -11,31 +11,6 @@ export enum AuthReviewStatus {
   REJECTED = 3,
 }
 
-// 后端 UserVO（摘取审核管理所需字段）
-export interface PendingAuthUser {
-  id: number
-  username: string
-  realname: string
-  openid?: string
-  headImg?: string
-  sex?: number
-  phone?: string
-  authentication?: number
-  schoolId?: number
-  schoolName?: string
-  stuId?: string
-  studentIdCard?: string
-  studentIdCardReview?: AuthReviewStatus
-  studentIdCardRejectReason?: string | null
-  authReviewVersion: number
-  score?: number
-  money?: number
-  isManager?: number
-  deleted?: number
-  createTime?: string
-  updateTime?: string
-}
-
 // 审核请求
 export interface ReviewAuthRequest {
   userID: number
