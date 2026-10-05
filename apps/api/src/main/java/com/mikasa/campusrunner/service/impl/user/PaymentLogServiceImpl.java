@@ -1,5 +1,6 @@
 package com.mikasa.campusrunner.service.impl.user;
 
+import com.mikasa.campusrunner.common.utils.PaymentAmount;
 import com.alibaba.fastjson.JSONObject;
 import com.mikasa.campusrunner.common.constant.DeleteConstant;
 import com.mikasa.campusrunner.common.constant.WeChatPayConstant;
@@ -63,9 +64,8 @@ public class PaymentLogServiceImpl implements PaymentLogService {
         String openid = payer.get(WeChatPayConstant.OPENID);
 
         //获取支付总金额
-        Map<String, Object> amount = (Map<String, Object>) map.get(WeChatPayConstant.AMOUNT);
-        Integer total = (Integer) amount.get(WeChatPayConstant.TOTAL);
-        Long serviceFee = (long)(order.getServiceFee().doubleValue() * 100);
+        int total = PaymentAmount.verifyResult(map, orderNumber, order == null ? null : order.getPayAmount());
+        long serviceFee = PaymentAmount.nonNegativeCents(order.getServiceFee());
 
         //构造日志
         PaymentLog paymentLog = PaymentLog.builder()
@@ -77,7 +77,7 @@ public class PaymentLogServiceImpl implements PaymentLogService {
                 .bankType(bankType)
                 .successTime(successTime)
                 .payerOpenid(openid)
-                .total(total.longValue())
+                .total((long) total)
                 .serviceFeeRate(order.getServiceFeeRate())
                 .serviceFee(serviceFee)
                 .content(plainText)

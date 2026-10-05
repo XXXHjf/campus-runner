@@ -33,10 +33,15 @@ function harness(kind) {
     setInterval(fn) { state.timers.add(fn); return fn; },
     clearInterval(fn) { state.timers.delete(fn); },
     require(name) {
+      if (name.endsWith('runnerAmount')) return require('../../apps/mini-program/utils/runnerAmount');
       if (name.endsWith('detailRefresh')) return detailRefresh;
       if (name.endsWith('feedback')) return feedbackStub(wx, message => state.errors.push(message));
       if (name.endsWith('secondHandStatus')) return statusTools;
-      if (name.endsWith('userOrderService')) return { getMyOrderDetail: getOrder };
+      if (name.endsWith('userOrderService')) return {
+        getMyOrderDetail: getOrder,
+        async cancelOrder(...args) { state.cancelled = args; },
+        async deleteOrder(...args) { state.hidden = args; },
+      };
       if (name.endsWith('secondHandService')) return { getOrderDetail: getOrder };
       if (name.endsWith('userService')) return { getUserInfo: async () => ({ id: 1 }) };
       if (name.endsWith('takeOrderService')) return {
@@ -172,5 +177,34 @@ test('接单：图片选择/上传期间返回不发刷新，关闭后补刷且�
   await tick();
   assert.equal(h.state.reads, 2);
   assert.equal(h.page.data.image, 'saved.jpg');
+  h.page.onUnload();
+});
+
+test('发单详情：仅终态开放隐藏，待收款和失败重试不开放', () => {
+  const h = harness('publisher');
+  for (const status of [-3, 4, 6]) {
+    h.page.data.orderInfo = { status };
+    h.page.buttonColor();
+    assert.equal(h.page.data.buttonText, '隐藏订单');
+    assert.equal(h.page.data.buttonDisabled, false);
+  }
+  for (const status of [-2, 1, 2, 5, 7]) {
+    h.page.data.orderInfo = { status };
+    h.page.buttonColor();
+    assert.equal(h.page.data.buttonDisabled, true);
+  }
+  h.page.data.orderInfo = { status: -1 };
+  h.page.buttonColor();
+  assert.equal(h.page.data.buttonText, '取消订单');
+});
+
+test('发单详情：未支付超时走取消并刷新，不调用隐藏', async () => {
+  const h = harness('publisher');
+  h.page.data.id = 42;
+  h.page.data.orderInfo = { orderNumber: 'O42', status: -1 };
+  await h.page._autoDeleteUnpaidOrder();
+  assert.deepEqual(h.state.cancelled, [42, '支付超时', 'O42']);
+  assert.equal(h.state.hidden, undefined);
+  assert.equal(h.state.reads, 1);
   h.page.onUnload();
 });

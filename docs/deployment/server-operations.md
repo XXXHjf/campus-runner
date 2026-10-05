@@ -153,6 +153,98 @@ grep -E 'Access denied|errorCode 1045|failed to run command|APPLICATION FAILED' 
 
 只有进程、`8080`、登录数据库查询和 HTTPS 反向代理均通过，才能认为发布成功。
 
+## API 回环监听与公网 8080 收敛方案（待确认，尚未执行）
+
+### 2026-10-05 只读核查
+
+- 目标服务器 `116.62.135.75` 上仅有一个目标 Java API 进程，监听 `[::]:8080`；
+  `net.ipv6.bindv6only=0`。从服务器外部直连 IPv4 `8080` 返回 HTTP 200，确认公网暴露。
+- 生产和仓库启动脚本均指定 `--server.port=8080`、`--server.ssl.enabled=false`，
+  但没有指定 `--server.address`。
+- Nginx 监听公网 `80/443`，两个 API 前缀均代理到 `http://127.0.0.1:8080`；
+  `nginx -t` 通过，上传限制为 `20m`。
+- CentOS 7 主机的 iptables/ip6tables 过滤表均无规则、默认 ACCEPT；firewalld disabled，
+  未发现 iptables/ip6tables 持久化服务。没有全局 IPv6 地址，仍需同时防护 IPv6。
+- `/root/campus-runner.env` 权限为 `600`；本次没有读取或展示秘密值。
+- 外部访问 `https://www.campusrunner.top/` 为 HTTP 200；轮播图数据库探针、
+  `/api/second-hand/categories`、`/api/order/public` 均为 HTTP 200、业务 `code=1`，
+  TLS 校验通过（没有使用 `-k`）。服务器回环数据库探针为 HTTP 200。
+- 线上证书覆盖根域名及通配符，当前有效期截至 2026-12-18 01:12:29 UTC。
+  根域名 `campusrunner.top` 的公共 DNS 查询无 A 记录，正常域名访问未通过；
+  使用 `--resolve campusrunner.top:443:116.62.135.75` 时 HTTPS 首页返回 200 且证书校验通过。
+  这只证明目标服务器的根域名 TLS 站点可用，不能证明根域名 DNS 正常。
+- 阿里云安全组规则未取得控制面访问，具体规则未确认；外部 8080 可达只证明当前链路未阻断。
+
+### 变更范围与顺序
+
+本方案须用户确认后执行。仅调整启动脚本和主机 8080 防护；不替换 JAR、不改 admin、
+不迁移数据库、不改支付/通知开关。API 重启会有短暂停机；已有单实例通知可能在重启后再次提醒。
+
+1. 执行前重新核查现状并逐项过生产必检清单；未涉及的构建、静态文件及迁移标记为不适用。
+   确认现有生产数据库配置/密码注入、支付及通知开关保持原值，并准备安全提供的登录测试账号。
+   不输出秘密。备份在服务器本地权限 `700` 的独立目录中保存：当前启动脚本及包装脚本、
+   Nginx 配置、`iptables-save` 和 `ip6tables-save` 输出；记录 JAR 校验和。
+   本次不替换 JAR、不修改数据库，无需为网络配置变更执行数据库迁移或恢复。
+2. 先添加仅针对非回环入站 TCP 8080 的规则，保留 SSH、80、443 和回环访问：
+
+   ```bash
+   iptables -I INPUT 1 ! -i lo -p tcp --dport 8080 \
+     -m comment --comment campus-runner-block-public-8080 -j REJECT --reject-with tcp-reset
+   ip6tables -I INPUT 1 ! -i lo -p tcp --dport 8080 \
+     -m comment --comment campus-runner-block-public-8080 -j REJECT --reject-with tcp-reset
+   ```
+
+   实施时用同条件的 `-C` 检查存在性，避免重复添加。每加一条即检查规则、回环探针及外部 HTTPS。
+   不清空规则，不修改默认策略，不启动 firewalld。
+3. 持久化采用专用 `/root/campus-runner-port-guard.sh`（权限 `700`）及
+   `/etc/systemd/system/campus-runner-port-guard.service`：oneshot、`RemainAfterExit=yes`，
+   在网络启动前应用上述幂等规则，启用随开机启动；脚本失败须返回非零，不能吞掉 IPv6 失败。
+   上传前做 `bash -n`，安装后检查 unit、启用状态及规则。不开机重启来测试，
+   将重启后的验证列为下次维护必检。无需安装新的防火墙软件。
+4. 在仓库 `apps/api/deploy/start.sh` 的现有 Java 参数中增加
+   `--server.address=127.0.0.1`，其余参数保持原样；核对服务器脚本与仓库差异，
+   保留服务器已有有效配置，仅加入该参数。先上传为临时文件并做 `bash -n`，
+   再替换 `/root/campus-runner-start.sh`，权限保持 `700`。通过 `/root/run.sh` 重启，
+   不直接启动 Java。Nginx 上游已为 IPv4 回环，正常情况无需修改或重载 Nginx。
+5. 云安全组作为额外防线：取得阿里云控制面权限后，先导出规则并核查所有关联安全组、
+   IPv4/IPv6 及包含 8080 的宽范围入站放行。移除 8080 放行，宽范围规则须拆分并保留确有用途的端口；
+   保持 HTTPS/HTTP 和管理 SSH 来源可用。未经核查不得删除宽范围规则。
+   云控制面不可用时，可完成主机隔离，但必须把云侧整改标记为未确认，不能称安全组已收敛。
+
+### 验收与停止条件
+
+- `ss -lntp` 仅显示 `127.0.0.1:8080`，不出现 `0.0.0.0:8080`、`[::]:8080` 或其他网卡地址；
+  目标 API 只有一个 Java 进程。
+- 回环 `/admin/api/banner/getList/0` 返回 HTTP 200、业务 `code=1`。
+- 服务器外部使用 `curl --noproxy '*'`、正常证书校验访问 www HTTPS 首页，以及
+  `/admin/api/banner/getList/0`、`/api/second-hand/categories`、`/api/order/public`；
+  首页为 200，API 为 200、`code=1`。只输出 HTTP 状态、业务码、耗时和 TLS 校验结果，
+  不展示响应中的签名 URL、Token 或完整日志。检查 HTTP 到 HTTPS 的跳转仍正常。
+- 使用安全提供的测试账号验证 admin 登录在 15 秒内正常完成；未提供账号时明确标记未验证，
+  不用仅首页 200 代替登录验证。
+- 从外部直连 `http://116.62.135.75:8080` 必须连接失败、无 HTTP 响应，不能把 401/403 当作端口阻断。
+  核查域名所有当前 A/AAAA 地址；存在可路由 IPv6 时同时做外部 IPv6 8080 探测。
+  当前没有全局 IPv6，外部 IPv6 测试不适用，仍检查 ip6tables 防护。
+- 检查防护 unit enabled/active、两条带专用 comment 的规则，以及本次重启后的错误日志摘要。
+  在预定的最长 120 秒启动观察窗口内不能恢复回环及 HTTPS 探针，或出现 502、数据库错误、
+  SSH 失联风险时，停止后续变更并回滚。根域名 DNS 问题单独记录，不冒充本次导致的回归。
+
+### 回滚步骤
+
+1. 保留当前管理 SSH 会话，并确认第二个 SSH 会话可用；保留失败脚本和必要诊断摘要。
+2. 若 API 绑定修改后无法正常启动，先恢复已备份的 `/root/campus-runner-start.sh`，
+   保持权限 `700`，再通过 `/root/run.sh` 重启。优先保留 8080 防护：旧 API 即使恢复全网卡监听，
+   Nginx 仍可通过回环访问，回滚不必重新开放公网 8080。
+3. 只有确认主机规则造成故障时，停用并禁用专用防护 unit，使用上述完整规则条件的
+   `iptables -D INPUT ...`、`ip6tables -D INPUT ...` 删除本次规则；不执行 flush，
+   不按易变序号删除，不用整表恢复覆盖其他人的并发规则。移走本次专用 unit/script 后
+   执行 `systemctl daemon-reload`。保留原始规则快照用于比对。
+4. 如确实修改过 Nginx，恢复对应备份，先 `nginx -t` 再平滑 reload；未改则不操作。
+   云规则确需回滚时只恢复本次有记录的规则差异，并保留主机 8080 阻断；
+   不为恢复 HTTPS 而盲目重开公网 8080。
+5. 重验回环数据库探针、外部 HTTPS 首页/API/登录、SSH、Java 进程和公网 8080。
+   如不得不撤销全部隔离，明确报告公网暴露重新出现，不能把可用性恢复当作安全修复完成。
+
 ## 更新后端
 
 ### 1. 本地打包

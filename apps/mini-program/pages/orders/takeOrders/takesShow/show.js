@@ -1,4 +1,5 @@
 const feedback = require('../../../../utils/feedback');
+const { runnerReceivable, hasRunnerReceivable } = require('../../../../utils/runnerAmount');
 const takeOrderService = require('../../../../services/takeOrderService');
 const userOrderService = require('../../../../services/userOrderService');
 const { showError } = require('../../../../utils/transformers');
@@ -75,7 +76,7 @@ Page({
     const status = Number(order.status);
     if (status === 1) return order.businessType === 'PURCHASE' ? '待购买' : '已接单';
     if (status === 2) return order.businessType === 'PURCHASE' ? '配送中' : '派送中';
-    if (status === 5) return order.price == null ? '已完成' : '待收款';
+    if (status === 5) return hasRunnerReceivable(order) ? '待收款' : '已完成';
     const descriptions = {
       '-4': '退款异常', '-3': '退款成功', '-2': '退款中', '-1': '待支付',
       0: '待接单', 3: '已送达', 4: '已取消', 6: '已完成', 7: '收款失败',
@@ -87,7 +88,7 @@ Page({
     const status = Number(order.status);
     if (status === 1 || status === 2) return 'processing';
     if (status === 3) return 'confirming';
-    if (status === 5) return order.price == null ? 'completed' : 'settling';
+    if (status === 5) return hasRunnerReceivable(order) ? 'settling' : 'completed';
     if (status === 6) return 'completed';
     if (status === 4) return 'canceled';
     return 'exception';
@@ -97,7 +98,7 @@ Page({
     const status = Number(order.status);
     if (status === 1 && order.businessType === 'PURCHASE') return 'pending';
     if (status === 1 || status === 2 || status === 3) return 'active';
-    if (status === 5 && order.price != null) return 'pending';
+    if (status === 5 && hasRunnerReceivable(order)) return 'pending';
     if (status === 5 || status === 6) return 'done';
     if (status === 4 || status === -3) return 'neutral';
     return 'warning';
@@ -107,22 +108,19 @@ Page({
     const status = Number(order.status);
     if (status === 1) return order.businessType === 'PURCHASE' ? '查看任务' : '取件完成';
     if (status === 2) return '上传送达图';
-    if (status === 5 && order.price != null) return '确认收款';
-    if (status === 7 && order.price != null) return '处理收款';
+    if (status === 5 && hasRunnerReceivable(order)) return '确认收款';
+    if (status === 7 && hasRunnerReceivable(order)) return '处理收款';
     return '';
   },
 
   prepareOrder(order) {
-    const isPurchase = order.businessType === 'PURCHASE';
-    const receivable = isPurchase
-      ? (order.runnerReceivable ?? order.runner_receivable ?? Number(order.productAmount || 0) + Number(order.price || 0))
-      : order.price;
+    const receivable = runnerReceivable(order);
     const prepared = {
       ...order,
       displayName: String(order.username || '').trim() || '微信用户',
       displayNote: String(order.note || '').replace(/\s+/g, ' ').trim() || order.categoryName || '订单',
       displayAmount: formatMoney(receivable),
-      showAmount: receivable != null && Number(receivable) > 0,
+      showAmount: true,
       statusDesc: this.getStatusDescription(order),
       statusGroup: this.getStatusGroup(order),
       statusKind: this.getStatusKind(order),

@@ -1,5 +1,6 @@
 package com.mikasa.campusrunner.service.impl.user;
 
+import com.mikasa.campusrunner.common.utils.PaymentAmount;
 import com.alibaba.fastjson.JSONObject;
 import com.mikasa.campusrunner.common.constant.OrderStatusConstant;
 import com.mikasa.campusrunner.common.constant.RefundStatusConstant;
@@ -40,12 +41,10 @@ public class RefundInfoServiceImpl implements RefundInfoService {
             throw new OrderException("当前订单状态不能退款");
         }
         PaymentLog payment = paymentLogMapper.getByOrderNumber(order.getOrderNumber());
-        if (payment != null && ("MOCK".equals(payment.getTradeType())
-                || (payment.getTransactionId() != null && payment.getTransactionId().startsWith("MOCK_")))) {
-            throw new OrderException("该订单为模拟支付，不能发起真实退款");
-        }
+        RealPaymentGuard.require(payment, order.getOrderNumber(), order.getPayAmount());
         RefundInfo existing = refundInfoMapper.getLatestByOrderNumber(order.getOrderNumber());
         if (existing != null) {
+            RealPaymentGuard.refund(payment, existing.getTotalFee(), existing.getRefund());
             if ("SUCCESS".equals(existing.getRefundStatus())) {
                 orderMapper.updateStatusByOrderNumber(order.getOrderNumber(), OrderStatusConstant.REFUND_SUCCESS);
             }
@@ -59,7 +58,7 @@ public class RefundInfoServiceImpl implements RefundInfoService {
             return existing;
         }
         if (status == OrderStatusConstant.REFUND_SUCCESS) throw new OrderException("该订单已退款");
-        int cents = order.getPayAmount().movePointRight(2).intValueExact();
+        int cents = PaymentAmount.cents(order.getPayAmount());
         LocalDateTime now = LocalDateTime.now();
         RefundInfo refund = RefundInfo.builder()
                 .orderNumber(order.getOrderNumber())

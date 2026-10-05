@@ -254,24 +254,14 @@ public class TakeOrderServiceImpl implements TakeOrderService {
      */
     @Override
     public TakeOrderUserInfoVO userInfo(Long orderId) {
-        TakeOrder takeOrder = takeOrderMapper.getByOrderId(orderId);
-
-        if (takeOrder == null){
-            throw new TakeOrderException(MessageConstant.TAKE_ORDER_NOT_FOUND);
-        }
-
-        TakeOrderUserInfoVO takeOrderUserInfoVO = takeOrderMapper.getUserInfoByOrderId(orderId);
-        Order order = orderMapper.getById(orderId);
-        Long currentUserId = BaseContext.getCurrentId();
-        if (takeOrderUserInfoVO != null && order != null && currentUserId != null
-                && (currentUserId.equals(order.getUserId()) || currentUserId.equals(takeOrder.getUserId()))) {
-            var purchaseProofImages = mediaAssetService.resolveAuthorizedBinding(
-                    MediaAssetConstant.BOUND_TAKE_ORDER,
-                    takeOrder.getId(),
-                    MediaPurpose.PURCHASE_PROOF.name());
-            if (!purchaseProofImages.isEmpty()) {
-                takeOrderUserInfoVO.setPurchaseProofImage(purchaseProofImages.get(0).getUrl());
-            }
+        TakeOrder takeOrder = requirePrivateTake(orderId);
+        TakeOrderUserInfoVO takeOrderUserInfoVO = takeOrderMapper.getUserInfoByOrderId(orderId, takeOrder.getId());
+        if (takeOrderUserInfoVO == null) throw new OrderException("联系人信息暂不可用");
+        takeOrderUserInfoVO.setPurchaseProofImage(null);
+        var purchaseProofImages = mediaAssetService.resolveAuthorizedBinding(
+                MediaAssetConstant.BOUND_TAKE_ORDER, takeOrder.getId(), MediaPurpose.PURCHASE_PROOF.name());
+        if (!purchaseProofImages.isEmpty()) {
+            takeOrderUserInfoVO.setPurchaseProofImage(purchaseProofImages.get(0).getUrl());
         }
         return takeOrderUserInfoVO;
     }
@@ -283,11 +273,8 @@ public class TakeOrderServiceImpl implements TakeOrderService {
      */
     @Override
     public String getImageByOrderId(Long orderId) {
-        TakeOrder takeOrder = takeOrderMapper.getByOrderId(orderId);
-        if (takeOrder == null){
-            throw new TakeOrderException(MessageConstant.TAKE_ORDER_NOT_FOUND);
-        }
-        if (!takeOrder.getStatus().equals(TakeOrderStatusConstant.ORDER_FINISH)){
+        TakeOrder takeOrder = requirePrivateTake(orderId);
+        if (!TakeOrderStatusConstant.ORDER_FINISH.equals(takeOrder.getStatus())) {
             throw new OrderException(MessageConstant.ORDER_NOT_FINISHED);
         }
         var images = mediaAssetService.resolveAuthorizedBinding(
@@ -319,7 +306,32 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         return list;
     }
 
+    private TakeOrder requirePrivateTake(Long orderId) {
+        Long caller = RunnerOrderAccess.requireUser();
+        Order order = orderMapper.getById(orderId);
+        if (order == null) throw new OrderException("订单不存在");
+        TakeOrder take = takeOrderMapper.getByOrderId(orderId);
+        if (!RunnerOrderAccess.activeTake(take, orderId)
+                || !RunnerOrderAccess.participant(caller, order.getUserId(), take, orderId)) {
+            throw new OrderException("无权查看该订单资料");
+        }
+        return take;
+    }
+
     private void resolveTakeOrderImages(TakeOrderVO order) {
+        order.setImage(null); order.setImageAssetId(null);
+        order.setImageAssetIds(List.of()); order.setImages(List.of());
+        order.setTakeOrderImage(null); order.setTakeOrderImageAssetId(null);
+        order.setPurchaseProofImage(null); order.setPurchaseProofImageAssetId(null);
+        Long caller = RunnerOrderAccess.requireUser();
+        Order source = orderMapper.getById(order.getOrderId());
+        TakeOrder take = takeOrderMapper.getById(order.getId());
+        if (source == null || !RunnerOrderAccess.activeTake(take, order.getOrderId())
+                || !RunnerOrderAccess.participant(caller, source.getUserId(), take, order.getOrderId())) {
+            order.setPhone(null); order.setRealname(null); order.setNote(null);
+            order.setPickUpAddress(null); order.setReciveAddress(null);
+            return;
+        }
         var contentImages = mediaAssetService.resolveAuthorizedBinding(
                 MediaAssetConstant.BOUND_ORDER,
                 order.getOrderId(),

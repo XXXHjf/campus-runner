@@ -86,7 +86,7 @@ Page({
 
     const orderInfo = this.data.orderInfo;
     const status = Number(orderInfo.status);
-    if (status === 0)
+    if (status === 0 || status === -1)
       this.handlePopup(e);
     else if (status > 0 && status < 3)
       errorCilcleToast(this, "订单仍未完成")
@@ -94,14 +94,14 @@ Page({
       this.tbtnTapConfirm();
     else if (status === -4)
       this.gotoFeedback();
-    else
-      feedback.showModal(this, { title: '删除订单？', content: '删除后无法找回该订单或申请售后。', confirmText: '删除', cancelText: '保留', danger: true, success: result => { if (result.confirm) return this.delOrder(); } });
+    else if ([-3, 4, 6].includes(status))
+      feedback.showModal(this, { title: '隐藏订单？', content: '该订单将不再显示在“我发布的”列表中。', confirmText: '隐藏', cancelText: '保留', success: result => { if (result.confirm) return this.delOrder(); } });
   },
 
   // 按钮样式
   buttonColor() {
     const status = Number(this.data.orderInfo.status);
-    if (status === 0) {
+    if (status === 0 || status === -1) {
       this.setData({ theme: 'default', buttonText: '取消订单', buttonDisabled: false });
     } else if (status === 3) {
       this.setData({ theme: 'primary', buttonText: '确认收货', buttonDisabled: false });
@@ -111,8 +111,10 @@ Page({
       this.setData({ theme: 'default', buttonText: '退款处理中', buttonDisabled: true });
     } else if (status === -4) {
       this.setData({ theme: 'primary', buttonText: '反馈异常', buttonDisabled: false });
+    } else if ([-3, 4, 6].includes(status)) {
+      this.setData({ theme: 'default', buttonText: '隐藏订单', buttonDisabled: false });
     } else {
-      this.setData({ theme: 'danger', buttonText: '删除订单', buttonDisabled: false });
+      this.setData({ theme: 'default', buttonText: '订单结算中', buttonDisabled: true });
     }
   },
 
@@ -326,13 +328,13 @@ Page({
   // 删除订单（使用封装的 service）
   async delOrder() {
     try {
-      showLoading('删除中');
+      showLoading('隐藏中');
       await userOrderService.deleteOrder(this.data.id);
       this.setData({ dltDialogVisable: false });
-      feedback.navigate(this, 'navigateBack', {}, '删除成功');
+      feedback.navigate(this, 'navigateBack', {}, '已隐藏');
     } catch (error) {
       console.error('删除订单失败:', error);
-      showError(this, '删除失败');
+      showError(this, error.message || '隐藏失败，请稍后重试');
     } finally {
       hideLoading();
     }
@@ -523,8 +525,9 @@ Page({
     this.setData({ unpaidDeleteProcessing: true });
 
     try {
-      await userOrderService.deleteOrder(this.data.id);
-      feedback.navigate(this, 'navigateBack', {}, '订单超时未支付，已自动删除');
+      await userOrderService.cancelOrder(this.data.id, '支付超时', this.data.orderInfo.orderNumber);
+      await this._loadOrderInfo(false);
+      feedback.showMessage(this, '订单支付时间已结束，请查看最新状态');
     } catch (error) {
       console.error('自动删除未支付订单失败:', error);
       showErrorToast(this, '订单超时，请手动刷新');

@@ -29,6 +29,16 @@ class PublicBrowseMapperTest {
     }
 
     @Test
+    void publicDetailSharesSafeProjectionAndOnlyAllowsPendingOrders() throws Exception {
+        String query = sql("OrderMapper", "getPublicOrderById", Map.of("id",1L));
+        assertTrue(query.contains("o.status = 0"));
+        assertTrue(query.contains("and o.id = ?"));
+        for (String field : new String[]{"o.phone","o.username","o.note","o.image","o.order_number","p.details","r.details","select *"}) {
+            assertFalse(query.contains(field), field);
+        }
+    }
+
+    @Test
     void campusDictionariesAllowGuestsAndKeepSelectedSchoolFilter() throws Exception {
         for (String mapper : new String[]{"SchoolMapper", "CompusMapper", "BuildCategoryMapper", "BuildingMapper"}) {
             Map<String, Object> guest = new HashMap<>();

@@ -45,6 +45,9 @@ public class OrderServiceImpl implements OrderService {
     private OrderMapper orderMapper;
 
     @Autowired
+    private TakeOrderMapper takeOrderMapper;
+
+    @Autowired
     private AddressBookMapper addressBookMapper;
 
     @Autowired
@@ -136,8 +139,7 @@ public class OrderServiceImpl implements OrderService {
         order.setUserId(BaseContext.getCurrentId());
         boolean purchase = OrderBusinessConstant.CATEGORY_PURCHASE.equals(category.getCategoryCode());
         if (!purchase && (orderSubmitDTO.getPrice() == null ||
-                orderSubmitDTO.getPrice().signum() == 0 ||
-                orderSubmitDTO.getPrice().multiply(BigDecimal.valueOf(100)).intValue() == 0)) {
+                orderSubmitDTO.getPrice().signum() == 0)) {
             //表示当前订单是无偿的
             order.setBusinessType(OrderBusinessConstant.NORMAL);
             order.setProductAmount(BigDecimal.ZERO.setScale(2));
@@ -228,23 +230,26 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * 根据id删除订单(逻辑删除)
+     * 仅隐藏本人已结束且资金无未决事项的订单
      *
      * @param id
      */
     @Override
     @Transactional
     public void deleteByid(Long id) {
-        int row = orderMapper.deleteById(id);
-        mediaAssetService.replaceBinding(
-                List.of(),
-                MediaPurpose.ORDER_IMAGE.name(),
-                MediaAssetConstant.OWNER_USER,
-                BaseContext.getCurrentId(),
-                MediaAssetConstant.BOUND_ORDER,
-                id,
-                1,
-                Duration.ofDays(7));
+        Long userId = BaseContext.getCurrentId();
+        if (userId == null) throw new OrderException("登录已失效，请重新登录");
+        Order order = orderMapper.getByIdForUpdate(id);
+        if (order == null) throw new OrderException("订单不存在");
+        if (!userId.equals(order.getUserId())) throw new OrderException("不能隐藏他人的订单");
+        if (!java.util.Arrays.asList(OrderStatusConstant.CANCELED, OrderStatusConstant.REFUND_SUCCESS,
+                OrderStatusConstant.WITHDRAWAL_SUCCEEDED).contains(order.getStatus())) {
+            throw new OrderException("订单尚未结束，暂不能隐藏");
+        }
+        if (orderMapper.hideById(id, userId, order.getStatus()) != 1) {
+            throw new OrderException("订单暂不能隐藏，请刷新后核对订单和资金状态");
+        }
+        // Hiding the publisher's list entry must retain order, funds and evidence bindings.
     }
 
     /**
@@ -335,14 +340,11 @@ public class OrderServiceImpl implements OrderService {
         if (id == null) {
             throw new ParamException(MessageConstant.NOT_FOUND_PARAM);
         }
-//        Order order = orderMapper.getById(id);
-//        if (!order.getUserId().equals(BaseContext.getCurrentId())) {
-//            throw new OrderException(MessageConstant.NOT_YOUR_ORDER);
-//        }
-//        if (!order.getStatus().equals(OrderStatusConstant.WAIT_TO_TAKE_ORDER)){
-//            throw new OrderException(MessageConstant.STATUS_NOT_WAIT_TO_TAKE_ORDER);
-//        }
-        OrderShowVO detail = resolveOrderImage(orderMapper.detail(id));
+        RunnerOrderAccess.requireUser();
+        OrderShowVO raw = orderMapper.detail(id);
+        if (raw == null) throw new OrderException("订单不存在");
+        OrderShowVO detail = resolveOrderImage(raw);
+        if (detail == null) throw new OrderException("无权查看该订单");
         if (detail != null && detail.getUserId() != null) {
             var avatars = mediaAssetService.resolvePublicBinding(
                     MediaAssetConstant.BOUND_USER_AVATAR,
@@ -598,8 +600,9 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private List<OrderShowVO> resolveOrderImages(List<OrderShowVO> orders) {
-        orders.forEach(order -> resolveOrderImage(order, 320));
-        return orders;
+        RunnerOrderAccess.requireUser();
+        return orders.stream().map(order -> resolveOrderImage(order, 320))
+                .filter(java.util.Objects::nonNull).toList();
     }
 
     private OrderShowVO resolveOrderImage(OrderShowVO order) {
@@ -610,6 +613,16 @@ public class OrderServiceImpl implements OrderService {
         if (order == null) {
             return null;
         }
+        Long caller = RunnerOrderAccess.requireUser();
+        boolean privateAccess = caller.equals(order.getUserId())
+                || RunnerOrderAccess.participant(caller, order.getUserId(),
+                    takeOrderMapper.getByOrderId(order.getId()), order.getId());
+        if (!privateAccess) return publicPreview(order.getId());
+        // Never fall back to legacy raw URLs, even for an authorized participant.
+        order.setImage(null);
+        order.setImageAssetId(null);
+        order.setImageAssetIds(List.of());
+        order.setImages(List.of());
         var images = mediaAssetService.resolveAuthorizedBinding(
                 MediaAssetConstant.BOUND_ORDER,
                 order.getId(),
@@ -629,4 +642,18 @@ public class OrderServiceImpl implements OrderService {
         }
         return order;
     }
+    private OrderShowVO publicPreview(Long id) {
+        var preview = orderMapper.getPublicOrderById(id);
+        if (preview == null) return null;
+        OrderShowVO result = new OrderShowVO();
+        result.setId(preview.id()); result.setPrice(preview.price());
+        result.setProductAmount(preview.productAmount()); result.setBusinessType(preview.businessType());
+        result.setCreateTime(preview.createTime()); result.setExpectedDeliveryTime(preview.expectedDeliveryTime());
+        result.setGap(preview.gap()); result.setCategoryId(preview.categoryId());
+        result.setCategoryName(preview.categoryName()); result.setPickUpAddress(preview.pickUpAddress());
+        result.setReciveAddress(preview.reciveAddress()); result.setStatus(OrderStatusConstant.WAIT_TO_TAKE_ORDER);
+        result.setImageAssetIds(List.of()); result.setImages(List.of());
+        return result;
+    }
+
 }

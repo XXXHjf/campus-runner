@@ -1,6 +1,7 @@
 const { shareOrder, title: shareTitle, imageUrl: shareImageUrl } = require('../../../../utils/orderShare');
 const feedback = require('../../../../utils/feedback');
 const detailRefresh = require('../../../../utils/detailRefresh');
+const { hasRunnerReceivable } = require('../../../../utils/runnerAmount');
 // 引入服务和工具
 const userOrderService = require('../../../../services/userOrderService');
 const takeOrderService = require('../../../../services/takeOrderService');
@@ -292,6 +293,10 @@ Page({
   // 拉起微信确定收款（保留原逻辑，使用 tokenManager）
   async _requestMerchantTransfer() {
     if (this.data.transferBusy) return;
+    if (!hasRunnerReceivable(this.data.orderInfo)) {
+      feedback.showMessage(this, '该订单无需收款', { theme: 'info' });
+      return;
+    }
     this.setData({ transferBusy: true });
     try {
       if (getApp().globalData.MOCK_PAYMENT) {
@@ -339,6 +344,10 @@ Page({
         },
         success: (res) => {
           const transfer = res.data?.data;
+          if (res.statusCode === 200 && res.data?.code === 0) {
+            reject(new Error(feedback.userText(res.data.msg, '发起收款失败，请稍后重试')));
+            return;
+          }
           if (res.statusCode !== 200 || res.data?.code !== 1 || !transfer?.mchId || !transfer?.packageInfo) {
             reject(new Error('发起收款失败，请稍后重试'));
             return;
@@ -412,6 +421,7 @@ Page({
         throw new Error('订单不存在或已被删除');
       }
       orderInfo.images = orderInfo.images?.length ? orderInfo.images : (orderInfo.image ? [orderInfo.image] : []);
+      orderInfo.hasRunnerReceivable = hasRunnerReceivable(orderInfo);
 
       // 安全处理地址分割（去掉第一个空格前的内容）
       const addressParts1 = orderInfo.pickUpAddress ? orderInfo.pickUpAddress.split(' ').slice(1) : [];

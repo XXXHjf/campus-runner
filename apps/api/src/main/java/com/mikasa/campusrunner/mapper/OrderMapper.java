@@ -25,6 +25,7 @@ public interface OrderMapper {
     @Select("SELECT * FROM tb_orders WHERE order_number = #{orderNumber} FOR UPDATE")
     Order getByOrderNumberForUpdate(@Param("orderNumber") String orderNumber);
     List<com.mikasa.campusrunner.pojo.vo.PublicOrderVO> listPublicOrders();
+    com.mikasa.campusrunner.pojo.vo.PublicOrderVO getPublicOrderById(@Param("id") Long id);
 
     /**
      * 根据价格优先排序，
@@ -44,12 +45,12 @@ public interface OrderMapper {
     int insert(Order order);
 
     /**
-     * 删除订单
+     * 隐藏本人终态订单，保留资金与证据
      * @param id
      * @return
      */
     @Transactional
-    int deleteById(Long id);
+    int hideById(@Param("id") Long id, @Param("userId") Long userId, @Param("status") Integer status);
 
     /**
      * 根据取件地址筛选

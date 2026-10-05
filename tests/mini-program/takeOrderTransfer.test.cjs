@@ -19,7 +19,7 @@ function createPage(wxOverrides = {}) {
     console,
     wx,
     getApp: () => ({ globalData: { API_URL: 'https://example.test', MOCK_PAYMENT: false } }),
-    require: (name) => name.endsWith('feedback') ? feedbackStub(wx) : name.includes('tokenManager') ? { getToken: () => 'test-token' }
+    require: (name) => name.endsWith('runnerAmount') ? require('../../apps/mini-program/utils/runnerAmount') : name.endsWith('feedback') ? feedbackStub(wx) : name.includes('tokenManager') ? { getToken: () => 'test-token' }
       : name.includes('transformers') ? { showLoading: () => {}, hideLoading: () => {}, showError: () => {} }
         : name.includes('commonJs') ? { errorCilcleToast: () => {} }
           : {},
@@ -38,7 +38,7 @@ test('微信弹窗成功后等待服务端订单状态，不提前标记收款�
   let refreshed = 0;
   const page = createPage();
   page.data.id = 42;
-  page.data.orderInfo = { status: 5 };
+  page.data.orderInfo = { status: 5, price: 1 };
   page._apiTransfer = async () => ({ mchId: 'merchant', packageInfo: 'package' });
   page._loadOrderInfo = async () => { refreshed += 1; };
   await page._requestMerchantTransfer();
@@ -50,9 +50,20 @@ test('微信弹窗成功后等待服务端订单状态，不提前标记收款�
 test('收款接口失败响应不会打开微信收款弹窗', async () => {
   let opened = false;
   const page = createPage({
-    request: ({ success }) => success({ statusCode: 200, data: { code: 0, msg: '失败' } }),
+    request: ({ success }) => success({ statusCode: 200, data: { code: 0, msg: '该订单无需收款' } }),
     requestMerchantTransfer: () => { opened = true; },
   });
-  await assert.rejects(page._apiTransfer(42), /发起收款失败/);
+  await assert.rejects(page._apiTransfer(42), /该订单无需收款/);
   assert.equal(opened, false);
+});
+
+test('零元和旧空金额订单不会调用收款接口或微信弹窗', async () => {
+  for (const price of [0, '0.00', null]) {
+    const page = createPage({ requestMerchantTransfer: () => assert.fail('must not open WeChat') });
+    page.data.orderInfo = { status: 5, price, businessType: 'NORMAL' };
+    page._apiTransfer = async () => assert.fail('must not request a transfer');
+    await page._requestMerchantTransfer();
+    assert.equal(page.data.orderInfo.status, 5);
+    assert.equal(page.data.transferBusy, false);
+  }
 });

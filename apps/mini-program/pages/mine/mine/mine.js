@@ -404,29 +404,29 @@ Page({
     return createdAt.getTime() + UNPAID_TIMEOUT_MS - Date.now();
   },
 
-  // 查询未支付订单，超时自动删除
+  // 查询未支付订单，超时通过取消流程关闭支付
   async _getUnpaidOrders() {
     try {
       const orders = await userOrderService.getMyOrders();
       const unpaidOrders = orders.filter(order => Number(order.status) === -1);
 
       const validOrders = [];
-      const expiredOrderIds = [];
+      const expiredOrders = [];
 
       unpaidOrders.forEach(order => {
         const remainMs = this._getRemainPayTime(order.createTime);
         if (remainMs <= 0) {
-          expiredOrderIds.push(order.id);
+          expiredOrders.push(order);
         } else {
           validOrders.push({ ...order, remainMs });
         }
       });
 
-      if (expiredOrderIds.length > 0) {
+      if (expiredOrders.length > 0) {
         await Promise.all(
-          expiredOrderIds.map(id =>
-            userOrderService.deleteOrder(id).catch(err => {
-              console.warn('自动删除未支付订单失败:', id, err);
+          expiredOrders.map(order =>
+            userOrderService.cancelOrder(order.id, '支付超时', order.orderNumber).catch(err => {
+              console.warn('取消超时未支付订单失败:', order.id, err);
             })
           )
         );

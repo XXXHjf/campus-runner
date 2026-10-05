@@ -20,8 +20,13 @@ class RefundLifecycleTest {
     @InjectMocks RefundInfoServiceImpl service;
     Order order() { return Order.builder().id(1L).orderNumber("ORDER1").status(-2).payAmount(new BigDecimal("0.29")).build(); }
     RefundInfoDTO dto() { var dto = new RefundInfoDTO(); dto.setOrderNumber("ORDER1"); dto.setReason("取消"); return dto; }
-    RefundInfo existing(String state) { return RefundInfo.builder().refundNumber("R1").orderNumber("ORDER1").refundStatus(state).build(); }
+    RefundInfo existing(String state) { return RefundInfo.builder().refundNumber("R1").orderNumber("ORDER1").refundStatus(state).totalFee(29).refund(29).build(); }
+    void realPayment() {
+        when(payments.getByOrderNumber("ORDER1")).thenReturn(PaymentLog.builder().orderNumber("ORDER1")
+                .paymentType("微信支付").tradeType("JSAPI").transactionId("WX1").tradeState("SUCCESS").total(29L).build());
+    }
     @Test void fractionalYuanIsConvertedExactlyAndRecordStartsProcessing() {
+        realPayment();
         when(orders.getByOrderNumberForUpdate("ORDER1")).thenReturn(order());
         RefundInfo result = service.saveRefundInfoByOrderId(dto());
         assertEquals(29, result.getTotalFee()); assertEquals(29, result.getRefund());
@@ -29,6 +34,7 @@ class RefundLifecycleTest {
         verify(refunds).insert(result);
     }
     @Test void retryUsesExistingRefundNumber() {
+        realPayment();
         when(orders.getByOrderNumberForUpdate("ORDER1")).thenReturn(order());
         RefundInfo existing = existing("REQUEST_FAILED");
         when(refunds.getLatestByOrderNumber("ORDER1")).thenReturn(existing);
@@ -36,6 +42,7 @@ class RefundLifecycleTest {
         verify(refunds, never()).insert(any());
     }
     @Test void existingSuccessRepairsStaleOrderWithoutNewRefund() {
+        realPayment();
         when(orders.getByOrderNumberForUpdate("ORDER1")).thenReturn(order());
         when(refunds.getLatestByOrderNumber("ORDER1")).thenReturn(existing("SUCCESS"));
         service.saveRefundInfoByOrderId(dto());
@@ -43,6 +50,7 @@ class RefundLifecycleTest {
         verify(refunds, never()).insert(any());
     }
     @Test void providerAbnormalOrClosedMustBeHandledByMerchant() {
+        realPayment();
         when(orders.getByOrderNumberForUpdate("ORDER1")).thenReturn(order());
         for (String state : new String[]{"ABNORMAL", "CLOSED"}) {
             when(refunds.getLatestByOrderNumber("ORDER1")).thenReturn(existing(state));

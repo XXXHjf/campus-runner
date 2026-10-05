@@ -159,3 +159,7 @@ HTTP 200 的业务失败保留 API 返回的可操作提示，正常上传和压
 本版本 API 前执行 `docs/database/media-asset-phase2-migration.sql`。
 已完成历史迁移的环境执行 `docs/database/legacy-compatibility-cleanup.sql` 删除旧字段；停机发布、
 验证和回滚要求见 `docs/database/legacy-compatibility-cleanup.md`。历史迁移文档与 SQL 仅保留作审计记录。
+
+### 私有绑定解析的授权责任
+
+`resolveAuthorizedBinding` 是受信任的服务内解析方法，只根据绑定查询并签名，不自动识别当前用户是否有业务权限；不得直接暴露为按绑定 ID 查询图片的用户端接口。调用方必须先核对业务归属及状态，再解析私有图片。跑腿详情、联系人、购买凭证、送达图片及接单列表规则见 [订单资料与凭证读取权限](../mini-program/order-flow.md#订单资料与凭证读取权限)。公开预览不能调用私有解析，也不能把旧 URL 当作权限校验后的兜底返回。

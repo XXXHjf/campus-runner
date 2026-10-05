@@ -3,7 +3,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.mikasa.campusrunner.mapper.OrderMapper">
     <!-- Public projection: never include phone, note, photos or address-book details. -->
-    <select id="listPublicOrders" resultType="com.mikasa.campusrunner.pojo.vo.PublicOrderVO">
+    <sql id="publicOrderProjection">
         select o.id, o.price, o.product_amount, o.business_type, o.create_time, o.expected_delivery_time, o.gap, o.category_id, c.category_name,
                concat_ws(' ', ps.school_name, pc.compus_name, pbc.name, pb.building_name) as pick_up_address,
                concat_ws(' ', rs.school_name, rc.compus_name, rbc.name, rb.building_name) as recive_address
@@ -20,8 +20,15 @@
         join tb_build_category pbc on pbc.id = p.build_category_id
         join tb_build_category rbc on rbc.id = r.build_category_id
         where o.deleted = 0 and o.status = 0 and p.deleted = 0 and r.deleted = 0
+    </sql>
+    <select id="listPublicOrders" resultType="com.mikasa.campusrunner.pojo.vo.PublicOrderVO">
+        <include refid="publicOrderProjection"/>
         order by o.create_time desc
         limit 100
+    </select>
+    <select id="getPublicOrderById" resultType="com.mikasa.campusrunner.pojo.vo.PublicOrderVO">
+        <include refid="publicOrderProjection"/>
+        AND o.id = #{id}
     </select>
 
 
@@ -402,6 +409,7 @@
 
         WHERE
             orders.deleted = 0 AND
+            (orders.publisher_hidden = 0 OR orders.status NOT IN (-3, 4, 6)) AND
             orders.category_id = category.id AND
             orders.pick_up_address = address_pick_up.id AND
             orders.recive_address = address_recive.id AND
@@ -838,7 +846,7 @@
         select *
         from tb_orders
         where status = 5 and
-              deleted = 0
+              deleted = 0 and COALESCE(price, 0) + COALESCE(product_amount, 0) > 0
     </select>
     <select id="getAllOrdersNum" resultType="java.lang.Long">
         SELECT
@@ -935,8 +943,31 @@
     </insert>
 
 
-    <update id="deleteById">
-        update tb_orders set deleted = 1 where id = #{id}
+    <update id="hideById">
+        UPDATE tb_orders
+        SET publisher_hidden = 1
+        WHERE id = #{id} AND user_id = #{userId} AND status = #{status}
+          AND status IN (-3, 4, 6) AND deleted = 0 AND publisher_hidden = 0
+          AND (status != 4 OR NOT EXISTS (
+              SELECT 1 FROM tb_payment_log p WHERE p.order_number = tb_orders.order_number
+          ))
+          AND NOT EXISTS (
+              SELECT 1 FROM tb_refund_info r WHERE r.order_number = tb_orders.order_number
+                AND (r.refund_status IS NULL OR r.refund_status != 'SUCCESS')
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM tb_wx_transfer_log t WHERE t.order_number = tb_orders.order_number
+                AND (t.state IS NULL OR t.state != 'SUCCESS')
+          )
+          AND (status != -3 OR EXISTS (
+              SELECT 1 FROM tb_refund_info r WHERE r.order_number = tb_orders.order_number
+                AND r.refund_status = 'SUCCESS' AND r.total_fee > 0
+                AND r.refund = r.total_fee AND r.total_fee = tb_orders.pay_amount * 100
+          ))
+          AND (status != 6 OR EXISTS (
+              SELECT 1 FROM tb_wx_transfer_log t WHERE t.order_number = tb_orders.order_number
+                AND t.state = 'SUCCESS' AND t.transfer_amount > 0
+          ))
     </update>
 
     <update id="update">

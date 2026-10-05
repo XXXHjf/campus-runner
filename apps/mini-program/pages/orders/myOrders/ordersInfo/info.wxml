@@ -8,15 +8,14 @@
     <ui-section plain class="publisher-detail-sheet" style="--cr-radius-medium: 36rpx; --cr-section-gap: 0;">
       <view class="runner-detail-main">
         <view class="runner-detail-primary">
-          <text wx:if="{{orderInfo.price != null}}" class="runner-detail-price">¥{{orderInfo.price}}</text>
-          <text wx:else class="runner-detail-free">无偿跑腿</text>
+          <text class="runner-detail-price">¥{{orderInfo.price || 0}}</text>
           <t-tag wx:if="{{orderInfo.categoryName}}" size="small" variant="light">{{orderInfo.categoryName}}</t-tag>
         </view>
         <view class="runner-detail-tags"><t-tag size="small" variant="light">{{orderStatusText}}</t-tag></view>
         <view class="runner-detail-description">{{orderInfo.note || '暂无说明'}}</view>
         <view class="runner-detail-muted">预计送达：{{orderInfo.expectTime}}</view>
 
-        <view wx:if="{{orderInfo.price != null}}" class="publisher-detail-payment">
+        <view wx:if="{{orderInfo.price > 0 || orderInfo.productAmount > 0}}" class="publisher-detail-payment">
           <view wx:if="{{orderInfo.businessType === 'PURCHASE'}}" class="runner-detail-money-row"><text>商品金额</text><text>¥{{orderInfo.productAmount}}</text></view>
           <view class="publisher-detail-payment-row">
             <text>{{orderInfo.businessType === 'PURCHASE' ? '预计实付' : '实付金额'}}</text>
@@ -37,7 +36,7 @@
         </view>
         <view wx:if="{{orderInfo.status == -1}}" class="publisher-detail-notice">
           <view class="runner-detail-countdown"><text>支付剩余时间</text><t-count-down time="{{unpaidRemainTime}}" format="mm:ss" theme="round" size="small" /></view>
-          <view class="runner-detail-muted">超时未支付将自动删除订单</view>
+          <view class="runner-detail-muted">超时未支付将取消订单</view>
         </view>
         <view wx:if="{{orderInfo.status == -2}}" class="publisher-detail-notice">退款处理中，请稍后查看退款结果。</view>
         <view wx:if="{{orderInfo.status == -4}}" class="publisher-detail-notice">退款未成功，请反馈异常。</view>

@@ -85,9 +85,7 @@ function deleteOrder(orderId) {
   return request({
     url: `${url}/api/order/${orderId}`,
     method: 'DELETE'
-  }).then(res => {
-    return res.data;
-  });
+  }).then(requireSuccess);
 }
 
 /**

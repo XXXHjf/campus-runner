@@ -64,7 +64,7 @@ public class OrderController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "删除订单")
+    @Operation(summary = "隐藏本人已结束的订单")
     public Result delete(@PathVariable Long id){
         log.info("Delete order, id: {}", id);
         orderService.deleteByid(id);

@@ -22,6 +22,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class WeChatRefundSubmissionTest {
+    @Mock OrderMapper orderMapper;
+    @Mock PaymentLogMapper paymentLogMapper;
     @Mock RefundInfoService refundInfoService;
     @Mock RefundInfoMapper refundInfoMapper;
     @Mock CloseableHttpClient wxPayClient;
@@ -30,7 +32,15 @@ class WeChatRefundSubmissionTest {
     RefundInfo refund() { return RefundInfo.builder().orderNumber("O1").refundNumber("R1").reason("取消")
         .refundStatus("PROCESSING").totalFee(29).refund(29).build(); }
     RefundInfoDTO dto() { var dto = new RefundInfoDTO(); dto.setOrderNumber("O1"); dto.setReason("取消"); return dto; }
+    void realPayment() {
+        when(orderMapper.getByOrderNumber("O1")).thenReturn(com.mikasa.campusrunner.pojo.entity.Order.builder()
+                .orderNumber("O1").payAmount(new java.math.BigDecimal("0.29")).build());
+        when(paymentLogMapper.getByOrderNumber("O1")).thenReturn(com.mikasa.campusrunner.pojo.entity.PaymentLog.builder()
+                .orderNumber("O1").paymentType("微信支付").tradeType("JSAPI").transactionId("WX1")
+                .tradeState("SUCCESS").total(29L).build());
+    }
     void submission(int status, String body) throws Exception {
+        realPayment();
         when(refundInfoService.saveRefundInfoByOrderId(any())).thenReturn(refund());
         when(weChatProperties.getWxDomain()).thenReturn("https://api.mch.weixin.qq.com");
         when(weChatProperties.getNotifyUrl()).thenReturn("https://example.test");
@@ -46,9 +56,28 @@ class WeChatRefundSubmissionTest {
         verify(refundInfoService).updateRefund(body);
     }
     @Test void rejectedRequestIsPersistedAndThrowsInsteadOfReportingSuccess() throws Exception {
-        submission(400, "{\"code\":\"NOT_ENOUGH\"}");
+        submission(403, "{\"code\":\"NOT_ENOUGH\",\"message\":\"balance insufficient\"}");
         assertThrows(OrderException.class, () -> service.refunds(dto()));
-        verify(refundInfoService).updateRefund(argThat(json -> "REQUEST_FAILED".equals(JSONObject.parseObject(json).getString("status"))));
+        verify(refundInfoService).updateRefund(argThat(json -> {
+            JSONObject saved = JSONObject.parseObject(json);
+            return "REQUEST_FAILED".equals(saved.getString("status"))
+                    && "NOT_ENOUGH".equals(saved.getString("code"))
+                    && "balance insufficient".equals(saved.getString("message"))
+                    && saved.getIntValue("http_status") == 403;
+        }));
+    }
+    @Test void rateLimitedRequestRemainsUncertainForQueryAndSameNumberRetry() throws Exception {
+        submission(429, "{\"code\":\"FREQUENCY_LIMITED\"}");
+        assertThrows(IOException.class, () -> service.refunds(dto()));
+        verify(refundInfoService, never()).updateRefund(any());
+    }
+    @Test void uncertainManualRetryRestoresReconciliationInsteadOfStayingRejected() throws Exception {
+        submission(429, "{\"code\":\"FREQUENCY_LIMITED\"}");
+        RefundInfo rejected = refund(); rejected.setRefundStatus("REQUEST_FAILED");
+        when(refundInfoService.saveRefundInfoByOrderId(any())).thenReturn(rejected);
+        assertThrows(IOException.class, () -> service.refunds(dto()));
+        verify(refundInfoService).updateRefund(argThat(json ->
+                "PROCESSING".equals(JSONObject.parseObject(json).getString("status"))));
     }
     @Test void serverFailureLeavesDurableIntentForReconciliation() throws Exception {
         submission(500, "unavailable");
@@ -74,6 +103,7 @@ class WeChatRefundSubmissionTest {
         verify(refundInfoService).updateRefund(contains("ABNORMAL"));
     }
     @Test void acceptedRefundIsQueriedInsteadOfSubmittedAgain() throws Exception {
+        realPayment();
         RefundInfo accepted = refund(); accepted.setRefundId("WX1");
         when(refundInfoService.saveRefundInfoByOrderId(any())).thenReturn(accepted);
         WeChatPayServiceImpl spy = spy(service);

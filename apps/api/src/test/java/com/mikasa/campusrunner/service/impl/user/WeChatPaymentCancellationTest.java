@@ -33,12 +33,13 @@ class WeChatPaymentCancellationTest {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES"), new GCMParameterSpec(128,nonce.getBytes(StandardCharsets.UTF_8)));
         cipher.updateAAD("transaction".getBytes(StandardCharsets.UTF_8));
-        String json = "{\"out_trade_no\":\"O1\",\"trade_state\":\"SUCCESS\"}";
+        String json = "{\"out_trade_no\":\"O1\",\"trade_state\":\"SUCCESS\",\"amount\":{\"total\":29,\"currency\":\"CNY\"}}";
         String ciphertext = Base64.getEncoder().encodeToString(cipher.doFinal(json.getBytes(StandardCharsets.UTF_8)));
         return Map.of("resource", Map.of("nonce",nonce,"associated_data","transaction","ciphertext",ciphertext));
     }
     @Test void latePaidCallbackForCancelledOrderCreatesDurableRefundIntent() throws Exception {
-        when(orders.getByOrderNumberForUpdate("O1")).thenReturn(Order.builder().id(1L).status(4).build());
+        when(orders.getByOrderNumberForUpdate("O1")).thenReturn(Order.builder().id(1L).orderNumber("O1")
+                .payAmount(new java.math.BigDecimal("0.29")).status(4).build());
         service.processOrder(callback());
         verify(orderService).updateStatusByOrderNumber("O1", -2);
         verify(refundInfoService).saveRefundInfoByOrderId(argThat(dto -> "O1".equals(dto.getOrderNumber())));

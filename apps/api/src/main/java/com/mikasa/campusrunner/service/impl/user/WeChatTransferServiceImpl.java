@@ -10,6 +10,10 @@ import com.mikasa.campusrunner.common.context.BaseContext;
 import com.mikasa.campusrunner.common.exception.OrderException;
 import com.mikasa.campusrunner.common.properties.WeChatProperties;
 import com.mikasa.campusrunner.mapper.OrderMapper;
+import com.mikasa.campusrunner.mapper.TakeOrderMapper;
+import com.mikasa.campusrunner.pojo.entity.TakeOrder;
+import com.mikasa.campusrunner.common.constant.TakeOrderStatusConstant;
+import com.mikasa.campusrunner.common.constant.DeleteConstant;
 import com.mikasa.campusrunner.mapper.PaymentLogMapper;
 import com.mikasa.campusrunner.mapper.UserMapper;
 import com.mikasa.campusrunner.mapper.WxTransferLogMapper;
@@ -55,6 +59,9 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
     private OrderMapper orderMapper;
 
     @Autowired
+    private TakeOrderMapper takeOrderMapper;
+
+    @Autowired
     private UserMapper userMapper;
 
     @Autowired
@@ -91,17 +98,39 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
         if (order == null) {
             throw new OrderException(MessageConstant.NOT_FOUND_ORDER);
         }
-        if (!(order.getStatus().equals(OrderStatusConstant.SENDER_CONFIRMS_RECEIPT) ||
-                order.getStatus().equals(OrderStatusConstant.WITHDRAWAL_FAILED))) {
+        Long callerId = BaseContext.getCurrentId();
+        if (callerId == null) {
+            throw new OrderException("登录已失效，请重新登录");
+        }
+        TakeOrder takeOrder = takeOrderMapper.getByOrderId(order.getId());
+        if (takeOrder == null || !order.getId().equals(takeOrder.getOrderId())
+                || !DeleteConstant.UN_DELETED.equals(takeOrder.getDeleted())
+                || !TakeOrderStatusConstant.ORDER_FINISH.equals(takeOrder.getStatus())
+                || !callerId.equals(takeOrder.getUserId())) {
+            throw new OrderException("只有该订单的接单人可以申请收款");
+        }
+        if (!(OrderStatusConstant.SENDER_CONFIRMS_RECEIPT.equals(order.getStatus()) ||
+                OrderStatusConstant.WITHDRAWAL_FAILED.equals(order.getStatus()))) {
             throw new OrderException(MessageConstant.ORDER_STATE_NOT_CONFIRMS_OR_WITHDRAWAL_FAILED);
+        }
+        BigDecimal receivable = (order.getProductAmount() == null ? BigDecimal.ZERO : order.getProductAmount())
+                .add(order.getPrice() == null ? BigDecimal.ZERO : order.getPrice());
+        if (receivable.signum() == 0) {
+            throw new OrderException("该订单无需收款");
         }
         //获取支付日志
         PaymentLog paymentLog = paymentLogMapper.getByOrderNumber(order.getOrderNumber());
-        if (paymentLog == null) {
-            throw new OrderException(MessageConstant.ORDER_NOT_PAY);
+        RealPaymentGuard.require(paymentLog, order.getOrderNumber(), order.getPayAmount());
+        BigDecimal transferMax = getTransferMax();
+        if (receivable.signum() <= 0 || receivable.compareTo(transferMax) > 0) {
+            throw new OrderException("预计收款金额超出当前单笔转账额度，请联系平台处理");
         }
+        int transferAmount = RealPaymentGuard.transfer(paymentLog, receivable, order.getServiceFee());
         //获取用户信息
-        UserVO user = userMapper.getById(BaseContext.getCurrentId());
+        UserVO user = userMapper.getById(takeOrder.getUserId());
+        if (user == null || user.getOpenid() == null || user.getOpenid().isBlank()) {
+            throw new OrderException("收款账号不可用，请重新登录后再试");
+        }
 
         log.info("Calling transfer API");
         //构造url
@@ -118,13 +147,7 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
         paramsMap.put("transfer_scene_id", weChatProperties.getTransferSceneId()); //转账场景ID
         paramsMap.put("openid", user.getOpenid()); //收款用户OpenID
 //        paramsMap.put("transfer_amount", paymentLog.getTotal()); //转账金额
-        BigDecimal receivable = (order.getProductAmount() == null ? BigDecimal.ZERO : order.getProductAmount())
-                .add(order.getPrice() == null ? BigDecimal.ZERO : order.getPrice());
-        BigDecimal transferMax = getTransferMax();
-        if (receivable.signum() <= 0 || receivable.compareTo(transferMax) > 0) {
-            throw new OrderException("预计收款金额超出当前单笔转账额度，请联系平台处理");
-        }
-        paramsMap.put("transfer_amount", receivable.movePointRight(2).intValueExact());
+        paramsMap.put("transfer_amount", transferAmount);
         boolean purchase = OrderBusinessConstant.PURCHASE.equals(order.getBusinessType());
         paramsMap.put("transfer_remark", purchase ? "代买垫付款及跑腿费" : WeChatTransferConstant.TRANSFER_REMARK);
         paramsMap.put("notify_url", notifyUrl); //通知地址
@@ -132,14 +155,14 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
         //转账场景报备信息
         HashMap[] sceneReportInfos = new HashMap[2];
         HashMap sceneReprotInfo = new HashMap();
-        sceneReprotInfo.put("info_type", "Job Type");
-        sceneReprotInfo.put("info_content", "Delivery Staff");
+        sceneReprotInfo.put("info_type", "岗位类型");
+        sceneReprotInfo.put("info_content", "校园跑腿员");
         sceneReportInfos[0] = sceneReprotInfo;
         sceneReprotInfo = new HashMap();
-        sceneReprotInfo.put("info_type", "Compensation Description");
+        sceneReprotInfo.put("info_type", "报酬说明");
         sceneReprotInfo.put("info_content", purchase
-                ? "Purchase Advance Reimbursement and Delivery Reward"
-                : "Delivery Commission Reward");
+                ? "代买垫付款及跑腿报酬"
+                : "校园配送跑腿报酬");
         sceneReportInfos[1] = sceneReprotInfo;
         paramsMap.put("transfer_scene_report_infos", sceneReportInfos);
 

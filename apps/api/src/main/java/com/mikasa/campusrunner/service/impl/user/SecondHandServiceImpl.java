@@ -1,5 +1,6 @@
 package com.mikasa.campusrunner.service.impl.user;
 
+import com.mikasa.campusrunner.common.utils.PaymentAmount;
 import com.alibaba.fastjson.JSONObject;
 import com.mikasa.campusrunner.common.constant.DeleteConstant;
 import com.mikasa.campusrunner.common.constant.MediaAssetConstant;
@@ -1027,7 +1028,7 @@ public class SecondHandServiceImpl implements SecondHandService {
         paramsMap.put("notify_url", notifyPayUrl);
 
         Map<String, Object> amountMap = new HashMap<>();
-        amountMap.put("total", order.getPayAmount().multiply(BigDecimal.valueOf(100)).intValue());
+        amountMap.put("total", PaymentAmount.cents(order.getPayAmount()));
         amountMap.put("currency", "CNY");
         paramsMap.put("amount", amountMap);
 
@@ -1080,6 +1081,8 @@ public class SecondHandServiceImpl implements SecondHandService {
                     !isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)) {
                 return;
             }
+            if (!WeChatPayConstant.TRADE_SUCCESS.equals(plainTextMap.get(WeChatPayConstant.TRADE_STATE))) return;
+            PaymentAmount.verifyResult(plainTextMap, orderNumber, order.getPayAmount());
             markPaid(orderNumber);
             savePaymentLog(plainText, order);
         } finally {
@@ -1224,8 +1227,7 @@ public class SecondHandServiceImpl implements SecondHandService {
     private void savePaymentLog(String plainText, SecondHandOrder order) {
         Map map = JSONObject.parseObject(plainText, HashMap.class);
         Map<String, String> payer = (Map) map.get(WeChatPayConstant.PAYER);
-        Map<String, Object> amount = (Map<String, Object>) map.get(WeChatPayConstant.AMOUNT);
-        Integer total = (Integer) amount.get(WeChatPayConstant.TOTAL);
+        int total = PaymentAmount.verifyResult(map, order.getOrderNumber(), order.getPayAmount());
         PaymentLog paymentLog = PaymentLog.builder()
                 .orderNumber(order.getOrderNumber())
                 .paymentType(WeChatPayConstant.PAYMENT_TYPE)
@@ -1235,9 +1237,9 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .bankType((String) map.get(WeChatPayConstant.BANK_TYPE))
                 .successTime((String) map.get(WeChatPayConstant.SUCCESS_TIME))
                 .payerOpenid(payer == null ? null : payer.get(WeChatPayConstant.OPENID))
-                .total(total == null ? order.getPayAmount().multiply(BigDecimal.valueOf(100)).longValue() : total.longValue())
+                .total((long) total)
                 .serviceFeeRate(order.getServiceFeeRate())
-                .serviceFee(order.getServiceFee().multiply(BigDecimal.valueOf(100)).longValue())
+                .serviceFee((long) PaymentAmount.nonNegativeCents(order.getServiceFee()))
                 .content(plainText)
                 .deleted(DeleteConstant.UN_DELETED)
                 .build();
@@ -1246,7 +1248,15 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     private void requestSellerTransfer(SecondHandOrder order) {
         String sellerOpenid = userMapper.getOpenidById(order.getSellerId());
-        int transferAmount = order.getSellerIncome().multiply(BigDecimal.valueOf(100)).intValue();
+        int transferAmount;
+        try {
+            PaymentLog payment = RealPaymentGuard.require(paymentLogMapper.getByOrderNumber(order.getOrderNumber()),
+                    order.getOrderNumber(), order.getPayAmount());
+            transferAmount = RealPaymentGuard.transfer(payment, order.getSellerIncome(), order.getServiceFee());
+        } catch (com.mikasa.campusrunner.common.exception.OrderException e) {
+            markTransferFailed(order, e.getMessage());
+            return;
+        }
         if (trimToNull(sellerOpenid) == null) {
             markTransferFailed(order, "卖家尚未完成微信账号绑定");
             return;
@@ -1334,7 +1344,7 @@ public class SecondHandServiceImpl implements SecondHandService {
             }
             applyTransferResult(order, result);
             String sellerOpenid = userMapper.getOpenidById(order.getSellerId());
-            int amount = order.getSellerIncome().multiply(BigDecimal.valueOf(100)).intValue();
+            int amount = PaymentAmount.cents(order.getSellerIncome());
             saveTransferLog(order, sellerOpenid, amount,
                     (String) result.get(WeChatTransferConstant.STATE),
                     (String) result.get(WeChatTransferConstant.TRANSFER_BILL_NO), body);
@@ -1423,7 +1433,9 @@ public class SecondHandServiceImpl implements SecondHandService {
     private void requestRefund(SecondHandOrder order) {
         LocalDateTime now = LocalDateTime.now();
         String refundNumber = "SH_REFUND_" + System.currentTimeMillis();
-        int totalFee = order.getPayAmount().multiply(BigDecimal.valueOf(100)).intValue();
+        RealPaymentGuard.require(paymentLogMapper.getByOrderNumber(order.getOrderNumber()),
+                order.getOrderNumber(), order.getPayAmount());
+        int totalFee = RealPaymentGuard.cents(order.getPayAmount());
         RefundInfo refundInfo = RefundInfo.builder()
                 .orderNumber(order.getOrderNumber())
                 .refundNumber(refundNumber)

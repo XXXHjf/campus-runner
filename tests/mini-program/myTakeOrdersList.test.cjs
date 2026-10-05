@@ -20,7 +20,7 @@ function createPage({ takeService = {}, orderService = {}, wxOverrides = {} } = 
   vm.runInNewContext(source, {
     console,
     wx,
-    require: (name) => name.endsWith('feedback') ? feedbackStub(wx) : name.includes('takeOrderService') ? takeService
+    require: (name) => name.endsWith('runnerAmount') ? require('../../apps/mini-program/utils/runnerAmount') : name.endsWith('feedback') ? feedbackStub(wx) : name.includes('takeOrderService') ? takeService
       : name.includes('userOrderService') ? orderService
         : name.includes('transformers') ? { showError: () => {} }
           : {},
@@ -53,7 +53,18 @@ test('接单状态各归一类，代买和无偿单有正确文案及金额', ()
   }
   const free = page.prepareOrder({ status: 5, price: null, categoryName: '外卖' });
   assert.equal(free.statusGroup, 'completed');
-  assert.equal(free.showAmount, false);
+  assert.equal(free.showAmount, true);
+  assert.equal(free.displayAmount, '0.00');
+  for (const price of [null, 0, '0.00']) {
+    const completed = page.prepareOrder({ status: 5, price, businessType: 'NORMAL' });
+    assert.equal(completed.statusDesc, '已完成');
+    assert.equal(completed.statusGroup, 'completed');
+    assert.equal(completed.statusKind, 'done');
+    assert.equal(completed.primaryAction, '');
+  }
+  const reimbursed = page.prepareOrder({ status: 5, price: 0, productAmount: 12, businessType: 'PURCHASE' });
+  assert.equal(reimbursed.statusGroup, 'settling');
+  assert.equal(reimbursed.primaryAction, '确认收款');
   const purchase = page.prepareOrder({ status: 1, price: 5, productAmount: 13, businessType: 'PURCHASE', categoryName: '代买' });
   assert.equal(purchase.statusDesc, '待购买');
   assert.equal(purchase.displayAmount, '18.00');

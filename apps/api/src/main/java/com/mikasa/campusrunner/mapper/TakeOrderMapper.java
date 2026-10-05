@@ -60,7 +60,7 @@ public interface TakeOrderMapper {
      * @param orderId
      * @return
      */
-    TakeOrderUserInfoVO getUserInfoByOrderId(Long orderId);
+    TakeOrderUserInfoVO getUserInfoByOrderId(@Param("orderId") Long orderId, @Param("takeOrderId") Long takeOrderId);
 
     /**
      * 根据接单的订单id查询

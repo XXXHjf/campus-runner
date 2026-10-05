@@ -39,6 +39,7 @@ function harness(purpose, overrides = {}) {
     getApp: () => ({ globalData: { API_URL: 'https://example.test' } }),
     wx: { showShareMenu() {}, hideShareMenu() {} },
     require(name) {
+      if (name.endsWith('runnerAmount')) return require('../../apps/mini-program/utils/runnerAmount');
       if (name.endsWith('detailRefresh')) return require('../../apps/mini-program/utils/detailRefresh');
       if (name.endsWith('feedback')) return feedbackStub();
       if (name.endsWith('takeOrderService')) return takeService;

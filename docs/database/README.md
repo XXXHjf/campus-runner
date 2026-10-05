@@ -13,3 +13,5 @@
 `second-hand-delivery-migration.sql`、`second-hand-bargain-expiry-repair.sql` 和 `second-hand-seed.sql` 各有特定目的；不要把种子数据或历史修复脚本视为常规生产迁移。结构、发布顺序、验证和回滚方法以各主题文档和 [生产发布必检清单](../deployment/server-operations.md#生产发布必检清单) 为准。
 
 跑腿预期送达时间使用 [增量迁移](runner-expected-delivery-time.sql)，发布顺序、兼容和回滚见 [跑腿订单与资金流程](../mini-program/order-flow.md#预期送达时间)。
+
+跑腿订单隐藏使用 [增量迁移](runner-order-hide.sql)，数据保留、发布顺序和回滚见 [跑腿订单隐藏与数据保留](../mini-program/order-flow.md#跑腿订单隐藏与数据保留)。

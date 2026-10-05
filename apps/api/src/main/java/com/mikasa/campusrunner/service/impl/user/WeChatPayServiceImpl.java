@@ -1,5 +1,6 @@
 package com.mikasa.campusrunner.service.impl.user;
 
+import com.mikasa.campusrunner.common.utils.PaymentAmount;
 import com.alibaba.fastjson.JSONObject;
 import com.mikasa.campusrunner.common.constant.MessageConstant;
 import com.mikasa.campusrunner.common.constant.OrderStatusConstant;
@@ -128,7 +129,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         //支付金额
         Map amountMap = new HashMap();
         //修改为getPayAmount,即获取订单的支付总额，构成为 基础金额price + 服务费fee
-        amountMap.put("total", (int)(order.getPayAmount().doubleValue() * 100));//微信支付的单位为分，但内部订单的金额为元
+        amountMap.put("total", PaymentAmount.cents(order.getPayAmount()));//微信支付的单位为分，但内部订单的金额为元
 
         amountMap.put("currency", "CNY");
         paramsMap.put("amount", amountMap);
@@ -217,6 +218,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         Map resultMap = JSONObject.parseObject(result, HashMap.class);
         String tradeState = (String) resultMap.get(WeChatPayConstant.TRADE_STATE);
         if (WeChatPayConstant.TRADE_SUCCESS.equals(tradeState)) {
+            PaymentAmount.verifyResult(JSONObject.parseObject(result), order.getOrderNumber(), order.getPayAmount());
             log.info("Active payment sync successful, orderNumber: {}", order.getOrderNumber());
             orderService.updateStatusByOrderNumber(order.getOrderNumber(), OrderStatusConstant.WAIT_TO_TAKE_ORDER);
             paymentLogService.savePaymentInfoLog(result);
@@ -250,6 +252,9 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         if (!"SUCCESS".equals(plainTextMap.get("trade_state"))) return;
         Order order = orderMapper.getByOrderNumberForUpdate(orderNumber);
         if (order == null) throw new OrderException("订单不存在");
+        if (OrderStatusConstant.CANCELED.equals(order.getStatus()) || OrderStatusConstant.NO_PAY.equals(order.getStatus())) {
+            PaymentAmount.verifyResult(plainTextMap, order.getOrderNumber(), order.getPayAmount());
+        }
         if (OrderStatusConstant.CANCELED.equals(order.getStatus())) {
             // A legacy cancellation may have preceded its payment notification.
             paymentLogService.savePaymentInfoLog(plainText);
@@ -292,6 +297,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         //获取支付状态
         String tradeState = (String) map.get(WeChatPayConstant.TRADE_STATE);
         if (WeChatPayConstant.TRADE_SUCCESS.equals(tradeState)) {
+            PaymentAmount.verifyResult(JSONObject.parseObject(result), order.getOrderNumber(), order.getPayAmount());
             log.info("Order payment verified ===> {}", orderNumber);
             //Update order status
             log.info("Updating order status...");
@@ -310,6 +316,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
                 String latest = weChatQueryOrder(orderNumber);
                 if (latest != null && !latest.startsWith("ERROR")
                         && "SUCCESS".equals(JSONObject.parseObject(latest).getString("trade_state"))) {
+                    PaymentAmount.verifyResult(JSONObject.parseObject(latest), orderNumber, order.getPayAmount());
                     orderService.updateStatusByOrderNumber(orderNumber, OrderStatusConstant.WAIT_TO_TAKE_ORDER);
                     paymentLogService.savePaymentInfoLog(latest);
                 }
@@ -384,6 +391,15 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         //根据订单id创建退款单
         RefundInfo refundInfo = refundInfoService.saveRefundInfoByOrderId(refundInfoDTO);
 
+        Order refundOrder = orderMapper.getByOrderNumber(refundInfoDTO.getOrderNumber());
+        if (refundOrder == null) throw new com.mikasa.campusrunner.common.exception.OrderException("订单不存在");
+        var payment = RealPaymentGuard.require(paymentLogMapper.getByOrderNumber(refundOrder.getOrderNumber()),
+                refundOrder.getOrderNumber(), refundOrder.getPayAmount());
+        if (!refundOrder.getOrderNumber().equals(refundInfo.getOrderNumber())) {
+            throw new com.mikasa.campusrunner.common.exception.OrderException("退款订单不一致，请联系客服核对");
+        }
+        RealPaymentGuard.refund(payment, refundInfo.getTotalFee(), refundInfo.getRefund());
+
         if ("SUCCESS".equals(refundInfo.getRefundStatus())) return;
         // Provider has already accepted this refund; duplicate submissions only reconcile it.
         if ("PROCESSING".equals(refundInfo.getRefundStatus()) && refundInfo.getRefundId() != null) {
@@ -435,12 +451,32 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode != 200) {
                 // A 5xx/timeout is uncertain; keep the durable PROCESSING record for query/retry.
-                if (statusCode >= 400 && statusCode < 500) {
+                if (statusCode >= 400 && statusCode < 500 && statusCode != 429) {
                     JSONObject failure = new JSONObject();
                     failure.put("out_refund_no", refundInfo.getRefundNumber());
                     failure.put("status", "REQUEST_FAILED");
+                    failure.put("http_status", statusCode);
+                    String errorCode = null;
+                    try {
+                        JSONObject providerError = JSONObject.parseObject(body);
+                        errorCode = providerError.getString("code");
+                        failure.put("code", errorCode);
+                        failure.put("message", providerError.getString("message"));
+                    } catch (Exception ignored) {
+                        // Keep the rejection even if the provider returned an invalid JSON body.
+                    }
                     refundInfoService.updateRefund(failure.toJSONString());
-                    throw new com.mikasa.campusrunner.common.exception.OrderException("退款申请失败，请核对后重试");
+                    log.warn("Refund request rejected; refund={}, httpStatus={}", refundInfo.getRefundNumber(), statusCode);
+                    String message = "NOT_ENOUGH".equals(errorCode)
+                            ? "退款暂未成功，请联系客服处理"
+                            : "退款申请失败，请核对后重试";
+                    throw new com.mikasa.campusrunner.common.exception.OrderException(message);
+                }
+                if ("REQUEST_FAILED".equals(refundInfo.getRefundStatus())) {
+                    JSONObject pending = new JSONObject();
+                    pending.put("out_refund_no", refundInfo.getRefundNumber());
+                    pending.put("status", "PROCESSING");
+                    refundInfoService.updateRefund(pending.toJSONString());
                 }
                 throw new IOException("退款申请暂未确认，请稍后查看退款状态或重试");
             }

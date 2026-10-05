@@ -243,6 +243,7 @@
             tb_orders AS orders
         WHERE
             take_order.order_id = #{orderId} AND
+            take_order.id = #{takeOrderId} AND
             take_order.user_id = user.id AND
             take_order.order_id = orders.id AND
             take_order.`deleted` = 0

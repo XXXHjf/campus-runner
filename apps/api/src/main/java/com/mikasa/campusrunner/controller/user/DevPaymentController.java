@@ -1,5 +1,6 @@
 package com.mikasa.campusrunner.controller.user;
 
+import com.mikasa.campusrunner.common.utils.PaymentAmount;
 import com.alibaba.fastjson.JSONObject;
 import com.mikasa.campusrunner.common.constant.DeleteConstant;
 import com.mikasa.campusrunner.common.constant.OrderStatusConstant;
@@ -138,6 +139,11 @@ public class DevPaymentController {
         TakeOrder takeOrder = takeOrderMapper.getByOrderIdAndUserId(orderId, BaseContext.getCurrentId());
         if (takeOrder == null) {
             throw new OrderException("不能操作他人的订单");
+        }
+        BigDecimal receivable = (order.getPrice() == null ? BigDecimal.ZERO : order.getPrice())
+                .add(order.getProductAmount() == null ? BigDecimal.ZERO : order.getProductAmount());
+        if (receivable.signum() == 0) {
+            throw new OrderException("该订单无需收款");
         }
         if (OrderStatusConstant.WITHDRAWAL_SUCCEEDED.equals(order.getStatus())) {
             return Result.success();
@@ -288,6 +294,6 @@ public class DevPaymentController {
         if (amount == null) {
             return 0L;
         }
-        return amount.multiply(BigDecimal.valueOf(100)).longValue();
+        return PaymentAmount.nonNegativeCents(amount);
     }
 }

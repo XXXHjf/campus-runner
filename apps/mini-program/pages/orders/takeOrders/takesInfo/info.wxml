@@ -8,8 +8,7 @@
 
   <view wx:if="{{orderInfo.id}}" class="runner-detail-main">
     <view class="runner-detail-primary">
-      <text wx:if="{{orderInfo.price != null}}" class="runner-detail-price">¥{{orderInfo.price}}</text>
-      <text wx:else class="runner-detail-free">无偿跑腿</text>
+      <text class="runner-detail-price">¥{{orderInfo.price || 0}}</text>
       <t-tag wx:if="{{orderInfo.categoryName}}" size="small" variant="light">{{orderInfo.categoryName}}</t-tag>
     </view>
     <view wx:if="{{orderInfo.status > 2}}" class="runner-detail-tags">
@@ -90,7 +89,7 @@
     </view>
   </view>
 
-  <ui-action-bar wx:if="{{orderInfo.status == 0 || (isMyTaken && (orderInfo.status == 1 || orderInfo.status == 2 || ((orderInfo.status == 5 || orderInfo.status == 7) && orderInfo.price != null)))}}" class="runner-detail-action-bar" fixed>
+  <ui-action-bar wx:if="{{orderInfo.status == 0 || (isMyTaken && (orderInfo.status == 1 || orderInfo.status == 2 || ((orderInfo.status == 5 || orderInfo.status == 7) && orderInfo.hasRunnerReceivable)))}}" class="runner-detail-action-bar" fixed>
     <view class="runner-detail-actions">
       <t-button wx:if="{{orderInfo.status == 0 || orderInfo.status == 1 || orderInfo.status == 2}}" class="runner-detail-action" t-class="cr-secondhand-capsule runner-detail-capsule" shape="round" theme="primary" bind:tap="button">{{orderInfo.businessType === 'PURCHASE' && orderInfo.status == 1 ? '提交购买凭证' : (orderInfo.businessType === 'PURCHASE' && orderInfo.status == 2 ? '上传送达图片' : titleB[orderInfo.status])}}</t-button>
       <t-button wx:else class="runner-detail-action" t-class="cr-secondhand-capsule runner-detail-capsule" shape="round" theme="primary" loading="{{transferBusy}}" disabled="{{transferBusy}}" bind:tap="_requestMerchantTransfer">{{orderInfo.status == 7 ? '重新收款' : '确认收款'}}</t-button>
