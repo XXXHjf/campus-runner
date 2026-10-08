@@ -5,21 +5,13 @@
     <!-- Public projection: never include phone, note, photos or address-book details. -->
     <sql id="publicOrderProjection">
         select o.id, o.price, o.product_amount, o.business_type, o.create_time, o.expected_delivery_time, o.gap, o.category_id, c.category_name,
-               concat_ws(' ', ps.school_name, pc.compus_name, pbc.name, pb.building_name) as pick_up_address,
-               concat_ws(' ', rs.school_name, rc.compus_name, rbc.name, rb.building_name) as recive_address
+               p.public_address as pick_up_address,
+               r.public_address as recive_address
         from tb_orders o
         join tb_category c on c.id = o.category_id
-        join tb_address_book p on p.id = o.pick_up_address
-        join tb_address_book r on r.id = o.recive_address
-        join tb_school ps on ps.id = p.school_id
-        join tb_school rs on rs.id = r.school_id
-        join tb_compus pc on pc.id = p.compus_id
-        join tb_compus rc on rc.id = r.compus_id
-        join tb_building pb on pb.id = p.building_id
-        join tb_building rb on rb.id = r.building_id
-        join tb_build_category pbc on pbc.id = p.build_category_id
-        join tb_build_category rbc on rbc.id = r.build_category_id
-        where o.deleted = 0 and o.status = 0 and p.deleted = 0 and r.deleted = 0
+        join tb_order_address_snapshot p on p.order_id = o.id and p.role = 'PICKUP'
+        join tb_order_address_snapshot r on r.order_id = o.id and r.role = 'RECEIVE'
+        where o.deleted = 0 and o.status = 0
     </sql>
     <select id="listPublicOrders" resultType="com.mikasa.campusrunner.pojo.vo.PublicOrderVO">
         <include refid="publicOrderProjection"/>
@@ -66,61 +58,20 @@
             tb_orders AS orders, -- 这是订单表 主表
             tb_category AS category,
 
-            (SELECT
-                ad.id,
-                CONCAT(school.school_name, ' ',
-                compus.compus_name, ' ',
-                build_category.name, ' ',
-                building.building_name, ' ',
-                ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
-            FROM
-                tb_address_book AS ad,
-                tb_school AS school,
-                tb_compus AS compus,
-                tb_build_category AS build_category,
-                tb_building AS building
-            <where>
-                -- 这三张表保存这三个信息，需要读取
-                ad.school_id = #{schoolId} AND
-                ad.school_id = school.id AND
-                ad.compus_id = compus.id AND
-                ad.build_category_id = build_category.id AND
-                ad.building_id = building.id AND
-                ad.deleted = 0
-            </where>
-            ) AS address_pick_up, -- 这张表类似视图，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了取件地址的详细信息
-            -- 对于按照取件地址查询筛选来说，取件地址这张'表',即address_pick_up应该将地址id作为条件查询
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'PICKUP'
+                AND school_id = #{schoolId}
+            ) AS address_pick_up,
 
-            (SELECT
-                ad.id,
-                CONCAT(school.school_name, ' ',
-                compus.compus_name, ' ',
-                build_category.name, ' ',
-                building.building_name, ' ',
-                ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
-            FROM
-                tb_address_book AS ad,
-                tb_school AS school,
-                tb_compus AS compus,
-                tb_build_category AS build_category,
-                tb_building AS building
-            <where>
-                ad.school_id = #{schoolId} AND
-                ad.school_id = school.id AND
-                ad.compus_id = compus.id AND
-                ad.build_category_id = build_category.id AND
-                ad.building_id = building.id AND
-                ad.deleted = 0
-            </where>
-            ) AS address_recive -- 这张表类似上面这张表，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了收件地址的详细信息
-            -- 不过对于按照取件地址查询来说，收件地址'表'，即address_recive应该不用约束地查
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'RECEIVE'
+                AND school_id = #{schoolId}
+            ) AS address_recive
 
         WHERE
             orders.deleted = 0 AND
             orders.status = 0 AND
             orders.category_id = category.id AND
-            orders.pick_up_address = address_pick_up.id AND
-            orders.recive_address = address_recive.id
+            orders.id = address_pick_up.id AND
+            orders.id = address_recive.id
 
         <if test="status == 0">
             ORDER BY orders.price desc
@@ -164,67 +115,20 @@
         FROM
             tb_orders AS orders, -- 这是订单表 主表
             tb_category AS category,
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                     compus.compus_name, ' ',
-                     build_category.name, ' ',
-                     building.building_name, ' ',
-                     ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
-             FROM
-                  tb_address_book AS ad,
-                  tb_school AS school,
-                  tb_compus AS compus,
-                  tb_build_category AS build_category,
-                  tb_building AS building
-             <where>
-                 -- 这三张表保存这三个信息，需要读取
-                 ad.school_id = school.id AND
-                 ad.compus_id = compus.id AND
-                 ad.build_category_id = build_category.id AND
-                 ad.building_id = building.id AND
-                 ad.deleted = 0
-                 -- 这里主要是为了防止没有ids导致报错
-                 <if test="ids != null and ids.size != 0">
-                     and ad.id in
-                     <foreach collection="ids" item="id" separator="," open="(" close=")">
-                         #{id}
-                     </foreach>
-                 </if>
-             </where>
-            ) AS address_pick_up, -- 这张表类似视图，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了取件地址的详细信息
-                                  -- 对于按照取件地址查询筛选来说，取件地址这张'表',即address_pick_up应该将地址id作为条件查询
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'PICKUP'
+            ) AS address_pick_up,
 
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                     compus.compus_name, ' ',
-                     build_category.name, ' ',
-                     building.building_name, ' ',
-                     ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
-             FROM tb_address_book AS ad,
-                  tb_school AS school,
-                  tb_compus AS compus,
-                  tb_build_category AS build_category,
-                  tb_building AS building
-            <where>
-                ad.school_id = school.id AND
-                ad.compus_id = compus.id AND
-                ad.build_category_id = build_category.id AND
-                ad.building_id = building.id AND
-                ad.deleted = 0
-            </where>
-            ) AS address_recive -- 这张表类似上面这张表，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了收件地址的详细信息
-                                -- 不过对于按照取件地址查询来说，收件地址'表'，即address_recive应该不用约束地查
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'RECEIVE'
+            ) AS address_recive
 
         WHERE
             orders.deleted = 0 AND
             orders.status = 0 AND
             orders.category_id = category.id AND
-            orders.pick_up_address = address_pick_up.id AND
-            orders.recive_address = address_recive.id
+            orders.id = address_pick_up.id AND
+            orders.id = address_recive.id
             <if test="ids != null and ids.size != 0">
-                AND orders.pick_up_address in
+                AND orders.id in
                 <foreach collection="ids" item="id" separator="," open="(" close=")">
                     #{id}
                 </foreach>
@@ -266,64 +170,20 @@
         FROM
             tb_orders AS orders,
             tb_category AS category,
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                     compus.compus_name, ' ',
-                     build_category.name, ' ',
-                     building.building_name, ' ',
-                     ad.details) AS address
-            FROM
-                tb_address_book AS ad,
-                tb_school AS school,
-                tb_compus AS compus,
-                tb_build_category AS build_category,
-                tb_building AS building
-            <where>
-                ad.school_id = school.id AND
-                ad.compus_id = compus.id AND
-                ad.build_category_id = build_category.id AND
-                ad.building_id = building.id AND
-                ad.deleted = 0
-            </where>
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'PICKUP'
             ) AS address_pick_up, -- 这是取件地址
 
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                     compus.compus_name, ' ',
-                     build_category.name, ' ',
-                     building.building_name, ' ',
-                     ad.details) AS address
-            FROM
-                tb_address_book AS ad,
-                tb_school AS school,
-                tb_compus AS compus,
-                tb_build_category AS build_category,
-                tb_building AS building
-            <where>
-                ad.school_id = school.id AND
-                ad.compus_id = compus.id AND
-                ad.build_category_id = build_category.id AND
-                ad.building_id = building.id AND
-                ad.deleted = 0
-                <if test="ids != null and ids.size != 0">
-                    and ad.id in
-                    <foreach collection="ids" item="id" separator="," open="(" close=")">
-                        #{id}
-                    </foreach>
-                </if>
-            </where>
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'RECEIVE'
             ) AS address_recive -- 这是收件地址
 
         WHERE
             orders.deleted = 0 AND
             orders.status = 0 AND
             orders.category_id = category.id AND
-            orders.pick_up_address = address_pick_up.id AND
-            orders.recive_address = address_recive.id
+            orders.id = address_pick_up.id AND
+            orders.id = address_recive.id
             <if test="ids != null and ids.size != 0">
-                AND orders.recive_address in
+                AND orders.id in
                 <foreach collection="ids" item="id" separator="," open="(" close=")">
                     #{id}
                 </foreach>
@@ -365,54 +225,18 @@
             tb_orders AS orders,
             tb_category AS category,
 
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                     compus.compus_name, ' ',
-                     build_category.name, ' ',
-                     building.building_name, ' ',
-                     ad.details) AS address
-             FROM
-                  tb_address_book AS ad,
-                  tb_school AS school,
-                  tb_compus AS compus,
-                  tb_build_category AS build_category,
-                  tb_building AS building
-             WHERE
-                 ad.school_id = school.id AND
-                 ad.compus_id = compus.id AND
-                 ad.build_category_id = build_category.id AND
-                 ad.building_id = building.id AND
-                 ad.deleted = 0
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'PICKUP'
             ) AS address_pick_up,
 
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                     compus.compus_name, ' ',
-                     build_category.name, ' ',
-                     building.building_name, ' ',
-                     ad.details) AS address
-             FROM
-                  tb_address_book AS ad,
-                  tb_school AS school,
-                  tb_compus AS compus,
-                  tb_build_category AS build_category,
-                  tb_building AS building
-             WHERE
-                 ad.school_id = school.id AND
-                 ad.compus_id = compus.id AND
-                 ad.build_category_id = build_category.id AND
-                 ad.building_id = building.id AND
-                 ad.deleted = 0
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'RECEIVE'
             ) AS address_recive
 
         WHERE
             orders.deleted = 0 AND
             (orders.publisher_hidden = 0 OR orders.status NOT IN (-3, 4, 6)) AND
             orders.category_id = category.id AND
-            orders.pick_up_address = address_pick_up.id AND
-            orders.recive_address = address_recive.id AND
+            orders.id = address_pick_up.id AND
+            orders.id = address_recive.id AND
             orders.user_id = #{id}
         ORDER BY orders.create_time desc
     </select>
@@ -450,56 +274,20 @@
             tb_orders AS orders,
             tb_category AS category,
 
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                        compus.compus_name, ' ',
-                        build_category.name, ' ',
-                        building.building_name, ' ',
-                        ad.details) AS address
-             FROM
-                 tb_address_book AS ad,
-                 tb_school AS school,
-                 tb_compus AS compus,
-                 tb_build_category AS build_category,
-                 tb_building AS building
-             WHERE
-                 ad.school_id = school.id AND
-                 ad.compus_id = compus.id AND
-                 ad.build_category_id = build_category.id AND
-                 ad.building_id = building.id AND
-                 ad.school_id = #{schoolId} AND
-                 ad.deleted = 0
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'PICKUP'
+                AND school_id = #{schoolId}
             ) AS address_pick_up,
 
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                        compus.compus_name, ' ',
-                        build_category.name, ' ',
-                        building.building_name, ' ',
-                        ad.details) AS address
-             FROM
-                 tb_address_book AS ad,
-                 tb_school AS school,
-                 tb_compus AS compus,
-                 tb_build_category AS build_category,
-                 tb_building AS building
-             WHERE
-                 ad.school_id = school.id AND
-                 ad.compus_id = compus.id AND
-                 ad.build_category_id = build_category.id AND
-                 ad.building_id = building.id AND
-                 ad.school_id = #{schoolId} AND
-                 ad.deleted = 0
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'RECEIVE'
+                AND school_id = #{schoolId}
             ) AS address_recive
 
         WHERE
             orders.deleted = 0 AND
             orders.status = 0 AND
             orders.category_id = category.id AND
-            orders.pick_up_address = address_pick_up.id AND
-            orders.recive_address = address_recive.id
+            orders.id = address_pick_up.id AND
+            orders.id = address_recive.id
         <if test="status == 0">
             ORDER BY orders.create_time desc
         </if>
@@ -544,54 +332,18 @@
             tb_orders AS orders,
             tb_category AS category,
             tb_user as user,
-            (SELECT
-                ad.id,
-                CONCAT(school.school_name, ' ',
-                compus.compus_name, ' ',
-                build_category.name, ' ',
-                building.building_name, ' ',
-                ad.details) AS address
-            FROM
-                tb_address_book AS ad,
-                tb_school AS school,
-                tb_compus AS compus,
-                tb_build_category AS build_category,
-                tb_building AS building
-            WHERE
-                ad.school_id = school.id AND
-                ad.compus_id = compus.id AND
-                ad.build_category_id = build_category.id AND
-                ad.building_id = building.id AND
-                ad.deleted = 0
-                ) AS address_pick_up,
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'PICKUP'
+            ) AS address_pick_up,
 
-            (SELECT
-                ad.id,
-                CONCAT(school.school_name, ' ',
-                compus.compus_name, ' ',
-                build_category.name, ' ',
-                building.building_name, ' ',
-                ad.details) AS address
-            FROM
-                tb_address_book AS ad,
-                tb_school AS school,
-                tb_compus AS compus,
-                tb_build_category AS build_category,
-                tb_building AS building
-            WHERE
-                ad.school_id = school.id AND
-                ad.compus_id = compus.id AND
-                ad.build_category_id = build_category.id AND
-                ad.building_id = building.id AND
-                ad.deleted = 0
-                ) AS address_recive
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'RECEIVE'
+            ) AS address_recive
 
         WHERE
             orders.deleted = 0 AND
 --             orders.status = 0 AND
             orders.category_id = category.id AND
-            orders.pick_up_address = address_pick_up.id AND
-            orders.recive_address = address_recive.id AND
+            orders.id = address_pick_up.id AND
+            orders.id = address_recive.id AND
             orders.user_id = user.id AND
             orders.id = #{id}
 
@@ -639,74 +391,32 @@
             tb_orders AS orders, -- 这是订单表 主表
             tb_category AS category,
 
-            (SELECT
-                ad.id,
-                CONCAT(school.school_name, ' ',
-                    compus.compus_name, ' ',
-                    build_category.name, ' ',
-                    building.building_name, ' ',
-                    ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
-            FROM
-                tb_address_book AS ad,
-                tb_school AS school,
-                tb_compus AS compus,
-                tb_build_category AS build_category,
-                tb_building AS building
-            <where>
-                -- 这三张表保存这三个信息，需要读取
-                ad.school_id = school.id AND
-                ad.compus_id = compus.id AND
-                ad.build_category_id = build_category.id AND
-                ad.building_id = building.id AND
-                ad.deleted = 0
-                -- 这里主要是为了防止没有ids导致报错
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'PICKUP'
                 <if test="pickIds != null and pickIds.size != 0">
-                    and ad.id in
+                    and order_id in
                     <foreach collection="pickIds" item="id" separator="," open="(" close=")">
                         #{id}
                     </foreach>
                 </if>
-            </where>
-            ) AS address_pick_up, -- 这张表类似视图，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了取件地址的详细信息
-            -- 对于按照取件地址查询筛选来说，取件地址这张'表',即address_pick_up应该将地址id作为条件查询
+            ) AS address_pick_up,
 
-            (SELECT
-                ad.id,
-                CONCAT(school.school_name, ' ',
-                    compus.compus_name, ' ',
-                    build_category.name, ' ',
-                    building.building_name, ' ',
-                    ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
-            FROM
-                tb_address_book AS ad,
-                tb_school AS school,
-                tb_compus AS compus,
-                tb_build_category AS build_category,
-                tb_building AS building
-            <where>
-                ad.school_id = school.id AND
-                ad.compus_id = compus.id AND
-                ad.build_category_id = build_category.id AND
-                ad.building_id = building.id AND
-                ad.deleted = 0
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'RECEIVE'
                 <if test="reciveIds != null and reciveIds.size != 0">
-                    and ad.id in
+                    and order_id in
                     <foreach collection="reciveIds" item="id" separator="," open="(" close=")">
                         #{id}
                     </foreach>
                 </if>
-            </where>
-            ) AS address_recive -- 这张表类似上面这张表，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了收件地址的详细信息
-            -- 不过对于按照取件地址查询来说，收件地址'表'，即address_recive应该不用约束地查
+            ) AS address_recive
 
         WHERE
             orders.deleted = 0 AND
             orders.status = 0 AND
             orders.category_id = category.id AND
-            orders.pick_up_address = address_pick_up.id AND
-            orders.recive_address = address_recive.id
+            orders.id = address_pick_up.id AND
+            orders.id = address_recive.id
 <!--            <if test="ids != null and ids.size != 0">-->
-<!--                AND orders.pick_up_address in-->
+<!--                AND orders.id in-->
 <!--                <foreach collection="ids" item="id" separator="," open="(" close=")">-->
 <!--                    #{id}-->
 <!--                </foreach>-->
@@ -749,61 +459,20 @@
             tb_orders AS orders, -- 这是订单表 主表
             tb_category AS category,
 
-            (SELECT
-            ad.id,
-            CONCAT(school.school_name, ' ',
-            compus.compus_name, ' ',
-            build_category.name, ' ',
-            building.building_name, ' ',
-            ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
-            FROM
-            tb_address_book AS ad,
-            tb_school AS school,
-            tb_compus AS compus,
-            tb_build_category AS build_category,
-            tb_building AS building
-            <where>
-                -- 这三张表保存这三个信息，需要读取
-                ad.school_id = school.id AND
-                ad.compus_id = compus.id AND
-                ad.build_category_id = build_category.id AND
-                ad.building_id = building.id AND
-                ad.school_id = #{schoolId} AND
-                ad.deleted = 0
-            </where>
-            ) AS address_pick_up, -- 这张表类似视图，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了取件地址的详细信息
-            -- 对于按照取件地址查询筛选来说，取件地址这张'表',即address_pick_up应该将地址id作为条件查询
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'PICKUP'
+                AND school_id = #{schoolId}
+            ) AS address_pick_up,
 
-            (SELECT
-            ad.id,
-            CONCAT(school.school_name, ' ',
-            compus.compus_name, ' ',
-            build_category.name, ' ',
-            building.building_name, ' ',
-            ad.details) AS address -- 将查找出来的名字拼接成地址，用空格隔开
-            FROM
-            tb_address_book AS ad,
-            tb_school AS school,
-            tb_compus AS compus,
-            tb_build_category AS build_category,
-            tb_building AS building
-            <where>
-                ad.school_id = school.id AND
-                ad.compus_id = compus.id AND
-                ad.build_category_id = build_category.id AND
-                ad.building_id = building.id AND
-                ad.school_id = #{schoolId} AND
-                ad.deleted = 0
-            </where>
-            ) AS address_recive -- 这张表类似上面这张表，主要是为了获取地址的名字，address拼接后就是地址名字，这里获取了收件地址的详细信息
-            -- 不过对于按照取件地址查询来说，收件地址'表'，即address_recive应该不用约束地查
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'RECEIVE'
+                AND school_id = #{schoolId}
+            ) AS address_recive
 
         WHERE
             orders.deleted = 0 AND
             orders.status = 0 AND
             orders.category_id = category.id AND
-            orders.pick_up_address = address_pick_up.id AND
-            orders.recive_address = address_recive.id AND
+            orders.id = address_pick_up.id AND
+            orders.id = address_recive.id AND
             orders.category_id = #{categoryId}
 
         order by orders.create_time desc
@@ -1009,6 +678,13 @@
         update tb_orders
         set status = #{status}
         where order_number = #{orderNumber}
+        <choose>
+            <when test="status == 0">and status = -1</when>
+            <when test="status == -2">and status in (-1, 0, 4, -2, -4)</when>
+            <when test="status == -3 or status == -4">and status in (-2, -4)</when>
+            <when test="status == 6 or status == 7">and status in (5, 7)</when>
+            <otherwise>and status = #{status}</otherwise>
+        </choose>
     </update>
 
     <sql id="latestAdminRefundJoin">
@@ -1048,18 +724,8 @@
                ri.refund / 100.0 AS refund_amount, ri.refund_status
         FROM tb_orders o
         LEFT JOIN tb_category c ON o.category_id = c.id
-        LEFT JOIN (
-            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
-            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
-            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
-              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
-        ) ap ON o.pick_up_address = ap.id
-        LEFT JOIN (
-            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
-            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
-            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
-              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
-        ) ar ON o.recive_address = ar.id
+        LEFT JOIN tb_order_address_snapshot ap ON o.id = ap.order_id AND ap.role = 'PICKUP'
+        LEFT JOIN tb_order_address_snapshot ar ON o.id = ar.order_id AND ar.role = 'RECEIVE'
         <include refid="latestAdminRefundJoin"/>
         WHERE o.deleted = 0
         <include refid="adminOrderKeyword"/>
@@ -1080,18 +746,8 @@
                ri.refund / 100.0 AS refund_amount, ri.refund_status
         FROM tb_orders o
         LEFT JOIN tb_category c ON o.category_id = c.id
-        LEFT JOIN (
-            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
-            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
-            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
-              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
-        ) ap ON o.pick_up_address = ap.id
-        LEFT JOIN (
-            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
-            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
-            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
-              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
-        ) ar ON o.recive_address = ar.id
+        LEFT JOIN tb_order_address_snapshot ap ON o.id = ap.order_id AND ap.role = 'PICKUP'
+        LEFT JOIN tb_order_address_snapshot ar ON o.id = ar.order_id AND ar.role = 'RECEIVE'
         LEFT JOIN tb_take_orders tk ON o.id = tk.order_id AND tk.deleted = 0
         LEFT JOIN tb_user tk_user ON tk.user_id = tk_user.id
         <include refid="latestAdminRefundJoin"/>
@@ -1123,18 +779,8 @@
                ri.refund_status, ri.reason AS refund_reason, ri.create_time AS refund_create_time
         FROM tb_orders o
         LEFT JOIN tb_category c ON o.category_id = c.id
-        LEFT JOIN (
-            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
-            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
-            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
-              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
-        ) ap ON o.pick_up_address = ap.id
-        LEFT JOIN (
-            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
-            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
-            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
-              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
-        ) ar ON o.recive_address = ar.id
+        LEFT JOIN tb_order_address_snapshot ap ON o.id = ap.order_id AND ap.role = 'PICKUP'
+        LEFT JOIN tb_order_address_snapshot ar ON o.id = ar.order_id AND ar.role = 'RECEIVE'
         LEFT JOIN tb_take_orders tk ON o.id = tk.order_id AND tk.deleted = 0
         LEFT JOIN tb_user tk_user ON tk.user_id = tk_user.id
         LEFT JOIN tb_payment_log pl ON o.order_number = pl.order_number

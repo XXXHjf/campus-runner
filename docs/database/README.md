@@ -9,6 +9,7 @@
 | 图片资源 | [历史图片迁移审计](media-asset-history-migration.md)、[旧兼容链路清理](legacy-compatibility-cleanup.md) | `media-asset-*.sql`、`legacy-compatibility-cleanup.sql` |
 | 校园认证 | [驳回反馈与状态规则](../api/user-onboarding.md#校园认证审核反馈) | `campus-auth-feedback-migration.sql` |
 | 地址簿 | [移除地址类型](address-book-type-removal.md) | `address-book-type-removal.sql`、回滚 SQL |
+| 跑腿订单地址快照 | [回填边界、备份及回滚](order-address-snapshot-migration.md) | `order-address-snapshot-migration.sql` |
 
 `second-hand-delivery-migration.sql`、`second-hand-bargain-expiry-repair.sql` 和 `second-hand-seed.sql` 各有特定目的；不要把种子数据或历史修复脚本视为常规生产迁移。结构、发布顺序、验证和回滚方法以各主题文档和 [生产发布必检清单](../deployment/server-operations.md#生产发布必检清单) 为准。
 

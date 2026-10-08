@@ -14,6 +14,9 @@
     <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.TakeOrder">
         select * from tb_take_orders where id = #{id} and deleted = 0
     </select>
+    <select id="getByIdForUpdate" resultType="com.mikasa.campusrunner.pojo.entity.TakeOrder">
+        select * from tb_take_orders where id = #{id} and deleted = 0 for update
+    </select>
 
     <select id="getMy" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
         SELECT
@@ -68,49 +71,15 @@
                AND take_order.deleted = 0
             ) AS take_order,
 
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                     compus.compus_name, ' ',
-                     build_category.name, ' ',
-                     building.building_name, ' ',
-                     ad.details) AS address
-             FROM tb_address_book AS ad,
-                  tb_school AS school,
-                  tb_compus AS compus,
-                  tb_build_category AS build_category,
-                  tb_building AS building
-             WHERE
-                 ad.school_id = school.id AND
-                 ad.compus_id = compus.id AND
-                 ad.build_category_id = build_category.id AND
-                 ad.building_id = building.id AND
-                 ad.deleted = 0
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'PICKUP'
             ) AS address_pick_up,
 
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                     compus.compus_name, ' ',
-                     build_category.name, ' ',
-                     building.building_name, ' ',
-                     ad.details) AS address
-             FROM tb_address_book AS ad,
-                  tb_school AS school,
-                  tb_compus AS compus,
-                  tb_build_category AS build_category,
-                  tb_building AS building
-             WHERE
-                 ad.school_id = school.id AND
-                 ad.compus_id = compus.id AND
-                 ad.build_category_id = build_category.id AND
-                 ad.building_id = building.id AND
-                 ad.deleted = 0
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'RECEIVE'
             ) AS address_recive
 
         WHERE
-            orders.pick_up_address = address_pick_up.id AND
-            orders.recive_address = address_recive.id AND
+            orders.id = address_pick_up.id AND
+            orders.id = address_recive.id AND
             orders.id = take_order.order_id AND
             orders.user_id = users.id AND
             orders.deleted = 0 AND
@@ -181,49 +150,15 @@
              </where>
             ) AS take_order,
 
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                        compus.compus_name, ' ',
-                        build_category.name, ' ',
-                        building.building_name, ' ',
-                        ad.details) AS address
-             FROM tb_address_book AS ad,
-                  tb_school AS school,
-                  tb_compus AS compus,
-                  tb_build_category AS build_category,
-                  tb_building AS building
-             WHERE
-                 ad.school_id = school.id AND
-                 ad.compus_id = compus.id AND
-                 ad.build_category_id = build_category.id AND
-                 ad.building_id = building.id AND
-                 ad.deleted = 0
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'PICKUP'
             ) AS address_pick_up,
 
-            (SELECT
-                 ad.id,
-                 CONCAT(school.school_name, ' ',
-                        compus.compus_name, ' ',
-                        build_category.name, ' ',
-                        building.building_name, ' ',
-                        ad.details) AS address
-             FROM tb_address_book AS ad,
-                  tb_school AS school,
-                  tb_compus AS compus,
-                  tb_build_category AS build_category,
-                  tb_building AS building
-             WHERE
-                 ad.school_id = school.id AND
-                 ad.compus_id = compus.id AND
-                 ad.build_category_id = build_category.id AND
-                 ad.building_id = building.id AND
-                 ad.deleted = 0
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'RECEIVE'
             ) AS address_recive
 
         WHERE
-            orders.pick_up_address = address_pick_up.id AND
-            orders.recive_address = address_recive.id AND
+            orders.id = address_pick_up.id AND
+            orders.id = address_recive.id AND
             orders.id = take_order.order_id AND
             orders.user_id = users.id AND
             orders.category_id = category.id
@@ -309,58 +244,20 @@
                     STATUS = 2
             ) AS tk,
 
-            (
-                SELECT
-                    ad.id,
-                    CONCAT(school.school_name, ' ',
-                           compus.compus_name, ' ',
-                           build_category.name, ' ',
-                           building.building_name, ' ',
-                           ad.details) AS address
-                FROM
-                    tb_address_book AS ad,
-                    tb_school AS school,
-                    tb_compus AS compus,
-                    tb_build_category AS build_category,
-                    tb_building AS building
-                WHERE
-                    ad.school_id = school.id AND
-                    ad.compus_id = compus.id AND
-                    ad.build_category_id = build_category.id AND
-                    ad.building_id = building.id AND
-                    ad.school_id = #{schoolId} AND
-                    ad.deleted = 0
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'PICKUP'
+                AND school_id = #{schoolId}
             ) AS address_pick_up,
 
-            (
-                SELECT
-                    ad.id,
-                    CONCAT(school.school_name, ' ',
-                           compus.compus_name, ' ',
-                           build_category.name, ' ',
-                           building.building_name, ' ',
-                           ad.details) AS address
-                FROM
-                    tb_address_book AS ad,
-                    tb_school AS school,
-                    tb_compus AS compus,
-                    tb_build_category AS build_category,
-                    tb_building AS building
-                WHERE
-                    ad.school_id = school.id AND
-                    ad.compus_id = compus.id AND
-                    ad.build_category_id = build_category.id AND
-                    ad.building_id = building.id AND
-                    ad.school_id = #{schoolId} AND
-                    ad.deleted = 0
+            (SELECT order_id AS id, address FROM tb_order_address_snapshot WHERE role = 'RECEIVE'
+                AND school_id = #{schoolId}
             ) AS address_recive
 
         WHERE
             tb_orders.deleted = 0 AND
             tb_orders.id = tk.order_id  AND
             tb_orders.status = #{orderStatus} AND
-            tb_orders.`pick_up_address` = address_pick_up.id AND
-            tb_orders.`recive_address` = address_recive.id AND
+            tb_orders.id = address_pick_up.id AND
+            tb_orders.id = address_recive.id AND
             tb_user.id = tb_orders.`user_id` AND
             tb_orders.`category_id` = tb_category.id AND
             tb_orders.`price` IS NOT NULL AND
@@ -402,18 +299,8 @@
         LEFT JOIN tb_category c ON o.category_id = c.id
         LEFT JOIN tb_user tk_user ON tk.user_id = tk_user.id
         LEFT JOIN tb_user pub_user ON o.user_id = pub_user.id
-        LEFT JOIN (
-            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
-            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
-            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
-              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
-        ) ap ON o.pick_up_address = ap.id
-        LEFT JOIN (
-            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
-            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
-            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
-              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
-        ) ar ON o.recive_address = ar.id
+        LEFT JOIN tb_order_address_snapshot ap ON o.id = ap.order_id AND ap.role = 'PICKUP'
+        LEFT JOIN tb_order_address_snapshot ar ON o.id = ar.order_id AND ar.role = 'RECEIVE'
         WHERE tk.deleted = 0
         <include refid="adminTakeOrderKeyword"/>
         ORDER BY tk.create_time DESC
@@ -435,18 +322,8 @@
         LEFT JOIN tb_category c ON o.category_id = c.id
         LEFT JOIN tb_user tk_user ON tk.user_id = tk_user.id
         LEFT JOIN tb_user pub_user ON o.user_id = pub_user.id
-        LEFT JOIN (
-            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
-            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
-            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
-              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
-        ) ap ON o.pick_up_address = ap.id
-        LEFT JOIN (
-            SELECT ad.id, CONCAT(s.school_name, ' ', cp.compus_name, ' ', bc.name, ' ', b.building_name, ' ', ad.details) AS address
-            FROM tb_address_book ad, tb_school s, tb_compus cp, tb_build_category bc, tb_building b
-            WHERE ad.school_id = s.id AND ad.compus_id = cp.id
-              AND ad.build_category_id = bc.id AND ad.building_id = b.id AND ad.deleted = 0
-        ) ar ON o.recive_address = ar.id
+        LEFT JOIN tb_order_address_snapshot ap ON o.id = ap.order_id AND ap.role = 'PICKUP'
+        LEFT JOIN tb_order_address_snapshot ar ON o.id = ar.order_id AND ar.role = 'RECEIVE'
         WHERE tk.deleted = 0 AND o.status IN (5, 7)
         <include refid="adminTakeOrderKeyword"/>
         ORDER BY tk.create_time DESC

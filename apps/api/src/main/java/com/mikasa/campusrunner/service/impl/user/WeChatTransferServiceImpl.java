@@ -37,6 +37,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -169,7 +170,7 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
 
         //将参数转换成json字符串
         String jsonParams = JSONObject.toJSONString(paramsMap);
-        log.info("Request params: " + jsonParams);
+        log.debug("WeChat request prepared");
 
         //获取当前出口ip
 //        getOutIp();
@@ -187,7 +188,7 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
             String bodyAsString = EntityUtils.toString(response.getEntity());//响应体
             int statusCode = response.getStatusLine().getStatusCode();//响应状态码
             if (statusCode == 200) { //处理成功
-                log.info("Success, response = " + bodyAsString);
+                log.info("WeChat request accepted, httpStatus={}", statusCode);
             } else if (statusCode == 204) { //处理成功，无返回Body
                 log.info("Success");
             } else {
@@ -208,6 +209,15 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
             String state = resultMap.get("state");
             String failReason = resultMap.get("fail_reason");
             String packageInfo = resultMap.get("package_info");
+
+            if (!order.getOrderNumber().equals(outBillNo) || state == null) {
+                throw new OrderException("收款结果未能确认，请稍后重试");
+            }
+            Map<String, Object> logResult = new HashMap<>(resultMap);
+            logResult.put("transfer_amount", transferAmount);
+            logResult.put("openid", user.getOpenid());
+            logResult.put("mch_id", weChatProperties.getMchid());
+            wxTransferLogService.savePaymentInfoLog(JSONObject.toJSONString(logResult));
 
             WeChatTransferVO weChatTransferVO = WeChatTransferVO.builder()
                     .outBillNo(outBillNo)
@@ -267,7 +277,7 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
             String bodyAsString = EntityUtils.toString(response.getEntity());//响应体
             int statusCode = response.getStatusLine().getStatusCode();//响应状态码
             if (statusCode == 200) { //处理成功
-                log.info("Success, response = " + bodyAsString);
+                log.info("WeChat request accepted, httpStatus={}", statusCode);
             } else if (statusCode == 204) { //处理成功，无返回Body
                 log.info("Success");
             } else {
@@ -327,7 +337,7 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
             String bodyAsString = EntityUtils.toString(response.getEntity());//响应体
             int statusCode = response.getStatusLine().getStatusCode();//响应状态码
             if (statusCode == 200) { //处理成功
-                log.info("Success, response = " + bodyAsString);
+                log.info("WeChat request accepted, httpStatus={}", statusCode);
             } else if (statusCode == 204) { //处理成功，无返回Body
                 log.info("Success");
             } else {
@@ -361,6 +371,7 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
      * @param bodyMap
      */
     @Override
+    @Transactional
     public void processOrder(Map<String, Object> bodyMap) throws GeneralSecurityException {
         log.info("Processing order...");
 
@@ -396,7 +407,8 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
                 log.info("Updating order status...");
                 if (plainTextMap.get("state").equals(WeChatPayConstant.TRADE_SUCCESS)) {
                     orderService.updateStatusByOrderNumber(orderNumber, OrderStatusConstant.WITHDRAWAL_SUCCEEDED);
-                } else if (plainTextMap.get("state").equals(WeChatTransferConstant.FAIL_TRAD)) {
+                } else if (WeChatTransferConstant.FAIL_TRAD.equals(plainTextMap.get("state"))
+                        || WeChatTransferConstant.CANCELLED_TRAD.equals(plainTextMap.get("state"))) {
                     //提现失败
                     orderService.updateStatusByOrderNumber(orderNumber, OrderStatusConstant.WITHDRAWAL_FAILED);
                 }
@@ -410,6 +422,7 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
             }
         } else {
             log.info("Failed to acquire lock");
+            throw new OrderException("通知处理中，请稍后重试");
         }
     }
 
@@ -435,7 +448,7 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
         //查询订单当前状态
         String result = this.queryOrder(orderNumber);
 
-        if (result.substring(0, 5).equals("ERROR")) {
+        if (result == null || result.startsWith("ERROR")) {
             //提现失败
             log.info("Order withdrawal check failed ===> {}", orderNumber);
 //            log.info("Updating order status...");
@@ -465,9 +478,12 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
             //记录支付日志
             log.info("Recording WeChat transfer log...");
             wxTransferLogService.savePaymentInfoLog(result);
-        }else if (state.equals(WeChatTransferConstant.FAIL_TRAD)){
+        }else if (WeChatTransferConstant.FAIL_TRAD.equals(state)
+                || WeChatTransferConstant.CANCELLED_TRAD.equals(state)){
             //提现失败
             log.info("Order withdrawal check failed ===> {}", orderNumber);
+            orderService.updateStatusByOrderNumber(orderNumber, OrderStatusConstant.WITHDRAWAL_FAILED);
+            wxTransferLogService.savePaymentInfoLog(result);
 
 //            log.info("Updating order status...");
 //            orderService.updateStatusByOrderNumber(orderNumber, OrderStatusConstant.WITHDRAWAL_FAILED);
@@ -504,7 +520,7 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
         //获取数据密文ciphertext
         String ciphertext = resource.get(WeChatPayConstant.CIPHERTEXT);
 
-        log.info("Callback ciphertext: {}", ciphertext);
+        log.debug("Encrypted callback received");
 
         //获取解密工具类
         AesUtil aesUtil = new AesUtil(weChatProperties.getApiV3Key().getBytes(StandardCharsets.UTF_8));
@@ -513,7 +529,7 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
         String plainText = aesUtil.decryptToString(associated_data.getBytes(StandardCharsets.UTF_8),
                 nonce.getBytes(StandardCharsets.UTF_8),
                 ciphertext);
-        log.info("Decrypted callback plaintext: {}", plainText);
+        log.debug("Callback decrypted");
 
         return plainText;
     }

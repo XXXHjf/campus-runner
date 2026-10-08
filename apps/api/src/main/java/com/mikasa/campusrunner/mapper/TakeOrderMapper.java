@@ -32,6 +32,7 @@ public interface TakeOrderMapper {
      * @return
      */
     TakeOrder getById(Long id);
+    TakeOrder getByIdForUpdate(Long id);
 
     /**
      * 更新

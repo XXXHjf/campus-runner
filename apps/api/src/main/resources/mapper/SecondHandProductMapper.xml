@@ -138,7 +138,7 @@
     <update id="markTrading">
         update tb_second_hand_product
         set status = 2, update_time = now()
-        where id = #{id} and deleted = 0
+        where id = #{id} and deleted = 0 and status in (1, 2)
     </update>
 
     <update id="releaseLockedProduct">
@@ -156,7 +156,7 @@
     <update id="markSold">
         update tb_second_hand_product
         set status = 3, update_time = now()
-        where id = #{id} and deleted = 0
+        where id = #{id} and deleted = 0 and status in (2, 3)
     </update>
 
     <update id="updateStatus">

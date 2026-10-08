@@ -10,6 +10,14 @@ import java.util.List;
 
 @Mapper
 public interface SecondHandProductMapper {
+    @org.apache.ibatis.annotations.Update("""
+            update tb_second_hand_product set status = 0, update_time = now()
+            where id = #{productId} and deleted = 0 and status in (1, 2)
+            and not exists (select 1 from tb_second_hand_order o where o.product_id = #{productId}
+                and o.id != #{orderId} and o.status not in (4, 6))
+            """)
+    int releaseAfterRefund(@org.apache.ibatis.annotations.Param("productId") Long productId,
+            @org.apache.ibatis.annotations.Param("orderId") Long orderId);
     void insert(SecondHandProduct product);
 
     void update(SecondHandProduct product);

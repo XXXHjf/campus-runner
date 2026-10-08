@@ -99,6 +99,10 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         if (order == null) {
             throw new OrderException(MessageConstant.NO_NOT_PAY_ORDER_WITH_ORDERID);
         }
+        Long callerId = BaseContext.getCurrentId();
+        if (callerId == null || !callerId.equals(order.getUserId())) {
+            throw new OrderException("只能支付自己发布的订单");
+        }
 
 //        Order order = new Order();
 
@@ -142,7 +146,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
 
         //将参数转换成json字符串
         String jsonParams = JSONObject.toJSONString(paramsMap);
-        log.info("Request params: " + jsonParams);
+        log.debug("WeChat request prepared");
 
         //设置请求实体类
         StringEntity entity = new StringEntity(jsonParams, "utf-8");
@@ -155,7 +159,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             String bodyAsString = EntityUtils.toString(response.getEntity());//响应体
             int statusCode = response.getStatusLine().getStatusCode();//响应状态码
             if (statusCode == 200) { //处理成功
-                log.info("Success, response = " + bodyAsString);
+                log.info("WeChat request accepted, httpStatus={}", statusCode);
             } else if (statusCode == 204) { //处理成功，无返回Body
                 log.info("Success");
             } else {
@@ -362,7 +366,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             String bodyAsString = EntityUtils.toString(response.getEntity());//响应体
             int statusCode = response.getStatusLine().getStatusCode();//响应状态码
             if (statusCode == 200) { //处理成功
-                log.info("Success, response = " + bodyAsString);
+                log.info("WeChat request accepted, httpStatus={}", statusCode);
             } else if (statusCode == 204) { //处理成功，无返回Body
                 log.info("Success");
             } else {
@@ -437,7 +441,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
 
         //将参数转换成json字符串
         String jsonParams = JSONObject.toJSONString(paramsMap);
-        log.info("Request params ===> " + jsonParams);
+        log.debug("WeChat request prepared");
 
         //设置请求实体类
         StringEntity entity = new StringEntity(jsonParams, "utf-8");
@@ -521,7 +525,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             String bodyAsString = EntityUtils.toString(response.getEntity());//响应体
             int statusCode = response.getStatusLine().getStatusCode();//响应状态码
             if (statusCode == 200) { //处理成功
-                log.info("Success, response = " + bodyAsString);
+                log.info("WeChat request accepted, httpStatus={}", statusCode);
             } else if (statusCode == 204) { //处理成功，无返回Body
                 log.info("Success");
             } else {
@@ -594,7 +598,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         //获取数据密文ciphertext
         String ciphertext = resource.get(WeChatPayConstant.CIPHERTEXT);
 
-        log.info("Callback ciphertext: {}", ciphertext);
+        log.debug("Encrypted callback received");
 
         //获取解密工具类
         AesUtil aesUtil = new AesUtil(weChatProperties.getApiV3Key().getBytes(StandardCharsets.UTF_8));
@@ -603,7 +607,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         String plainText = aesUtil.decryptToString(associated_data.getBytes(StandardCharsets.UTF_8),
                 nonce.getBytes(StandardCharsets.UTF_8),
                 ciphertext);
-        log.info("Decrypted callback plaintext: {}", plainText);
+        log.debug("Callback decrypted");
 
         return plainText;
     }

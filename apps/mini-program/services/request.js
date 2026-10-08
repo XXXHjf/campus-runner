@@ -75,6 +75,10 @@ function send(options, token, app, retried) {
         reject(new Error('完成校园认证后才能操作'));
         return;
       }
+      if (res.data?.code !== 1) {
+        reject(new Error(res.data?.msg || '操作失败，请稍后重试'));
+        return;
+      }
       resolve(res);
     },
     fail: () => reject(new Error('网络连接失败，请稍后重试')),

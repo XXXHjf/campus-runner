@@ -93,7 +93,7 @@ class SecondHandOfflineTradeServiceTest {
                 .pickupAddressSnapshot("大学城校区 宿舍 1栋")
                 .status(SecondHandConstant.PRODUCT_ON_SALE)
                 .build();
-        when(productMapper.getById(10L)).thenReturn(product);
+        when(productMapper.getByIdForUpdate(10L)).thenReturn(product);
         when(productMapper.lockOnSaleProduct(10L)).thenReturn(1);
         doAnswer(invocation -> {
             invocation.<SecondHandOrder>getArgument(0).setId(99L);
@@ -131,7 +131,7 @@ class SecondHandOfflineTradeServiceTest {
                 .pickupAddressSnapshot("大学城校区 宿舍 1栋")
                 .status(SecondHandConstant.PRODUCT_ON_SALE)
                 .build();
-        when(productMapper.getById(10L)).thenReturn(product);
+        when(productMapper.getByIdForUpdate(10L)).thenReturn(product);
         when(productMapper.lockOnSaleProduct(10L)).thenReturn(1);
         doAnswer(invocation -> {
             invocation.<SecondHandOrder>getArgument(0).setId(99L);
@@ -172,6 +172,8 @@ class SecondHandOfflineTradeServiceTest {
         SecondHandOrder order = offlineOrder(SecondHandConstant.ORDER_OFFLINE_WAIT_DELIVERY);
         when(orderMapper.listUnpaidTimeout(any(LocalDateTime.class))).thenReturn(List.of());
         when(orderMapper.getById(99L)).thenReturn(order);
+        when(productMapper.getByIdForUpdate(10L)).thenReturn(SecondHandProduct.builder().id(10L).status(2).build());
+        when(orderMapper.getByIdForUpdate(99L)).thenReturn(order);
 
         service.cancelOrder(99L, null);
 
@@ -187,6 +189,8 @@ class SecondHandOfflineTradeServiceTest {
         SecondHandOrder order = offlineOrder(SecondHandConstant.ORDER_OFFLINE_WAIT_DELIVERY);
         when(orderMapper.listUnpaidTimeout(any(LocalDateTime.class))).thenReturn(List.of());
         when(orderMapper.getById(99L)).thenReturn(order);
+        when(productMapper.getByIdForUpdate(10L)).thenReturn(SecondHandProduct.builder().id(10L).status(2).build());
+        when(orderMapper.getByIdForUpdate(99L)).thenReturn(order);
 
         service.cancelOrder(99L, null);
 
@@ -212,6 +216,8 @@ class SecondHandOfflineTradeServiceTest {
         seller.setPhone("13800000000");
         when(orderMapper.listUnpaidTimeout(any(LocalDateTime.class))).thenReturn(List.of());
         when(orderMapper.getById(99L)).thenReturn(order);
+        when(productMapper.getByIdForUpdate(10L)).thenReturn(SecondHandProduct.builder().id(10L).status(2).build());
+        when(orderMapper.getByIdForUpdate(99L)).thenReturn(order);
         when(orderMapper.detail(99L)).thenReturn(detail);
         when(mediaAssetService.resolvePublicBinding(anyString(), anyLong(), anyString())).thenReturn(List.of());
         when(userMapper.getById(200L)).thenReturn(seller);
@@ -226,6 +232,8 @@ class SecondHandOfflineTradeServiceTest {
         SecondHandOrder order = offlineOrder(SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM);
         when(orderMapper.listUnpaidTimeout(any(LocalDateTime.class))).thenReturn(List.of());
         when(orderMapper.getById(99L)).thenReturn(order);
+        when(productMapper.getByIdForUpdate(10L)).thenReturn(SecondHandProduct.builder().id(10L).status(2).build());
+        when(orderMapper.getByIdForUpdate(99L)).thenReturn(order);
 
         service.confirmOrder(99L);
 

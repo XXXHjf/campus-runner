@@ -3,6 +3,8 @@ package com.mikasa.campusrunner.service.impl.user;
 import com.alibaba.fastjson.JSONObject;
 import com.mikasa.campusrunner.common.constant.WeChatTransferConstant;
 import com.mikasa.campusrunner.mapper.WxTransferLogMapper;
+import com.mikasa.campusrunner.mapper.OrderMapper;
+import com.mikasa.campusrunner.common.exception.OrderException;
 import com.mikasa.campusrunner.pojo.entity.WxTransferLog;
 import com.mikasa.campusrunner.service.user.WxTransferLogService;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,8 @@ public class WxTransferLogServiceImpl implements WxTransferLogService {
 
     @Autowired
     private WxTransferLogMapper wxTransferLogMapper;
+    @Autowired
+    private OrderMapper orderMapper;
 
     @Override
     @Transactional
@@ -32,6 +36,9 @@ public class WxTransferLogServiceImpl implements WxTransferLogService {
 
         //订单编号
         String orderNumber = (String) map.get(WeChatTransferConstant.OUT_BILL_NO);
+        if (orderNumber == null || orderMapper.getByOrderNumberForUpdate(orderNumber) == null) {
+            throw new OrderException("订单不存在");
+        }
 
         //微信转账单号
         String transferBillNo = (String) map.get(WeChatTransferConstant.TRANSFER_BILL_NO);
@@ -63,7 +70,16 @@ public class WxTransferLogServiceImpl implements WxTransferLogService {
                 .createTime(createTime)
                 .updateTime(updateTime).build();
 
-        wxTransferLogMapper.insert(wxTransferLog);
+        WxTransferLog existing = wxTransferLogMapper.getByOrderNumber(orderNumber);
+        if (existing == null) {
+            wxTransferLogMapper.insert(wxTransferLog);
+        } else {
+            // An initiation response can arrive after a terminal callback.
+            if ("SUCCESS".equals(existing.getState()) && !"SUCCESS".equals(state)) return;
+            if (("FAIL".equals(existing.getState()) || "CANCELLED".equals(existing.getState()))
+                    && !("SUCCESS".equals(state) || "FAIL".equals(state) || "CANCELLED".equals(state))) return;
+            wxTransferLogMapper.updateByOrderNumber(wxTransferLog);
+        }
         log.info("Transfer log recorded");
 
     }

@@ -18,6 +18,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SecondHandOrderMapperXmlTest {
 
     @Test
+    void cancellationAndCallbacksShareLockedOrderReads() throws IOException {
+        String byId = statement("getByIdForUpdate").getBoundSql(Map.of("id", 1L)).getSql().toLowerCase();
+        String byNumber = statement("getByOrderNumberForUpdate").getBoundSql(Map.of("orderNumber", "SH1")).getSql().toLowerCase();
+        assertTrue(byId.contains("for update"));
+        assertTrue(byNumber.contains("for update"));
+    }
+
+    @Test
+    void compensationQueriesBindCutoffAndOnlyScanHistoricalOnlineOrders() throws IOException {
+        for (String id : java.util.List.of("listRefundRecovery", "listCanceledPaymentRecovery")) {
+            var sql = statement(id).getBoundSql(Map.of("cutoff", LocalDateTime.now()));
+            assertTrue(sql.getSql().contains("trade_mode = 'ONLINE'"));
+            org.junit.jupiter.api.Assertions.assertEquals("cutoff", sql.getParameterMappings().get(0).getProperty());
+        }
+    }
+
+    @Test
     void insertsTradeModeAndDefendsNonNullTransferAttempt() throws IOException {
         SecondHandOrder order = SecondHandOrder.builder()
                 .tradeMode(SecondHandConstant.TRADE_MODE_OFFLINE)

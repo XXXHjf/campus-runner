@@ -52,7 +52,7 @@ public class OrderController {
     @PostMapping
     @Operation(summary = "发布订单")
     public Result<Order> submit(@RequestBody OrderSubmitDTO orderSubmitDTO){
-        log.info("Submit order, {}", orderSubmitDTO);
+        log.info("Submit order, userId: {}", BaseContext.getCurrentId());
         Order order = orderService.submit(orderSubmitDTO);
         return Result.success(order);
     }

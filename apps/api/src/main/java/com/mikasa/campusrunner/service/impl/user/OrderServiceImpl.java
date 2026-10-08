@@ -51,6 +51,9 @@ public class OrderServiceImpl implements OrderService {
     private AddressBookMapper addressBookMapper;
 
     @Autowired
+    private OrderAddressSnapshotMapper orderAddressSnapshotMapper;
+
+    @Autowired
     private SchoolMapper schoolMapper;
 
     @Autowired
@@ -63,6 +66,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private com.mikasa.campusrunner.service.user.UserService userService;
 
     @Autowired
     private WeChatPayUtil weChatPayUtil;
@@ -106,11 +112,32 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public Order submit(OrderSubmitDTO orderSubmitDTO) {
+        if (orderSubmitDTO == null) {
+            throw new ParamException("请填写订单信息");
+        }
+        Long addressSchoolId = validatePublisherAndAddresses(orderSubmitDTO);
+        String contactName = orderSubmitDTO.getUsername() == null ? "" : orderSubmitDTO.getUsername().trim();
+        String contactPhone = orderSubmitDTO.getPhone() == null ? "" : orderSubmitDTO.getPhone().trim();
+        if (contactName.isBlank() || contactName.codePointCount(0, contactName.length()) > 50) {
+            throw new ParamException("请填写50字以内的联系人姓名");
+        }
+        if (!contactPhone.matches("1[3-9][0-9]{9}")) {
+            throw new ParamException("请填写正确的联系手机号");
+        }
+        if (!Integer.valueOf(0).equals(orderSubmitDTO.getDoorAccess())
+                && !Integer.valueOf(1).equals(orderSubmitDTO.getDoorAccess())) {
+            throw new ParamException("请选择是否有门禁");
+        }
+        if (orderSubmitDTO.getCategoryId() == null || orderSubmitDTO.getCategoryId() <= 0) {
+            throw new ParamException("请选择跑腿类型");
+        }
         String note = validateContentNote(orderSubmitDTO.getNote());
         List<Long> imageAssetIds = validateOrderImages(orderSubmitDTO.getImageAssetIds(), orderSubmitDTO.getImageAssetId());
         Order order = new Order();
         BeanUtils.copyProperties(orderSubmitDTO, order);
         order.setNote(note);
+        order.setUsername(contactName);
+        order.setPhone(contactPhone);
         Category category = categoryMapper.getById(orderSubmitDTO.getCategoryId());
         if (category == null || !Integer.valueOf(1).equals(category.getEnabled())) {
             throw new ParamException("该跑腿类型暂不可发布");
@@ -118,6 +145,8 @@ public class OrderServiceImpl implements OrderService {
         LocalDateTime now = LocalDateTime.now();
         if (orderSubmitDTO.getCancelTime() == null) {
             order.setCancelTime(now.plusHours(TimeConstant.DEFAULT_AUTO_CANCEL_GAP)); //如果没有传取消时间，就默认是24小时
+        } else if (!orderSubmitDTO.getCancelTime().isAfter(now)) {
+            throw new ParamException("自动取消时间已过，请重新选择");
         }
         //TODO 这里订单号用时间流逝来表示了，如需要，在这里修改
         order.setOrderNumber(Long.valueOf(System.currentTimeMillis()).toString());
@@ -132,12 +161,23 @@ public class OrderServiceImpl implements OrderService {
             // 仅保留旧客户端及时长相关逻辑所需的兼容快照，不用于还原时间。
             Duration remaining = Duration.between(now, deadline);
             long minutes = remaining.toMinutes();
+            if (minutes >= Integer.MAX_VALUE) {
+                throw new ParamException("预期送达时间过远，请重新选择");
+            }
             order.setGap(Math.toIntExact(minutes + (remaining.minusMinutes(minutes).isZero() ? 0 : 1)));
         } else if (order.getGap() == null || order.getGap() <= 0) {
             throw new ParamException("请选择预期送达时间");
         }
         order.setUserId(BaseContext.getCurrentId());
         boolean purchase = OrderBusinessConstant.CATEGORY_PURCHASE.equals(category.getCategoryCode());
+        if (orderSubmitDTO.getPrice() != null && (orderSubmitDTO.getPrice().signum() < 0
+                || orderSubmitDTO.getPrice().scale() > 2)) {
+            throw new ParamException("请输入正确的跑腿费");
+        }
+        if (!purchase && orderSubmitDTO.getProductAmount() != null
+                && orderSubmitDTO.getProductAmount().signum() != 0) {
+            throw new ParamException("该跑腿类型无需填写商品金额");
+        }
         if (!purchase && (orderSubmitDTO.getPrice() == null ||
                 orderSubmitDTO.getPrice().signum() == 0)) {
             //表示当前订单是无偿的
@@ -161,7 +201,18 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setDeleted(DeleteConstant.UN_DELETED);
 
+        // Lock and recheck current addresses before preserving evidence in the same transaction.
+        List<Long> lockedAddresses = orderAddressSnapshotMapper.lockUsableAddresses(
+                order.getPickUpAddress(), order.getReciveAddress(), order.getUserId(), addressSchoolId);
+        if (!lockedAddresses.contains(order.getPickUpAddress())
+                || !lockedAddresses.contains(order.getReciveAddress())) {
+            throw new AddressException("地址已变化，请重新选择后下单");
+        }
         int row = orderMapper.insert(order);
+        if (orderAddressSnapshotMapper.capture(order.getId(), order.getPickUpAddress(), "PICKUP") != 1
+                || orderAddressSnapshotMapper.capture(order.getId(), order.getReciveAddress(), "RECEIVE") != 1) {
+            throw new AddressException("地址保存失败，请重新下单");
+        }
         mediaAssetService.replaceBinding(
                 imageAssetIds,
                 MediaPurpose.ORDER_IMAGE.name(),
@@ -173,6 +224,31 @@ public class OrderServiceImpl implements OrderService {
                 Duration.ofDays(7));
         order.setImageAssetId(imageAssetIds.get(0));
         return order;
+    }
+
+    private Long validatePublisherAndAddresses(OrderSubmitDTO dto) {
+        Long userId = BaseContext.getCurrentId();
+        if (userId == null) throw new UserException("请先登录");
+        var user = userService.getCurrentUser();
+        if (user == null || !DeleteConstant.UN_DELETED.equals(user.getDeleted())) {
+            throw new UserException("登录已失效，请重新登录");
+        }
+        if (!Boolean.TRUE.equals(user.getProfileCompleted())) {
+            throw new UserException("请先完善头像、昵称和手机号");
+        }
+        if (!AuthenConstant.SUCCESS.equals(user.getAuthentication()) || user.getSchoolId() == null) {
+            throw new UserException("请先完成校园认证");
+        }
+        validateSubmitAddress(dto.getPickUpAddress(), userId, user.getSchoolId(), "取件");
+        validateSubmitAddress(dto.getReciveAddress(), userId, user.getSchoolId(), "送达");
+        return user.getSchoolId();
+    }
+
+    private void validateSubmitAddress(Long id, Long userId, Long schoolId, String label) {
+        if (id == null || id <= 0) throw new AddressException("请选择" + label + "地址");
+        if (addressBookMapper.countUsableOrderAddress(id, userId, schoolId) != 1) {
+            throw new AddressException(label + "地址不可用，请重新选择本校地址");
+        }
     }
 
     @Override
@@ -262,7 +338,7 @@ public class OrderServiceImpl implements OrderService {
     public List<OrderShowVO> showByPickUpAdd(OrderShowByAddressDTO orderShowByAddressDTO) {
         AddressBook addressBook = getAddressBook(orderShowByAddressDTO);
 
-        List<Long> ids = addressBookMapper.getIds(addressBook);
+        List<Long> ids = orderAddressSnapshotMapper.findOrderIds(addressBook, "PICKUP");
 
         if (CollectionUtils.isEmpty(ids)) {
             return new ArrayList<>();
@@ -283,7 +359,7 @@ public class OrderServiceImpl implements OrderService {
     public List<OrderShowVO> showByReciveAdd(OrderShowByAddressDTO orderShowByAddressDTO) {
         AddressBook addressBook = getAddressBook(orderShowByAddressDTO);
 
-        List<Long> ids = addressBookMapper.getIds(addressBook);
+        List<Long> ids = orderAddressSnapshotMapper.findOrderIds(addressBook, "RECEIVE");
 
         if (CollectionUtils.isEmpty(ids)) {
             return new ArrayList<>();
@@ -423,7 +499,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void confirm(Long id) {
-        Order order = orderMapper.getById(id);
+        Order order = orderMapper.getByIdForUpdate(id);
         if (order == null) {
             throw new OrderException(MessageConstant.NOT_FOUND_ORDER);
         }
@@ -434,7 +510,9 @@ public class OrderServiceImpl implements OrderService {
             throw new OrderException("订单尚未送达，请刷新后重试");
         }
         order.setStatus(OrderStatusConstant.SENDER_CONFIRMS_RECEIPT);
-        orderMapper.update(Order.builder().id(order.getId()).status(order.getStatus()).build());
+        if (orderMapper.update(Order.builder().id(order.getId()).status(order.getStatus()).build()) != 1) {
+            throw new OrderException("订单状态已变化，请刷新后重试");
+        }
     }
 
     /**
@@ -451,7 +529,7 @@ public class OrderServiceImpl implements OrderService {
                 .buildCategoryNumberId(orderShowByDoubleAddDTO.getPickBuildCategoryNumberId())
                 .buildingNumberId(orderShowByDoubleAddDTO.getPickBuildingNumberId()).build();
         AddressBook pickAddressBook = getAddressBook(pick);
-        List<Long> pickIds = addressBookMapper.getIds(pickAddressBook);
+        List<Long> pickIds = orderAddressSnapshotMapper.findOrderIds(pickAddressBook, "PICKUP");
 
         OrderShowByAddressDTO recive = OrderShowByAddressDTO.builder()
                 .schoolNumberId(orderShowByDoubleAddDTO.getReciveSchoolNumberId())
@@ -459,7 +537,7 @@ public class OrderServiceImpl implements OrderService {
                 .buildCategoryNumberId(orderShowByDoubleAddDTO.getReciveBuildCategoryNumberId())
                 .buildingNumberId(orderShowByDoubleAddDTO.getReciveBuildingNumberId()).build();
         AddressBook reciveAddressBook = getAddressBook(recive);
-        List<Long> reciveIds = addressBookMapper.getIds(reciveAddressBook);
+        List<Long> reciveIds = orderAddressSnapshotMapper.findOrderIds(reciveAddressBook, "RECEIVE");
 
         if (pickIds.isEmpty() || reciveIds.isEmpty()) {
             return new ArrayList<>();
@@ -497,6 +575,9 @@ public class OrderServiceImpl implements OrderService {
         //获取一系列的id
         //这里的schoolId只能是当前用户绑定的id
         Long schoolId = userMapper.getSchoolId(BaseContext.getCurrentId());
+        if (schoolId == null) {
+            throw new UserException("请先完成校园认证");
+        }
         Long compusId = compusMapper.getIdByNumberId(orderShowByAddressDTO.getCompusNumberId());
         Long buildCategoryId = buildCategoryMapper.getIdByNumberId(orderShowByAddressDTO.getBuildCategoryNumberId());
         Long buildingId = buildingMapper.getIdByNumberId(orderShowByAddressDTO.getBuildingNumberId());

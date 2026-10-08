@@ -74,7 +74,7 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         }
 
         UserVO user = userMapper.getById(BaseContext.getCurrentId());
-        if (user.getAuthentication().equals(AuthenConstant.FAILED)){
+        if (user == null || !AuthenConstant.SUCCESS.equals(user.getAuthentication())){
             throw new UserException(MessageConstant.USER_NOT_AUTHEN);
         }
 
@@ -100,6 +100,7 @@ public class TakeOrderServiceImpl implements TakeOrderService {
                 .id(order.getId()).status(order.getStatus()).exceedTime(exceedTime).build());
 
         int row2 = takeOrderMapper.save(takeOrder);
+        if (row1 != 1 || row2 != 1) throw new TakeOrderException("接单失败，请刷新后重试");
         var notification = new com.mikasa.campusrunner.pojo.dto.MessageTakeOrderDTO();
         notification.setOrderId(id);
         notification.setTakeOrderUserId(takeOrder.getUserId());
@@ -116,15 +117,15 @@ public class TakeOrderServiceImpl implements TakeOrderService {
     public void updateStatus(TakeOrderUpdateStatusDTO takeOrderUpdateStatusDTO) {
         TakeOrder takeOrder = takeOrderMapper.getById(takeOrderUpdateStatusDTO.getId());
 
-        if (takeOrder == null){
+        if (takeOrder == null || !DeleteConstant.UN_DELETED.equals(takeOrder.getDeleted())){
             throw new TakeOrderException(MessageConstant.NOT_FOUND_TAKE_ORDER);
         }
 
-        if (!takeOrder.getUserId().equals(BaseContext.getCurrentId())){
+        if (BaseContext.getCurrentId() == null || !BaseContext.getCurrentId().equals(takeOrder.getUserId())){
             throw new TakeOrderException(MessageConstant.NOT_YOUR_ORDER);
         }
 
-        Order order = orderMapper.getById(takeOrder.getOrderId());
+        Order order = orderMapper.getByIdForUpdate(takeOrder.getOrderId());
         if (order == null){
             throw new OrderException(MessageConstant.NOT_FOUND_ORDER);
         }
@@ -133,6 +134,26 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         Integer status = takeOrderUpdateStatusDTO.getStatus();
         if (Objects.equals(status, TakeOrderStatusConstant.CANCELED)) {
             throw new TakeOrderException("接单后如需处理，请联系平台");
+        }
+        // Re-read after locking the main order so parallel pickup/delivery requests
+        // cannot overwrite a newer lifecycle state with a stale take record.
+        takeOrder = takeOrderMapper.getByIdForUpdate(takeOrderUpdateStatusDTO.getId());
+        if (takeOrder == null || !DeleteConstant.UN_DELETED.equals(takeOrder.getDeleted())
+                || !BaseContext.getCurrentId().equals(takeOrder.getUserId())
+                || !order.getId().equals(takeOrder.getOrderId())) {
+            throw new TakeOrderException("订单状态已变化，请刷新后重试");
+        }
+        boolean pickupState = Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.ALREADY_TAKE_ORDER)
+                && Objects.equals(order.getStatus(), OrderStatusConstant.ALREADY_TAKE_ORDER);
+        boolean deliveryState = Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.DELIVERYING)
+                && Objects.equals(order.getStatus(), OrderStatusConstant.DELIVERYING);
+        boolean deliveredState = Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.ORDER_FINISH)
+                && (Objects.equals(order.getStatus(), OrderStatusConstant.ORDER_FINISH)
+                || Objects.equals(order.getStatus(), OrderStatusConstant.SENDER_CONFIRMS_RECEIPT)
+                || Objects.equals(order.getStatus(), OrderStatusConstant.WITHDRAWAL_SUCCEEDED)
+                || Objects.equals(order.getStatus(), OrderStatusConstant.WITHDRAWAL_FAILED));
+        if (!pickupState && !deliveryState && !deliveredState) {
+            throw new TakeOrderException("订单状态已变化，请刷新后重试");
         }
         if (Objects.equals(status, takeOrder.getStatus())) return;
         boolean canPickUp = Objects.equals(takeOrder.getStatus(), TakeOrderStatusConstant.ALREADY_TAKE_ORDER)
@@ -173,6 +194,7 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         int row1 = takeOrderMapper.update(takeOrder);
         int row2 = orderMapper.update(Order.builder()
                 .id(order.getId()).status(order.getStatus()).deliveryTime(order.getDeliveryTime()).build());
+        if (row1 != 1 || row2 != 1) throw new TakeOrderException("更新失败，请刷新后重试");
         if (purchase && canPickUp && takeOrderUpdateStatusDTO.getImageAssetId() != null) {
             mediaAssetService.replaceBinding(
                     List.of(takeOrderUpdateStatusDTO.getImageAssetId()),

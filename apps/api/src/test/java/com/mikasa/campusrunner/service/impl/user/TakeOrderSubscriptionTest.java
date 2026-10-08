@@ -45,6 +45,8 @@ class TakeOrderSubscriptionTest {
         Order order = readyToTake();
         LocalDateTime deadline = LocalDateTime.now().plusMinutes(10).withSecond(0).withNano(0);
         order.setExpectedDeliveryTime(deadline);
+        when(orderMapper.update(any())).thenReturn(1);
+        when(takeOrderMapper.save(any())).thenReturn(1);
         service.take(2L);
         assertEquals(deadline, order.getExceedTime());
         assertEquals(deadline, order.getExpectedDeliveryTime());
@@ -64,6 +66,8 @@ class TakeOrderSubscriptionTest {
     @Test void legacyOrderKeepsHistoricalTakeTimeDeadline() {
         Order order = readyToTake();
         LocalDateTime before = LocalDateTime.now();
+        when(orderMapper.update(any())).thenReturn(1);
+        when(takeOrderMapper.save(any())).thenReturn(1);
         service.take(2L);
         assertFalse(order.getExceedTime().isBefore(before.plusMinutes(30)));
         assertFalse(order.getExceedTime().isAfter(LocalDateTime.now().plusMinutes(30)));
@@ -72,10 +76,13 @@ class TakeOrderSubscriptionTest {
 
     @Test void repeatedPickupDoesNotSendAgainOrAllowReturningFromFinishedToPickup() {
         TakeOrder take = new TakeOrder();
-        take.setId(1L); take.setOrderId(2L); take.setUserId(3L); take.setStatus(0);
-        Order order = new Order(); order.setId(2L);
+        take.setId(1L); take.setOrderId(2L); take.setUserId(3L); take.setStatus(0); take.setDeleted(0);
+        Order order = new Order(); order.setId(2L); order.setStatus(1);
         when(takeOrderMapper.getById(1L)).thenReturn(take);
-        when(orderMapper.getById(2L)).thenReturn(order);
+        when(takeOrderMapper.getByIdForUpdate(1L)).thenReturn(take);
+        when(orderMapper.getByIdForUpdate(2L)).thenReturn(order);
+        when(takeOrderMapper.update(any())).thenReturn(1);
+        when(orderMapper.update(any())).thenReturn(1);
         TakeOrderUpdateStatusDTO dto = new TakeOrderUpdateStatusDTO(); dto.setId(1L); dto.setStatus(1);
         BaseContext.setCurrentId(3L);
         try {
@@ -91,10 +98,10 @@ class TakeOrderSubscriptionTest {
 
     @Test void takerCannotCancelOrdinaryOrPurchaseOrder() {
         TakeOrder take = new TakeOrder();
-        take.setId(1L); take.setOrderId(2L); take.setUserId(3L);
+        take.setId(1L); take.setOrderId(2L); take.setUserId(3L); take.setDeleted(0);
         Order order = new Order(); order.setId(2L);
         when(takeOrderMapper.getById(1L)).thenReturn(take);
-        when(orderMapper.getById(2L)).thenReturn(order);
+        when(orderMapper.getByIdForUpdate(2L)).thenReturn(order);
         TakeOrderUpdateStatusDTO dto = new TakeOrderUpdateStatusDTO();
         dto.setId(1L); dto.setStatus(3); dto.setCancelReason("不想继续");
         BaseContext.setCurrentId(3L);

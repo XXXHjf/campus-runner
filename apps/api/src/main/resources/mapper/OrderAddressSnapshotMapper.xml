@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mikasa.campusrunner.mapper.OrderAddressSnapshotMapper">
+    <select id="lockUsableAddresses" resultType="java.lang.Long">
+        SELECT a.id FROM tb_address_book a
+        JOIN tb_school s ON s.id = a.school_id AND s.deleted = 0
+        JOIN tb_compus c ON c.id = a.compus_id AND c.school_id = s.id AND c.deleted = 0
+        JOIN tb_build_category t ON t.id = a.build_category_id
+            AND t.school_id = s.id AND t.compus_id = c.id AND t.deleted = 0
+        JOIN tb_building b ON b.id = a.building_id AND b.school_id = s.id
+            AND b.compus_id = c.id AND b.build_category_id = t.id AND b.deleted = 0
+        WHERE a.id IN (#{pickupId}, #{receiveId}) AND a.user_id = #{userId}
+          AND a.school_id = #{schoolId} AND a.deleted = 0
+        ORDER BY a.id FOR UPDATE
+    </select>
+    <insert id="capture">
+        INSERT INTO tb_order_address_snapshot
+            (order_id, role, address_id, school_id, compus_id, build_category_id, building_id,
+             address, public_address, source, captured_at)
+        SELECT #{orderId}, #{role}, a.id, a.school_id, a.compus_id, a.build_category_id, a.building_id,
+               CONCAT_WS(' ', s.school_name, c.compus_name, t.name, b.building_name, a.details),
+               CONCAT_WS(' ', s.school_name, c.compus_name, t.name, b.building_name),
+               'SUBMIT', CURRENT_TIMESTAMP
+        FROM tb_address_book a
+        JOIN tb_school s ON s.id = a.school_id
+        JOIN tb_compus c ON c.id = a.compus_id
+        JOIN tb_build_category t ON t.id = a.build_category_id
+        JOIN tb_building b ON b.id = a.building_id
+        WHERE a.id = #{addressId}
+    </insert>
+    <select id="findOrderIds" resultType="java.lang.Long">
+        SELECT order_id FROM tb_order_address_snapshot WHERE role = #{role}
+        <if test="address.schoolId != null">AND school_id = #{address.schoolId}</if>
+        <if test="address.compusId != null">AND compus_id = #{address.compusId}</if>
+        <if test="address.buildCategoryId != null">AND build_category_id = #{address.buildCategoryId}</if>
+        <if test="address.buildingId != null">AND building_id = #{address.buildingId}</if>
+    </select>
+</mapper>

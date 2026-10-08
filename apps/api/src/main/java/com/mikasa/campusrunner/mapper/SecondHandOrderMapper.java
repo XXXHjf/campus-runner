@@ -21,6 +21,24 @@ public interface SecondHandOrderMapper {
 
     SecondHandOrder getByOrderNumber(@Param("orderNumber") String orderNumber);
 
+    @org.apache.ibatis.annotations.Select("select * from tb_second_hand_order where id = #{id} for update")
+    SecondHandOrder getByIdForUpdate(@Param("id") Long id);
+
+    @org.apache.ibatis.annotations.Select("select * from tb_second_hand_order where order_number = #{orderNumber} for update")
+    SecondHandOrder getByOrderNumberForUpdate(@Param("orderNumber") String orderNumber);
+
+    @org.apache.ibatis.annotations.Select("""
+            select * from tb_second_hand_order where trade_mode = 'ONLINE' and status in (5, 7)
+            and update_time < #{cutoff} order by update_time asc limit 100
+            """)
+    List<SecondHandOrder> listRefundRecovery(@Param("cutoff") LocalDateTime cutoff);
+
+    @org.apache.ibatis.annotations.Select("""
+            select * from tb_second_hand_order where trade_mode = 'ONLINE' and status = 4
+            and update_time < #{cutoff} order by update_time asc limit 100
+            """)
+    List<SecondHandOrder> listCanceledPaymentRecovery(@Param("cutoff") LocalDateTime cutoff);
+
     SecondHandOrder getByTransferOutBillNo(@Param("transferOutBillNo") String transferOutBillNo);
 
     SecondHandOrder getActiveByProductId(@Param("productId") Long productId);

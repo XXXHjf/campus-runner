@@ -38,6 +38,21 @@ public interface AddressBookMapper {
      */
     AddressBook getById(Long id);
 
+    /** 校验当前仍可使用的完整地址层级，拒绝历史错误关联和已停用地点。 */
+    @org.apache.ibatis.annotations.Select("""
+            select count(*) from tb_address_book a
+            join tb_school s on s.id = a.school_id and s.deleted = 0
+            join tb_compus c on c.id = a.compus_id and c.school_id = s.id and c.deleted = 0
+            join tb_build_category t on t.id = a.build_category_id
+                and t.school_id = s.id and t.compus_id = c.id and t.deleted = 0
+            join tb_building b on b.id = a.building_id and b.school_id = s.id
+                and b.compus_id = c.id and b.build_category_id = t.id and b.deleted = 0
+            where a.id = #{id} and a.user_id = #{userId} and a.school_id = #{schoolId} and a.deleted = 0
+            """)
+    int countUsableOrderAddress(@org.apache.ibatis.annotations.Param("id") Long id,
+            @org.apache.ibatis.annotations.Param("userId") Long userId,
+            @org.apache.ibatis.annotations.Param("schoolId") Long schoolId);
+
 
     /**
      * 更新地址

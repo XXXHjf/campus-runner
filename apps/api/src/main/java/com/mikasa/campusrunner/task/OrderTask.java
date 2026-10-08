@@ -53,6 +53,9 @@ public class OrderTask {
     @Autowired
     private SecondHandService secondHandService;
 
+    @Autowired
+    private com.mikasa.campusrunner.service.impl.user.SecondHandRefundRecovery secondHandRefundRecovery;
+
 
 
 
@@ -98,8 +101,11 @@ public class OrderTask {
         for (Order order : list) {
             log.warn("Withdrawable order not yet withdrawn: order ID ===> {}, order number ===> {}, created time ===> {}",
                     order.getId(), order.getOrderNumber(), order.getCreateTime());
-            //TODO 可以继续优化，让价格price为null的停止前进
-            weChatTransferService.checkOrderWithdrawalState(order);
+            try {
+                weChatTransferService.checkOrderWithdrawalState(order);
+            } catch (Exception e) {
+                log.warn("Transfer reconciliation deferred, order={}", order.getOrderNumber());
+            }
         }
 
     }
@@ -142,6 +148,7 @@ public class OrderTask {
     public void processSecondHandTimeouts() {
         LocalDateTime now = LocalDateTime.now();
         log.info("Processing second-hand timeout jobs, current time: {}", now);
+        secondHandRefundRecovery.sweep();
         secondHandService.processUnpaidTimeouts();
         secondHandService.processAutoConfirm();
         secondHandService.processTransferQueries();

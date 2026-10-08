@@ -86,6 +86,12 @@ public class SecondHandServiceImpl implements SecondHandService {
     private MediaAssetService mediaAssetService;
     @Autowired
     private CloseableHttpClient wxPayClient;
+    @Autowired
+    private com.mikasa.campusrunner.service.user.WeChatPayService paymentQueries;
+    @Autowired
+    private SecondHandRefundRecovery refundRecovery;
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
     @Value("${com.mikasa.campus-runner.dev.mock-payment-enabled:false}")
     private Boolean mockPaymentEnabled;
 
@@ -218,7 +224,7 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Transactional
     public void updateProduct(Long id, SecondHandProductDTO dto) {
         ensureAuthenticated();
-        SecondHandProduct product = requireProduct(id);
+        SecondHandProduct product = requireProductForUpdate(id);
         ensureOwner(product.getSellerId());
         if (!isStatus(product.getStatus(), SecondHandConstant.PRODUCT_ON_SALE) &&
                 !isStatus(product.getStatus(), SecondHandConstant.PRODUCT_OFF_SHELF)) {
@@ -250,7 +256,7 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Transactional
     public void updateProductStatus(Long id, Integer status) {
         ensureAuthenticated();
-        SecondHandProduct product = requireProduct(id);
+        SecondHandProduct product = requireProductForUpdate(id);
         ensureOwner(product.getSellerId());
         if (!isStatus(product.getStatus(), SecondHandConstant.PRODUCT_ON_SALE) &&
                 !isStatus(product.getStatus(), SecondHandConstant.PRODUCT_OFF_SHELF)) {
@@ -264,9 +270,17 @@ public class SecondHandServiceImpl implements SecondHandService {
     }
 
     @Override
+    @Transactional
     public void adminUpdateProductStatus(Long id, Integer status) {
         validateProductStatus(status);
-        requireProduct(id);
+        SecondHandProduct product = requireProductForUpdate(id);
+        if (java.util.Objects.equals(product.getStatus(), status)) return;
+        if (orderMapper.getActiveByProductId(id) != null) {
+            throw new SecondHandException("商品存在进行中的订单，暂不可修改状态");
+        }
+        if (status == SecondHandConstant.PRODUCT_LOCKED || status == SecondHandConstant.PRODUCT_TRADING) {
+            throw new SecondHandException("请通过订单处理交易状态");
+        }
         productMapper.updateStatus(id, status);
     }
 
@@ -489,7 +503,7 @@ public class SecondHandServiceImpl implements SecondHandService {
             }
             return createOrderInternal(product, bargain.getBuyerId(), bargain.getOfferPrice(), dto, true);
         }
-        SecondHandProduct product = requireProduct(dto.getProductId());
+        SecondHandProduct product = requireProductForUpdate(dto.getProductId());
         return createOrderInternal(product, BaseContext.getCurrentId(), product.getPrice(), dto, false);
     }
 
@@ -539,7 +553,7 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Override
     @Transactional
     public void markPaid(String orderNumber) {
-        SecondHandOrder order = orderMapper.getByOrderNumber(orderNumber);
+        SecondHandOrder order = SecondHandOrderLocks.byNumber(orderMapper, productMapper, orderNumber);
         if (order == null || isOfflineOrder(order) ||
                 !isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)) {
             return;
@@ -570,34 +584,9 @@ public class SecondHandServiceImpl implements SecondHandService {
                 isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUND_ABNORMAL)) {
             return;
         }
-        if (isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)) {
-            try {
-                weChatPayUtil.closeOrder(order.getOrderNumber());
-            } catch (Exception e) {
-                log.warn("关闭二手待支付微信订单失败, orderNumber={}", order.getOrderNumber(), e);
-            }
-            order.setStatus(SecondHandConstant.ORDER_CANCELED);
-            order.setCancelReason(reason);
-            order.setCancelTime(LocalDateTime.now());
-            order.setUpdateTime(LocalDateTime.now());
-            orderMapper.update(order);
-            productMapper.releaseLockedProduct(order.getProductId());
-            return;
-        }
-        if (isStatus(order.getStatus(), SecondHandConstant.ORDER_PAID_WAIT_DELIVERY)) {
-            order.setStatus(SecondHandConstant.ORDER_REFUNDING);
-            order.setCancelReason(reason == null ? "买家取消订单" : reason);
-            order.setCancelTime(LocalDateTime.now());
-            order.setUpdateTime(LocalDateTime.now());
-            orderMapper.update(order);
-            if (Boolean.TRUE.equals(mockPaymentEnabled)) {
-                order.setStatus(SecondHandConstant.ORDER_REFUND_SUCCESS);
-                order.setUpdateTime(LocalDateTime.now());
-                orderMapper.update(order);
-                productMapper.releaseRefundedProduct(order.getProductId());
-                return;
-            }
-            requestRefund(order);
+        if (isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)
+                || isStatus(order.getStatus(), SecondHandConstant.ORDER_PAID_WAIT_DELIVERY)) {
+            cancelOnlineOrder(order, reason == null ? "买家取消订单" : reason);
             return;
         }
         throw new SecondHandException("当前订单状态不可取消，请发起申诉");
@@ -817,7 +806,7 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Override
     @Transactional
     public void adminDeleteProduct(Long id) {
-        SecondHandProduct product = requireProduct(id);
+        SecondHandProduct product = requireProductForUpdate(id);
         SecondHandOrder activeOrder = orderMapper.getActiveByProductId(id);
         if (activeOrder != null) {
             throw new SecondHandException("商品存在进行中的订单，暂不可删除");
@@ -853,28 +842,64 @@ public class SecondHandServiceImpl implements SecondHandService {
         validateOrderStatus(dto.getStatus());
         SecondHandOrder order = requireOrder(id);
         Integer status = dto.getStatus();
+        if (java.util.Objects.equals(order.getStatus(), status)) return;
+        validateAdminTransition(order, status);
         String reason = trimToNull(dto.getReason());
         LocalDateTime now = LocalDateTime.now();
         if (isOfflineOrder(order)) {
             adminUpdateOfflineOrderStatus(order, status, reason, now);
             return;
         }
+        if (isStatus(status, SecondHandConstant.ORDER_CANCELED)) {
+            if (isStatus(order.getStatus(), SecondHandConstant.ORDER_CANCELED)
+                    || isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUNDING)
+                    || isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUND_ABNORMAL)
+                    || isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUND_SUCCESS)) return;
+            if (!isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)
+                    && !isStatus(order.getStatus(), SecondHandConstant.ORDER_PAID_WAIT_DELIVERY)) {
+                throw new SecondHandException("当前订单状态不可取消，请先协商处理");
+            }
+            cancelOnlineOrder(order, reason == null ? "管理员关闭订单" : reason);
+            return;
+        }
+        if (isStatus(status, SecondHandConstant.ORDER_REFUNDING)
+                || isStatus(status, SecondHandConstant.ORDER_REFUND_ABNORMAL)) {
+            if (isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)
+                    || isStatus(order.getStatus(), SecondHandConstant.ORDER_PAID_WAIT_DELIVERY)) {
+                cancelOnlineOrder(order, reason == null ? "管理员处理退款" : reason);
+                return;
+            }
+            if (!isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUNDING)
+                    && !isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUND_ABNORMAL)) {
+                throw new SecondHandException("当前订单状态不能直接退款，请先核对资金并协商处理");
+            }
+            requestRefund(order);
+            return;
+        }
+        if (isStatus(status, SecondHandConstant.ORDER_REFUND_SUCCESS)) {
+            if (!java.util.Set.of(SecondHandConstant.ORDER_CANCELED, SecondHandConstant.ORDER_REFUNDING,
+                    SecondHandConstant.ORDER_REFUND_ABNORMAL, SecondHandConstant.ORDER_REFUND_SUCCESS).contains(order.getStatus())) {
+                throw new SecondHandException("当前订单状态与退款记录不一致，请先核对资金");
+            }
+            RefundInfo refund = refundInfoMapper.getLatestByOrderNumber(order.getOrderNumber());
+            if (refund == null || !"SUCCESS".equals(refund.getRefundStatus())) {
+                throw new SecondHandException("尚未确认退款成功，请先核对退款结果");
+            }
+            requestRefund(order);
+            return;
+        }
+        if (isStatus(status, SecondHandConstant.ORDER_TRANSFERING)) {
+            completeOrder(order);
+            return;
+        }
+        if (isStatus(status, SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM)) {
+            order.setDeliveredTime(now);
+            order.setConfirmDeadline(now.plusHours(getIntConfig("second_hand_auto_confirm_hours", SecondHandConstant.DEFAULT_AUTO_CONFIRM_HOURS)));
+        }
         order.setStatus(status);
         order.setUpdateTime(now);
 
-        if (isStatus(status, SecondHandConstant.ORDER_CANCELED)) {
-            order.setCancelTime(now);
-            order.setCancelReason(reason == null ? "管理员关闭订单" : reason);
-            productMapper.releaseLockedProduct(order.getProductId());
-        } else if (isStatus(status, SecondHandConstant.ORDER_REFUNDING) ||
-                isStatus(status, SecondHandConstant.ORDER_REFUND_ABNORMAL)) {
-            order.setCancelTime(now);
-            order.setCancelReason(reason == null ? "管理员处理退款" : reason);
-        } else if (isStatus(status, SecondHandConstant.ORDER_REFUND_SUCCESS)) {
-            order.setCancelTime(now);
-            order.setCancelReason(reason == null ? "管理员确认退款完成" : reason);
-            productMapper.releaseRefundedProduct(order.getProductId());
-        } else if (isStatus(status, SecondHandConstant.ORDER_PAID_WAIT_DELIVERY) ||
+        if (isStatus(status, SecondHandConstant.ORDER_PAID_WAIT_DELIVERY) ||
                 isStatus(status, SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM)) {
             productMapper.markTrading(order.getProductId());
         } else if (isStatus(status, SecondHandConstant.ORDER_COMPLETED) ||
@@ -957,40 +982,115 @@ public class SecondHandServiceImpl implements SecondHandService {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     public void processUnpaidTimeouts() {
         refreshUnpaidTimeouts();
+        for (SecondHandOrder candidate : orderMapper.listCanceledPaymentRecovery(LocalDateTime.now().minusMinutes(20))) {
+            inOrderTransaction(() -> {
+                SecondHandOrder order = SecondHandOrderLocks.byId(orderMapper, productMapper, candidate.getId());
+                if (order == null || isOfflineOrder(order) || !isStatus(order.getStatus(), SecondHandConstant.ORDER_CANCELED)) return;
+                order.setUpdateTime(LocalDateTime.now());
+                orderMapper.update(order);
+                try {
+                    String result = paymentQueries.weChatQueryOrder(order.getOrderNumber());
+                    if ("SUCCESS".equals(JSONObject.parseObject(result).getString("trade_state"))) {
+                        recordPaymentOnce(result, order);
+                        order.setPayTime(LocalDateTime.now());
+                        requestRefund(order);
+                    }
+                } catch (Exception e) {
+                    log.warn("二手已取消订单支付状态待核对, orderId={}", order.getId());
+                }
+            });
+        }
     }
 
     private void refreshUnpaidTimeouts() {
         int minutes = getIntConfig("second_hand_payment_timeout_minutes", SecondHandConstant.DEFAULT_PAYMENT_TIMEOUT_MINUTES);
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(minutes);
-        for (SecondHandOrder order : orderMapper.listUnpaidTimeout(cutoff)) {
+        for (SecondHandOrder candidate : orderMapper.listUnpaidTimeout(cutoff)) {
+            inOrderTransaction(() -> {
+                SecondHandOrder order = SecondHandOrderLocks.byId(orderMapper, productMapper, candidate.getId());
+                if (order == null || isOfflineOrder(order) || !isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)
+                        || order.getCreateTime() == null || order.getCreateTime().isAfter(cutoff)) return;
+                try {
+                    cancelOnlineOrder(order, "支付超时自动关闭");
+                } catch (SecondHandException e) {
+                    log.warn("二手超时订单支付状态待核对, orderId={}", order.getId());
+                }
+            });
+        }
+    }
+
+    private void inOrderTransaction(Runnable operation) {
+        var tx = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        tx.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        tx.executeWithoutResult(status -> operation.run());
+    }
+
+    private void cancelOnlineOrder(SecondHandOrder order, String reason) {
+        boolean paid = isStatus(order.getStatus(), SecondHandConstant.ORDER_PAID_WAIT_DELIVERY);
+        if (!paid) {
+            String state = "CLOSED";
+            try {
+                weChatPayUtil.closeOrder(order.getOrderNumber());
+            } catch (Exception e) {
+                String result;
+                try {
+                    result = paymentQueries.weChatQueryOrder(order.getOrderNumber());
+                    JSONObject payment = JSONObject.parseObject(result);
+                    state = payment.getString("trade_state");
+                    if ("SUCCESS".equals(state)) {
+                        recordPaymentOnce(result, order);
+                    }
+                } catch (Exception queryFailure) {
+                    throw new SecondHandException("支付状态暂未确认，请稍后重试取消");
+                }
+            }
+            paid = "SUCCESS".equals(state);
+            if (!paid && !"CLOSED".equals(state)) {
+                throw new SecondHandException("支付状态暂未确认，请稍后重试取消");
+            }
+        }
+        order.setCancelReason(reason);
+        order.setCancelTime(LocalDateTime.now());
+        order.setUpdateTime(LocalDateTime.now());
+        if (paid) {
+            if (order.getPayTime() == null) order.setPayTime(LocalDateTime.now());
+            requestRefund(order);
+        } else {
             order.setStatus(SecondHandConstant.ORDER_CANCELED);
-            order.setCancelReason("支付超时自动关闭");
-            order.setCancelTime(LocalDateTime.now());
-            order.setUpdateTime(LocalDateTime.now());
             orderMapper.update(order);
-            productMapper.releaseLockedProduct(order.getProductId());
+            productMapper.releaseAfterRefund(order.getProductId(), order.getId());
         }
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     public void processAutoConfirm() {
-        for (SecondHandOrder order : orderMapper.listAutoConfirm(LocalDateTime.now())) {
-            completeOrder(order);
+        for (SecondHandOrder candidate : orderMapper.listAutoConfirm(LocalDateTime.now())) {
+            inOrderTransaction(() -> {
+                SecondHandOrder order = SecondHandOrderLocks.byId(orderMapper, productMapper, candidate.getId());
+                if (order == null || isOfflineOrder(order)
+                        || !isStatus(order.getStatus(), SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM)
+                        || order.getConfirmDeadline() == null || order.getConfirmDeadline().isAfter(LocalDateTime.now())) return;
+                completeOrder(order);
+            });
         }
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     public void processTransferQueries() {
         if (Boolean.TRUE.equals(mockPaymentEnabled)) {
             return;
         }
-        for (SecondHandOrder order : orderMapper.listTransferring()) {
-            querySellerTransfer(order);
+        for (SecondHandOrder candidate : orderMapper.listTransferring()) {
+            inOrderTransaction(() -> {
+                SecondHandOrder order = SecondHandOrderLocks.byId(orderMapper, productMapper, candidate.getId());
+                if (order == null || !isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING)) return;
+                querySellerTransfer(order);
+            });
         }
     }
 
@@ -1073,18 +1173,26 @@ public class SecondHandServiceImpl implements SecondHandService {
         Map plainTextMap = JSONObject.parseObject(plainText, HashMap.class);
         String orderNumber = (String) plainTextMap.get(WeChatPayConstant.OUT_TRADE_NO);
         if (!payNotifyLock.tryLock()) {
-            return;
+            throw new SecondHandException("通知处理中，请稍后重试");
         }
         try {
-            SecondHandOrder order = orderMapper.getByOrderNumber(orderNumber);
-            if (order == null || isOfflineOrder(order) ||
-                    !isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)) {
-                return;
-            }
+            SecondHandOrder order = SecondHandOrderLocks.byNumber(orderMapper, productMapper, orderNumber);
+            if (order == null || isOfflineOrder(order)) return;
             if (!WeChatPayConstant.TRADE_SUCCESS.equals(plainTextMap.get(WeChatPayConstant.TRADE_STATE))) return;
-            PaymentAmount.verifyResult(plainTextMap, orderNumber, order.getPayAmount());
-            markPaid(orderNumber);
-            savePaymentLog(plainText, order);
+            recordPaymentOnce(plainText, order);
+            if (isStatus(order.getStatus(), SecondHandConstant.ORDER_CANCELED)) {
+                order.setPayTime(LocalDateTime.now());
+                requestRefund(order);
+            } else if (isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)) {
+                order.setStatus(SecondHandConstant.ORDER_PAID_WAIT_DELIVERY);
+                order.setPayTime(LocalDateTime.now());
+                order.setUpdateTime(LocalDateTime.now());
+                orderMapper.update(order);
+                productMapper.markTrading(order.getProductId());
+            } else if (isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUNDING)
+                    || isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUND_ABNORMAL)) {
+                requestRefund(order);
+            }
         } finally {
             payNotifyLock.unlock();
         }
@@ -1243,6 +1351,7 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .content(plainText)
                 .deleted(DeleteConstant.UN_DELETED)
                 .build();
+        RealPaymentGuard.require(paymentLog, order.getOrderNumber(), order.getPayAmount());
         paymentLogMapper.insert(paymentLog);
     }
 
@@ -1430,109 +1539,32 @@ public class SecondHandServiceImpl implements SecondHandService {
         };
     }
 
-    private void requestRefund(SecondHandOrder order) {
-        LocalDateTime now = LocalDateTime.now();
-        String refundNumber = "SH_REFUND_" + System.currentTimeMillis();
-        RealPaymentGuard.require(paymentLogMapper.getByOrderNumber(order.getOrderNumber()),
-                order.getOrderNumber(), order.getPayAmount());
-        int totalFee = RealPaymentGuard.cents(order.getPayAmount());
-        RefundInfo refundInfo = RefundInfo.builder()
-                .orderNumber(order.getOrderNumber())
-                .refundNumber(refundNumber)
-                .totalFee(totalFee)
-                .refund(totalFee)
-                .reason(order.getCancelReason())
-                .refundStatus("PROCESSING")
-                .createTime(now)
-                .updateTime(now)
-                .build();
-        refundInfoMapper.insert(refundInfo);
-
-        try {
-            String refundUrl = weChatProperties.getWxDomain().concat(WeChatPayConstant.REFUNDS_URL);
-            Map<String, Object> paramsMap = new HashMap<>();
-            paramsMap.put("out_trade_no", order.getOrderNumber());
-            paramsMap.put("out_refund_no", refundNumber);
-            paramsMap.put("reason", order.getCancelReason());
-            paramsMap.put("notify_url", weChatProperties.getNotifyUrl().concat("/api/second-hand/refunds/notify"));
-
-            Map<String, Object> amount = new HashMap<>();
-            amount.put("refund", totalFee);
-            amount.put("total", totalFee);
-            amount.put("currency", "CNY");
-            paramsMap.put("amount", amount);
-
-            HttpPost httpPost = new HttpPost(refundUrl);
-            StringEntity entity = new StringEntity(JSONObject.toJSONString(paramsMap), "utf-8");
-            entity.setContentType("application/json");
-            httpPost.setEntity(entity);
-            httpPost.setHeader("Accept", "application/json");
-            CloseableHttpResponse response = wxPayClient.execute(httpPost);
-            try {
-                String bodyAsString = EntityUtils.toString(response.getEntity());
-                int statusCode = response.getStatusLine().getStatusCode();
-                RefundInfo update = RefundInfo.builder()
-                        .refundNumber(refundNumber)
-                        .updateTime(LocalDateTime.now())
-                        .contentReturn(bodyAsString)
-                        .build();
-                if (statusCode != 200 && statusCode != 204) {
-                    order.setStatus(SecondHandConstant.ORDER_REFUND_ABNORMAL);
-                    order.setUpdateTime(LocalDateTime.now());
-                    orderMapper.update(order);
-                    update.setRefundStatus("ABNORMAL");
-                }
-                refundInfoMapper.update(update);
-            } finally {
-                response.close();
+    private void recordPaymentOnce(String plainText, SecondHandOrder order) {
+        Map payment = JSONObject.parseObject(plainText, HashMap.class);
+        PaymentAmount.verifyResult(payment, order.getOrderNumber(), order.getPayAmount());
+        PaymentLog existing = paymentLogMapper.getByOrderNumber(order.getOrderNumber());
+        if (existing == null) savePaymentLog(plainText, order);
+        else {
+            RealPaymentGuard.require(existing, order.getOrderNumber(), order.getPayAmount());
+            if (!existing.getTransactionId().equals(payment.get(WeChatPayConstant.TRANSACTION_ID))) {
+                throw new SecondHandException("支付信息核对失败");
             }
-        } catch (Exception e) {
-            log.error("二手订单退款失败, orderNumber={}", order.getOrderNumber(), e);
-            order.setStatus(SecondHandConstant.ORDER_REFUND_ABNORMAL);
-            order.setUpdateTime(LocalDateTime.now());
-            orderMapper.update(order);
-            RefundInfo update = RefundInfo.builder()
-                    .refundNumber(refundNumber)
-                    .refundStatus("ABNORMAL")
-                    .contentReturn(e.getMessage())
-                    .updateTime(LocalDateTime.now())
-                    .build();
-            refundInfoMapper.update(update);
         }
+    }
+
+    private void requestRefund(SecondHandOrder order) {
+        refundRecovery.prepare(order);
     }
 
     @Override
     @Transactional
     public void processRefundNotify(Map<String, Object> bodyMap) throws Exception {
         String plainText = decryptFromResource(bodyMap);
-        Map plainTextMap = JSONObject.parseObject(plainText, HashMap.class);
-        String orderNumber = (String) plainTextMap.get(WeChatPayConstant.OUT_TRADE_NO);
         if (!refundNotifyLock.tryLock()) {
-            return;
+            throw new SecondHandException("通知处理中，请稍后重试");
         }
         try {
-            SecondHandOrder order = orderMapper.getByOrderNumber(orderNumber);
-            if (order == null || !isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUNDING)) {
-                return;
-            }
-            String refundStatus = (String) plainTextMap.get("refund_status");
-            String refundNumber = (String) plainTextMap.get("out_refund_no");
-            if ("SUCCESS".equals(refundStatus)) {
-                order.setStatus(SecondHandConstant.ORDER_REFUND_SUCCESS);
-                productMapper.releaseRefundedProduct(order.getProductId());
-            } else {
-                order.setStatus(SecondHandConstant.ORDER_REFUND_ABNORMAL);
-            }
-            order.setUpdateTime(LocalDateTime.now());
-            orderMapper.update(order);
-            RefundInfo update = RefundInfo.builder()
-                    .refundNumber(refundNumber)
-                    .refundStatus(refundStatus)
-                    .refundId((String) plainTextMap.get("refund_id"))
-                    .contentNotify(plainText)
-                    .updateTime(LocalDateTime.now())
-                    .build();
-            refundInfoMapper.update(update);
+            refundRecovery.notifyResult(JSONObject.parseObject(plainText), plainText);
         } finally {
             refundNotifyLock.unlock();
         }
@@ -1545,13 +1577,15 @@ public class SecondHandServiceImpl implements SecondHandService {
         Map plainTextMap = JSONObject.parseObject(plainText, HashMap.class);
         String transferOutBillNo = (String) plainTextMap.get(WeChatTransferConstant.OUT_BILL_NO);
         if (!transferNotifyLock.tryLock()) {
-            return;
+            throw new SecondHandException("通知处理中，请稍后重试");
         }
         try {
             SecondHandOrder order = orderMapper.getByTransferOutBillNo(transferOutBillNo);
+            if (order != null) order = SecondHandOrderLocks.byId(orderMapper, productMapper, order.getId());
             if (order == null || !isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING)) {
                 return;
             }
+            if (!java.util.Objects.equals(transferOutBillNo, order.getTransferOutBillNo())) return;
             applyTransferResult(order, plainTextMap);
             WxTransferLog log = WxTransferLog.builder()
                     .orderNumber(order.getOrderNumber())
@@ -1601,8 +1635,8 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (id == null) {
             throw new ParamException(MessageConstant.NOT_FOUND_PARAM);
         }
-        SecondHandOrder order = orderMapper.getById(id);
-        if (order == null) {
+        SecondHandOrder order = SecondHandOrderLocks.byId(orderMapper, productMapper, id);
+        if (order == null || Integer.valueOf(1).equals(order.getDeleted())) {
             throw new SecondHandException("二手订单不存在");
         }
         return order;
@@ -1793,6 +1827,38 @@ public class SecondHandServiceImpl implements SecondHandService {
             order.setCancelReason(reason == null ? "管理员标记协商中" : reason);
         }
         orderMapper.update(order);
+    }
+
+    private void validateAdminTransition(SecondHandOrder order, Integer target) {
+        int source = order.getStatus();
+        boolean allowed;
+        if (isOfflineOrder(order)) {
+            allowed = (source == SecondHandConstant.ORDER_OFFLINE_WAIT_DELIVERY
+                    && java.util.Set.of(SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM,
+                    SecondHandConstant.ORDER_CANCELED, SecondHandConstant.ORDER_DISPUTE).contains(target))
+                    || (source == SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM
+                    && java.util.Set.of(SecondHandConstant.ORDER_COMPLETED, SecondHandConstant.ORDER_DISPUTE).contains(target))
+                    || (source == SecondHandConstant.ORDER_DISPUTE
+                    && java.util.Set.of(SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM,
+                    SecondHandConstant.ORDER_COMPLETED, SecondHandConstant.ORDER_CANCELED).contains(target));
+        } else {
+            boolean refundTarget = java.util.Set.of(SecondHandConstant.ORDER_CANCELED,
+                    SecondHandConstant.ORDER_REFUNDING, SecondHandConstant.ORDER_REFUND_ABNORMAL,
+                    SecondHandConstant.ORDER_REFUND_SUCCESS).contains(target);
+            allowed = (refundTarget && java.util.Set.of(SecondHandConstant.ORDER_PENDING_PAY,
+                    SecondHandConstant.ORDER_PAID_WAIT_DELIVERY, SecondHandConstant.ORDER_CANCELED,
+                    SecondHandConstant.ORDER_REFUNDING, SecondHandConstant.ORDER_REFUND_ABNORMAL).contains(source))
+                    || (source == SecondHandConstant.ORDER_PAID_WAIT_DELIVERY
+                    && target == SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM)
+                    || (source == SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM
+                    && target == SecondHandConstant.ORDER_TRANSFERING)
+                    || (java.util.Set.of(SecondHandConstant.ORDER_PAID_WAIT_DELIVERY,
+                    SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM).contains(source)
+                    && target == SecondHandConstant.ORDER_DISPUTE)
+                    || (source == SecondHandConstant.ORDER_DISPUTE
+                    && target == SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM);
+        }
+        if (!allowed) throw new SecondHandException("订单状态已变化，当前操作不可用，请刷新后查看");
     }
 
     private String currentTradeMode() {

@@ -42,6 +42,15 @@ class PaymentAmountServiceTest {
     @InjectMocks WeChatPayServiceImpl service;
 
     @AfterEach void clearContext() { BaseContext.removeCurrentId(); }
+    @org.junit.jupiter.api.BeforeEach void identity() { BaseContext.setCurrentId(2L); }
+
+    @ParameterizedTest @ValueSource(longs={3L,99L})
+    void anotherUserCannotCreatePaymentForSomeoneElsesOrder(long caller) throws Exception {
+        BaseContext.setCurrentId(caller);
+        when(orderService.getNoPayOrderByOrderId(1L)).thenReturn(order("1.00", -1));
+        assertThrows(OrderException.class, () -> service.jsapiPay(1L));
+        verifyNoInteractions(client, users, properties, payUtil);
+    }
 
     Order order(String yuan, int status) {
         return Order.builder().id(1L).userId(2L).orderNumber("O1").status(status)
@@ -148,12 +157,17 @@ class PaymentAmountServiceTest {
     @Test void secondHandMismatchCannotMarkPaidOrWriteLog() throws Exception {
         SecondHandServiceImpl secondHand = spy(new SecondHandServiceImpl());
         SecondHandOrderMapper mapper = mock(SecondHandOrderMapper.class);
+        SecondHandProductMapper products = mock(SecondHandProductMapper.class);
         PaymentLogMapper paymentMapper = mock(PaymentLogMapper.class);
         org.springframework.test.util.ReflectionTestUtils.setField(secondHand, "orderMapper", mapper);
+        org.springframework.test.util.ReflectionTestUtils.setField(secondHand, "productMapper", products);
         org.springframework.test.util.ReflectionTestUtils.setField(secondHand, "paymentLogMapper", paymentMapper);
         org.springframework.test.util.ReflectionTestUtils.setField(secondHand, "weChatProperties", properties);
-        when(mapper.getByOrderNumber("O1")).thenReturn(SecondHandOrder.builder()
-                .orderNumber("O1").tradeMode("ONLINE").status(0).payAmount(new BigDecimal("0.29")).build());
+        SecondHandOrder secondHandOrder = SecondHandOrder.builder().id(1L).productId(2L)
+                .orderNumber("O1").tradeMode("ONLINE").status(0).payAmount(new BigDecimal("0.29")).build();
+        when(mapper.getByOrderNumber("O1")).thenReturn(secondHandOrder);
+        when(mapper.getByIdForUpdate(1L)).thenReturn(secondHandOrder);
+        when(products.getByIdForUpdate(2L)).thenReturn(SecondHandProduct.builder().id(2L).build());
         Map<String, Object> callback = callback(28);
         assertThrows(OrderException.class, () -> secondHand.processPayNotify(callback));
         verify(secondHand, never()).markPaid(anyString());

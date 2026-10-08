@@ -56,7 +56,7 @@ class OrderMapperXmlTest {
             assertEquals(List.of("cancelTime", "cancelReson", "status", "id"), properties(sql));
         }
         BoundSql refund = statement("updateStatusByOrderNumber", Map.of("orderNumber", "ORDER1", "status", -3));
-        assertEquals("update tb_orders set status = ? where order_number = ?", normalized(refund));
+        assertEquals("update tb_orders set status = ? where order_number = ? and status in (-2, -4)", normalized(refund));
         assertEquals(List.of("status", "orderNumber"), properties(refund));
     }
 

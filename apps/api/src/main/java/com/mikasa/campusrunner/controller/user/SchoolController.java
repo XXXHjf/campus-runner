@@ -1,7 +1,6 @@
 package com.mikasa.campusrunner.controller.user;
 
 import com.mikasa.campusrunner.common.result.Result;
-import com.mikasa.campusrunner.pojo.dto.SchoolReserveDTO;
 import com.mikasa.campusrunner.pojo.entity.School;
 import com.mikasa.campusrunner.service.user.SchoolService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,14 +32,6 @@ public class SchoolController {
         return Result.success(list);
     }
 
-
-    @PostMapping
-    @Operation(summary = "添加预设地址信息")
-    public Result addReserve(@RequestBody SchoolReserveDTO schoolReserveDTO){
-        log.info("Add preset campus address: {}", schoolReserveDTO);
-        schoolService.addReserve(schoolReserveDTO);
-        return Result.success();
-    }
 
     @GetMapping("/{id}")
     @Operation(summary = "根据id查询学校名称")

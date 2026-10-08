@@ -23,6 +23,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class WeChatTransferSubmissionTest {
+    @Mock com.mikasa.campusrunner.service.user.WxTransferLogService transferLogs;
     @Mock OrderMapper orderMapper;
     @Mock TakeOrderMapper takeOrderMapper;
     @Mock UserMapper userMapper;
@@ -72,6 +73,13 @@ class WeChatTransferSubmissionTest {
         JSONObject body = JSONObject.parseObject(EntityUtils.toString(((HttpPost)sent.getValue()).getEntity()));
         assertEquals("O77", body.getString("out_bill_no"));
         assertEquals("test-receiver", body.getString("openid"));
+        ArgumentCaptor<String> saved = ArgumentCaptor.forClass(String.class);
+        verify(transferLogs).savePaymentInfoLog(saved.capture());
+        JSONObject log = JSONObject.parseObject(saved.getValue());
+        assertEquals("O77", log.getString("out_bill_no"));
+        assertEquals("WAIT_USER_CONFIRM", log.getString("state"));
+        assertEquals(cents, log.getIntValue("transfer_amount"));
+        assertEquals("test-receiver", log.getString("openid"));
         verify(userMapper).getById(takeOrder.getUserId());
         assertEquals(cents, body.getIntValue("transfer_amount"));
         assertEquals("1005", body.getString("transfer_scene_id"));
