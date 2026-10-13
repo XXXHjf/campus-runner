@@ -48,6 +48,8 @@ public interface TakeOrderMapper {
      * @return
      */
     List<TakeOrderVO> getMy(Long id);
+    List<TakeOrderVO> getMyPage(@Param("id") Long id,
+            @Param("query") com.mikasa.campusrunner.pojo.dto.TakenOrderPageDTO query);
 
     /**
      * 条件查询
@@ -55,6 +57,8 @@ public interface TakeOrderMapper {
      * @return
      */
     List<TakeOrderVO> query(TakeOrder takeOrder);
+    List<TakeOrderVO> queryPage(@Param("id") Long id,
+            @Param("query") com.mikasa.campusrunner.pojo.dto.TakeOrderQueryDTO query);
 
     /**
      * 根据orderId查询，返回用户信息
@@ -93,6 +97,10 @@ public interface TakeOrderMapper {
     List<TakeOrderVO> getNoWithdrawn(@Param("userId") Long userId,
                                      @Param("schoolId") Long schoolId,
                                      @Param("orderStatus") Integer orderStatus);
+
+    List<TakeOrderVO> getNoWithdrawnPage(@Param("userId") Long userId,
+            @Param("schoolId") Long schoolId, @Param("orderStatus") Integer orderStatus,
+            @Param("query") com.mikasa.campusrunner.pojo.dto.ListPageDTO query);
 
     List<AdminTakeOrderListVO> listAllTakeOrders(@Param("offset") int offset, @Param("limit") int limit,
                                                 @Param("keyword") String keyword);

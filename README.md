@@ -1,6 +1,6 @@
 # Campus Runner
 
-Campus Runner 是一个校园跑腿系统 monorepo，包含用户端微信小程序、管理后台和后端 API。
+Campus Runner 是一个校园跑腿与二手信息撮合系统 monorepo，包含用户端微信小程序、管理后台和后端 API。
 
 ## 项目结构
 
@@ -53,12 +53,4 @@ npm install
 
 文档已集中到 [docs](docs/README.md)。
 
-## 仓库说明
-
-原来拆分的三个项目已合并到一个仓库目录中：
-
-- `campus-runner-mini-program` -> `apps/mini-program`
-- `campus-runner-admin` -> `apps/admin`
-- `campus-runner-mini-program-service` -> `apps/api`
-
-旧项目中的 `.git`、`node_modules`、`dist`、`target`、IDE 配置和本地工具状态没有迁入新仓库。
+当前业务规则、接口与迁移说明只维护在上述文档入口；旧项目指南、旧表结构及一次性 QA 已删除，历史原文通过 Git 历史追溯。

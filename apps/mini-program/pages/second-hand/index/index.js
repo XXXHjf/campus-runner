@@ -18,6 +18,7 @@ Page({
     draftCategoryId: null,
     draftPickupAddress: null,
     loading: false,
+    hasMoreProducts: false,
     refreshing: false,
     statusBarHeight: 0,
     navigationBarHeight: 44,
@@ -96,7 +97,7 @@ Page({
       if (version !== this.schoolLoadVersion) return;
       this.schoolToken = null;
       this.setData({ schoolName: '' });
-      console.warn('二手首页学校信息加载失败', error);
+      console.warn("二手首页学校信息加载失败");
     }
   },
 
@@ -120,8 +121,12 @@ Page({
     });
   },
 
-  async loadData() {
+  loadMoreProducts() { return this.loadData(true); },
+
+  async loadData(append = false) {
     if (this.productDisposed || this.productHidden) return;
+    if (append && (this.data.loading || !this.data.hasMoreProducts)) return;
+    const token = tokenManager.getToken();
     const version = ++this.productLoadVersion;
     const query = {
       keyword: this.data.keyword,
@@ -130,35 +135,46 @@ Page({
         ? this.data.pickupAddressFilter.prefix
         : null,
     };
-    const queryKey = JSON.stringify(query);
+    const queryKey = JSON.stringify([token, query]);
     const queryChanged = queryKey !== this.productQueryKey;
+    if (append && queryChanged) return this.loadData();
     this.productQueryKey = queryKey;
+    const page = append ? (this.productPage || 1) + 1 : 1;
+    const pageSize = 20;
     const isCurrent = () => !this.productDisposed && !this.productHidden
-      && version === this.productLoadVersion;
+      && version === this.productLoadVersion && token === tokenManager.getToken();
     feedback.loaded(this);
     // Do not display a previous query's products under the new conditions.
     this.setData({
       loading: true,
-      ...(queryChanged ? { products: [], stats: { onSale: 0, negotiable: 0 } } : {}),
+      ...(queryChanged ? { products: [], hasMoreProducts: false, stats: { onSale: 0, negotiable: 0 } } : {}),
     });
     try {
       const [categories, products] = await Promise.all([
-        secondHandService.listCategories(),
-        secondHandService.listProducts(query),
+        append ? Promise.resolve(this.data.categories) : secondHandService.listCategories(),
+        secondHandService.listProducts({ ...query, page, pageSize }),
       ]);
       if (!isCurrent()) return;
+      feedback.clearMessage(this, 'product-pagination');
+      const combined = append
+        ? [...new Map([...this.data.products, ...this.decorateProducts(products)].map(item => [String(item.id), item])).values()]
+        : this.decorateProducts(products);
+      this.productPage = page;
       this.setData({
         categories,
-        products: this.decorateProducts(products),
+        products: combined,
+        hasMoreProducts: products.length === pageSize,
         stats: {
-          onSale: products.length,
-          negotiable: products.filter((item) => Number(item.negotiable) === 1).length,
+          onSale: combined.length,
+          negotiable: combined.filter((item) => Number(item.negotiable) === 1).length,
         },
       });
     } catch (error) {
       if (!isCurrent()) return;
-      console.error('二手首页商品加载失败', error);
-      feedback.loadError(this, '商品加载失败，请重试', () => this.loadData(), !!this.data.products.length);
+      console.error("二手首页商品加载失败");
+      if (append) feedback.showMessage(this, '后续商品加载失败，请重试', { key: 'product-pagination', theme: 'error',
+        action: '重试', onAction: () => this.loadMoreProducts() });
+      else feedback.loadError(this, '商品加载失败，请重试', () => this.loadData(), !!this.data.products.length);
     } finally {
       if (isCurrent()) {
         this.setData({

@@ -18,7 +18,6 @@ import com.mikasa.campusrunner.pojo.vo.TakeOrderVO;
 import com.mikasa.campusrunner.pojo.vo.UserVO;
 import com.mikasa.campusrunner.service.MediaAssetService;
 import com.mikasa.campusrunner.service.user.TakeOrderService;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.Duration;
 import java.util.List;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -47,10 +45,34 @@ public class TakeOrderServiceImpl implements TakeOrderService {
     private UserMapper userMapper;
 
     @Autowired
+    private com.mikasa.campusrunner.mapper.OrderAddressSnapshotMapper addressSnapshots;
+
+    @Autowired
     private MediaAssetService mediaAssetService;
 
     @Autowired
     private com.mikasa.campusrunner.service.user.MessageSendService messages;
+
+    @Override
+    @Transactional(readOnly = true, propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public String takeFailureMessage(Long id) {
+        Long caller = RunnerOrderAccess.requireUser();
+        Order order = orderMapper.getById(id);
+        if (order == null) return "订单不存在，请选择其他订单";
+        if (OrderStatusConstant.CANCELED.equals(order.getStatus())) return "该订单已取消，请选择其他订单";
+        return takenByAnother(order, caller) ? MessageConstant.ORDER_ALREADY_TAKE : MessageConstant.TAKE_TEMPORARILY_FAILED;
+    }
+
+    private boolean takenByAnother(Order order, Long caller) {
+        if (!java.util.Arrays.asList(OrderStatusConstant.ALREADY_TAKE_ORDER, OrderStatusConstant.DELIVERYING,
+                OrderStatusConstant.ORDER_FINISH, OrderStatusConstant.SENDER_CONFIRMS_RECEIPT,
+                OrderStatusConstant.WITHDRAWAL_SUCCEEDED, OrderStatusConstant.WITHDRAWAL_FAILED).contains(order.getStatus())) {
+            return false;
+        }
+        TakeOrder take = takeOrderMapper.getByOrderId(order.getId());
+        return RunnerOrderAccess.activeTake(take, order.getId()) && take.getUserId() != null
+                && !take.getUserId().equals(caller);
+    }
 
     /**
      * 接单
@@ -59,23 +81,34 @@ public class TakeOrderServiceImpl implements TakeOrderService {
     @Override
     @Transactional
     public void take(Long id) {
+        Long callerId = RunnerOrderAccess.requireUser();
+        if (id == null || id <= 0) throw new ParamException("请选择有效的订单");
         //检查一下是否有这个订单
         Order order = orderMapper.getByIdForUpdate(id);
         if (order == null){
-            throw new OrderException(MessageConstant.NOT_FOUND_ORDER);
+            throw new OrderException("订单不存在，请选择其他订单");
         }
         //检查订单是否取消
         if (order.getStatus().equals(OrderStatusConstant.CANCELED)){
-            throw new OrderException(MessageConstant.ORDER_ALREADY_CANCEL);
+            throw new OrderException("该订单已取消，请选择其他订单");
         }
         //检查订单是否未处于待接单
         if (!Objects.equals(order.getStatus(), OrderStatusConstant.WAIT_TO_TAKE_ORDER)){
-            throw new OrderException(MessageConstant.ORDER_ALREADY_TAKE);
+            throw new OrderException(takenByAnother(order, callerId)
+                    ? MessageConstant.ORDER_ALREADY_TAKE : "该订单暂不可接，请刷新后重试");
         }
 
-        UserVO user = userMapper.getById(BaseContext.getCurrentId());
-        if (user == null || !AuthenConstant.SUCCESS.equals(user.getAuthentication())){
+        if (callerId.equals(order.getUserId())) {
+            throw new TakeOrderException("不能接自己发布的订单");
+        }
+        UserVO user = userMapper.lockRunnerIdentity(callerId);
+        if (user == null || !DeleteConstant.UN_DELETED.equals(user.getDeleted())
+                || !AuthenConstant.SUCCESS.equals(user.getAuthentication())
+                || user.getSchoolId() == null || user.getSchoolId() <= 0){
             throw new UserException(MessageConstant.USER_NOT_AUTHEN);
+        }
+        if (addressSnapshots.countMatchingSchool(id, user.getSchoolId()) != 2) {
+            throw new TakeOrderException("该订单暂不可接，请选择本校订单");
         }
 
         //插入接单信息
@@ -100,7 +133,7 @@ public class TakeOrderServiceImpl implements TakeOrderService {
                 .id(order.getId()).status(order.getStatus()).exceedTime(exceedTime).build());
 
         int row2 = takeOrderMapper.save(takeOrder);
-        if (row1 != 1 || row2 != 1) throw new TakeOrderException("接单失败，请刷新后重试");
+        if (row1 != 1 || row2 != 1) throw new TakeOrderException(MessageConstant.TAKE_TEMPORARILY_FAILED);
         var notification = new com.mikasa.campusrunner.pojo.dto.MessageTakeOrderDTO();
         notification.setOrderId(id);
         notification.setTakeOrderUserId(takeOrder.getUserId());
@@ -234,20 +267,65 @@ public class TakeOrderServiceImpl implements TakeOrderService {
      */
     @Override
     public List<TakeOrderVO> getMy() {
-        List<TakeOrderVO> list = takeOrderMapper.getMy(BaseContext.getCurrentId());
-        Map<Long, String> senderAvatars = new HashMap<>();
-        list.forEach(order -> {
-            resolveTakeOrderImages(order);
-            if (order.getUserId() != null) {
-                order.setSenderAvatar(senderAvatars.computeIfAbsent(order.getUserId(), userId -> {
-                    var avatars = mediaAssetService.resolvePublicBinding(
-                            MediaAssetConstant.BOUND_USER_AVATAR,
-                            userId,
-                            MediaPurpose.AVATAR.name());
-                    return avatars.isEmpty() ? "" : avatars.get(0).getUrl();
-                }));
+        return getMy(new com.mikasa.campusrunner.pojo.dto.TakenOrderPageDTO());
+    }
+
+    @Override
+    public List<TakeOrderVO> getMy(com.mikasa.campusrunner.pojo.dto.TakenOrderPageDTO query) {
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.TakenOrderPageDTO();
+        query.getOffset();
+        Long caller = RunnerOrderAccess.requireUser();
+        List<TakeOrderVO> list = takeOrderMapper.getMyPage(caller, query);
+        return resolveTakeList(list, caller);
+    }
+
+    private List<TakeOrderVO> resolveTakeList(List<TakeOrderVO> list, Long caller) {
+        // Identity and current take state come from the same owner-filtered SQL snapshot.
+        if (list.stream().anyMatch(row -> row == null || row.getId() == null || row.getId() <= 0
+                || row.getOrderId() == null || row.getOrderId() <= 0 || !caller.equals(row.getTakerId()))) {
+            throw new OrderException("无法查看该订单");
+        }
+        List<TakeOrderVO> authorized = list.stream().filter(row -> row.getUserId() != null
+                && java.util.Arrays.asList(0,1,2).contains(row.getTakeStatus())).toList();
+        var authorizedIds = authorized.stream().map(TakeOrderVO::getId).collect(java.util.stream.Collectors.toSet());
+        var content = resolveListMedia(true, MediaAssetConstant.BOUND_ORDER,
+                authorized.stream().map(TakeOrderVO::getOrderId).toList(), MediaPurpose.ORDER_IMAGE.name(), 320);
+        var delivery = resolveListMedia(true, MediaAssetConstant.BOUND_TAKE_ORDER,
+                authorized.stream().map(TakeOrderVO::getId).toList(), MediaPurpose.DELIVERY_PROOF.name(), 320);
+        var purchase = resolveListMedia(true, MediaAssetConstant.BOUND_TAKE_ORDER,
+                authorized.stream().map(TakeOrderVO::getId).toList(), MediaPurpose.PURCHASE_PROOF.name(), 320);
+        var icons = resolveListMedia(false, MediaAssetConstant.BOUND_ORDER_CATEGORY,
+                authorized.stream().map(TakeOrderVO::getCategoryId).filter(java.util.Objects::nonNull).toList(),
+                MediaPurpose.ORDER_CATEGORY_ICON.name(), 0);
+        var avatars = resolveListMedia(false, MediaAssetConstant.BOUND_USER_AVATAR,
+                list.stream().map(TakeOrderVO::getUserId).filter(java.util.Objects::nonNull).toList(), MediaPurpose.AVATAR.name(), 0);
+        for (var row : list) {
+            row.setImage(null); row.setImageAssetId(null); row.setImageAssetIds(List.of()); row.setImages(List.of());
+            row.setTakeOrderImage(null); row.setTakeOrderImageAssetId(null);
+            row.setPurchaseProofImage(null); row.setPurchaseProofImageAssetId(null); row.setCategoryImage(null);
+            row.setSenderAvatar("");
+            if (row.getUserId() != null) {
+                var sender = avatars.getOrDefault(row.getUserId(), List.of());
+                if (!sender.isEmpty()) row.setSenderAvatar(sender.get(0).getUrl());
             }
-        });
+            if (!authorizedIds.contains(row.getId())) {
+                row.setPhone(null); row.setRealname(null); row.setNote(null);
+                row.setPickUpAddress(null); row.setReciveAddress(null);
+                continue;
+            }
+            var images = content.getOrDefault(row.getOrderId(), List.of());
+            row.setImageAssetIds(images.stream().map(item -> item.getMediaId()).toList());
+            row.setImages(images.stream().map(item -> item.getUrl()).toList());
+            if (!images.isEmpty()) { row.setImageAssetId(images.get(0).getMediaId()); row.setImage(images.get(0).getUrl()); }
+            var proofs = delivery.getOrDefault(row.getId(), List.of());
+            if (!proofs.isEmpty()) { row.setTakeOrderImageAssetId(proofs.get(0).getMediaId()); row.setTakeOrderImage(proofs.get(0).getUrl()); }
+            var receipts = purchase.getOrDefault(row.getId(), List.of());
+            if (!receipts.isEmpty()) { row.setPurchaseProofImageAssetId(receipts.get(0).getMediaId()); row.setPurchaseProofImage(receipts.get(0).getUrl()); }
+            if (row.getCategoryId() != null) {
+                var category = icons.getOrDefault(row.getCategoryId(), List.of());
+                if (!category.isEmpty()) row.setCategoryImage(category.get(0).getUrl());
+            }
+        }
         return list;
     }
 
@@ -258,14 +336,10 @@ public class TakeOrderServiceImpl implements TakeOrderService {
      */
     @Override
     public List<TakeOrderVO> query(TakeOrderQueryDTO takeOrderQueryDTO) {
-        TakeOrder takeOrder = new TakeOrder();
-        BeanUtils.copyProperties(takeOrderQueryDTO, takeOrder);
-        takeOrder.setDeleted(DeleteConstant.UN_DELETED);
-        takeOrder.setUserId(BaseContext.getCurrentId());
-
-        List<TakeOrderVO> list = takeOrderMapper.query(takeOrder);
-        list.forEach(this::resolveTakeOrderImages);
-        return list;
+        if (takeOrderQueryDTO == null) takeOrderQueryDTO = new TakeOrderQueryDTO();
+        takeOrderQueryDTO.getOffset();
+        Long caller = RunnerOrderAccess.requireUser();
+        return resolveTakeList(takeOrderMapper.queryPage(caller, takeOrderQueryDTO), caller);
     }
 
 
@@ -316,16 +390,18 @@ public class TakeOrderServiceImpl implements TakeOrderService {
      */
     @Override
     public List<TakeOrderVO> getNoWithdrawn() {
-        Long userId = BaseContext.getCurrentId();
-        UserVO userVO = userMapper.getById(userId);
+        return getNoWithdrawn(new com.mikasa.campusrunner.pojo.dto.ListPageDTO());
+    }
 
-        List<TakeOrderVO> list =
-                takeOrderMapper.getNoWithdrawn(
-                        userId,
-                        userVO.getSchoolId(),
-                        OrderStatusConstant.SENDER_CONFIRMS_RECEIPT);
-        list.forEach(this::resolveTakeOrderImages);
-        return list;
+    @Override
+    public List<TakeOrderVO> getNoWithdrawn(com.mikasa.campusrunner.pojo.dto.ListPageDTO query) {
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.ListPageDTO();
+        query.getOffset();
+        Long userId = RunnerOrderAccess.requireUser();
+        UserVO userVO = userMapper.getById(userId);
+        if (userVO == null) throw new OrderException("登录已失效，请重新登录");
+        return resolveTakeList(takeOrderMapper.getNoWithdrawnPage(userId, userVO.getSchoolId(),
+                OrderStatusConstant.SENDER_CONFIRMS_RECEIPT, query), userId);
     }
 
     private TakeOrder requirePrivateTake(Long orderId) {
@@ -340,52 +416,12 @@ public class TakeOrderServiceImpl implements TakeOrderService {
         return take;
     }
 
-    private void resolveTakeOrderImages(TakeOrderVO order) {
-        order.setImage(null); order.setImageAssetId(null);
-        order.setImageAssetIds(List.of()); order.setImages(List.of());
-        order.setTakeOrderImage(null); order.setTakeOrderImageAssetId(null);
-        order.setPurchaseProofImage(null); order.setPurchaseProofImageAssetId(null);
-        Long caller = RunnerOrderAccess.requireUser();
-        Order source = orderMapper.getById(order.getOrderId());
-        TakeOrder take = takeOrderMapper.getById(order.getId());
-        if (source == null || !RunnerOrderAccess.activeTake(take, order.getOrderId())
-                || !RunnerOrderAccess.participant(caller, source.getUserId(), take, order.getOrderId())) {
-            order.setPhone(null); order.setRealname(null); order.setNote(null);
-            order.setPickUpAddress(null); order.setReciveAddress(null);
-            return;
-        }
-        var contentImages = mediaAssetService.resolveAuthorizedBinding(
-                MediaAssetConstant.BOUND_ORDER,
-                order.getOrderId(),
-                MediaPurpose.ORDER_IMAGE.name());
-        if (!contentImages.isEmpty()) {
-            order.setImageAssetIds(contentImages.stream().map(item -> item.getMediaId()).toList());
-            order.setImages(contentImages.stream().map(item -> item.getUrl()).toList());
-            order.setImageAssetId(contentImages.get(0).getMediaId());
-            order.setImage(contentImages.get(0).getUrl());
-        }
-        var proofImages = mediaAssetService.resolveAuthorizedBinding(
-                MediaAssetConstant.BOUND_TAKE_ORDER,
-                order.getId(),
-                MediaPurpose.DELIVERY_PROOF.name());
-        if (!proofImages.isEmpty()) {
-            order.setTakeOrderImageAssetId(proofImages.get(0).getMediaId());
-            order.setTakeOrderImage(proofImages.get(0).getUrl());
-        }
-        var purchaseProofImages = mediaAssetService.resolveAuthorizedBinding(
-                MediaAssetConstant.BOUND_TAKE_ORDER,
-                order.getId(),
-                MediaPurpose.PURCHASE_PROOF.name());
-        if (!purchaseProofImages.isEmpty()) {
-            order.setPurchaseProofImageAssetId(purchaseProofImages.get(0).getMediaId());
-            order.setPurchaseProofImage(purchaseProofImages.get(0).getUrl());
-        }
-        var categoryImages = mediaAssetService.resolvePublicBinding(
-                MediaAssetConstant.BOUND_ORDER_CATEGORY,
-                order.getCategoryId(),
-                MediaPurpose.ORDER_CATEGORY_ICON.name());
-        if (!categoryImages.isEmpty()) {
-            order.setCategoryImage(categoryImages.get(0).getUrl());
-        }
+    private Map<Long, List<com.mikasa.campusrunner.pojo.vo.BoundMediaVO>> resolveListMedia(
+            boolean authorized, String type, List<Long> ids, String purpose, int width) {
+        if (ids.isEmpty()) return Map.of();
+        return authorized ? mediaAssetService.resolveAuthorizedBindings(type, ids, purpose, width)
+                : mediaAssetService.resolvePublicBindings(type, ids, purpose, width);
     }
+
+
 }

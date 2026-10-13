@@ -7,7 +7,7 @@ import lombok.Data;
  * created  2024/5/25 10:13
  */
 @Data
-public class OrderShowByDoubleAddDTO {
+public class OrderShowByDoubleAddDTO extends ListPageDTO {
 
     private Long pickSchoolNumberId;
     private Long pickCompusNumberId;

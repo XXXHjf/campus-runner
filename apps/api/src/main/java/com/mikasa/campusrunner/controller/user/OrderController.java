@@ -27,6 +27,8 @@ import java.util.List;
 @Slf4j
 @Tag(name = "订单相关接口")
 public class OrderController {
+    @Autowired
+    private com.mikasa.campusrunner.service.SubmissionService submissionService;
     //TODO 需要设置一个定时任务，监测取消时间
 
     @Autowired
@@ -35,17 +37,34 @@ public class OrderController {
     @Autowired
     private com.mikasa.campusrunner.mapper.OrderMapper orderMapper;
 
+    @GetMapping("/feed")
+    public Result<List<OrderShowVO>> feed(com.mikasa.campusrunner.pojo.dto.RunnerFeedDTO query) {
+        return Result.success(orderService.listRunnerFeed(query));
+    }
+
     @GetMapping("/public")
-    @Operation(summary = "公开跑腿预览，不包含联系人及取件说明")
-    public Result<List<com.mikasa.campusrunner.pojo.vo.PublicOrderVO>> publicOrders() {
-        return Result.success(orderMapper.listPublicOrders());
+    @Operation(summary = "公开跑腿预览，不包含电话及详细地址")
+    public Result<List<OrderShowVO>> publicOrders(
+            @RequestParam java.util.Map<String,String> params) {
+        var query = new com.mikasa.campusrunner.pojo.dto.PublicOrderQueryDTO();
+        query.setPage(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("page")));
+        query.setPageSize(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("pageSize")));
+        query.setSort(params.get("sort"));query.setKeyword(params.get("keyword"));
+        query.setPickupLabels(params.get("pickupLabels"));query.setReceiveLabels(params.get("receiveLabels"));
+        String category = params.get("categoryId");
+        if(category != null && !category.isBlank()) {
+            try { query.setCategoryId(Long.valueOf(category)); }
+            catch(NumberFormatException error) { throw new com.mikasa.campusrunner.common.exception.ParamException("筛选条件有误，请重新选择"); }
+        }
+        query.getOffset();
+        return Result.success(orderService.listPublicOrders(query));
     }
 
     @GetMapping("/showByPrice/{status}")
     @Operation(summary = "价格优先排序")
-    public Result<List<OrderShowVO>> showByPrice(@PathVariable("status") Integer status){
+    public Result<List<OrderShowVO>> showByPrice(@PathVariable("status") Integer status, com.mikasa.campusrunner.pojo.dto.ListPageDTO page){
         log.info("Sort by price, status: {}", status);
-        List<OrderShowVO> list = orderService.showByPrice(status);
+        List<OrderShowVO> list = orderService.showByPrice(status, page);
         return Result.success(list);
     }
 
@@ -53,7 +72,8 @@ public class OrderController {
     @Operation(summary = "发布订单")
     public Result<Order> submit(@RequestBody OrderSubmitDTO orderSubmitDTO){
         log.info("Submit order, userId: {}", BaseContext.getCurrentId());
-        Order order = orderService.submit(orderSubmitDTO);
+        Order order = submissionService.execute(com.mikasa.campusrunner.service.SubmissionService.Operation.RUNNER_ORDER,
+                orderSubmitDTO.getClientRequestId(), orderSubmitDTO, Order.class, () -> orderService.submit(orderSubmitDTO));
         return Result.success(order);
     }
 
@@ -78,7 +98,7 @@ public class OrderController {
             Long schoolNumberId,
             Long compusNumberId,
             Long buildCategoryNumberId,
-            Long buildingNumberId){
+            Long buildingNumberId, com.mikasa.campusrunner.pojo.dto.ListPageDTO page){
 
         OrderShowByAddressDTO orderShowByAddressDTO = OrderShowByAddressDTO.builder()
                 .schoolNumberId(schoolNumberId)
@@ -91,7 +111,9 @@ public class OrderController {
 //        orderShowByAddressDTO.setCompusNumberId(compusNumberId);
 //        orderShowByAddressDTO.setBuildingNumberId(buildingNumberId);
 
-        log.info("Filter by pickup address, {}", orderShowByAddressDTO);
+        orderShowByAddressDTO.setPage(page.getPage());
+        orderShowByAddressDTO.setPageSize(page.getPageSize());
+        log.info("Filter by pickup address");
         List<OrderShowVO> list = orderService.showByPickUpAdd(orderShowByAddressDTO);
         return Result.success(list);
     }
@@ -103,7 +125,7 @@ public class OrderController {
             Long schoolNumberId,
             Long compusNumberId,
             Long buildCategoryNumberId,
-            Long buildingNumberId){
+            Long buildingNumberId, com.mikasa.campusrunner.pojo.dto.ListPageDTO page){
 
         OrderShowByAddressDTO orderShowByAddressDTO = OrderShowByAddressDTO.builder()
                 .schoolNumberId(schoolNumberId)
@@ -116,7 +138,9 @@ public class OrderController {
 //        orderShowByAddressDTO.setCompusNumberId(compusNumberId);
 //        orderShowByAddressDTO.setBuildingNumberId(buildingNumberId);
 
-        log.info("Filter by delivery address, {}", orderShowByAddressDTO);
+        orderShowByAddressDTO.setPage(page.getPage());
+        orderShowByAddressDTO.setPageSize(page.getPageSize());
+        log.info("Filter by delivery address");
         List<OrderShowVO> list = orderService.showByReciveAdd(orderShowByAddressDTO);
         return Result.success(list);
     }
@@ -124,17 +148,22 @@ public class OrderController {
 
     @GetMapping("/my")
     @Operation(summary = "查看我发布的订单")
-    public Result<List<OrderShowVO>> showMy(){
+    public Result<List<OrderShowVO>> showMy(@RequestParam java.util.Map<String, String> params){
         log.info("Query my published orders, id: {}", BaseContext.getCurrentId());
-        List<OrderShowVO> list = orderService.showMy();
+        var query = new com.mikasa.campusrunner.pojo.dto.RunnerOrderQueryDTO();
+        query.setPage(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("page")));
+        query.setPageSize(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("pageSize")));
+        query.setGroup(params.get("group"));
+        query.setKeyword(params.get("keyword"));
+        List<OrderShowVO> list = orderService.showMy(query);
         return Result.success(list);
     }
 
     @GetMapping("/showByTime/{status}")
     @Operation(summary = "综合排序")
-    public Result<List<OrderShowVO>> showByTime(@PathVariable Integer status){
+    public Result<List<OrderShowVO>> showByTime(@PathVariable Integer status, com.mikasa.campusrunner.pojo.dto.ListPageDTO page){
         log.info("Sort by time, status: {}", status);
-        List<OrderShowVO> list = orderService.showByTime(status);
+        List<OrderShowVO> list = orderService.showByTime(status, page);
         return Result.success(list);
     }
 
@@ -156,7 +185,7 @@ public class OrderController {
     @PutMapping("/cancel")
     @Operation(summary = "取消订单")
     public Result cancel(@RequestBody OrderCancelDTO orderCancelDTO) throws Exception {
-        log.info("Cancel order, {}", orderCancelDTO);
+        log.info("Cancel order");
         orderService.cancel(orderCancelDTO);
         return Result.success();
     }
@@ -172,16 +201,16 @@ public class OrderController {
     @GetMapping("/showByDoubleAdd")
     @Operation(summary = "地址双向筛选")
     public Result<List<OrderShowVO>> showByDoubleAdd(OrderShowByDoubleAddDTO orderShowByDoubleAddDTO){
-        log.info("Bidirectional address filter, {}", orderShowByDoubleAddDTO);
+        log.info("Bidirectional address filter");
         List<OrderShowVO> list = orderService.showByDoubleAdd(orderShowByDoubleAddDTO);
         return Result.success(list);
     }
 
     @GetMapping("/showByCategory/{id}")
     @Operation(summary = "按照订单类型筛选")
-    public Result<List<OrderShowVO>> showByCategory(@PathVariable Long id){
+    public Result<List<OrderShowVO>> showByCategory(@PathVariable Long id, com.mikasa.campusrunner.pojo.dto.ListPageDTO page){
         log.info("Filter by order category, {}", id);
-        List<OrderShowVO> list = orderService.showByCategory(id);
+        List<OrderShowVO> list = orderService.showByCategory(id, page);
         return Result.success(list);
     }
 

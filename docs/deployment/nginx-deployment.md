@@ -139,7 +139,7 @@ Java 或回滚数据库。恢复旧的 1MB 限制也会恢复大图上传故障�
 
 ## 后端要求
 
-Spring Boot 只监听本机 HTTP `8080`，HTTPS 由 Nginx 统一处理：
+HTTPS 由 Nginx 统一处理，上游使用回环 HTTP `8080`。下列配置只指定端口及关闭 SSL，不限制监听地址；实际监听与公网隔离核实见 [服务器操作手册](server-operations.md#api-监听与公网隔离待核实项)：
 
 ```yaml
 server:

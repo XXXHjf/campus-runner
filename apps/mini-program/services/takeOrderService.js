@@ -12,9 +12,10 @@ const url = getApp().globalData.API_URL;
  * 获取我接的所有订单
  * @returns {Promise<Array>} 接单列表
  */
-function getMyTakeOrders() {
+function getMyTakeOrders(query = {}) {
   return request({
     url: `${url}/api/takeOrders`,
+    data: query,
     method: 'GET'
   }).then(res => {
     const rawData = safeList(res);
@@ -27,11 +28,11 @@ function getMyTakeOrders() {
  * @param {number} status - 订单状态
  * @returns {Promise<Array>} 接单列表
  */
-function getTakeOrdersByStatus(status) {
+function getTakeOrdersByStatus(status, query = {}) {
   return request({
     url: `${url}/api/takeOrders/query`,
     method: 'GET',
-    data: { status }
+    data: { ...query, status }
   }).then(res => {
     const rawData = safeList(res);
     return _delbefore1stBlank(rawData);
@@ -160,12 +161,13 @@ function sendDeliveredMessage(orderId, userId) {
  * 获取已完成但未收款的订单
  * @returns {Promise<Array>} 未收款订单列表
  */
-function getNotWithdrawnOrders() {
+function getNotWithdrawnOrders(query = {}) {
   return request({
     url: `${url}/api/takeOrders/notWithdrawn`,
+    data: query,
     method: 'GET'
   }).then(res => {
-    return res.data.data || [];
+    return safeList(res);
   });
 }
 

@@ -51,6 +51,13 @@ public class SchoolServiceImpl implements SchoolService {
         return list;
     }
 
+    @Override
+    public List<School> getAll(com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        page.getLimit(); page.getOffset();
+        List<School> list = schoolMapper.getAllPage(page);
+        return list;
+    }
+
 
     /**
      * 检查是否为空

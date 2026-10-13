@@ -157,7 +157,7 @@
       <view class="btn btn--confirm" aria-role="button" bind:tap="cancelAndConfirmPickUp">确定</view>
     </view>
     <!-- 滑动区域 -->
-    <scroll-view class="body" style="height: 600rpx; overflow-y: scroll; padding-bottom: 20rpx;" scroll-y="true">
+    <scroll-view class="body" style="height: 600rpx; overflow-y: scroll; padding-bottom: 20rpx;" scroll-y="true" bindscrolltolower="loadMoreAddresses">
       <block wx:for="{{addrList}}" wx:key="id">
         <view class="show-cart">
           <view class="address-item-container">
@@ -199,7 +199,7 @@
       <view class="btn btn--confirm" aria-role="button" bind:tap="cancelAndConfirmRecive">确定</view>
     </view>
     <!-- 滑动区 -->
-    <scroll-view class="body" style="height: 600rpx; overflow-y: scroll; padding-bottom: 20rpx;" scroll-y="true">
+    <scroll-view class="body" style="height: 600rpx; overflow-y: scroll; padding-bottom: 20rpx;" scroll-y="true" bindscrolltolower="loadMoreAddresses">
       <block wx:for="{{addrList}}" wx:key="id">
         <view class="show-cart">
           <view class="address-item-container">

@@ -32,31 +32,61 @@ public class TakeOrderControler {
     @Operation(summary = "接单")
     public Result takeorder(@PathVariable Long id){
         log.info("Take order, order ID: {}", id);
-        takeOrderService.take(id);
-        return Result.success();
+        try {
+            takeOrderService.take(id);
+            return Result.success();
+        } catch (org.springframework.dao.DataAccessException | org.springframework.transaction.TransactionException failure) {
+            // The proxied take transaction has finished before the independent status read.
+            logTakeFailure(id, failure);
+            try { return Result.error(takeOrderService.takeFailureMessage(id)); }
+            catch (org.springframework.dao.DataAccessException | org.springframework.transaction.TransactionException readFailure) {
+                logTakeFailure(id, readFailure);
+                return Result.error(com.mikasa.campusrunner.common.constant.MessageConstant.TAKE_TEMPORARILY_FAILED);
+            }
+        }
+    }
+
+    private void logTakeFailure(Long orderId, RuntimeException failure) {
+        Throwable cause = failure;
+        for (int depth = 0; cause != null && depth < 20; depth++, cause = cause.getCause()) {
+            if (cause instanceof java.sql.SQLException sql) {
+                log.warn("Take order persistence failure, orderId={}, failureType={}, sqlState={}, vendorCode={}",
+                        orderId, failure.getClass().getSimpleName(), sql.getSQLState(), sql.getErrorCode());
+                return;
+            }
+        }
+        log.warn("Take order persistence failure, orderId={}, failureType={}", orderId, failure.getClass().getSimpleName());
     }
 
     @PutMapping
     @Operation(summary = "修改状态")
     public Result updateStatus(@RequestBody TakeOrderUpdateStatusDTO takeOrderUpdateStatusDTO){
-        log.info("Update status, {}", takeOrderUpdateStatusDTO);
+        log.info("Update status");
         takeOrderService.updateStatus(takeOrderUpdateStatusDTO);
         return Result.success();
     }
 
     @GetMapping
     @Operation(summary = "我的接单")
-    public Result<List<TakeOrderVO>> my(){
+    public Result<List<TakeOrderVO>> my(@RequestParam java.util.Map<String,String> params){
         log.info("My taken orders, id: {}", BaseContext.getCurrentId());
-        List<TakeOrderVO> list = takeOrderService.getMy();
+        var query = new com.mikasa.campusrunner.pojo.dto.TakenOrderPageDTO();
+        query.setPage(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("page")));
+        query.setPageSize(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("pageSize")));
+        query.setGroup(params.get("group")); query.setKeyword(params.get("keyword"));
+        List<TakeOrderVO> list = takeOrderService.getMy(query);
         return Result.success(list);
     }
 
     @GetMapping("/query")
     @Operation(summary = "条件查询")
-    public Result<List<TakeOrderVO>> query(TakeOrderQueryDTO takeOrderQueryDTO){
-        log.info("Conditional query, {}", takeOrderQueryDTO);
-        List<TakeOrderVO> list = takeOrderService.query(takeOrderQueryDTO);
+    public Result<List<TakeOrderVO>> query(@RequestParam java.util.Map<String,String> params){
+        log.info("Conditional query");
+        var query = new TakeOrderQueryDTO();
+        query.setPage(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("page")));
+        query.setPageSize(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("pageSize")));
+        query.setStatus(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("status")));
+        List<TakeOrderVO> list = takeOrderService.query(query);
         return Result.success(list);
     }
 
@@ -79,9 +109,12 @@ public class TakeOrderControler {
 
     @GetMapping("/notWithdrawn")
     @Operation(summary = "查询当前用户接单已完成但未提现订单")
-    public Result<List<TakeOrderVO>> getNoWithdrawn() {
+    public Result<List<TakeOrderVO>> getNoWithdrawn(@RequestParam java.util.Map<String,String> params) {
         log.info("Query completed but not withdrawn orders");
-        List<TakeOrderVO> list = takeOrderService.getNoWithdrawn();
+        var query = new com.mikasa.campusrunner.pojo.dto.ListPageDTO();
+        query.setPage(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("page")));
+        query.setPageSize(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("pageSize")));
+        List<TakeOrderVO> list = takeOrderService.getNoWithdrawn(query);
         return Result.success(list);
     }
 

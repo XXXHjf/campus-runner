@@ -62,11 +62,11 @@ class SecondHandSubscriptionServiceTest {
         assertDoesNotThrow(() -> SecondHandSubscriptionService.afterCommit(() -> { throw new IllegalStateException(); }));
     }
 
-    @Test void bargainUsesProductNumberAndDetailPage() {
+    @Test void newQuoteUsesProductNumberAndReceivedBargainsTab() {
         when(users.getById(20L)).thenReturn(UserVO.builder().openid("receiver").build());
         when(products.getById(3L)).thenReturn(SecondHandProduct.builder().title("耳机").build());
         service.bargain(20L, 3L, "买家出价 ¥20 元", LocalDateTime.now());
-        verify(sender).send(anyString(), eq("receiver"), eq("pages/second-hand/detail/detail?id=3"),
+        verify(sender).send(anyString(), eq("receiver"), eq("pages/second-hand/bargains/bargains?tab=received"),
                 argThat(data -> value(data,"character_string1").equals("3") && value(data,"phrase2").equals("议价中")));
     }
 
@@ -76,13 +76,24 @@ class SecondHandSubscriptionServiceTest {
         assertTrue(SecondHandSubscriptionService.shortTitle("特别长的未知商品名称").length()<=5);
         assertEquals("同学", SecondHandSubscriptionService.text("\n😀",20,"同学"));
     }
-    @Test void acceptedQuoteNotifiesBuyerToChooseDeliveryInsteadOfOpeningAnOrder() {
+    @Test void acceptedQuoteNotifiesBuyerAndOpensIssuedBargainsTab() {
         when(users.getById(20L)).thenReturn(UserVO.builder().openid("receiver").build());
         when(products.getById(3L)).thenReturn(SecondHandProduct.builder().title("耳机").build());
         service.bargainAccepted(20L, 3L, 7L, "报价已接受，请选择交付方式下单", LocalDateTime.now());
         verify(sender).send(anyString(), eq("receiver"),
-                eq("pages/second-hand/detail/detail?id=3&bargainId=7"),
+                eq("pages/second-hand/bargains/bargains?tab=issued"),
                 argThat(data -> value(data, "phrase2").equals("待下单")));
     }
     private static String value(JSONObject data, String key) { return data.getJSONObject(key).getString("value"); }
+
+    @Test void expiredQuoteKeepsDeletedProductSnapshotAndTargetsActualQuote() {
+        when(users.getById(20L)).thenReturn(UserVO.builder().openid("receiver").build());
+        service.bargainExpired(20L, 3L, "教材", 7L, "已下架", "商品已下架，报价已失效", LocalDateTime.now());
+        verify(sender).send(anyString(), eq("receiver"),
+                eq("pages/second-hand/bargains/bargains?tab=issued&bargainId=7"),
+                argThat(data -> value(data, "phrase2").equals("已下架")
+                        && value(data, "thing4").equals("商品已下架，报价已失效")
+                        && value(data, "short_thing5").equals("教材")), eq("bargain-expired"), isNull());
+        verifyNoInteractions(products);
+    }
 }

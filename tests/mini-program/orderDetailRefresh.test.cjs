@@ -64,6 +64,27 @@ function harness(kind) {
   return { page, state, load, order, setRead(fn) { read = fn; } };
 }
 
+test('接单详情以服务端身份展示图片，不依赖我的接单第一页', async () => {
+  const h = harness('taker');
+  h.setRead(async () => ({ id: 42, status: 1, viewerIsTaker: true, images: ['clear.jpg'] }));
+  h.page._getMyTakeInfo = async () => { throw new Error('不得读取接单列表来判断身份'); };
+  await h.load();
+  assert.equal(h.page.data.isMyTaken, true);
+  assert.deepEqual(Array.from(h.page.data.orderInfo.images), ['clear.jpg']);
+  assert.equal(h.page.data.taker.id, 7);
+});
+
+test('接单详情刷新为浏览身份时清除旧接单权限和凭证', async () => {
+  const h = harness('taker');
+  h.page.setData({ isMyTaken: true, taker: { id: 7 }, image: 'old-proof.jpg' });
+  h.setRead(async () => ({ id: 42, status: 0, viewerIsTaker: false, images: ['blurred.jpg'] }));
+  await h.load();
+  assert.equal(h.page.data.isMyTaken, false);
+  assert.equal(h.page.data.taker.id, undefined);
+  assert.equal(h.page.data.image, null);
+  assert.deepEqual(Array.from(h.page.data.orderInfo.images), ['blurred.jpg']);
+});
+
 for (const kind of Object.keys(files)) {
   test(`${kind}: 首次进入只加载一次，返回页面/前台后更新进度及按钮`, async () => {
     const h = harness(kind);
@@ -202,9 +223,50 @@ test('发单详情：未支付超时走取消并刷新，不调用隐藏', async
   const h = harness('publisher');
   h.page.data.id = 42;
   h.page.data.orderInfo = { orderNumber: 'O42', status: -1 };
-  await h.page._autoDeleteUnpaidOrder();
+  await h.page._autoCancelUnpaidOrder();
   assert.deepEqual(h.state.cancelled, [42, '支付超时', 'O42']);
   assert.equal(h.state.hidden, undefined);
   assert.equal(h.state.reads, 1);
   h.page.onUnload();
+});
+
+for (const kind of ['publisher', 'taker']) {
+  test(`${kind}: address snapshots preserve spaces, long details and line breaks`, async () => {
+    const h = harness(kind);
+    const pickup = '学校 北 校区 快递点 A 楼 123 室\n侧门入口 ' + '详细指引 '.repeat(30);
+    const delivery = '学校 南校区 宿舍 B 楼 456 室\n请敲门';
+    h.setRead(async () => ({ id: 42, status: 1, pickUpAddress: pickup, reciveAddress: delivery }));
+    await h.page.onLoad({ id: 42 });
+    assert.equal(h.page.data.pickUpAddress, pickup);
+    assert.equal(h.page.data.reciveAddress, delivery);
+    const template = fs.readFileSync(path.resolve(__dirname,
+      '../../apps/mini-program/pages', files[kind].replace('.js', '.wxml')), 'utf8');
+    assert.match(template, /white-space: pre-wrap;">\{\{pickUpAddress\}\}/);
+    assert.match(template, /white-space: pre-wrap;">\{\{reciveAddress\}\}/);
+    assert.doesNotMatch(template, /(?:pickUpAddress|reciveAddress)\[\d\]/);
+    h.page.onUnload();
+  });
+}
+
+test('publisher payment section follows actual payable amount and business type', () => {
+  const h = harness('publisher');
+  for (const [input, amount, visible] of [
+    [{ price: 0, payAmount: 0, businessType: 'NORMAL' }, 0, false],
+    [{ price: '0.00', pay_amount: '0.00', businessType: 'NORMAL' }, 0, false],
+    [{ price: 10, payAmount: 0, businessType: 'NORMAL' }, 0, false],
+    [{ price: 10, payAmount: 10.5, businessType: 'NORMAL' }, 10.5, true],
+    [{ price: 0, productAmount: 50, payAmount: 51, businessType: 'PURCHASE' }, 51, true],
+    [{ price: 0, productAmount: 50, payAmount: 0, businessType: 'PURCHASE' }, 0, false],
+    [{ price: 0, productAmount: 999, businessType: 'NORMAL' }, 0, false],
+    [{ price: 10, serviceFee: 0.5, businessType: 'NORMAL' }, 10.5, true],
+    [{ price: 0, productAmount: 50, serviceFee: 1, businessType: 'PURCHASE' }, 51, true],
+    [{ price: 10, payAmount: 'invalid', businessType: 'NORMAL' }, 0, false],
+  ]) {
+    const normalized = h.page._normalizeAmountFields(input);
+    assert.equal(normalized.paymentDisplayAmount, amount);
+    assert.equal(normalized.hasPaymentAmount, visible);
+  }
+  const template = fs.readFileSync(path.resolve(__dirname,
+    '../../apps/mini-program/pages', files.publisher.replace('.js', '.wxml')), 'utf8');
+  assert.match(template, /wx:if="\{\{orderInfo.hasPaymentAmount\}\}" class="publisher-detail-payment"/);
 });

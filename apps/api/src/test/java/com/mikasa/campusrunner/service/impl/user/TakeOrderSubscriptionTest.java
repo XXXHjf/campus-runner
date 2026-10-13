@@ -27,6 +27,7 @@ class TakeOrderSubscriptionTest {
     @Mock OrderMapper orderMapper;
     @Mock MessageSendService messages;
     @Mock UserMapper userMapper;
+    @Mock com.mikasa.campusrunner.mapper.OrderAddressSnapshotMapper addressSnapshots;
     @InjectMocks TakeOrderServiceImpl service;
 
     @AfterEach void clearContext() { BaseContext.removeCurrentId(); }
@@ -34,10 +35,11 @@ class TakeOrderSubscriptionTest {
     private Order readyToTake() {
         Order order = new Order();
         order.setId(2L); order.setStatus(0); order.setGap(30);
-        UserVO user = new UserVO(); user.setAuthentication(1);
+        UserVO user = new UserVO(); user.setAuthentication(1); user.setDeleted(0); user.setSchoolId(10L);
         BaseContext.setCurrentId(3L);
         when(orderMapper.getByIdForUpdate(2L)).thenReturn(order);
-        when(userMapper.getById(3L)).thenReturn(user);
+        when(userMapper.lockRunnerIdentity(3L)).thenReturn(user);
+        when(addressSnapshots.countMatchingSchool(2L,10L)).thenReturn(2);
         return order;
     }
 

@@ -61,7 +61,7 @@ public class WeChatPayUtil {
         paramMap.put(WeChatPayConstant.MCHID, weChatProperties.getMchid());
         String jsonParam = JSONObject.toJSONString(paramMap);
 
-        log.info("Calling WeChat Pay close-order API, params: {}", jsonParam);
+        log.debug("Close-order request prepared");
 
         //设置请求实体类
         StringEntity entity = new StringEntity(jsonParam, "utf-8");

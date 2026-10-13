@@ -20,12 +20,6 @@ public interface WeChatTransferService {
     WeChatTransferVO wxTransfer(Long orderId) throws Exception;
 
     /**
-     * 撤销转账
-     * @param orderNumber
-     */
-    void closeTransfer(String orderNumber) throws Exception;
-
-    /**
      * 根据商户单号查询账单
      * @param orderNumber
      */

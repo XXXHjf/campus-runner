@@ -19,6 +19,8 @@ public class SecondHandBargain {
     private Long sellerId;
     private BigDecimal offerPrice;
     private String message;
+    private String rejectReasonCode;
+    private String rejectNote;
     private Integer status;
     private Integer attemptNo;
     private Integer deleted;

@@ -122,6 +122,32 @@ class SecondHandOfflineTradeServiceTest {
     }
 
     @Test
+    void secondHandNumberCollisionRetriesWithoutRepeatingProductSideEffects() {
+        var product = SecondHandProduct.builder().id(10L).sellerId(200L).price(new BigDecimal("88.00"))
+                .pickupOnly(1).pickupAddressSnapshot("取货点").status(SecondHandConstant.PRODUCT_ON_SALE).build();
+        when(productMapper.getByIdForUpdate(10L)).thenReturn(product);
+        when(productMapper.lockOnSaleProduct(10L)).thenReturn(1);
+        var numbers = new java.util.ArrayList<String>();
+        doAnswer(invocation -> {
+            var order = invocation.getArgument(0, SecondHandOrder.class);
+            numbers.add(order.getOrderNumber());
+            if (numbers.size() == 1) throw new org.springframework.dao.DuplicateKeyException("number collision");
+            order.setId(99L);
+            return null;
+        }).when(orderMapper).insert(any(SecondHandOrder.class));
+        when(orderMapper.getByOrderNumberForUpdate(anyString())).thenReturn(new SecondHandOrder());
+        when(orderMapper.detail(99L)).thenReturn(new SecondHandOrderVO());
+        var dto = new SecondHandOrderCreateDTO(); dto.setProductId(10L); dto.setDeliveryMode(0);
+        service.createOrder(dto);
+        assertEquals(2, numbers.size());
+        org.junit.jupiter.api.Assertions.assertNotEquals(numbers.get(0), numbers.get(1));
+        org.junit.jupiter.api.Assertions.assertTrue(numbers.get(1).matches("SH[a-f0-9]{30}"));
+        verify(productMapper).lockOnSaleProduct(10L);
+        verify(productMapper).markTrading(10L);
+        verify(bargainMapper).expirePendingByProduct(10L);
+    }
+
+    @Test
     void keepsSellerDeliveryAndBuyerAddressSnapshotOnOfflineOrder() {
         SecondHandProduct product = SecondHandProduct.builder()
                 .id(10L)
@@ -170,7 +196,7 @@ class SecondHandOfflineTradeServiceTest {
     void letsSellerCancelOfflineOrderBeforeDeliveryAndReleasesProduct() {
         BaseContext.setCurrentId(200L);
         SecondHandOrder order = offlineOrder(SecondHandConstant.ORDER_OFFLINE_WAIT_DELIVERY);
-        when(orderMapper.listUnpaidTimeout(any(LocalDateTime.class))).thenReturn(List.of());
+        when(orderMapper.listUnpaidTimeoutBatch(any(LocalDateTime.class), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(100))).thenReturn(List.of());
         when(orderMapper.getById(99L)).thenReturn(order);
         when(productMapper.getByIdForUpdate(10L)).thenReturn(SecondHandProduct.builder().id(10L).status(2).build());
         when(orderMapper.getByIdForUpdate(99L)).thenReturn(order);
@@ -187,7 +213,7 @@ class SecondHandOfflineTradeServiceTest {
     @Test
     void letsBuyerCancelOfflineOrderBeforeDeliveryAndReleasesProduct() {
         SecondHandOrder order = offlineOrder(SecondHandConstant.ORDER_OFFLINE_WAIT_DELIVERY);
-        when(orderMapper.listUnpaidTimeout(any(LocalDateTime.class))).thenReturn(List.of());
+        when(orderMapper.listUnpaidTimeoutBatch(any(LocalDateTime.class), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(100))).thenReturn(List.of());
         when(orderMapper.getById(99L)).thenReturn(order);
         when(productMapper.getByIdForUpdate(10L)).thenReturn(SecondHandProduct.builder().id(10L).status(2).build());
         when(orderMapper.getByIdForUpdate(99L)).thenReturn(order);
@@ -214,7 +240,7 @@ class SecondHandOfflineTradeServiceTest {
         detail.setCreateTime(LocalDateTime.now());
         UserVO seller = new UserVO();
         seller.setPhone("13800000000");
-        when(orderMapper.listUnpaidTimeout(any(LocalDateTime.class))).thenReturn(List.of());
+        when(orderMapper.listUnpaidTimeoutBatch(any(LocalDateTime.class), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(100))).thenReturn(List.of());
         when(orderMapper.getById(99L)).thenReturn(order);
         when(productMapper.getByIdForUpdate(10L)).thenReturn(SecondHandProduct.builder().id(10L).status(2).build());
         when(orderMapper.getByIdForUpdate(99L)).thenReturn(order);
@@ -230,7 +256,7 @@ class SecondHandOfflineTradeServiceTest {
     @Test
     void completesOfflineOrderWithoutStartingSellerTransfer() throws Exception {
         SecondHandOrder order = offlineOrder(SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM);
-        when(orderMapper.listUnpaidTimeout(any(LocalDateTime.class))).thenReturn(List.of());
+        when(orderMapper.listUnpaidTimeoutBatch(any(LocalDateTime.class), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(100))).thenReturn(List.of());
         when(orderMapper.getById(99L)).thenReturn(order);
         when(productMapper.getByIdForUpdate(10L)).thenReturn(SecondHandProduct.builder().id(10L).status(2).build());
         when(orderMapper.getByIdForUpdate(99L)).thenReturn(order);

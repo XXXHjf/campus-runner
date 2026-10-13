@@ -6,7 +6,7 @@
     </t-tabs>
   </view>
 
-  <scroll-view class="bargains-page__body" scroll-y="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}" refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" refresher-background="#f5f7fa" bindrefresherrefresh="onPullDownRefresh">
+  <scroll-view class="bargains-page__body" scroll-y="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}" refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" refresher-background="#f5f7fa" bindrefresherrefresh="onPullDownRefresh" bindscrolltolower="loadMore">
     <ui-empty-state wx:if="{{feedbackLoadError}}" title="{{feedbackLoadError}}" action-text="重试" bind:action="retryFeedbackLoad" />
     <view wx:elif="{{tab == 'received' ? received.length > 0 : issued.length > 0}}" class="bargains-page__list">
       <view
@@ -35,16 +35,17 @@
               <text class="bargains-page__price">¥{{record.offerPrice}}</text>
             </view>
             <view wx:if="{{tab == 'received' && record.status == 0}}" class="bargains-page__actions" catchtap="noop">
-              <t-button t-class="cr-secondhand-capsule cr-secondhand-capsule--outline" size="small" shape="round" theme="default" variant="outline" disabled="{{actionLoadingId != null}}" data-id="{{record.id}}" catch:tap="reject">拒绝</t-button>
-              <t-button t-class="cr-secondhand-capsule" size="small" shape="round" theme="primary" variant="base" loading="{{actionLoadingId == record.id}}" disabled="{{actionLoadingId != null}}" data-id="{{record.id}}" catch:tap="accept">接受</t-button>
+              <t-button t-class="cr-secondhand-capsule cr-secondhand-capsule--outline" size="small" shape="round" theme="default" variant="outline" disabled="{{actionLoadingId != null || !actionsReady || loading}}" data-id="{{record.id}}" catch:tap="reject">拒绝</t-button>
+              <t-button t-class="cr-secondhand-capsule" size="small" shape="round" theme="primary" variant="base" loading="{{actionLoadingId == record.id}}" disabled="{{actionLoadingId != null || !actionsReady || loading}}" data-id="{{record.id}}" catch:tap="accept">接受</t-button>
             </view>
             <view wx:if="{{tab == 'issued' && record.isBuyer && record.status == 0}}" class="bargains-page__actions" catchtap="noop">
-              <t-button t-class="cr-secondhand-capsule cr-secondhand-capsule--outline" size="small" shape="round" theme="default" variant="outline" loading="{{actionLoadingId == record.id}}" disabled="{{actionLoadingId != null}}" data-id="{{record.id}}" catch:tap="withdraw">撤回报价</t-button>
+              <t-button t-class="cr-secondhand-capsule cr-secondhand-capsule--outline" size="small" shape="round" theme="default" variant="outline" loading="{{actionLoadingId == record.id}}" disabled="{{actionLoadingId != null || !actionsReady || loading}}" data-id="{{record.id}}" catch:tap="withdraw">撤回报价</t-button>
             </view>
             <view wx:if="{{tab == 'issued' && record.isBuyer && record.status == 1 && !record.orderId}}" class="bargains-page__actions" catchtap="noop">
-              <t-button t-class="cr-secondhand-capsule" size="small" shape="round" theme="primary" data-id="{{record.id}}" catch:tap="buyBargain">去下单</t-button>
+              <t-button t-class="cr-secondhand-capsule" size="small" shape="round" theme="primary" disabled="{{actionLoadingId != null || !actionsReady || loading}}" data-id="{{record.id}}" catch:tap="buyBargain">去下单</t-button>
             </view>
           </view>
+          <view wx:if="{{record.status == 2}}" class="bargains-page__reason">{{record.rejectReasonText}}</view>
         </view>
       </view>
     </view>
@@ -56,6 +57,31 @@
     />
   </scroll-view>
 </view>
+
+<t-dialog
+  visible="{{showReject}}"
+  title="拒绝这次报价"
+  close-on-overlay-click="{{false}}"
+  prevent-scroll-through
+  custom-style="--td-radius-default: 24rpx; --td-dialog-title-font-size: 32rpx; --td-dialog-title-line-height: 48rpx;"
+  t-class-content="bargains-page__reject-dialog-content"
+  t-class-cancel="bargains-page__reject-button"
+  t-class-confirm="bargains-page__reject-button"
+  cancel-btn="{{ { content: '取消', theme: 'default', variant: 'outline', shape: 'round', size: 'small', disabled: rejectSubmitting } }}"
+  confirm-btn="{{ { content: '确认拒绝', theme: 'danger', variant: 'base', shape: 'round', size: 'small', loading: rejectSubmitting, disabled: rejectSubmitting || !rejectReasonCode || !actionsReady } }}"
+  bind:cancel="closeReject"
+  bind:confirm="submitReject"
+>
+  <scroll-view slot="content" scroll-y="{{rejectReasonCode == 'CUSTOM'}}" show-scrollbar="{{false}}" class="bargains-page__reject-content {{rejectReasonCode == 'CUSTOM' ? 'bargains-page__reject-content--custom' : ''}}">
+    <view class="bargains-page__reject-price">报价 ¥{{rejectPrice}}</view>
+    <t-radio-group value="{{rejectReasonCode}}" disabled="{{rejectSubmitting}}" bind:change="selectRejectReason">
+      <t-radio value="NOT_SELLING_NOW" label="暂时不打算出售" borderless />
+      <t-radio value="PRICE_NOT_SUITABLE" label="暂不考虑这个价格" borderless />
+      <t-radio value="CUSTOM" label="自定义原因（选填）" borderless />
+    </t-radio-group>
+    <t-textarea wx:if="{{rejectReasonCode == 'CUSTOM'}}" t-class="bargains-page__reject-input" value="{{rejectNote}}" maxlength="40" indicator autosize="{{ { minHeight: 48, maxHeight: 80 } }}" disabled="{{rejectSubmitting}}" placeholder="请输入原因（选填）" bind:change="changeRejectNote" />
+  </scroll-view>
+</t-dialog>
 
 
 <ui-feedback id="ui-feedback" />

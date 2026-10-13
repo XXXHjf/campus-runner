@@ -5,6 +5,7 @@
  */
 
 const { CACHE_KEYS } = require('./orderConstants');
+const accountStorage = require('./accountStorage');
 
 // Only an absolute timestamp can reproduce the deadline used for submission.
 function normalizeSelectedTime(value) {
@@ -19,20 +20,20 @@ function normalizeSelectedTime(value) {
  * @param {Object} orderData - 订单数据
  * @returns {boolean} 是否保存成功
  */
-function saveDraft(orderData) {
+function saveDraft(orderData, session = accountStorage.captureSession()) {
   try {
     const draft = {
       ...orderData,
       selectedTime: normalizeSelectedTime(orderData.selectedTime),
       timestamp: Date.now(),
-      version: '1.1' // 用于未来版本兼容
+      version: '1.2'
     };
     
-    wx.setStorageSync(CACHE_KEYS.ORDER_DRAFT, draft);
+    if (!accountStorage.write(CACHE_KEYS.ORDER_DRAFT, draft, session)) return false;
     console.log('[订单草稿] 保存成功');
     return true;
   } catch (error) {
-    console.error('[订单草稿] 保存失败:', error);
+    console.error("[订单草稿] 保存失败:");
     return false;
   }
 }
@@ -44,7 +45,7 @@ function saveDraft(orderData) {
  */
 function loadDraft(maxAge = 7 * 24 * 60 * 60 * 1000) {
   try {
-    const draft = wx.getStorageSync(CACHE_KEYS.ORDER_DRAFT);
+    const draft = accountStorage.read(CACHE_KEYS.ORDER_DRAFT);
     
     if (!draft) {
       console.log('[订单草稿] 无草稿记录');
@@ -53,7 +54,7 @@ function loadDraft(maxAge = 7 * 24 * 60 * 60 * 1000) {
     
     // 检查草稿是否过期
     const age = Date.now() - draft.timestamp;
-    if (age > maxAge) {
+    if (!Number.isFinite(age) || age < 0 || age > maxAge) {
       console.log('[订单草稿] 草稿已过期，自动清除');
       clearDraft();
       return null;
@@ -62,7 +63,7 @@ function loadDraft(maxAge = 7 * 24 * 60 * 60 * 1000) {
     console.log('[订单草稿] 读取成功');
     return draft;
   } catch (error) {
-    console.error('[订单草稿] 读取失败:', error);
+    console.error("[订单草稿] 读取失败:");
     return null;
   }
 }
@@ -72,10 +73,10 @@ function loadDraft(maxAge = 7 * 24 * 60 * 60 * 1000) {
  */
 function clearDraft() {
   try {
-    wx.removeStorageSync(CACHE_KEYS.ORDER_DRAFT);
+    accountStorage.remove(CACHE_KEYS.ORDER_DRAFT);
     console.log('[订单草稿] 清除成功');
   } catch (error) {
-    console.error('[订单草稿] 清除失败:', error);
+    console.error("[订单草稿] 清除失败:");
   }
 }
 
@@ -93,11 +94,12 @@ function hasDraft() {
  * @returns {Object} 处理后的订单数据
  */
 function restoreFromDraft(draft) {
-  if (!draft) return {};
+  const session = accountStorage.captureSession();
+  if (!accountStorage.isCurrent(session) || !draft || draft.ownerId !== session.ownerId) return {};
   
   // 不恢复的字段（用于控制UI状态，不应该恢复）
   const excludeFields = [
-    'timestamp', 'version', 'userInfo', 'orderID', 'wxpayPrepayID',
+    'timestamp', 'version', 'ownerId', 'userInfo', 'orderID', 'wxpayPrepayID',
     'showReachTime', 'gapReach', 'activeTab', 'todayTimes', 'tomorrowTimes',
     'isReachTimeVisiable', 'showOrderConfirm'
   ];
@@ -123,21 +125,37 @@ function restoreFromDraft(draft) {
  */
 function createDebouncedSave(delay = 1000) {
   let timeoutId = null;
+  let pendingData = null;
+  let pendingSession = null;
   
   const debouncedSave = function(orderData) {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
     
+    pendingData = orderData;
+    pendingSession = accountStorage.captureSession();
     timeoutId = setTimeout(() => {
       timeoutId = null;
-      saveDraft(orderData);
+      const saved = saveDraft(pendingData, pendingSession);
+      pendingData = null;
+      pendingSession = null;
+      return saved;
     }, delay);
   };
 
   debouncedSave.cancel = function() {
     if (timeoutId) clearTimeout(timeoutId);
     timeoutId = null;
+    pendingData = null;
+    pendingSession = null;
+  };
+
+  debouncedSave.flush = function() {
+    if (!pendingData) return false;
+    const saved = saveDraft(pendingData, pendingSession);
+    debouncedSave.cancel();
+    return saved;
   };
 
   return debouncedSave;

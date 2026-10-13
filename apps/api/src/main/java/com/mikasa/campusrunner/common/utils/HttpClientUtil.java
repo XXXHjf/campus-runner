@@ -30,6 +30,7 @@ import java.util.Map;
 /**
  * http请求工具类
  */
+@lombok.extern.slf4j.Slf4j
 public class HttpClientUtil {
     private static final int TIMEOUT_MSEC = 5 * 1000;
 
@@ -58,7 +59,7 @@ public class HttpClientUtil {
                 try {
                     br.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
                 }
             }
         }
@@ -99,7 +100,7 @@ public class HttpClientUtil {
                 result = EntityUtils.toString(response.getEntity(),"UTF-8");
             }
         }catch (Exception e){
-            e.printStackTrace();
+            log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
         }finally {
             try {
                 if (response != null) {
@@ -107,7 +108,7 @@ public class HttpClientUtil {
                 }
                 httpClient.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
             }
         }
 
@@ -157,7 +158,7 @@ public class HttpClientUtil {
             try {
                 response.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
             }
         }
 
@@ -207,7 +208,7 @@ public class HttpClientUtil {
             try {
                 response.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
             }
         }
 

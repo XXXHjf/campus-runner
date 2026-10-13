@@ -46,22 +46,6 @@ public class WeChatTransferController {
     }
 
 
-    @PostMapping("/close/{orderNumber}")
-    @Operation(summary = "撤销转账(测试用)")
-    public Result wxCloseTransfer(@PathVariable String orderNumber) throws Exception {
-        log.info("Cancel transfer (test), order number: {}", orderNumber);
-        weChatTransferService.closeTransfer(orderNumber);
-        return Result.success();
-    }
-
-    @GetMapping("/{orderNumber}")
-    @Operation(summary = "根据商户单号查询账单(测试用)")
-    public Result<String> wxQueryOrder(@PathVariable String orderNumber) throws Exception{
-        log.info("Query bill by merchant order number: {}", orderNumber);
-        String str = weChatTransferService.queryOrder(orderNumber);
-        return Result.success(str);
-    }
-
     @PostMapping("/notify")
     @Operation(summary = "商家转账回调通知")
     public String notifyTransfer(HttpServletRequest request, HttpServletResponse response) {
@@ -72,7 +56,7 @@ public class WeChatTransferController {
             Map<String, Object> bodyMap = JSONObject.parseObject(body, HashMap.class);
             String requestId = (String) bodyMap.get("id");
             log.info("Transfer callback success, notification ID: {}", bodyMap.get("id"));
-            log.info("Transfer callback success, request body: {}", body);
+            log.debug("Payment notification received");
 
             //验签
             WechatPay2ValidatorForRequest wechatPay2ValidatorForRequest =
@@ -102,7 +86,7 @@ public class WeChatTransferController {
 
         }catch (GeneralSecurityException e) {
             //出错了，返回错误信息
-            e.printStackTrace();
+            log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
             response.setStatus(401);
             //构造响应体Validation
             JsapiNotifyVO jsapiNotifyVO = JsapiNotifyVO.builder()
@@ -111,7 +95,7 @@ public class WeChatTransferController {
             return JSONObject.toJSONString(jsapiNotifyVO);
         } catch (Exception e) {
             //出错了，返回错误信息
-            e.printStackTrace();
+            log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
             response.setStatus(500);
             //构造响应体Validation
             JsapiNotifyVO jsapiNotifyVO = JsapiNotifyVO.builder()

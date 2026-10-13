@@ -13,6 +13,12 @@ import java.util.List;
  */
 @Mapper
 public interface AddressBookMapper {
+    List<AddressBookShowVO> showPage(@org.apache.ibatis.annotations.Param("id") Long id,
+            @org.apache.ibatis.annotations.Param("page") com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
+    List<AddressBookShowVO> queryPage(@org.apache.ibatis.annotations.Param("filter") AddressBook filter,
+            @org.apache.ibatis.annotations.Param("page") com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
+    @org.apache.ibatis.annotations.Select("select count(*) as total, coalesce(sum(is_default=1),0) as defaultCount, max(case when is_default=1 then id end) as defaultId, max(id) as latestId from tb_address_book where user_id=#{id} and deleted=0")
+    java.util.Map<String,Object> summary(Long id);
     @org.apache.ibatis.annotations.Select("select id from tb_user where id = #{id} for update")
     Long lockUser(Long id);
 

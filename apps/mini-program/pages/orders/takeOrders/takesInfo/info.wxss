@@ -1,5 +1,25 @@
 @import "../../../../styles/runner-detail.wxss";
 
+.runner-detail-page .runner-task-photo {
+  position: relative;
+  width: 180rpx;
+  height: 180rpx;
+  overflow: hidden;
+  border-radius: var(--cr-radius-medium, 16rpx);
+}
+
+.runner-detail-page .runner-task-photo--frosted .runner-detail-image {
+  filter: blur(16rpx);
+  transform: scale(1.12);
+}
+
+.runner-detail-page .runner-task-photo-frost {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.28);
+  pointer-events: none;
+}
+
 .runner-detail-upload .block {
   background: var(--td-bg-color-container);
   border-radius: 16rpx 16rpx 0 0;

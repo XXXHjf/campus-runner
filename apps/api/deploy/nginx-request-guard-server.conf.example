@@ -1,0 +1,12 @@
+# Include in the campus HTTPS server {} only after the http zone is present.
+# Observe campus NAT peaks before enabling enforcement; no change is applied by this file.
+limit_conn campus_guard_connections 100;
+limit_conn_status 429;
+error_page 429 = @campus_guard_limited;
+location @campus_guard_limited {
+    default_type application/json;
+    charset utf-8;
+    add_header Retry-After 5 always;
+    return 429 '{"code":0,"msg":"操作较频繁，请稍后再试"}';
+}
+# Preserve existing client_max_body_size and the overwritten X-Real-IP $remote_addr.

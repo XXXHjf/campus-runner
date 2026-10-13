@@ -25,12 +25,10 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -46,6 +44,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private TakeOrderMapper takeOrderMapper;
+
+    @Autowired
+    private com.mikasa.campusrunner.service.user.MessageSendService messages;
 
     @Autowired
     private AddressBookMapper addressBookMapper;
@@ -89,18 +90,143 @@ public class OrderServiceImpl implements OrderService {
     @org.springframework.context.annotation.Lazy
     private com.mikasa.campusrunner.service.OrderCancellationService cancellationService;
 
-    /**
-     * 根据价格优先排序
-     *
-     * @param status
-     * @return
-     */
+    /** 按当前认证账号和学校分页读取待接单大厅，分页前判定私有内容访问权限。 */
+    @Override
+    public List<OrderShowVO> listRunnerFeed(com.mikasa.campusrunner.pojo.dto.RunnerFeedDTO query) {
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.RunnerFeedDTO();
+        query.getOffset();
+        Long caller = RunnerOrderAccess.requireUser();
+        var user = userMapper.getById(caller);
+        if (user == null || !Integer.valueOf(1).equals(user.getAuthentication()) || user.getSchoolId() == null) {
+            throw new UserException("请先完成校园认证");
+        }
+        AddressBook pickup = feedAddress(user.getSchoolId(), OrderShowByAddressDTO.builder()
+                .compusNumberId(query.getPickCampusNumberId()).buildCategoryNumberId(query.getPickBuildCategoryNumberId())
+                .buildingNumberId(query.getPickBuildingNumberId()).build());
+        AddressBook receive = feedAddress(user.getSchoolId(), OrderShowByAddressDTO.builder()
+                .compusNumberId(query.getReceiveCampusNumberId()).buildCategoryNumberId(query.getReceiveBuildCategoryNumberId())
+                .buildingNumberId(query.getReceiveBuildingNumberId()).build());
+        var rows = orderMapper.listRunnerFeed(query, caller, user.getSchoolId(), pickup, receive);
+        if (rows.stream().anyMatch(row -> row == null || row.getId() == null || row.getId() <= 0
+                || !caller.equals(row.getAccessUserId()) || row.getPrivateAccess() == null)) {
+            throw new OrderException("订单加载失败，请重试");
+        }
+        if (rows.isEmpty()) return rows;
+        var previews = mediaAssetService.resolveOrderPreviewBindings(rows.stream().map(OrderShowVO::getId).toList());
+        var icons = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_ORDER_CATEGORY,
+                rows.stream().map(OrderShowVO::getCategoryId).filter(java.util.Objects::nonNull).toList(),
+                MediaPurpose.ORDER_CATEGORY_ICON.name(), 0);
+        var avatars = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_USER_AVATAR,
+                rows.stream().map(OrderShowVO::getUserId).filter(java.util.Objects::nonNull).toList(),
+                MediaPurpose.AVATAR.name(), 0);
+        for (var row : rows) {
+            row.setImage(null);row.setImageAssetId(null);row.setImages(List.of());row.setImageAssetIds(List.of());row.setCategoryImage(null);
+            var bound = previews.getOrDefault(row.getId(), List.of());
+            row.setImages(bound.stream().map(item -> item.getUrl()).toList());
+            if (!bound.isEmpty()) row.setImage(bound.get(0).getUrl());
+            var sender = row.getUserId() == null ? List.<com.mikasa.campusrunner.pojo.vo.BoundMediaVO>of()
+                    : avatars.getOrDefault(row.getUserId(), List.of());
+            row.setSenderAvatar(sender.isEmpty() ? null : sender.get(0).getUrl());
+            if (row.getCategoryId() != null) {
+                var category = icons.getOrDefault(row.getCategoryId(), List.of());
+                if (!category.isEmpty()) row.setCategoryImage(category.get(0).getUrl());
+            }
+        }
+        return rows.stream().map(this::publicFeedRow).toList();
+    }
+
+    private com.mikasa.campusrunner.pojo.dto.RunnerFeedDTO legacyFeedPage(com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        var query = new com.mikasa.campusrunner.pojo.dto.RunnerFeedDTO();
+        if (page != null) { query.setPage(page.getPage()); query.setPageSize(page.getPageSize()); }
+        query.getOffset();
+        return query;
+    }
+
+    private void copyFeedAddress(com.mikasa.campusrunner.pojo.dto.RunnerFeedDTO query, OrderShowByAddressDTO address, boolean pickup) {
+        if (pickup) {
+            query.setPickCampusNumberId(address.getCompusNumberId());
+            query.setPickBuildCategoryNumberId(address.getBuildCategoryNumberId());
+            query.setPickBuildingNumberId(address.getBuildingNumberId());
+        } else {
+            query.setReceiveCampusNumberId(address.getCompusNumberId());
+            query.setReceiveBuildCategoryNumberId(address.getBuildCategoryNumberId());
+            query.setReceiveBuildingNumberId(address.getBuildingNumberId());
+        }
+    }
+
+    private AddressBook feedAddress(Long schoolId, OrderShowByAddressDTO dto) {
+        if (dto.getCompusNumberId() == null && dto.getBuildCategoryNumberId() == null && dto.getBuildingNumberId() == null) {
+            return AddressBook.builder().schoolId(schoolId).build();
+        }
+        return getAddressBook(dto);
+    }
+
+    private OrderShowVO publicFeedRow(OrderShowVO row) {
+        OrderShowVO result = new OrderShowVO();
+        result.setId(row.getId());result.setPrice(row.getPrice());result.setProductAmount(row.getProductAmount());
+        result.setBusinessType(row.getBusinessType());result.setCreateTime(row.getCreateTime());
+        result.setExpectedDeliveryTime(row.getExpectedDeliveryTime());result.setGap(row.getGap());
+        result.setCategoryId(row.getCategoryId());result.setCategoryName(row.getCategoryName());
+        result.setPickUpAddress(row.getPickUpAddress());result.setReciveAddress(row.getReciveAddress());
+        result.setUsername(row.getUsername());result.setNote(row.getNote());result.setDoorAccess(row.getDoorAccess());
+        result.setSenderNickname(row.getUsername());
+        result.setSenderAvatar(row.getSenderAvatar());result.setCategoryImage(row.getCategoryImage());
+        result.setImage(row.getImage());result.setImages(row.getImages());result.setImageAssetIds(List.of());
+        result.setViewerIsTaker(false);result.setStatus(OrderStatusConstant.WAIT_TO_TAKE_ORDER);
+        return result;
+    }
+
+    @Override
+    public List<OrderShowVO> listPublicOrders(com.mikasa.campusrunner.pojo.dto.PublicOrderQueryDTO query) {
+        query.getOffset();
+        return enrichPublicPreviews(orderMapper.listPublicOrdersPage(query));
+    }
+
+    private List<OrderShowVO> enrichPublicPreviews(List<com.mikasa.campusrunner.pojo.vo.PublicOrderVO> previews) {
+        if (previews.isEmpty()) return List.of();
+        var images = mediaAssetService.resolveOrderPreviewBindings(previews.stream().map(item -> item.id()).toList());
+        var avatars = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_USER_AVATAR,
+                previews.stream().map(item -> item.userId()).filter(java.util.Objects::nonNull).toList(),
+                MediaPurpose.AVATAR.name(), 0);
+        var categories = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_ORDER_CATEGORY,
+                previews.stream().map(item -> item.categoryId()).filter(java.util.Objects::nonNull).toList(),
+                MediaPurpose.ORDER_CATEGORY_ICON.name(), 0);
+        return previews.stream().map(preview -> {
+            OrderShowVO result = new OrderShowVO();
+            result.setId(preview.id()); result.setPrice(preview.price());
+            result.setProductAmount(preview.productAmount()); result.setBusinessType(preview.businessType());
+            result.setCreateTime(preview.createTime()); result.setExpectedDeliveryTime(preview.expectedDeliveryTime());
+            result.setGap(preview.gap()); result.setCategoryId(preview.categoryId());
+            result.setCategoryName(preview.categoryName()); result.setPickUpAddress(preview.pickUpAddress());
+            result.setReciveAddress(preview.reciveAddress()); result.setStatus(OrderStatusConstant.WAIT_TO_TAKE_ORDER);
+            result.setUsername(preview.username());result.setNote(preview.note());result.setDoorAccess(preview.doorAccess());
+            result.setSenderNickname(preview.username());
+            result.setViewerIsTaker(false);result.setImageAssetIds(List.of());
+            var bound = images.getOrDefault(preview.id(), List.of());
+            result.setImages(bound.stream().map(item -> item.getUrl()).toList());
+            if (!bound.isEmpty()) result.setImage(bound.get(0).getUrl());
+            var sender = preview.userId() == null ? List.<com.mikasa.campusrunner.pojo.vo.BoundMediaVO>of()
+                    : avatars.getOrDefault(preview.userId(), List.of());
+            if (!sender.isEmpty()) result.setSenderAvatar(sender.get(0).getUrl());
+            var icons = preview.categoryId() == null ? List.<com.mikasa.campusrunner.pojo.vo.BoundMediaVO>of()
+                    : categories.getOrDefault(preview.categoryId(), List.of());
+            if (!icons.isEmpty()) result.setCategoryImage(icons.get(0).getUrl());
+            return result;
+        }).toList();
+    }
+
     @Override
     public List<OrderShowVO> showByPrice(Integer status) {
-        Long schoolId = userMapper.getSchoolId(BaseContext.getCurrentId());
-        List<OrderShowVO> list = orderMapper.showByPrice(status, schoolId);
-        return resolveOrderImages(list);
+        return showByPrice(status, new com.mikasa.campusrunner.pojo.dto.ListPageDTO());
     }
+    @Override
+    public List<OrderShowVO> showByPrice(Integer status, com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        if (status == null || (status != 0 && status != 1)) throw new ParamException("排序条件有误，请重新选择");
+        var query = legacyFeedPage(page);
+        query.setSort(status == 0 ? "price_desc" : "price_asc");
+        return listRunnerFeed(query);
+    }
+
 
 
     /**
@@ -148,8 +274,6 @@ public class OrderServiceImpl implements OrderService {
         } else if (!orderSubmitDTO.getCancelTime().isAfter(now)) {
             throw new ParamException("自动取消时间已过，请重新选择");
         }
-        //TODO 这里订单号用时间流逝来表示了，如需要，在这里修改
-        order.setOrderNumber(Long.valueOf(System.currentTimeMillis()).toString());
         order.setCreateTime(now);
         if (order.getExpectedDeliveryTime() != null) {
             LocalDateTime deadline = order.getExpectedDeliveryTime().withSecond(0).withNano(0);
@@ -208,7 +332,11 @@ public class OrderServiceImpl implements OrderService {
                 || !lockedAddresses.contains(order.getReciveAddress())) {
             throw new AddressException("地址已变化，请重新选择后下单");
         }
-        int row = orderMapper.insert(order);
+        int row = com.mikasa.campusrunner.common.utils.OrderNumberGenerator.persist("R", number -> {
+            order.setId(null);
+            order.setOrderNumber(number);
+            return orderMapper.insert(order);
+        }, number -> orderMapper.getByOrderNumberForUpdate(number) != null);
         if (orderAddressSnapshotMapper.capture(order.getId(), order.getPickUpAddress(), "PICKUP") != 1
                 || orderAddressSnapshotMapper.capture(order.getId(), order.getReciveAddress(), "RECEIVE") != 1) {
             throw new AddressException("地址保存失败，请重新下单");
@@ -336,17 +464,10 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public List<OrderShowVO> showByPickUpAdd(OrderShowByAddressDTO orderShowByAddressDTO) {
-        AddressBook addressBook = getAddressBook(orderShowByAddressDTO);
-
-        List<Long> ids = orderAddressSnapshotMapper.findOrderIds(addressBook, "PICKUP");
-
-        if (CollectionUtils.isEmpty(ids)) {
-            return new ArrayList<>();
-        }
-
-        List<OrderShowVO> list = orderMapper.showByPickUpAdd(ids);
-
-        return resolveOrderImages(list);
+        if (orderShowByAddressDTO == null) throw new ParamException("请选择地址");
+        var query = legacyFeedPage(orderShowByAddressDTO);
+        copyFeedAddress(query, orderShowByAddressDTO, true);
+        return listRunnerFeed(query);
     }
 
     /**
@@ -357,17 +478,10 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public List<OrderShowVO> showByReciveAdd(OrderShowByAddressDTO orderShowByAddressDTO) {
-        AddressBook addressBook = getAddressBook(orderShowByAddressDTO);
-
-        List<Long> ids = orderAddressSnapshotMapper.findOrderIds(addressBook, "RECEIVE");
-
-        if (CollectionUtils.isEmpty(ids)) {
-            return new ArrayList<>();
-        }
-
-        List<OrderShowVO> list = orderMapper.showByReciveAdd(ids);
-
-        return resolveOrderImages(list);
+        if (orderShowByAddressDTO == null) throw new ParamException("请选择地址");
+        var query = legacyFeedPage(orderShowByAddressDTO);
+        copyFeedAddress(query, orderShowByAddressDTO, false);
+        return listRunnerFeed(query);
     }
 
     /**
@@ -377,8 +491,15 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public List<OrderShowVO> showMy() {
-        List<OrderShowVO> list = orderMapper.getMy(BaseContext.getCurrentId());
-        return resolveOrderImages(list);
+        return showMy(new com.mikasa.campusrunner.pojo.dto.RunnerOrderQueryDTO());
+    }
+
+    @Override
+    public List<OrderShowVO> showMy(com.mikasa.campusrunner.pojo.dto.RunnerOrderQueryDTO query) {
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.RunnerOrderQueryDTO();
+        query.getOffset();
+        Long ownerId = RunnerOrderAccess.requireUser();
+        return resolvePublisherImages(orderMapper.getMyPage(ownerId, query), ownerId);
     }
 
 
@@ -390,19 +511,16 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public List<OrderShowVO> showByTime(Integer status) {
-        if (status == null) {
-            throw new ParamException(MessageConstant.NOT_FOUND_PARAM);
-        }
-
-        Long schoolId = userMapper.getSchoolId(BaseContext.getCurrentId());
-
-        if (schoolId == null) {
-            throw new UserException(MessageConstant.USER_NOT_AUTHEN);
-        }
-
-        List<OrderShowVO> list = orderMapper.showByTime(status, schoolId);
-        return resolveOrderImages(list);
+        return showByTime(status, new com.mikasa.campusrunner.pojo.dto.ListPageDTO());
     }
+    @Override
+    public List<OrderShowVO> showByTime(Integer status, com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        if (status == null || (status != 0 && status != 1)) throw new ParamException("排序条件有误，请重新选择");
+        var query = legacyFeedPage(page);
+        query.setSort(status == 0 ? "time" : "time_asc");
+        return listRunnerFeed(query);
+    }
+
 
 
     /**
@@ -464,7 +582,7 @@ public class OrderServiceImpl implements OrderService {
 //        paramMap.put(WeChatPayConstant.MCHID, weChatProperties.getMchid());
 //        String jsonParam = JSONObject.toJSONString(paramMap);
 //
-//        log.info("Calling WeChat Pay close-order API, params: {}", jsonParam);
+//        log.debug("Close-order request prepared");
 //
 //        //设置请求实体类
 //        StringEntity entity = new StringEntity(jsonParam, "utf-8");
@@ -513,6 +631,7 @@ public class OrderServiceImpl implements OrderService {
         if (orderMapper.update(Order.builder().id(order.getId()).status(order.getStatus()).build()) != 1) {
             throw new OrderException("订单状态已变化，请刷新后重试");
         }
+        SecondHandSubscriptionService.afterCommit(() -> messages.sendRunnerReceipt(id));
     }
 
     /**
@@ -523,27 +642,15 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public List<OrderShowVO> showByDoubleAdd(OrderShowByDoubleAddDTO orderShowByDoubleAddDTO) {
-        OrderShowByAddressDTO pick = OrderShowByAddressDTO.builder()
-                .schoolNumberId(orderShowByDoubleAddDTO.getPickSchoolNumberId())
-                .compusNumberId(orderShowByDoubleAddDTO.getPickCompusNumberId())
-                .buildCategoryNumberId(orderShowByDoubleAddDTO.getPickBuildCategoryNumberId())
-                .buildingNumberId(orderShowByDoubleAddDTO.getPickBuildingNumberId()).build();
-        AddressBook pickAddressBook = getAddressBook(pick);
-        List<Long> pickIds = orderAddressSnapshotMapper.findOrderIds(pickAddressBook, "PICKUP");
-
-        OrderShowByAddressDTO recive = OrderShowByAddressDTO.builder()
-                .schoolNumberId(orderShowByDoubleAddDTO.getReciveSchoolNumberId())
-                .compusNumberId(orderShowByDoubleAddDTO.getReciveCompusNumberId())
-                .buildCategoryNumberId(orderShowByDoubleAddDTO.getReciveBuildCategoryNumberId())
-                .buildingNumberId(orderShowByDoubleAddDTO.getReciveBuildingNumberId()).build();
-        AddressBook reciveAddressBook = getAddressBook(recive);
-        List<Long> reciveIds = orderAddressSnapshotMapper.findOrderIds(reciveAddressBook, "RECEIVE");
-
-        if (pickIds.isEmpty() || reciveIds.isEmpty()) {
-            return new ArrayList<>();
-        }
-        List<OrderShowVO> list = orderMapper.showByDoubleAdd(pickIds, reciveIds);
-        return resolveOrderImages(list);
+        if (orderShowByDoubleAddDTO == null) throw new ParamException("请选择地址");
+        var query = legacyFeedPage(orderShowByDoubleAddDTO);
+        query.setPickCampusNumberId(orderShowByDoubleAddDTO.getPickCompusNumberId());
+        query.setPickBuildCategoryNumberId(orderShowByDoubleAddDTO.getPickBuildCategoryNumberId());
+        query.setPickBuildingNumberId(orderShowByDoubleAddDTO.getPickBuildingNumberId());
+        query.setReceiveCampusNumberId(orderShowByDoubleAddDTO.getReciveCompusNumberId());
+        query.setReceiveBuildCategoryNumberId(orderShowByDoubleAddDTO.getReciveBuildCategoryNumberId());
+        query.setReceiveBuildingNumberId(orderShowByDoubleAddDTO.getReciveBuildingNumberId());
+        return listRunnerFeed(query);
     }
 
     /**
@@ -554,15 +661,16 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public List<OrderShowVO> showByCategory(Long id) {
-
-        Long schoolId = userMapper.getSchoolId(BaseContext.getCurrentId());
-        if (schoolId == null) {
-            throw new UserException(MessageConstant.USER_NOT_AUTHEN);
-        }
-
-        List<OrderShowVO> list = orderMapper.showByCategory(id, schoolId);
-        return resolveOrderImages(list);
+        return showByCategory(id, new com.mikasa.campusrunner.pojo.dto.ListPageDTO());
     }
+    @Override
+    public List<OrderShowVO> showByCategory(Long id, com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        if (id == null || id <= 0) throw new ParamException("筛选条件有误，请重新选择");
+        var query = legacyFeedPage(page);
+        query.setCategoryId(id);
+        return listRunnerFeed(query);
+    }
+
 
     /**
      * 辅助方法
@@ -680,10 +788,30 @@ public class OrderServiceImpl implements OrderService {
         return list;
     }
 
-    private List<OrderShowVO> resolveOrderImages(List<OrderShowVO> orders) {
-        RunnerOrderAccess.requireUser();
-        return orders.stream().map(order -> resolveOrderImage(order, 320))
-                .filter(java.util.Objects::nonNull).toList();
+    private List<OrderShowVO> resolvePublisherImages(List<OrderShowVO> orders, Long ownerId) {
+        // Authorize the entire batch before any private URL is signed.
+        if (orders.stream().anyMatch(order -> order == null || order.getId() == null
+                || !ownerId.equals(order.getUserId()))) {
+            throw new com.mikasa.campusrunner.common.exception.OrderException("无法查看该订单");
+        }
+        var images = mediaAssetService.resolveAuthorizedBindings(MediaAssetConstant.BOUND_ORDER,
+                orders.stream().map(OrderShowVO::getId).toList(), MediaPurpose.ORDER_IMAGE.name(), 320);
+        var categories = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_ORDER_CATEGORY,
+                orders.stream().map(OrderShowVO::getCategoryId).filter(java.util.Objects::nonNull).toList(),
+                MediaPurpose.ORDER_CATEGORY_ICON.name(), 0);
+        for (var order : orders) {
+            var bound = images.getOrDefault(order.getId(), List.of());
+            order.setImage(null); order.setImageAssetId(null); order.setCategoryImage(null);
+            order.setImages(bound.stream().map(item -> item.getUrl()).toList());
+            order.setImageAssetIds(bound.stream().map(item -> item.getMediaId()).toList());
+            if (!bound.isEmpty()) {
+                order.setImage(bound.get(0).getUrl()); order.setImageAssetId(bound.get(0).getMediaId());
+            }
+            var icons = order.getCategoryId() == null ? List.<com.mikasa.campusrunner.pojo.vo.BoundMediaVO>of()
+                    : categories.getOrDefault(order.getCategoryId(), List.of());
+            if (!icons.isEmpty()) order.setCategoryImage(icons.get(0).getUrl());
+        }
+        return orders;
     }
 
     private OrderShowVO resolveOrderImage(OrderShowVO order) {
@@ -695,10 +823,11 @@ public class OrderServiceImpl implements OrderService {
             return null;
         }
         Long caller = RunnerOrderAccess.requireUser();
-        boolean privateAccess = caller.equals(order.getUserId())
-                || RunnerOrderAccess.participant(caller, order.getUserId(),
-                    takeOrderMapper.getByOrderId(order.getId()), order.getId());
+        var take = takeOrderMapper.getByOrderId(order.getId());
+        boolean isTaker = RunnerOrderAccess.activeTake(take, order.getId()) && caller.equals(take.getUserId());
+        boolean privateAccess = caller.equals(order.getUserId()) || isTaker;
         if (!privateAccess) return publicPreview(order.getId());
+        order.setViewerIsTaker(isTaker);
         // Never fall back to legacy raw URLs, even for an authorized participant.
         order.setImage(null);
         order.setImageAssetId(null);
@@ -726,15 +855,7 @@ public class OrderServiceImpl implements OrderService {
     private OrderShowVO publicPreview(Long id) {
         var preview = orderMapper.getPublicOrderById(id);
         if (preview == null) return null;
-        OrderShowVO result = new OrderShowVO();
-        result.setId(preview.id()); result.setPrice(preview.price());
-        result.setProductAmount(preview.productAmount()); result.setBusinessType(preview.businessType());
-        result.setCreateTime(preview.createTime()); result.setExpectedDeliveryTime(preview.expectedDeliveryTime());
-        result.setGap(preview.gap()); result.setCategoryId(preview.categoryId());
-        result.setCategoryName(preview.categoryName()); result.setPickUpAddress(preview.pickUpAddress());
-        result.setReciveAddress(preview.reciveAddress()); result.setStatus(OrderStatusConstant.WAIT_TO_TAKE_ORDER);
-        result.setImageAssetIds(List.of()); result.setImages(List.of());
-        return result;
+        return enrichPublicPreviews(List.of(preview)).get(0);
     }
 
 }

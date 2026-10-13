@@ -34,13 +34,13 @@ class AdminAuthServiceImplTest {
         withImages.setId(101L);
         UserVO withoutImages = new UserVO();
         withoutImages.setId(102L);
-        when(userMapper.getPendingAuthList()).thenReturn(List.of(withImages, withoutImages));
-        when(mediaAssetService.resolvePublicBinding(
-                MediaAssetConstant.BOUND_USER_AVATAR, 101L, MediaPurpose.AVATAR.name()))
-                .thenReturn(List.of(new BoundMediaVO(201L, "https://example.test/avatar.jpg", 0)));
-        when(mediaAssetService.resolveAuthorizedBinding(
-                MediaAssetConstant.BOUND_USER_STUDENT_CARD, 101L, MediaPurpose.STUDENT_CARD.name()))
-                .thenReturn(List.of(new BoundMediaVO(301L, "https://example.test/card.jpg?signature=test", 0)));
+        when(userMapper.getPendingAuthPage(any())).thenReturn(List.of(withImages, withoutImages));
+        when(mediaAssetService.resolvePublicBindings(
+                MediaAssetConstant.BOUND_USER_AVATAR, List.of(101L, 102L), MediaPurpose.AVATAR.name(), 0))
+                .thenReturn(java.util.Map.of(101L, List.of(new BoundMediaVO(201L, "https://example.test/avatar.jpg", 0))));
+        when(mediaAssetService.resolveAuthorizedBindings(
+                MediaAssetConstant.BOUND_USER_STUDENT_CARD, List.of(101L, 102L), MediaPurpose.STUDENT_CARD.name(), 0))
+                .thenReturn(java.util.Map.of(101L, List.of(new BoundMediaVO(301L, "https://example.test/card.jpg?signature=test", 0))));
 
         List<UserVO> result = service.getPendingList();
 
@@ -57,7 +57,7 @@ class AdminAuthServiceImplTest {
 
     @Test
     void emptyPendingListDoesNotResolveImages() {
-        when(userMapper.getPendingAuthList()).thenReturn(List.of());
+        when(userMapper.getPendingAuthPage(any())).thenReturn(List.of());
         assertTrue(service.getPendingList().isEmpty());
         verifyNoInteractions(mediaAssetService);
     }

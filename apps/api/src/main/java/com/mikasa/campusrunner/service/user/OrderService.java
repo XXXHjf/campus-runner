@@ -16,6 +16,8 @@ import java.util.List;
  * created  2024/4/24 13:36
  */
 public interface OrderService {
+    List<OrderShowVO> listRunnerFeed(com.mikasa.campusrunner.pojo.dto.RunnerFeedDTO query);
+    List<OrderShowVO> listPublicOrders(com.mikasa.campusrunner.pojo.dto.PublicOrderQueryDTO query);
 
     /**
      * 根据价格优先排序 排除掉已删除的 已完成的
@@ -23,6 +25,7 @@ public interface OrderService {
      * @return
      */
     List<OrderShowVO> showByPrice(Integer status);
+    List<OrderShowVO> showByPrice(Integer status, com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
 
     /**
      * 发布订单
@@ -61,6 +64,7 @@ public interface OrderService {
      * @return
      */
     List<OrderShowVO> showMy();
+    List<OrderShowVO> showMy(com.mikasa.campusrunner.pojo.dto.RunnerOrderQueryDTO query);
 
 
     /**
@@ -69,6 +73,7 @@ public interface OrderService {
      * @return
      */
     List<OrderShowVO> showByTime(Integer status);
+    List<OrderShowVO> showByTime(Integer status, com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
 
     /**
      * 详细查询
@@ -102,6 +107,7 @@ public interface OrderService {
      * @return
      */
     List<OrderShowVO> showByCategory(Long id);
+    List<OrderShowVO> showByCategory(Long id, com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
 
     /**
      * 根据订单id查找未支付的订单

@@ -136,8 +136,8 @@ function _compareFirstNChars(str1, str2, n) {
  * @param {String} errMsg 报错信息
  */
 function _logErrInfo(methodName, errMsg) {
-  console.log("errCatch in " + methodName);
-  console.log("errMsg is:" + errMsg);
+  console.log("errCatch in ");
+  console.log("errMsg is:");
 };
 
 /**

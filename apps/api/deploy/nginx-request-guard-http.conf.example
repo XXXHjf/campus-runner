@@ -1,0 +1,12 @@
+# Include in http {} after verifying the upstream topology and backing up Nginx config.
+# Deliberately use the connection source. Do not trust client-supplied forwarding headers.
+map $uri $campus_guard_connection_key {
+    default $binary_remote_addr;
+    /api/wx-pay/jsapi/notify "";
+    /api/wx-pay/refunds/notify "";
+    /api/wx-transfer/notify "";
+    /api/second-hand/pay/notify "";
+    /api/second-hand/refunds/notify "";
+    /api/second-hand/transfer/notify "";
+}
+limit_conn_zone $campus_guard_connection_key zone=campus_guard_connections:10m;

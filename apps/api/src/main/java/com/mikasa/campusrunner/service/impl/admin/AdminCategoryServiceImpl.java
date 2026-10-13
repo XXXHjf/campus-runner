@@ -31,7 +31,36 @@ public class AdminCategoryServiceImpl implements AdminCategoryService {
     public List<Category> list() {
         log.info("Listing all categories...");
         List<Category> categories = categoryMapper.getAll();
-        categories.forEach(this::resolveImage);
+        if (!categories.isEmpty()) {
+            var images = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_ORDER_CATEGORY,
+                    categories.stream().map(Category::getId).distinct().toList(), MediaPurpose.ORDER_CATEGORY_ICON.name(), 0);
+            for (var category : categories) {
+                var bound = images.getOrDefault(category.getId(), List.of());
+                if (!bound.isEmpty()) {
+                    category.setImageAssetId(bound.get(0).getMediaId());
+                    category.setImage(bound.get(0).getUrl());
+                }
+            }
+        }
+        return categories;
+    }
+
+    @Override
+    public List<Category> list(com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        page.getLimit(); page.getOffset();
+        log.info("Listing all categories...");
+        List<Category> categories = categoryMapper.getAllPage(page);
+        if (!categories.isEmpty()) {
+            var images = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_ORDER_CATEGORY,
+                    categories.stream().map(Category::getId).distinct().toList(), MediaPurpose.ORDER_CATEGORY_ICON.name(), 0);
+            for (var category : categories) {
+                var bound = images.getOrDefault(category.getId(), List.of());
+                if (!bound.isEmpty()) {
+                    category.setImageAssetId(bound.get(0).getMediaId());
+                    category.setImage(bound.get(0).getUrl());
+                }
+            }
+        }
         return categories;
     }
 

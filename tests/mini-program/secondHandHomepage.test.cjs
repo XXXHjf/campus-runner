@@ -318,3 +318,38 @@ test('hidden or unloaded list requests cannot change results, errors or loading 
     }
   }
 });
+
+
+const fullPage = (start = 1) => Array.from({length:20},(_,i)=>({id:start+i,title:`item-${start+i}`}));
+test('homepage loads subsequent pages and stops after a short final page',async()=>{
+ const queries=[];const {page}=createHarness({listProducts:async q=>{queries.push(q);return q.page===1?fullPage():[{id:21}];}});
+ await page.loadData();await page.loadMoreProducts();await page.loadMoreProducts();
+ assert.equal(queries.length,2);assert.equal(queries[0].page,1);assert.equal(queries[1].page,2);
+ assert.equal(queries[0].pageSize,20);assert.equal(page.data.products.length,21);assert.equal(page.data.hasMoreProducts,false);
+});
+test('homepage refresh replaces appended data and resets pagination',async()=>{
+ let fresh=false;const queries=[];const {page}=createHarness({listProducts:async q=>{queries.push(q.page);return fresh?[{id:99}]:fullPage((q.page-1)*20+1);}});
+ await page.loadData();await page.loadMoreProducts();fresh=true;await page.loadData();
+ assert.equal(page.data.products.length,1);assert.equal(page.data.products[0].id,99);assert.equal(page.productPage,1);assert.equal(queries.at(-1),1);
+});
+test('repeated scroll events share a page load and deduplicate overlapping items',async()=>{
+ const pending=deferred();let reads=0;const {page}=createHarness({listProducts:async q=>{reads++;return q.page===1?fullPage():pending.promise;}});
+ await page.loadData();const first=page.loadMoreProducts();const duplicate=page.loadMoreProducts();
+ pending.resolve([{id:20,title:'updated'},{id:21}]);await Promise.all([first,duplicate]);
+ assert.equal(reads,2);assert.equal(page.data.products.length,21);assert.equal(page.data.products[19].title,'updated');
+});
+test('failed subsequent page keeps existing items and retries the same page',async()=>{
+ let failed=true;const queries=[];const {page}=createHarness({listProducts:async q=>{queries.push(q.page);if(q.page===1)return fullPage();if(failed)throw Error('network');return [{id:21}];}});
+ await page.loadData();await page.loadMoreProducts();assert.equal(page.data.products.length,20);assert.equal(page.productPage,1);
+ failed=false;await page.loadMoreProducts();assert.equal(queries.at(-1),2);assert.equal(page.data.products.length,21);
+});
+test('late appended page cannot restore old products after a filter change',async()=>{
+ const pending=deferred();const {page}=createHarness({listProducts:async q=>q.keyword?[{id:99}]:q.page===1?fullPage():pending.promise});
+ await page.loadData();const more=page.loadMoreProducts();page.setData({keyword:'new'});await page.loadData();
+ pending.resolve([{id:21}]);await more;assert.equal(page.data.products.length,1);assert.equal(page.data.products[0].id,99);assert.equal(page.productPage,1);
+});
+test('account changes discard old page data even when the next request fails',async()=>{
+ let failed=false;const {page,app}=createHarness({listProducts:async()=>{if(failed)throw Error('network');return fullPage();}});
+ await page.loadData();app.globalData.userInfo={id:8,token:'session-b'};failed=true;await page.loadData();
+ assert.equal(page.data.products.length,0);assert.equal(page.data.hasMoreProducts,false);
+});

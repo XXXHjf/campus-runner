@@ -26,8 +26,8 @@
           <view wx:for="{{item.items}}" wx:for-item="menu" wx:key="value" class="menu-card" data-value="{{menu.value}}" bindtap="onMenuTap">
             <view class="menu-icon">
               <t-icon name="{{menu.icon}}" size="{{sectionIndex==2?'40rpx':'48rpx'}}" color="#0052d9" />
-              <view class="menu-badge" wx:if="{{menu.value==='label_1' && unpaidOrderList.length>0}}">{{unpaidOrderList.length}}</view>
-              <view class="menu-badge" wx:if="{{menu.value==='label_2' && notReceiveOrderList.length>0}}">{{notReceiveOrderList.length}}</view>
+              <view class="menu-badge" wx:if="{{menu.value==='label_1' && unpaidOrderCount>0}}">{{unpaidOrderCount}}</view>
+              <view class="menu-badge" wx:if="{{menu.value==='label_2' && notReceiveOrderCount>0}}">{{notReceiveOrderCount}}</view>
               <view class="menu-badge" wx:if="{{menu.value==='label_8' && secondHandOrderCount>0}}">{{secondHandOrderCount}}</view>
               <view class="menu-badge" wx:if="{{menu.value==='label_12' && secondHandSellerOrderCount>0}}">{{secondHandSellerOrderCount}}</view>
               <view class="menu-badge" wx:if="{{menu.value==='label_9' && bargainPendingCount>0}}">{{bargainPendingCount}}</view>
@@ -41,18 +41,18 @@
       </ui-section>
     </view>
 
-    <view class="task-center-heading" wx:if="{{unpaidOrderList.length > 0 || notReceiveOrderList.length > 0 || secondHandOrderCount > 0 || secondHandSellerOrderCount > 0 || bargainPendingCount > 0}}">
+    <view class="task-center-heading" wx:if="{{unpaidOrderCount > 0 || notReceiveOrderCount > 0 || secondHandOrderCount > 0 || secondHandSellerOrderCount > 0 || bargainPendingCount > 0}}">
       <text>待办事项</text>
-      <text class="task-center-count">{{unpaidOrderList.length + notReceiveOrderList.length + secondHandOrderCount + secondHandSellerOrderCount + bargainPendingCount}}项</text>
+      <text class="task-center-count">{{unpaidOrderCount + notReceiveOrderCount + secondHandOrderCount + secondHandSellerOrderCount + bargainPendingCount}}项</text>
     </view>
 
     <!-- 待支付提醒 -->
-    <view class="pending-unpaid-section" wx:if="{{unpaidOrderList.length > 0}}">
+    <view class="pending-unpaid-section" wx:if="{{unpaidOrderCount > 0}}">
       <view class="pending-unpaid-card" bindtap="tapToUnpaid">
         <view class="payment-content">
           <view class="payment-icon-wrapper">
             <t-icon name="error-circle" size="48rpx" color="#e34d59" />
-            <view class="payment-badge">{{unpaidOrderList.length}}</view>
+            <view class="payment-badge">{{unpaidOrderCount}}</view>
           </view>
           <view class="payment-info">
             <view class="payment-title">
@@ -60,7 +60,7 @@
               <t-tag theme="danger" variant="light" size="small" style="margin-left: 12rpx;">30分钟内支付</t-tag>
             </view>
             <view class="payment-desc unpaid-desc">
-              <text>{{unpaidOrderList.length}}个订单待支付，请尽快完成支付</text>
+              <text>{{unpaidOrderCount}}个订单待支付，请尽快完成支付</text>
             </view>
           </view>
         </view>
@@ -71,13 +71,13 @@
     </view>
 
     <!-- 待收款提醒 - 优化版 -->
-    <view class="pending-payment-section" wx:if="{{notReceiveOrderList.length > 0}}">
+    <view class="pending-payment-section" wx:if="{{notReceiveOrderCount > 0}}">
       <view class="pending-payment-card" bindtap="tapToReceive">
         <!-- 左侧图标和内容 -->
         <view class="payment-content">
           <view class="payment-icon-wrapper">
             <t-icon name="money-circle" size="48rpx" color="#ed7b2f" />
-            <view class="payment-badge">{{notReceiveOrderList.length}}</view>
+            <view class="payment-badge">{{notReceiveOrderCount}}</view>
           </view>
           <view class="payment-info">
             <view class="payment-title">
@@ -85,7 +85,7 @@
               <t-tag theme="warning" variant="light" size="small" style="margin-left: 12rpx;">待处理</t-tag>
             </view>
             <view class="payment-desc">
-              <text>{{notReceiveOrderList.length}}个订单已完成，点击查看收款</text>
+              <text>{{notReceiveOrderCount}}个订单已完成，点击查看收款</text>
             </view>
           </view>
         </view>

@@ -18,9 +18,11 @@
         select * from tb_take_orders where id = #{id} and deleted = 0 for update
     </select>
 
-    <select id="getMy" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
+    <sql id="takenOrderSelect">
         SELECT
             take_order.id,
+            take_order.taker_id,
+            take_order.take_status,
             take_order.order_id,
             address_pick_up.address AS pick_up_address,
             address_recive.address AS recive_address,
@@ -59,6 +61,8 @@
 
             (SELECT
                  take_order.id,
+                 take_order.user_id AS taker_id,
+                 take_order.status AS take_status,
                  take_order.order_id,
                  take_order.create_time AS take_order_create_time,
                  take_order.delivery_time AS take_order_delivery_time,
@@ -84,7 +88,54 @@
             orders.user_id = users.id AND
             orders.deleted = 0 AND
             orders.category_id = category.id
-        ORDER BY take_order.take_order_create_time desc
+    </sql>
+    <select id="getMy" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
+        <include refid="takenOrderSelect"/>
+        ORDER BY take_order.take_order_create_time desc, take_order.id desc LIMIT 20
+    </select>
+    <select id="getMyPage" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
+        <include refid="takenOrderSelect"/>
+        <choose>
+            <when test="query.group == 'processing'">AND orders.status IN (1,2)</when>
+            <when test="query.group == 'confirming'">AND orders.status = 3</when>
+            <when test="query.group == 'settling'">AND orders.status = 5 AND (COALESCE(orders.price,0) + CASE WHEN orders.business_type='PURCHASE' THEN COALESCE(orders.product_amount,0) ELSE 0 END) > 0</when>
+            <when test="query.group == 'completed'">AND (orders.status = 6 OR (orders.status = 5 AND (COALESCE(orders.price,0) + CASE WHEN orders.business_type='PURCHASE' THEN COALESCE(orders.product_amount,0) ELSE 0 END) &lt;= 0))</when>
+            <when test="query.group == 'canceled'">AND orders.status = 4</when>
+            <when test="query.group == 'exception'">AND (orders.status IS NULL OR orders.status NOT IN (1,2,3,4,5,6))</when>
+        </choose>
+        <if test="query.searchKeyword != ''">
+            AND BINARY LOWER(
+                <foreach collection="query.whitespaceCharacters" item="space">REPLACE(</foreach>
+                CONCAT(IF(
+                    <foreach collection="query.whitespaceCharacters" item="nameSpace">REPLACE(</foreach>
+                    COALESCE(orders.username,'')
+                    <foreach collection="query.whitespaceCharacters" item="nameSpace">, #{nameSpace}, '')</foreach>
+                    ='', '微信用户', orders.username),
+                    COALESCE(category.category_name,''),
+                    IF(take_order.take_status IN (0,1,2),COALESCE(orders.note,''),''),
+                    IF(take_order.take_status IN (0,1,2) AND LOCATE(' ',address_pick_up.address)>0,SUBSTRING(address_pick_up.address,LOCATE(' ',address_pick_up.address)+1),''),
+                    IF(take_order.take_status IN (0,1,2) AND LOCATE(' ',address_recive.address)>0,SUBSTRING(address_recive.address,LOCATE(' ',address_recive.address)+1),''),
+                    CASE
+WHEN orders.status=1 THEN IF(orders.business_type='PURCHASE','采购中','已接单')
+WHEN orders.status=2 THEN '配送中'
+WHEN orders.status=5 THEN IF((COALESCE(orders.price,0) + CASE WHEN orders.business_type='PURCHASE' THEN COALESCE(orders.product_amount,0) ELSE 0 END)>0,'待收款','已完成')
+ELSE CASE COALESCE(orders.status,0) WHEN -4 THEN '退款异常' WHEN -3 THEN '退款成功' WHEN -2 THEN '退款中'
+WHEN -1 THEN '待支付' WHEN 0 THEN '待接单' WHEN 3 THEN '已送达' WHEN 4 THEN '已取消'
+WHEN 6 THEN '已完成' WHEN 7 THEN '收款失败' ELSE '订单状态' END END, COALESCE(orders.order_number,''),
+                    COALESCE(DATE_FORMAT(orders.create_time,'%Y-%m-%d %H:%i:%s'),''),
+                    COALESCE(DATE_FORMAT(take_order.take_order_create_time,'%Y-%m-%d %H:%i:%s'),''))
+                <foreach collection="query.whitespaceCharacters" item="space">, #{space}, '')</foreach>
+            ) LIKE BINARY CONCAT('%', #{query.searchKeyword}, '%') ESCAPE '!'
+        </if>
+        ORDER BY take_order.take_order_create_time desc, take_order.id desc
+        LIMIT #{query.limit} OFFSET #{query.offset}
+    </select>
+
+    <select id="queryPage" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
+        <include refid="takenOrderSelect"/>
+        <if test="query.status != null">AND take_order.take_status = #{query.status}</if>
+        ORDER BY take_order.take_order_create_time desc, take_order.id desc
+        LIMIT #{query.limit} OFFSET #{query.offset}
     </select>
 
     <select id="query" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
@@ -162,7 +213,7 @@
             orders.id = take_order.order_id AND
             orders.user_id = users.id AND
             orders.category_id = category.id
-        ORDER BY take_order.take_order_create_time desc
+        ORDER BY take_order.take_order_create_time desc, take_order.id desc LIMIT 20
     </select>
 
     <select id="getUserInfoByOrderId" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderUserInfoVO">
@@ -192,9 +243,11 @@
         select * from tb_take_orders where order_id = #{orderId} and user_id = #{userId} and deleted = 0
     </select>
 
-    <select id="getNoWithdrawn" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
+    <sql id="notWithdrawnSelect">
         SELECT
             tk.id,
+            tk.taker_id,
+            tk.take_status,
             tk.order_id,
             address_pick_up.address AS pick_up_address,
             address_recive.address AS recive_address,
@@ -231,6 +284,8 @@
             (
                 SELECT
                     id,
+                    user_id AS taker_id,
+                    status AS take_status,
                     create_time,
                     delivery_time,
                     cancel_time,
@@ -262,6 +317,15 @@
             tb_orders.`category_id` = tb_category.id AND
             tb_orders.`price` IS NOT NULL AND
             tb_orders.`price` != 0
+    </sql>
+    <select id="getNoWithdrawn" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
+        <include refid="notWithdrawnSelect"/>
+        ORDER BY tk.create_time desc, tk.id desc LIMIT 20
+    </select>
+    <select id="getNoWithdrawnPage" resultType="com.mikasa.campusrunner.pojo.vo.TakeOrderVO">
+        <include refid="notWithdrawnSelect"/>
+        ORDER BY tk.create_time desc, tk.id desc
+        LIMIT #{query.limit} OFFSET #{query.offset}
     </select>
 
 
@@ -303,7 +367,7 @@
         LEFT JOIN tb_order_address_snapshot ar ON o.id = ar.order_id AND ar.role = 'RECEIVE'
         WHERE tk.deleted = 0
         <include refid="adminTakeOrderKeyword"/>
-        ORDER BY tk.create_time DESC
+        ORDER BY tk.create_time DESC, tk.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 
@@ -326,7 +390,7 @@
         LEFT JOIN tb_order_address_snapshot ar ON o.id = ar.order_id AND ar.role = 'RECEIVE'
         WHERE tk.deleted = 0 AND o.status IN (5, 7)
         <include refid="adminTakeOrderKeyword"/>
-        ORDER BY tk.create_time DESC
+        ORDER BY tk.create_time DESC, tk.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 

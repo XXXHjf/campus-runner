@@ -19,7 +19,13 @@ function harness(initialNow) {
     showModal: options => { state.modal = options; },
   };
   const quietConsole = { log() {}, error() {} };
-  const managerContext = { Date: Clock, wx, console: quietConsole, module: { exports: {} }, require: () => constants, setTimeout, clearTimeout };
+  const accountStorage = {
+    captureSession: () => ({ ownerId: '1', version: 0 }), isCurrent: () => true,
+    read: key => state.storage[`${key}:1`],
+    write(key, data) { wx.setStorageSync(`${key}:1`, { ...data, ownerId: '1' }); return true; },
+    remove: key => wx.removeStorageSync(`${key}:1`),
+  };
+  const managerContext = { Date: Clock, wx, console: quietConsole, module: { exports: {} }, require: id => id === './accountStorage' ? accountStorage : constants, setTimeout, clearTimeout };
   vm.runInNewContext(fs.readFileSync(require.resolve('../../apps/mini-program/utils/orderDraftManager'), 'utf8'), managerContext);
   const manager = managerContext.module.exports;
   const commonContext = { module: { exports: {} }, require: () => feedbackStub(wx), getApp: () => ({ globalData: {} }) };
@@ -31,7 +37,9 @@ function harness(initialNow) {
     Date: Clock, wx, console: quietConsole, getApp: () => ({ globalData: {} }),
     Page(config) { page = { ...config, data: structuredClone(config.data), setData(update, cb) { Object.assign(this.data, update); cb?.(); } }; },
     require(id) {
+      if (id.endsWith('mediaService')) return { usableTemporaryImages: async ids => ids.map(mediaId => ({ mediaId, previewUrl: 'fresh-preview' })) };
       if (id.endsWith('orderDraftManager')) return manager;
+      if (id.endsWith('accountStorage')) return accountStorage;
       if (id.endsWith('orderConstants')) return constants;
       if (id.endsWith('feedback')) return feedbackStub(wx);
       if (id.endsWith('privacy')) return { maskPhone: value => value };
@@ -52,9 +60,12 @@ function harness(initialNow) {
   const autosave = data => manager.saveDraft(data);
   autosave.cancel = () => {};
   page.debouncedSaveDraft = autosave;
-  page.setData({ category: [{ id: 3 }], showCategory: { id: 3 }, showPickUp: { id: 1 }, showRecive: { id: 2 }, showUser: '测试用户', showPhone: '13800138000', note: '取快递', fileList: [{ mediaId: 1, status: 'done' }] });
+  page._draftSession = accountStorage.captureSession();
+  page.setData({ addrList: [{ id: 1 }, { id: 2 }], category: [{ id: 3 }], showCategory: { id: 3 }, showPickUp: { id: 1 }, showRecive: { id: 2 }, showUser: '测试用户', showPhone: '13800138000', note: '取快递', fileList: [{ mediaId: 1, status: 'done' }] });
   const restore = draft => {
-    state.storage[constants.CACHE_KEYS.ORDER_DRAFT] = { timestamp: state.now, ...draft };
+    state.storage[`${constants.CACHE_KEYS.ORDER_DRAFT}:1`] = {
+      timestamp: state.now, showPickUp: { id: 1 }, showRecive: { id: 2 }, ...draft, ownerId: '1'
+    };
     assert.equal(page._tryRestoreDraft(), true);
     state.modal.success({ confirm: true });
   };
@@ -64,9 +75,9 @@ function harness(initialNow) {
 test('selected absolute deadline is saved, restored and submitted unchanged', async () => {
   const { page, state, restore } = harness(at(27, 15));
   page.selectTime({ currentTarget: { dataset: { time: { time: at(27, 16, 30), displayTime: '16:30' } } } });
-  const saved = state.storage[constants.CACHE_KEYS.ORDER_DRAFT];
+  const saved = state.storage[`${constants.CACHE_KEYS.ORDER_DRAFT}:1`];
   assert.equal(saved.selectedTime, at(27, 16, 30));
-  assert.equal(saved.version, '1.1');
+  assert.equal(saved.version, '1.2');
   state.now = at(27, 15, 40);
   page.setData({ selectedTime: at(27, 16) });
   restore(saved);

@@ -10,7 +10,7 @@
 - 安装依赖：`npm install`（保持 `tdesign-miniprogram` 与锁文件一致）。
 - 构建 npm：微信开发者工具中执行 **工具 → 构建 npm**，更新 `miniprogram_npm/`。
 - 运行/调试：用微信开发者工具打开项目，点击 **编译**；需要真机验证时开启真机调试。
-- `package.json` 未定义额外脚本，预览、上传均使用开发者工具面板。
+- `npm install` / `npm ci` 会通过 `postinstall` 应用 TDesign 滚轮补丁；已有依赖可执行 `npm run patch:picker`，随后重新构建 npm。预览、上传使用开发者工具面板，补丁说明见 `../../docs/mini-program/ui-components.md`。
 
 ## 编码风格与命名
 - 统一 2 空格缩进，文件保持 UTF-8/ASCII。

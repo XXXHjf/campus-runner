@@ -19,6 +19,20 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+    @ExceptionHandler(com.mikasa.campusrunner.common.exception.RequestGuardUnavailableException.class)
+    public org.springframework.http.ResponseEntity<Result> guardUnavailableHandler(com.mikasa.campusrunner.common.exception.RequestGuardUnavailableException e) {
+        return org.springframework.http.ResponseEntity.status(503).header("Retry-After", "5").body(Result.error(e.getMessage()));
+    }
+    @ExceptionHandler(com.mikasa.campusrunner.common.exception.RequestLimitException.class)
+    public org.springframework.http.ResponseEntity<Result> requestLimitHandler(com.mikasa.campusrunner.common.exception.RequestLimitException e) {
+        return org.springframework.http.ResponseEntity.status(429).header("Retry-After",String.valueOf(e.getRetryAfter())).body(Result.error(e.getMessage()));
+    }
+
+    @ExceptionHandler(com.mikasa.campusrunner.common.exception.SubmissionPendingException.class)
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.CONFLICT)
+    public Result submissionPendingHandler(com.mikasa.campusrunner.common.exception.SubmissionPendingException e) {
+        return Result.error(e.getMessage());
+    }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public Result uploadSizeExceptionHandler(MaxUploadSizeExceededException e) {
@@ -28,13 +42,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler
     public Result exceptionHandler(BaseException e){
-        log.error("Exception: {}", e.getMessage());
+        log.warn("Business request rejected, failureType={}", e.getClass().getSimpleName());
         return Result.error(e.getMessage());
     }
 
     @ExceptionHandler
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
     public Result exceptionHandler(Exception e){
-        log.error("Unknown exception", e);
+        log.error("Unknown exception; failureType={}", e.getClass().getSimpleName());
         if (e instanceof DataAccessException) {
             return Result.error("系统数据异常，请稍后重试或联系管理员");
         }

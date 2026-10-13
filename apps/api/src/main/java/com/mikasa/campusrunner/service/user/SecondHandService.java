@@ -12,6 +12,7 @@ import java.util.Map;
 
 public interface SecondHandService {
     List<SecondHandCategory> listCategories();
+    List<SecondHandCategory> listCategories(com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
 
     SecondHandCategory saveCategory(AdminSecondHandCategoryDTO category);
 
@@ -30,10 +31,12 @@ public interface SecondHandService {
     List<SecondHandProductVO> listProducts(SecondHandProductQueryDTO query);
 
     List<SecondHandProductVO> listMyProducts();
+    List<SecondHandProductVO> listMyProducts(SecondHandProductQueryDTO query);
 
     SecondHandProductVO productDetail(Long id);
 
     List<SecondHandProductVO> listFavoriteProducts();
+    List<SecondHandProductVO> listFavoriteProducts(SecondHandProductQueryDTO query);
 
     void favoriteProduct(Long id);
 
@@ -44,18 +47,23 @@ public interface SecondHandService {
     void acceptBargain(Long bargainId, SecondHandOrderCreateDTO dto);
 
     void rejectBargain(Long bargainId);
+    void rejectBargain(Long bargainId, com.mikasa.campusrunner.pojo.dto.SecondHandBargainRejectDTO dto);
 
     void withdrawBargain(Long bargainId);
 
     List<SecondHandBargainVO> listMyBargains();
+    List<SecondHandBargainVO> listMyBargains(com.mikasa.campusrunner.pojo.dto.BargainPageDTO query);
 
     List<SecondHandBargainVO> listProductBargains(Long productId);
+    List<SecondHandBargainVO> listProductBargains(Long productId, com.mikasa.campusrunner.pojo.dto.BargainPageDTO query);
 
     SecondHandOrderVO createOrder(SecondHandOrderCreateDTO dto);
 
     List<SecondHandOrderVO> listBuyerOrders();
+    List<SecondHandOrderVO> listBuyerOrders(SecondHandOrderQueryDTO query);
 
     List<SecondHandOrderVO> listSellerOrders();
+    List<SecondHandOrderVO> listSellerOrders(SecondHandOrderQueryDTO query);
 
     SecondHandOrderVO orderDetail(Long id);
 
@@ -70,20 +78,24 @@ public interface SecondHandService {
     SecondHandMessageVO createMessage(SecondHandMessageDTO dto);
 
     List<SecondHandMessageVO> listProductMessages(Long productId);
+    List<SecondHandMessageVO> listProductMessages(Long productId, com.mikasa.campusrunner.pojo.dto.MessagePageDTO query);
 
     List<SecondHandConversationVO> listConversations();
+    List<SecondHandConversationVO> listConversations(com.mikasa.campusrunner.pojo.dto.ListPageDTO query);
 
     List<SecondHandMessageVO> listConversationMessages(Long productId, Long counterpartyId);
+    List<SecondHandMessageVO> listConversationMessages(Long productId, Long counterpartyId,
+            com.mikasa.campusrunner.pojo.dto.MessagePageDTO query);
 
     SecondHandTransferClaimVO getTransferClaim(Long orderId);
 
-    List<SecondHandProductVO> adminListProducts(SecondHandProductQueryDTO query);
+    com.mikasa.campusrunner.pojo.vo.AdminSecondHandProductPageVO adminListProducts(SecondHandProductQueryDTO query);
 
     SecondHandProductVO adminProductDetail(Long id);
 
     void adminDeleteProduct(Long id);
 
-    List<SecondHandOrderVO> adminListOrders(Integer status);
+    com.mikasa.campusrunner.pojo.vo.AdminSecondHandOrderPageVO adminListOrders(com.mikasa.campusrunner.pojo.dto.AdminSecondHandOrderQueryDTO query);
 
     SecondHandOrderVO adminOrderDetail(Long id);
 
@@ -91,11 +103,11 @@ public interface SecondHandService {
 
     void adminRetryTransfer(Long id);
 
-    List<SecondHandBargainVO> adminListBargains();
+    com.mikasa.campusrunner.pojo.vo.AdminSecondHandBargainPageVO adminListBargains(com.mikasa.campusrunner.pojo.dto.ListPageDTO query);
 
     void adminUpdateBargainStatus(Long id, SecondHandStatusDTO dto);
 
-    List<SecondHandMessageVO> adminListMessages(Long productId);
+    com.mikasa.campusrunner.pojo.dto.PageResult<SecondHandMessageVO> adminListMessages(com.mikasa.campusrunner.pojo.dto.AdminSecondHandMessageQueryDTO query);
 
     void processUnpaidTimeouts();
 

@@ -30,12 +30,12 @@ public class SecondHandSubscriptionService {
     }
 
     public void bargain(Long recipient, Long productId, String tip, LocalDateTime time) {
-        status(recipient, productId, productId.toString(), "pages/second-hand/detail/detail?id=" + productId, "议价中", tip, time);
+        status(recipient, productId, productId.toString(), "pages/second-hand/bargains/bargains?tab=received", "议价中", tip, time);
     }
 
     public void bargainAccepted(Long recipient, Long productId, Long bargainId, String tip, LocalDateTime time) {
         status(recipient, productId, productId.toString(),
-                "pages/second-hand/detail/detail?id=" + productId + "&bargainId=" + bargainId,
+                "pages/second-hand/bargains/bargains?tab=issued",
                 "待下单", tip, time);
     }
 
@@ -48,6 +48,20 @@ public class SecondHandSubscriptionService {
                     "character_string1", text(number.replaceAll("[^A-Za-z0-9]", ""), 32, productId.toString()),
                     "phrase2", status, "time3", format(time), "thing4", text(tip, 20, "点击查看交易详情"),
                     "short_thing5", shortTitle(product.getTitle()))));
+        });
+    }
+
+    public void bargainExpired(Long recipient, Long productId, String productTitle, Long bargainId,
+            String status, String tip, LocalDateTime time) {
+        // Keep the title snapshot: deleted products are no longer returned by getById after commit.
+        afterCommit(() -> {
+            var user = users.getById(recipient);
+            if (user == null) return;
+            sender.send(properties.getSecondHandOrderTemplateId(), user.getOpenid(),
+                    "pages/second-hand/bargains/bargains?tab=issued&bargainId=" + bargainId,
+                    data(Map.of("character_string1", productId.toString(), "phrase2", status,
+                            "time3", format(time), "thing4", text(tip, 20, "报价已失效"),
+                            "short_thing5", shortTitle(productTitle))), "bargain-expired", null);
         });
     }
 

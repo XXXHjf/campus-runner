@@ -79,9 +79,12 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
     private JwtTokenUserInterceptor jwtTokenUserInterceptor;
     @Autowired
     private JwtTokenAdminUserInterceptor jwtTokenAdminUserInterceptor;
+    @Autowired
+    private com.mikasa.campusrunner.interceptor.RequestGuardInterceptor requestGuardInterceptor;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // Registered after both identity interceptors below; order enforces validated actor IDs.
         log.info("Registering interceptors...");
         //注册用户端拦截器
         registry.addInterceptor(jwtTokenUserInterceptor)
@@ -101,6 +104,8 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/admin/api/login",
                         "/admin/api/banner/getList/{schoolId}");
+
+        registry.addInterceptor(requestGuardInterceptor).addPathPatterns("/api/**","/admin/api/**").order(100);
 
     }
 

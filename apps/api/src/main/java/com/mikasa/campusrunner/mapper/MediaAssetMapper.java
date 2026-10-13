@@ -9,6 +9,8 @@ import java.util.List;
 
 @Mapper
 public interface MediaAssetMapper {
+    @org.apache.ibatis.annotations.Update("update tb_media_asset set file_size=#{fileSize}, mime_type=#{mimeType}, width=#{width}, height=#{height}, update_time=now() where id=#{id} and status='UPLOADING' and delete_after>now()")
+    int updateUploadingMetadata(MediaAsset asset);
     void insert(MediaAsset asset);
 
     MediaAsset getById(@Param("id") Long id);
@@ -48,6 +50,18 @@ public interface MediaAssetMapper {
             @Param("boundType") String boundType,
             @Param("boundId") Long boundId,
             @Param("purpose") String purpose);
+
+    List<MediaAsset> listPublicBoundAssetsBatch(
+            @Param("boundType") String boundType,
+            @Param("boundIds") List<Long> boundIds,
+            @Param("purpose") String purpose);
+
+    List<MediaAsset> listBoundAssetsBatch(
+            @Param("boundType") String boundType,
+            @Param("boundIds") List<Long> boundIds,
+            @Param("purpose") String purpose);
+
+    List<MediaAsset> listOrderPreviewAssetsBatch(@Param("orderIds") List<Long> orderIds);
 
     int scheduleTemporaryDeletion(
             @Param("id") Long id,

@@ -136,3 +136,53 @@ page {
   gap: 10rpx;
   margin-left: auto;
 }
+
+.bargains-page__reason {
+  margin-top: 20rpx;
+  color: var(--cr-color-text, #1d2129);
+  font-size: 24rpx;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.bargains-page__reject-dialog-content {
+  padding: 40rpx 36rpx 0;
+  justify-content: flex-start;
+}
+
+.bargains-page__reject-content {
+  height: auto;
+  margin-top: 24rpx;
+  text-align: left;
+  --td-radio-font-size: 28rpx;
+  --td-radio-label-line-height: 44rpx;
+  --td-radio-icon-size: 36rpx;
+  --td-radio-vertical-padding: 16rpx 0;
+  --td-font-size-m: 28rpx;
+}
+
+.bargains-page__reject-content--custom {
+  height: 520rpx;
+  max-height: 50vh;
+}
+
+.bargains-page__reject-price {
+  margin: 0 0 12rpx;
+  color: var(--cr-color-text-secondary, #6b778c);
+  font-size: 26rpx;
+  line-height: 40rpx;
+}
+
+.bargains-page__reject-input {
+  margin-top: 16rpx;
+  padding: 16rpx 20rpx;
+  border-radius: var(--cr-radius-medium, 20rpx);
+  --td-textarea-background-color: var(--cr-color-background, #f5f7fa);
+}
+
+.bargains-page__reject-button {
+  --td-button-small-font-size: 26rpx;
+  --td-button-small-height: 64rpx;
+  --td-button-font-weight: 400;
+}

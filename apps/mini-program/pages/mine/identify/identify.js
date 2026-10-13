@@ -152,7 +152,7 @@ Page({
         });
       }
     } catch (error) {
-      console.error('获取学校列表失败:', error);
+      console.error("获取学校列表失败:");
       feedback.showMessage(this, '学校列表加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.getAllAddress() });
       throw error;
     }
@@ -202,7 +202,7 @@ Page({
         throw new Error('Address list is undefined or null.');
       }
     } catch (error) {
-      console.error('修改地址失败:', error);
+      console.error("修改地址失败:");
       throw error;
     }
   },
@@ -223,14 +223,14 @@ Page({
     this.changeAddressNew();
   },
   onColumnChange(e) {
-    console.log('pick:', e.detail);
+    console.log("pick:");
   },
   onPickerChange(e) {
     const {
       value,
       label
     } = e.detail;
-    console.log('picker confirm:', e.detail);
+    console.log("picker confirm:");
     this.setData({
       areaVisible: false,
       areaValue: value,
@@ -240,21 +240,21 @@ Page({
     });
   },
   onPickerCancel(e) {
-    console.log('picker cancel', e.detail);
+    console.log("picker cancel");
     this.setData({
       areaVisible: false,
     });
   },
   // 姓名
   handleName(e) {
-    console.log('name值： ' + e.detail.value)
+    console.log("name值： ")
     this.setData({
       upName: e.detail.value.replace(/\s+/g, '')
     })
   },
   // 学号
   handleStudentId(e) {
-    console.log('sid值： ' + e.detail.value)
+    console.log("sid值： ")
     this.setData({
       upSID: e.detail.value.replace(/\s+/g, '')
     })
@@ -282,7 +282,7 @@ Page({
       console.log('选择学生证照片成功');
     } catch (err) {
       if (/cancel/i.test(err?.errMsg || err?.message || '')) return;
-      console.error('选择图片失败:', err);
+      console.error("选择图片失败:");
       feedback.showToast(this, {
         title: '选择图片失败',
         theme: 'error',
@@ -309,7 +309,7 @@ Page({
   },
   // 图片加载失败
   onImageError(e) {
-    console.error('[identify] 证件照片加载失败:', e.detail);
+    console.error("[identify] 证件照片加载失败:");
     feedback.showToast(this, {
       title: '证件照片加载失败',
       theme: 'error',
@@ -384,7 +384,7 @@ Page({
       }
 
     } catch (error) {
-      console.error('刷新认证状态失败:', error);
+      console.error("刷新认证状态失败:");
       feedback.showMessage(this, '刷新失败，请重试', { theme: 'error', action: '重试', onAction: () => this.refreshStatus() });
     } finally {
       this.setData({ submitting: false });
@@ -509,7 +509,7 @@ Page({
         });
       }
     } catch (error) {
-      console.error('认证失败:', error);
+      console.error("认证失败:");
       showError(this, error.message || '认证失败');
     } finally {
       this.setData({ submitting: false });
@@ -536,7 +536,7 @@ Page({
 
       return userInfo;
     } catch (error) {
-      console.error('获取用户数据失败:', error);
+      console.error("获取用户数据失败:");
       throw error;
     }
   },
@@ -567,7 +567,7 @@ Page({
       this.setData({
         refreshTime: newRefreshTime
       });
-      console.log('[identify] 更新刷新时间戳:', newRefreshTime);
+      console.log("[identify] 更新刷新时间戳:");
 
       // 强制刷新用户数据（避免从 reIdentify 返回后显示旧数据）
       console.log('[identify] 页面显示，刷新用户数据...');
@@ -588,7 +588,7 @@ Page({
         this.setData({ showAuthNotice: true });
       }
     } catch (error) {
-      console.error('页面加载失败:', error);
+      console.error("页面加载失败:");
       feedback.loadError(this, '资料加载失败，请重试', () => this.onShow(), !!this.data.userInfo?.id);
     }
   },

@@ -128,14 +128,14 @@ class SecondHandPaymentRaceTest {
         verify(weChatPayUtil, never()).closeOrder(any());
     }
     @Test void timeoutUsesCloseAndRequeriesWhenPaymentWins() throws Exception {
-        when(orderMapper.listUnpaidTimeout(any())).thenReturn(List.of(order));
+        when(orderMapper.listUnpaidTimeoutBatch(any(), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(100))).thenReturn(List.of(order));
         doThrow(new java.io.IOException()).when(weChatPayUtil).closeOrder("SH1");
         when(paymentQueries.weChatQueryOrder("SH1")).thenReturn(payment());
         service.processUnpaidTimeouts();
         assertEquals(5, order.getStatus()); assertEquals("REQUESTED", storedRefund.getRefundStatus());
     }
     @Test void staleTimeoutCandidateCannotOverwriteSuccessfulPayment() {
-        when(orderMapper.listUnpaidTimeout(any())).thenReturn(List.of(order));
+        when(orderMapper.listUnpaidTimeoutBatch(any(), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(100))).thenReturn(List.of(order));
         order.setStatus(1); service.processUnpaidTimeouts();
         assertEquals(1, order.getStatus()); verifyNoMoreInteractions(weChatPayUtil, ignoreStubs(productMapper)[0]);
     }
@@ -237,5 +237,49 @@ class SecondHandPaymentRaceTest {
             assertEquals(5, order.getStatus()); verify(paymentLogMapper, times(1)).insert(any());
             verify(refundInfoMapper, times(1)).insert(any()); verify(productMapper, never()).markTrading(any());
         } finally { allowClose.countDown(); executor.shutdownNow(); }
+    }
+
+    @ParameterizedTest @ValueSource(strings={"pay", "refund", "transfer"})
+    void callbackForAnotherOrderDoesNotWaitForBusyOrder(String kind) throws Exception {
+        var busy = new java.util.concurrent.CountDownLatch(1);
+        var release = new java.util.concurrent.CountDownLatch(1);
+        var other = SecondHandOrder.builder().id(2L).productId(4L).orderNumber("SH2").tradeMode("OFFLINE").status(9).build();
+        if (kind.equals("transfer")) {
+            when(orderMapper.getById(2L)).thenReturn(other);
+            when(orderMapper.getByTransferOutBillNo("SH1")).thenReturn(order);
+            when(orderMapper.getByTransferOutBillNo("SH2")).thenReturn(other);
+        } else {
+            when(orderMapper.getByOrderNumber("SH2")).thenReturn(other);
+        }
+        when(orderMapper.getByIdForUpdate(2L)).thenReturn(other);
+        when(orderMapper.getByIdForUpdate(1L)).thenAnswer(i -> { busy.countDown();
+            assertTrue(release.await(3, java.util.concurrent.TimeUnit.SECONDS)); return order; });
+        // No mutations are needed to demonstrate independent order locking.
+        order.setTradeMode("OFFLINE"); order.setStatus(9);
+        var firstBody = encrypted("{\"out_trade_no\":\"SH1\",\"out_bill_no\":\"SH1\"}");
+        var otherBody = encrypted("{\"out_trade_no\":\"SH2\",\"out_bill_no\":\"SH2\"}");
+        var executor = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var first = executor.submit(() -> { invokeCallback(kind, firstBody); return null; });
+            assertTrue(busy.await(3, java.util.concurrent.TimeUnit.SECONDS));
+            executor.submit(() -> { invokeCallback(kind, otherBody); return null; }).get(1, java.util.concurrent.TimeUnit.SECONDS);
+            assertFalse(first.isDone());
+            release.countDown(); first.get(3, java.util.concurrent.TimeUnit.SECONDS);
+        } finally { release.countDown(); executor.shutdownNow(); }
+    }
+
+    private void invokeCallback(String kind, Map<String, Object> body) throws Exception {
+        switch (kind) {
+            case "pay" -> service.processPayNotify(body);
+            case "refund" -> service.processRefundNotify(body);
+            default -> service.processTransferNotify(body);
+        }
+    }
+
+    @ParameterizedTest @ValueSource(strings={"pay", "refund", "transfer"})
+    void missingLocalOrderMustRequestRetryInsteadOfAcknowledgingCallback(String kind) throws Exception {
+        var body = encrypted("{\"out_trade_no\":\"UNKNOWN\",\"out_bill_no\":\"UNKNOWN\"}");
+        assertThrows(SecondHandException.class, () -> invokeCallback(kind, body));
+        verifyNoInteractions(paymentLogMapper, refundInfoMapper, wxPayClient);
     }
 }

@@ -3,14 +3,14 @@
  * 封装轮播图相关的 API 调用
  */
 
-import { get, post, del } from './request'
+import { post, del, getListPages } from './request'
 import type { Banner, BannerCreateRequest } from '../types'
 
 /**
  * 管理端：获取指定学校轮播图
  */
 export async function getBannerList(schoolId: number | string): Promise<Banner[]> {
-  return get<Banner[]>(`/admin/api/banner/getList/${schoolId}`)
+  return getListPages<Banner>(`/admin/api/banner/getList/${schoolId}`)
 }
 
 /**

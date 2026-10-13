@@ -13,6 +13,11 @@ import java.util.List;
  */
 @Data
 public class OrderShowVO{
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Boolean privateAccess;
+    private Boolean viewerIsTaker;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Long accessUserId;
     private Long id;
     private String pickUpAddress;
     private String reciveAddress;
@@ -41,6 +46,7 @@ public class OrderShowVO{
     private Long userId;
     private String username;
     private String senderAvatar;
+    private String senderNickname;
     private String phone;
     private Integer status;
     private String note;

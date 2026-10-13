@@ -1,5 +1,7 @@
 // app.js
 const tokenManager = require('./utils/tokenManager');
+// Register private-cache cleanup before any login or logout occurs.
+require('./utils/accountStorage');
 
 App({
   async refreshMineTabRedDot(options = {}) {
@@ -26,10 +28,10 @@ App({
         key: "userInfo",
         data: userInfo,
         success: function () {
-          console.log('写入userInfo成功', userInfo)
+          console.log("写入userInfo成功")
         },
         fail: function () {
-          console.log('写入userInfo发生错误', userInfo)
+          console.log("写入userInfo发生错误")
         }
       });
     }
@@ -87,18 +89,18 @@ App({
                 console.log('静默登录成功');
                 resolve(true);
               } else {
-                console.log('静默登录失败', res);
+                console.log("静默登录失败");
                 resolve(false);
               }
             },
             fail: (err) => {
-              console.log('静默登录请求失败', err);
+              console.log("静默登录请求失败");
               resolve(false);
             }
           });
         },
         fail: (err) => {
-          console.log('静默登录 wx.login 失败', err);
+          console.log("静默登录 wx.login 失败");
           resolve(false);
         }
       });

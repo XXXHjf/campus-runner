@@ -1,3 +1,4 @@
+const { loadAddressPage } = require('../../../../utils/addressPager');
 const feedback = require('../../../../utils/feedback');
 const { toast: Toast } = require('../../../../utils/feedback');
 
@@ -8,6 +9,7 @@ const userService = require('../../../../services/userService');
 const configService = require('../../../../services/configService');
 const mediaService = require('../../../../services/mediaService');
 const tokenManager = require('../../../../utils/tokenManager');
+const accountStorage = require('../../../../utils/accountStorage');
 const { maskPhone } = require('../../../../utils/privacy');
 const { showLoading, hideLoading, showError } = require('../../../../utils/transformers');
 const {
@@ -210,7 +212,7 @@ Page({
       this._calculateFeePreview();
       feedback.clearMessage(this, 'fee');
     } catch (error) {
-      console.error('[服务费配置] 加载失败:', error);
+      console.error("[服务费配置] 加载失败:");
       this.setData({ feeConfigLoaded: false });
       feedback.showMessage(this, '费用暂时无法获取，请重试', { persistent: true, key: 'fee', action: '重试', onAction: () => this._loadFeeConfig() });
     }
@@ -223,7 +225,7 @@ Page({
   
   // 保存当前表单数据为草稿
   _saveDraftData() {
-    if (!this.debouncedSaveDraft) return;
+    if (!this.debouncedSaveDraft || !accountStorage.isCurrent(this._draftSession)) return;
     
     const draftData = {
       showPickUp: this.data.showPickUp,
@@ -251,6 +253,7 @@ Page({
     
     const draft = loadDraft();
     if (!draft) return false;
+    const session = accountStorage.captureSession();
     
     // 询问用户是否恢复草稿
     feedback.showModal(this, {
@@ -258,9 +261,21 @@ Page({
       content: '是否恢复上次填写的内容？',
       confirmText: '恢复',
       cancelText: '重新填写',
-      success: (res) => {
+      success: async (res) => {
+        if (!accountStorage.isCurrent(session)) return;
         if (res.confirm) {
           const restored = restoreFromDraft(draft);
+          const addresses = [...this.data.addrList];
+          for (const id of new Set([restored.showPickUp?.id, restored.showRecive?.id])) {
+            if (id && !this.findAddressById(addresses, id)) {
+              let address;
+              try { address = await addressService.getOptionalAddress(id); }
+              catch (error) { showErrorToast(this, '地址加载失败，请重试'); return; }
+              if (!accountStorage.isCurrent(session)) return;
+              if (address) addresses.push(address);
+            }
+          }
+          this.setData({ addrList: addresses });
           const { noteTitle, noteDetail, ...draftFields } = restored;
           const note = String(restored.note || [noteTitle, noteDetail]
             .map(part => String(part || '').trim())
@@ -271,6 +286,8 @@ Page({
           const isPurchase = activeCategory && activeCategory.categoryCode === 'PURCHASE';
           this.setData({
             ...draftFields,
+            showPickUp: this.findAddressById(this.data.addrList, restored.showPickUp?.id),
+            showRecive: this.findAddressById(this.data.addrList, restored.showRecive?.id),
             showCategory: activeCategory || {},
             isPurchase,
             priceAccess: isPurchase ? PRICE_MODE.PAID : (restored.priceAccess || PRICE_MODE.FREE),
@@ -283,7 +300,7 @@ Page({
             this._syncDeliveryTime();
             this.buttonColor();
           });
-          checkCilcleToast(this, '已恢复草稿');
+          await this._refreshDraftImages(true);
         } else {
           (draft.fileList || []).forEach(file => {
             if (file.mediaId) mediaService.releaseTemporaryImage(file.mediaId).catch(() => {});
@@ -299,6 +316,39 @@ Page({
     
     return true;
   },
+  async _refreshDraftImages(restoring = false) {
+    const session = accountStorage.captureSession();
+    const ids = [...new Set((this.data.fileList || []).map(file => file.mediaId).filter(Boolean))];
+    if (!ids.length && !restoring) return true;
+    try {
+      const usable = ids.length ? await mediaService.usableTemporaryImages(ids, 'ORDER_IMAGE') : [];
+      if (this._unloaded || !accountStorage.isCurrent(session)) return false;
+      const byId = new Map(usable.map(asset => [String(asset.mediaId), asset]));
+      let expired = false;
+      const fileList = (this.data.fileList || []).filter(file => {
+        if (restoring && (!file.mediaId || file.status !== 'done')) { expired = true; return false; }
+        if (!ids.includes(file.mediaId)) return true;
+        if (!byId.has(String(file.mediaId))) { expired = true; return false; }
+        return true;
+      }).map(file => {
+        const asset = byId.get(String(file.mediaId));
+        return asset ? { ...file, status: 'done', url: asset.previewUrl, expiresAt: asset.expiresAt } : file;
+      });
+      this.setData({ fileList });
+      this.buttonColor();
+      this._saveDraftData();
+      if (expired) feedback.showMessage(this, '部分图片已失效，请重新上传', { theme: 'warning', key: 'draft-images' });
+      else feedback.clearMessage(this, 'draft-images');
+      return !expired;
+    } catch (error) {
+      if (!this._unloaded && accountStorage.isCurrent(session)) {
+        feedback.showMessage(this, '图片暂时无法确认，请稍后重试', { theme: 'error', key: 'draft-images',
+          action: '重试', onAction: () => this._refreshDraftImages() });
+      }
+      return false;
+    }
+  },
+
   _setDateLabels() {
     const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     const today = new Date();
@@ -543,11 +593,24 @@ Page({
     });
   },
   // 获取我的所有地址（使用封装的 service）
+  async loadMoreAddresses() {
+    try { await loadAddressPage(this, "addrList", addressService.getAllAddresses, false); }
+    catch (error) { showErrorToast(this, '地址加载失败，请重试'); }
+  },
   async _getAddress() {
     try {
-      return await addressService.getAllAddresses();
+      const rows = await loadAddressPage(this, "addrList", addressService.getAllAddresses, true);
+      if (!rows) return [];
+      const last = this.getLastUsedAddress() || {};
+      for (const id of new Set([last.pickUpId, last.reciveId, this.data.showPickUp?.id, this.data.showRecive?.id])) {
+        if (id && !rows.some(row => String(row.id) === String(id))) {
+          const address = await addressService.getOptionalAddress(id);
+          if (address) rows.push(address);
+        }
+      }
+      return rows;
     } catch (error) {
-      console.error('获取地址失败:', error);
+      console.error("获取地址失败:");
       throw error;
     }
   },
@@ -562,25 +625,25 @@ Page({
         reciveId: reciveId,
         timestamp: Date.now()
       };
-      wx.setStorageSync(CACHE_KEYS.LAST_ADDRESS, data);
-      console.log('[地址缓存] 保存成功:', data);
+      accountStorage.write(CACHE_KEYS.LAST_ADDRESS, data, this._draftSession);
+      console.log("[地址缓存] 保存成功:");
     } catch (error) {
-      console.error('[地址缓存] 保存失败:', error);
+      console.error("[地址缓存] 保存失败:");
     }
   },
   
   // 从本地缓存读取上次使用的地址
   getLastUsedAddress() {
     try {
-      const data = wx.getStorageSync(CACHE_KEYS.LAST_ADDRESS);
+      const data = accountStorage.read(CACHE_KEYS.LAST_ADDRESS);
       if (data) {
-        console.log('[地址缓存] 读取成功:', data);
+        console.log("[地址缓存] 读取成功:");
         return data;
       }
       console.log('[地址缓存] 无缓存记录');
       return null;
     } catch (error) {
-      console.error('[地址缓存] 读取失败:', error);
+      console.error("[地址缓存] 读取失败:");
       return null;
     }
   },
@@ -590,7 +653,7 @@ Page({
     if (!addressList || !Array.isArray(addressList)) {
       return null;
     }
-    return addressList.find(addr => addr.id === id);
+    return addressList.find(addr => String(addr.id) === String(id));
   },
   
   // 设置默认地址（优先使用上次地址，否则为空）
@@ -759,7 +822,7 @@ Page({
       this.setData({ category });
       return category;
     } catch (error) {
-      console.error('获取分类失败:', error);
+      console.error("获取分类失败:");
       feedback.showMessage(this, '分类加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.getCategory() });
     }
   },
@@ -827,6 +890,8 @@ Page({
   
   // 上传图片 - 重构版（消除代码重复）
   async onUpload(file) {
+    const session = accountStorage.captureSession();
+    if (!accountStorage.isCurrent(session)) return;
     if (this.data.fileList.length >= 9) return;
     const uploadKey = this._imageUploadSequence = (this._imageUploadSequence || 0) + 1;
     const fileList = this.data.fileList;
@@ -842,10 +907,12 @@ Page({
         file.url,
         'ORDER_IMAGE',
         (progress) => {
+          if (!accountStorage.isCurrent(session)) return;
           const index = this.data.fileList.findIndex(item => item.uploadKey === uploadKey);
           if (index >= 0) this.setData({ [`fileList[${index}].percent`]: progress });
         },
       );
+      if (!accountStorage.isCurrent(session)) return;
       const fileIndex = this.data.fileList.findIndex(item => item.uploadKey === uploadKey);
       if (fileIndex < 0) {
         mediaService.releaseTemporaryImage(uploadResult.mediaId).catch(() => {});
@@ -862,7 +929,8 @@ Page({
       
       console.log('[图片上传] 上传成功');
     } catch (error) {
-      console.error('[图片上传] 上传失败:', error);
+      if (!accountStorage.isCurrent(session)) return;
+      console.error("[图片上传] 上传失败:");
       // 更新状态为失败
       const fileIndex = this.data.fileList.findIndex(item => item.uploadKey === uploadKey);
       if (fileIndex >= 0) this.setData({ [`fileList[${fileIndex}].status`]: 'failed' });
@@ -899,7 +967,7 @@ Page({
     const {
       value
     } = e.detail;
-    console.log('确定', value);
+    console.log("确定");
     this.setData({
       value: value
     })
@@ -923,7 +991,7 @@ Page({
     this.hidePicker();
   },
   onColumnChange(e) {
-    console.log('选择', e.detail.value);
+    console.log("选择");
   },
   formatDateTime(date) {
     const year = date.getFullYear();
@@ -974,7 +1042,7 @@ Page({
         gapError: true,
       });
     }
-    console.log('gap值： ' + e.detail.value)
+    console.log("gap值： ")
     this.setData({
       showGap: e.detail.value
     })
@@ -1015,7 +1083,7 @@ Page({
       price: value
     });
     this._calculateFeePreview();
-    console.log('￥输入的有偿值: ', e.detail.value)
+    console.log("￥输入的有偿值: ")
     this._saveDraftData();
   },
   onProductAmountInput(e) {
@@ -1028,6 +1096,12 @@ Page({
   // 发布订单 - 验证并显示确认弹窗
   async order() {
     if (!await require('../../../../utils/accessGuard').ensureAuthenticated()) return;
+    if (userOrderService.getPendingCreation?.()) {
+      const session = accountStorage.captureSession();
+      const answer = await feedback.showModal(this, { title: '确认上次提交', content: '上次提交结果暂未确认。继续重试上次提交？', confirmText: '继续重试' });
+      if (answer.confirm && accountStorage.isCurrent(session)) await this.confirmOrder();
+      return;
+    }
     this.setData({ showReviewFeeHint: false });
     // 数据预处理
     this._prepareOrderData();
@@ -1126,7 +1200,8 @@ Page({
   async confirmOrder() {
     if (this.data.isSubmitting) return;
     if (!await require('../../../../utils/accessGuard').ensureAuthenticated()) return;
-    const contentValidation = validateContent(this.data);
+    const session = accountStorage.captureSession();
+    const contentValidation = userOrderService.getPendingCreation?.() ? { valid: true } : validateContent(this.data);
     if (!contentValidation.valid) {
       errorCilcleToast(this, contentValidation.message);
       this.setData({ showOrderConfirm: false });
@@ -1137,13 +1212,14 @@ Page({
     try {
       // 请求订阅消息权限
       await this._getSubscribeMessage();
+      if (this._unloaded || !accountStorage.isCurrent(session)) return;
       console.log('[订单发布] 订阅消息权限获取成功');
       
       // 发布订单
       await this._apiPostOrder();
       this.setData({ showOrderConfirm: false });
     } catch (err) {
-      console.error('[订单发布] 失败:', err);
+      console.error("[订单发布] 失败:");
       showErrorToast(this, err.message || '发布订单失败');
     } finally {
       this.setData({ isSubmitting: false });
@@ -1154,45 +1230,51 @@ Page({
     showLoading('发布中');
     
     try {
-      const isPaidOrder = this.data.priceAccess === PRICE_MODE.PAID;
+      const session = accountStorage.captureSession();
+      let orderData = userOrderService.getPendingCreation?.();
+      const isPaidOrder = orderData ? Number(orderData.payAmount) > 0 : this.data.priceAccess === PRICE_MODE.PAID;
+      if (!orderData) {
+        if (!await this._refreshDraftImages()) { hideLoading(); return; }
 
-      // 确认弹窗或订阅授权期间可能跨过截止时间，实际提交前再次校验。
-      if (!Number.isFinite(this.data.selectedTime) || this.data.selectedTime <= Date.now()) {
-        this._syncDeliveryTime();
-        this.setData({ showOrderConfirm: false });
-        throw new Error('预期送达时间已过，请重新选择');
+        // 确认弹窗或订阅授权期间可能跨过截止时间，实际提交前再次校验。
+        if (!Number.isFinite(this.data.selectedTime) || this.data.selectedTime <= Date.now()) {
+          this._syncDeliveryTime();
+          this.setData({ showOrderConfirm: false });
+          throw new Error('预期送达时间已过，请重新选择');
+        }
+        const selectedDate = new Date(this.data.selectedTime);
+        const pad = value => String(value).padStart(2, '0');
+        const expectedDeliveryTime = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())} ${pad(selectedDate.getHours())}:${pad(selectedDate.getMinutes())}:00`;
+        // 构建订单数据
+        orderData = {
+          pickUpAddress: this.data.showPickUp.id,
+          reciveAddress: this.data.showRecive.id,
+          categoryId: this.data.showCategory.id,
+          username: this.data.showUser,
+          phone: this.data.showPhone,
+          doorAccess: this.data.doorAccess,
+          note: this.data.note,
+          imageAssetIds: this.data.fileList.map(file => file.mediaId),
+          cancelTime: this.data.cancelTime,
+          expectedDeliveryTime,
+          gap: Math.max(1, Math.ceil((this.data.selectedTime - Date.now()) / 60000)),
+          price: isPaidOrder ? Number(this.data.price) : null,
+          productAmount: this.data.isPurchase ? Number(this.data.productAmount) : 0,
+          serviceFeeRate: isPaidOrder ? Number(this.data.serviceFeeRate) : 0,
+          serviceFee: isPaidOrder ? Number(this.data.serviceFee) : 0,
+          payAmount: isPaidOrder ? Number(this.data.payAmount) : 0
+        };
       }
-      const selectedDate = new Date(this.data.selectedTime);
-      const pad = value => String(value).padStart(2, '0');
-      const expectedDeliveryTime = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth() + 1)}-${pad(selectedDate.getDate())} ${pad(selectedDate.getHours())}:${pad(selectedDate.getMinutes())}:00`;
-      // 构建订单数据
-      const orderData = {
-        pickUpAddress: this.data.showPickUp.id,
-        reciveAddress: this.data.showRecive.id,
-        categoryId: this.data.showCategory.id,
-        username: this.data.showUser,
-        phone: this.data.showPhone,
-        doorAccess: this.data.doorAccess,
-        note: this.data.note,
-        imageAssetIds: this.data.fileList.map(file => file.mediaId),
-        cancelTime: this.data.cancelTime,
-        expectedDeliveryTime,
-        gap: Math.max(1, Math.ceil((this.data.selectedTime - Date.now()) / 60000)),
-        price: isPaidOrder ? Number(this.data.price) : null,
-        productAmount: this.data.isPurchase ? Number(this.data.productAmount) : 0,
-        serviceFeeRate: isPaidOrder ? Number(this.data.serviceFeeRate) : 0,
-        serviceFee: isPaidOrder ? Number(this.data.serviceFee) : 0,
-        payAmount: isPaidOrder ? Number(this.data.payAmount) : 0
-      };
 
       // 创建订单
       const result = await userOrderService.createOrder(orderData);
       const orderID = result.data.id;
+      if (this._unloaded || !accountStorage.isCurrent(session)) { hideLoading(); return; }
       
       hideLoading();
       
       // 保存本次使用的地址到缓存（用于下次自动填充）
-      this.saveLastUsedAddress(this.data.showPickUp.id, this.data.showRecive.id);
+      this.saveLastUsedAddress(orderData.pickUpAddress, orderData.reciveAddress);
       
       // 清除订单草稿（发布成功后）
       if (this.debouncedSaveDraft) this.debouncedSaveDraft.cancel();
@@ -1207,7 +1289,7 @@ Page({
       }
     } catch (error) {
       hideLoading();
-      console.error('[订单发布] 创建订单失败:', error);
+      console.error("[订单发布] 创建订单失败:");
       throw error;
     }
   },
@@ -1229,7 +1311,7 @@ Page({
         await this._syncPayStatus(orderID);
       } catch (syncError) {
         synced = false;
-        console.error('[订单支付] 支付状态同步失败:', syncError);
+        console.error("[订单支付] 支付状态同步失败:");
       }
       
       hideLoading();
@@ -1240,7 +1322,7 @@ Page({
       }
     } catch (error) {
       hideLoading();
-      console.error('[订单支付] 支付失败:', error);
+      console.error("[订单支付] 支付失败:");
       // The created order remains available even when the user cancels payment.
       const cancelled = /cancel|取消/i.test(error?.errMsg || error?.message || '');
       wx.redirectTo({ url: `/pages/orders/myOrders/ordersInfo/info?id=${orderID}${cancelled ? '' : '&paymentFailed=1'}` });
@@ -1315,7 +1397,7 @@ Page({
       
       const app = getApp();
       const isLogin = (app.globalData.userInfo != null);
-      console.log("登陆状态: " + isLogin);
+      console.log("登陆状态: ");
       
       if (!isLogin) {
         const notLoginError = new Error("未登录账号");
@@ -1331,21 +1413,31 @@ Page({
         throw notIdentifyError;
       }
       
-      console.log('获取用户数据:', userInfo);
+      console.log("获取用户数据:");
       return userInfo;
     } catch (error) {
-      console.error('获取用户数据失败:', error);
+      console.error("获取用户数据失败:");
       throw error;
     }
   },
   // 清除所有页面数据
   onUnload: function () {
+    this._unloaded = true;
+    this.debouncedSaveDraft?.flush();
+    this.debouncedSaveDraft?.cancel();
+    this._unsubscribeSession?.();
     // 页面退出时不再发起第二次返回，避免破坏原来的浏览路径。
   },
 
   // 生命周期函数--监听页面加载
   onLoad() {
     console.log('[生命周期] onLoad - 页面加载');
+    this._initialFormData = JSON.parse(JSON.stringify(this.data));
+    this._unsubscribeSession = tokenManager.onSessionChange(() => {
+      this.debouncedSaveDraft?.cancel();
+      this._draftSession = null;
+      this.setData(JSON.parse(JSON.stringify(this._initialFormData)));
+    });
     
     // 初始化日期标签
     this._setDateLabels();
@@ -1367,35 +1459,42 @@ Page({
       // 获取并验证用户信息
       const userInfo = await this._checkUserAuth();
       if (!userInfo) return; // 未登录或未认证，已处理跳转
+      const session = this._draftSession = accountStorage.captureSession();
+      if (!accountStorage.isCurrent(session)) return;
 
       if (!this.data.feeConfigLoaded) {
         await this._loadFeeConfig();
       }
+      if (!accountStorage.isCurrent(session)) return;
       
       // 只在首次加载时获取地址和分类（性能优化）
       const isFirstLoad = !this.data.addrList || this.data.addrList.length === 0;
       
       if (isFirstLoad) {
         await this._loadInitialData();
+        if (!accountStorage.isCurrent(session)) return;
         // 尝试恢复草稿（仅首次加载时）
         this._tryRestoreDraft();
         this._calculateFeePreview();
       } else {
         // 非首次加载，只刷新地址列表（可能从地址管理页返回）
         await this._refreshAddressList();
+        if (!accountStorage.isCurrent(session)) return;
         this._calculateFeePreview();
       }
       
     } catch (error) {
-      console.error('[生命周期] onShow 错误:', error);
+      console.error("[生命周期] onShow 错误:");
       feedback.showMessage(this, '资料加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.onShow() });
     }
   },
   
   // 检查用户认证状态
   async _checkUserAuth() {
+    const session = accountStorage.captureSession();
     try {
       const res = await this.getGlobalData();
+      if (!accountStorage.isCurrent(session)) return null;
       const app = getApp();
       const userInfo = {
         ...res,
@@ -1415,6 +1514,7 @@ Page({
   
   // 加载初始数据（首次加载时）
   async _loadInitialData() {
+    const session = accountStorage.captureSession();
     console.log('[数据加载] 加载初始数据');
     
     // 并行加载地址和分类（提升性能）
@@ -1422,6 +1522,7 @@ Page({
       this._getAddress(),
       this.getCategory()
     ]);
+    if (!accountStorage.isCurrent(session)) return;
     
     // 设置地址列表
     this.setData({
@@ -1443,10 +1544,12 @@ Page({
   
   // 刷新地址列表（从其他页面返回时）
   async _refreshAddressList() {
+    const session = accountStorage.captureSession();
     console.log('[数据刷新] 刷新地址列表');
     
     try {
       const addrList = await this._getAddress();
+      if (!accountStorage.isCurrent(session)) return;
       this.setData({
         reciveList: addrList,
         pickUpList: addrList,
@@ -1460,7 +1563,7 @@ Page({
           : null
       });
     } catch (error) {
-      console.error('[数据刷新] 刷新地址失败:', error);
+      console.error("[数据刷新] 刷新地址失败:");
     }
   },
   // 右上角分享--好友、朋友圈

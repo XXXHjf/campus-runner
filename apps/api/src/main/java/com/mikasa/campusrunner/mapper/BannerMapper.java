@@ -12,6 +12,7 @@ import java.util.List;
  */
 @Mapper
 public interface BannerMapper {
+    List<Banner> getListBySchoolIdPage(@org.apache.ibatis.annotations.Param("schoolId") Long schoolId, @org.apache.ibatis.annotations.Param("page") com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
     /**
      * 插入轮播图数据
      * @param banner

@@ -26,10 +26,9 @@ export async function uploadImage(
   const preparedFile = await prepareImageForUpload(file, purpose)
   const formData = new FormData()
   formData.append('file', preparedFile)
-  formData.append('purpose', purpose)
 
   return request<MediaUploadResult>({
-    url: '/admin/api/media/images',
+    url: `/admin/api/media/images?purpose=${encodeURIComponent(purpose)}`,
     method: 'POST',
     data: formData,
     headers: {

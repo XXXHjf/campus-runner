@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class OrderShowByAddressDTO {
+public class OrderShowByAddressDTO extends ListPageDTO {
     private Long schoolNumberId;
     private Long compusNumberId;
     private Long buildCategoryNumberId;

@@ -52,6 +52,15 @@
         FROM tb_building
         WHERE deleted = 0
         <if test="schoolId != null">AND school_id = #{schoolId}</if>
+        order by number_id, id limit 50
+    </select>
+    <select id="getThreePage" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookThreeVO$Building">
+        SELECT building_name,number_id
+        FROM tb_building
+        WHERE deleted = 0
+        <if test="schoolId != null">AND school_id = #{schoolId}</if>
+        and compus_id in (select id from tb_compus where number_id=#{page.compusNumberId} and deleted=0)
+        order by number_id, id limit #{page.limit} offset #{page.offset}
     </select>
 
     <select id="getBySchoolId" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminAdressBuildingVO">
@@ -72,6 +81,27 @@
             tb_building.`school_id` = #{schoolId} AND
             tb_building.`build_category_id` = tb_build_category.`id` AND
             tb_building.`deleted` = 0
+    order by tb_building.id limit 50
+    </select>
+    <select id="getBySchoolIdPage" resultType="com.mikasa.campusrunner.pojo.vo.admin.AdminAdressBuildingVO">
+        SELECT
+            tb_building.`id`,
+            tb_building.`school_id`,
+            tb_building.`school_name`,
+            tb_building.`compus_id`,
+            tb_building.`compus_name`,
+            tb_building.`build_category_id`,
+            tb_build_category.`name` AS build_category_name,
+            tb_building.`number_id`,
+            tb_building.`building_name`
+        FROM
+            tb_building,
+            tb_build_category
+        WHERE
+            tb_building.`school_id` = #{schoolId} AND
+            tb_building.`build_category_id` = tb_build_category.`id` AND
+            tb_building.`deleted` = 0
+    order by tb_building.id limit #{page.limit} offset #{page.offset}
     </select>
     <select id="getById" resultType="com.mikasa.campusrunner.pojo.entity.Building">
         select * from tb_building where id = #{id} and deleted = 0

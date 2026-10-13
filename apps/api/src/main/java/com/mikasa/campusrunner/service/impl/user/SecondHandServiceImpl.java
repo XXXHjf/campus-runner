@@ -32,7 +32,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,7 +46,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 @Slf4j
@@ -92,17 +90,42 @@ public class SecondHandServiceImpl implements SecondHandService {
     private SecondHandRefundRecovery refundRecovery;
     @Autowired
     private org.springframework.transaction.PlatformTransactionManager transactionManager;
-    @Value("${com.mikasa.campus-runner.dev.mock-payment-enabled:false}")
-    private Boolean mockPaymentEnabled;
 
-    private final ReentrantLock payNotifyLock = new ReentrantLock();
-    private final ReentrantLock transferNotifyLock = new ReentrantLock();
-    private final ReentrantLock refundNotifyLock = new ReentrantLock();
 
     @Override
     public List<SecondHandCategory> listCategories() {
         List<SecondHandCategory> categories = categoryMapper.list();
-        categories.forEach(this::resolveCategoryImage);
+        if (!categories.isEmpty()) {
+            var images = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_SECOND_HAND_CATEGORY,
+                    categories.stream().map(SecondHandCategory::getId).distinct().toList(),
+                    MediaPurpose.SECOND_HAND_CATEGORY_ICON.name(), 0);
+            for (var category : categories) {
+                var bound = images.getOrDefault(category.getId(), List.of());
+                if (!bound.isEmpty()) {
+                    category.setImageAssetId(bound.get(0).getMediaId());
+                    category.setImage(bound.get(0).getUrl());
+                }
+            }
+        }
+        return categories;
+    }
+
+    @Override
+    public List<SecondHandCategory> listCategories(com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        page.getLimit(); page.getOffset();
+        List<SecondHandCategory> categories = categoryMapper.listPage(page);
+        if (!categories.isEmpty()) {
+            var images = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_SECOND_HAND_CATEGORY,
+                    categories.stream().map(SecondHandCategory::getId).distinct().toList(),
+                    MediaPurpose.SECOND_HAND_CATEGORY_ICON.name(), 0);
+            for (var category : categories) {
+                var bound = images.getOrDefault(category.getId(), List.of());
+                if (!bound.isEmpty()) {
+                    category.setImageAssetId(bound.get(0).getMediaId());
+                    category.setImage(bound.get(0).getUrl());
+                }
+            }
+        }
         return categories;
     }
 
@@ -224,12 +247,14 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Transactional
     public void updateProduct(Long id, SecondHandProductDTO dto) {
         ensureAuthenticated();
+        if (dto == null) throw new ParamException("请填写商品信息");
         SecondHandProduct product = requireProductForUpdate(id);
         ensureOwner(product.getSellerId());
         if (!isStatus(product.getStatus(), SecondHandConstant.PRODUCT_ON_SALE) &&
                 !isStatus(product.getStatus(), SecondHandConstant.PRODUCT_OFF_SHELF)) {
             throw new SecondHandException("交易中的商品不可编辑");
         }
+        validateProductFields(dto);
         SecondHandProduct update = new SecondHandProduct();
         BeanUtils.copyProperties(dto, update);
         update.setId(id);
@@ -267,6 +292,9 @@ public class SecondHandServiceImpl implements SecondHandService {
             throw new SecondHandException("只能上架或下架自己的商品");
         }
         productMapper.updateStatus(id, status);
+        if (status == SecondHandConstant.PRODUCT_OFF_SHELF) {
+            expireBargains(product, "已下架", "商品已下架，报价已失效");
+        }
     }
 
     @Override
@@ -282,6 +310,10 @@ public class SecondHandServiceImpl implements SecondHandService {
             throw new SecondHandException("请通过订单处理交易状态");
         }
         productMapper.updateStatus(id, status);
+        if (status != SecondHandConstant.PRODUCT_ON_SALE) {
+            expireBargains(product, status == SecondHandConstant.PRODUCT_SOLD ? "已售出" : "已下架",
+                    status == SecondHandConstant.PRODUCT_SOLD ? "商品已售出，报价已失效" : "商品已下架，报价已失效");
+        }
     }
 
     @Override
@@ -294,17 +326,28 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (query.getStatus() == null) {
             query.setStatus(SecondHandConstant.PRODUCT_ON_SALE);
         }
-        List<SecondHandProductVO> products = productMapper.list(query, schoolId);
-        products.forEach(product -> resolveProductImages(product, 480));
+        query.getOffset(); // Validate pagination before any product/media query.
+        List<SecondHandProductVO> products = productMapper.listPage(query, schoolId);
+        resolveProductImagesBatch(products, 480);
         return products;
     }
 
     @Override
     public List<SecondHandProductVO> listMyProducts() {
+        return listMyProducts(new SecondHandProductQueryDTO());
+    }
+
+    @Override
+    public List<SecondHandProductVO> listMyProducts(SecondHandProductQueryDTO query) {
         ensureAuthenticated();
+        if (query == null) query = new SecondHandProductQueryDTO();
+        query.getOffset();
+        if (query.getStatus() != null && (query.getStatus() < 0 || query.getStatus() > 4)) {
+            throw new ParamException("筛选条件有误，请重新选择");
+        }
         List<SecondHandProductVO> products =
-                productMapper.listBySeller(BaseContext.getCurrentId());
-        products.forEach(this::resolveProductImages);
+                productMapper.listBySeller(BaseContext.getCurrentId(), query);
+        resolveProductImagesBatch(products, 0);
         return products;
     }
 
@@ -327,9 +370,16 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     @Override
     public List<SecondHandProductVO> listFavoriteProducts() {
+        return listFavoriteProducts(new SecondHandProductQueryDTO());
+    }
+
+    @Override
+    public List<SecondHandProductVO> listFavoriteProducts(SecondHandProductQueryDTO query) {
         ensureAuthenticated();
-        List<SecondHandProductVO> products = productMapper.listFavorites(BaseContext.getCurrentId());
-        products.forEach(this::resolveProductImages);
+        if (query == null) query = new SecondHandProductQueryDTO();
+        query.getOffset();
+        List<SecondHandProductVO> products = productMapper.listFavorites(BaseContext.getCurrentId(), query);
+        resolveProductImagesBatch(products, 0);
         return products;
     }
 
@@ -375,6 +425,22 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (dto.getOfferPrice() == null || dto.getOfferPrice().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ParamException("议价金额不正确");
         }
+        ensureBargainProductAvailable(product);
+        var active = bargainMapper.listActiveByBuyerAndProductForUpdate(buyerId, product.getId());
+        if (active.stream().anyMatch(item -> isStatus(item.getStatus(), SecondHandConstant.BARGAIN_ACCEPTED))) {
+            throw new SecondHandException("卖家已接受报价，请前往下单");
+        }
+        // 同一待回复报价重试时复用原记录，不重复消耗次数或发送通知。
+        if (!active.isEmpty()) {
+            var latest = active.get(0);
+            if (latest.getOfferPrice().compareTo(dto.getOfferPrice()) == 0
+                    && java.util.Objects.equals(latest.getMessage(), dto.getMessage())) {
+                var query = new com.mikasa.campusrunner.pojo.dto.BargainPageDTO();
+                query.setBargainId(latest.getId());
+                return bargainMapper.listByProductPage(product.getId(), buyerId, query).stream().findFirst()
+                        .orElseThrow(() -> new SecondHandException("议价暂不可用，请刷新后重试"));
+            }
+        }
         int count = bargainMapper.countByBuyerAndProduct(buyerId, product.getId());
         int maxCount = getIntConfig("second_hand_bargain_max_count", SecondHandConstant.DEFAULT_BARGAIN_MAX_COUNT);
         if (count >= maxCount) {
@@ -393,6 +459,8 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .createTime(now)
                 .updateTime(now)
                 .build();
+        // 商品锁串行化新报价与接受操作；旧报价失效与新增同事务提交或回滚。
+        bargainMapper.expirePendingByBuyerAndProduct(buyerId, product.getId());
         bargainMapper.insert(bargain);
         subscriptions.bargain(product.getSellerId(), product.getId(), "买家出价 ¥" + bargain.getOfferPrice().stripTrailingZeros().toPlainString() + " 元", now);
         return bargainMapper.listByProduct(product.getId()).stream()
@@ -412,6 +480,7 @@ public class SecondHandServiceImpl implements SecondHandService {
         }
         SecondHandProduct product = requireProductForUpdate(bargain.getProductId());
         ensureBargainProductAvailable(product);
+        ensureQuoteHasNotBeenSuperseded(bargain);
         if (bargainMapper.updatePendingStatus(bargain.getId(), SecondHandConstant.BARGAIN_ACCEPTED) == 0) {
             throw new SecondHandException("该议价已处理或已失效，请刷新后查看");
         }
@@ -422,12 +491,35 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Override
     @Transactional
     public void rejectBargain(Long bargainId) {
+        rejectBargain(bargainId, null);
+    }
+
+    @Override
+    @Transactional
+    public void rejectBargain(Long bargainId, SecondHandBargainRejectDTO dto) {
         ensureAuthenticated();
+        String code = null;
+        String note = null;
+        if (dto != null) {
+            code = dto.getReasonCode();
+            if (code == null || !java.util.Set.of("NOT_SELLING_NOW", "PRICE_NOT_SUITABLE", "CUSTOM").contains(code)) {
+                throw new ParamException("请选择拒绝原因");
+            }
+            if ("CUSTOM".equals(code) && dto.getNote() != null) {
+                note = dto.getNote().strip();
+                if (note.codePointCount(0, note.length()) > 40) throw new ParamException("原因请控制在40字以内");
+                if (note.isBlank()) note = null;
+            }
+        }
         SecondHandBargain bargain = requireBargain(bargainId);
         ensureOwner(bargain.getSellerId());
         SecondHandProduct product = requireProductForUpdate(bargain.getProductId());
         ensureBargainProductAvailable(product);
-        if (bargainMapper.updatePendingStatus(bargain.getId(), SecondHandConstant.BARGAIN_REJECTED) == 0) {
+        ensureQuoteHasNotBeenSuperseded(bargain);
+        int updated = dto == null
+                ? bargainMapper.updatePendingStatus(bargain.getId(), SecondHandConstant.BARGAIN_REJECTED)
+                : bargainMapper.rejectPending(bargain.getId(), code, note);
+        if (updated == 0) {
             throw new SecondHandException("该议价已处理或已失效，请刷新后查看");
         }
     }
@@ -451,34 +543,39 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     @Override
     public List<SecondHandBargainVO> listMyBargains() {
+        return listMyBargains(new com.mikasa.campusrunner.pojo.dto.BargainPageDTO());
+    }
+
+    @Override
+    public List<SecondHandBargainVO> listMyBargains(com.mikasa.campusrunner.pojo.dto.BargainPageDTO query) {
         ensureAuthenticated();
-        List<SecondHandBargainVO> bargains = bargainMapper.listMine(BaseContext.getCurrentId());
-        // 同一商品可能有多次报价，每次请求只解析一次公开封面。
-        Map<Long, String> covers = new HashMap<>();
-        for (SecondHandBargainVO bargain : bargains) {
-            if (bargain.getProductId() == null) continue;
-            bargain.setProductCoverImage(covers.computeIfAbsent(bargain.getProductId(), productId -> {
-                var images = mediaAssetService.resolvePublicBinding(
-                        MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
-                        productId,
-                        MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name());
-                return images.isEmpty() ? "" : images.get(0).getUrl();
-            }));
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.BargainPageDTO();
+        query.getOffset();
+        var bargains = bargainMapper.listMinePage(BaseContext.getCurrentId(), query);
+        var covers = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
+                bargains.stream().map(SecondHandBargainVO::getProductId).filter(java.util.Objects::nonNull).toList(),
+                MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name(), 480);
+        for (var bargain : bargains) {
+            var images = bargain.getProductId() == null ? List.<com.mikasa.campusrunner.pojo.vo.BoundMediaVO>of()
+                    : covers.getOrDefault(bargain.getProductId(), List.of());
+            bargain.setProductCoverImage(images.isEmpty() ? "" : images.get(0).getUrl());
         }
         return bargains;
     }
 
     @Override
     public List<SecondHandBargainVO> listProductBargains(Long productId) {
+        return listProductBargains(productId, new com.mikasa.campusrunner.pojo.dto.BargainPageDTO());
+    }
+
+    @Override
+    public List<SecondHandBargainVO> listProductBargains(Long productId, com.mikasa.campusrunner.pojo.dto.BargainPageDTO query) {
         ensureAuthenticated();
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.BargainPageDTO();
+        query.getOffset();
         SecondHandProduct product = requireProduct(productId);
         Long userId = BaseContext.getCurrentId();
-        if (!product.getSellerId().equals(userId)) {
-            return bargainMapper.listByProduct(productId).stream()
-                    .filter(item -> item.getBuyerId().equals(userId))
-                    .toList();
-        }
-        return bargainMapper.listByProduct(productId);
+        return bargainMapper.listByProductPage(productId, product.getSellerId().equals(userId) ? null : userId, query);
     }
 
     @Override
@@ -501,6 +598,7 @@ public class SecondHandServiceImpl implements SecondHandService {
             if (orderMapper.getByBargainId(bargain.getId()) != null) {
                 throw new SecondHandException("该报价已生成订单，请查看订单");
             }
+            ensureQuoteHasNotBeenSuperseded(bargain);
             return createOrderInternal(product, bargain.getBuyerId(), bargain.getOfferPrice(), dto, true);
         }
         SecondHandProduct product = requireProductForUpdate(dto.getProductId());
@@ -510,9 +608,17 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Override
     @Transactional
     public List<SecondHandOrderVO> listBuyerOrders() {
+        return listBuyerOrders(new SecondHandOrderQueryDTO());
+    }
+
+    @Override
+    @Transactional
+    public List<SecondHandOrderVO> listBuyerOrders(SecondHandOrderQueryDTO query) {
         ensureAuthenticated();
-        refreshUnpaidTimeouts();
-        List<SecondHandOrderVO> orders = enrichOrders(orderMapper.listByBuyer(BaseContext.getCurrentId()));
+        if (query == null) query = new SecondHandOrderQueryDTO();
+        query.getOffset();
+        refreshUnpaidTimeouts(BaseContext.getCurrentId());
+        List<SecondHandOrderVO> orders = enrichOrders(orderMapper.listByBuyer(BaseContext.getCurrentId(), query));
         resolveCounterpartyAvatars(orders, false);
         return orders;
     }
@@ -520,9 +626,17 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Override
     @Transactional
     public List<SecondHandOrderVO> listSellerOrders() {
+        return listSellerOrders(new SecondHandOrderQueryDTO());
+    }
+
+    @Override
+    @Transactional
+    public List<SecondHandOrderVO> listSellerOrders(SecondHandOrderQueryDTO query) {
         ensureAuthenticated();
-        refreshUnpaidTimeouts();
-        List<SecondHandOrderVO> orders = enrichOrders(orderMapper.listBySeller(BaseContext.getCurrentId()));
+        if (query == null) query = new SecondHandOrderQueryDTO();
+        query.getOffset();
+        refreshUnpaidTimeouts(BaseContext.getCurrentId());
+        List<SecondHandOrderVO> orders = enrichOrders(orderMapper.listBySeller(BaseContext.getCurrentId(), query));
         resolveCounterpartyAvatars(orders, true);
         return orders;
     }
@@ -589,7 +703,7 @@ public class SecondHandServiceImpl implements SecondHandService {
             cancelOnlineOrder(order, reason == null ? "买家取消订单" : reason);
             return;
         }
-        throw new SecondHandException("当前订单状态不可取消，请发起申诉");
+        throw new SecondHandException("当前订单无法取消，请先与卖家协商");
     }
 
     @Override
@@ -722,76 +836,121 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .build();
         messageMapper.insert(message);
         subscriptions.message(message);
-        return messageMapper.listByProductForUser(dto.getProductId(), senderId).stream()
-                .filter(item -> item.getId().equals(message.getId()))
-                .findFirst()
-                .orElseThrow(() -> new SecondHandException("消息发送失败"));
+        var created = messageMapper.getForUser(message.getId(), senderId);
+        if (created == null) throw new SecondHandException("消息发送失败，请重试");
+        return created;
     }
 
     @Override
     public List<SecondHandMessageVO> listProductMessages(Long productId) {
+        return listProductMessages(productId, new com.mikasa.campusrunner.pojo.dto.MessagePageDTO());
+    }
+
+    @Override
+    public List<SecondHandMessageVO> listProductMessages(Long productId,
+            com.mikasa.campusrunner.pojo.dto.MessagePageDTO query) {
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.MessagePageDTO();
+        query.getLimit();
         ensureAuthenticated();
-        return messageMapper.listByProductForUser(productId, BaseContext.getCurrentId());
+        return readMessagePage(productId, null, query);
     }
 
     @Override
     public List<SecondHandConversationVO> listConversations() {
+        return listConversations(new com.mikasa.campusrunner.pojo.dto.ListPageDTO());
+    }
+
+    @Override
+    public List<SecondHandConversationVO> listConversations(com.mikasa.campusrunner.pojo.dto.ListPageDTO query) {
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.ListPageDTO();
+        query.getOffset();
         ensureAuthenticated();
         Long userId = BaseContext.getCurrentId();
-        Map<String, SecondHandConversationVO> conversations = new LinkedHashMap<>();
-        Map<Long, SecondHandProductVO> products = new HashMap<>();
-        for (SecondHandMessageVO message : messageMapper.listForUser(userId)) {
-            boolean sentByCurrentUser = userId.equals(message.getSenderId());
-            Long counterpartyId = sentByCurrentUser ? message.getReceiverId() : message.getSenderId();
-            String counterpartyName = sentByCurrentUser ? message.getReceiverName() : message.getSenderName();
-            String key = message.getProductId() + ":" + counterpartyId;
-            SecondHandConversationVO conversation = conversations.get(key);
-            if (conversation == null) {
-                SecondHandProductVO product = products.computeIfAbsent(
-                        message.getProductId(),
-                        productId -> resolveProductImages(productMapper.detail(productId, userId))
-                );
-                conversation = SecondHandConversationVO.builder()
-                        .productId(message.getProductId())
-                        .productTitle(product == null ? "商品" : product.getTitle())
-                        .productImages(product == null ? "" : product.getImages())
-                        .counterpartyId(counterpartyId)
-                        .counterpartyName(firstNotBlank(counterpartyName, "同学"))
-                        .orderId(message.getOrderId())
-                        .lastMessage(message.getContent())
-                        .lastMessageTime(message.getCreateTime())
-                        .unreadCount(0)
-                        .build();
-                conversations.put(key, conversation);
-            } else if (conversation.getOrderId() == null && message.getOrderId() != null) {
-                conversation.setOrderId(message.getOrderId());
-            }
-            if (userId.equals(message.getReceiverId()) && message.getReadTime() == null) {
-                conversation.setUnreadCount(conversation.getUnreadCount() + 1);
-            }
+        var conversations = messageMapper.listConversationsPage(userId, query);
+        if (conversations.stream().anyMatch(row -> row == null || !userId.equals(row.getAccessUserId())
+                || row.getProductId() == null || row.getProductId() <= 0
+                || row.getCounterpartyId() == null || row.getCounterpartyId() <= 0
+                || (row.getMediaProductId() != null && !row.getProductId().equals(row.getMediaProductId()))
+                || row.getUnreadCount() == null || row.getUnreadCount() < 0)) {
+            throw new SecondHandException("私信加载失败，请重试");
         }
-        return List.copyOf(conversations.values());
+        var images = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
+                conversations.stream().map(SecondHandConversationVO::getMediaProductId)
+                        .filter(java.util.Objects::nonNull).distinct().toList(),
+                MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name(), 0);
+        for (var row : conversations) {
+            row.setProductTitle(firstNotBlank(row.getProductTitle(), "商品"));
+            row.setCounterpartyName(firstNotBlank(row.getCounterpartyName(), "同学"));
+            var bound = row.getMediaProductId() == null ? List.<com.mikasa.campusrunner.pojo.vo.BoundMediaVO>of()
+                    : images.getOrDefault(row.getMediaProductId(), List.of());
+            row.setProductImages(String.join(",", bound.stream().map(item -> item.getUrl()).toList()));
+        }
+        return conversations;
     }
 
     @Override
     @Transactional
     public List<SecondHandMessageVO> listConversationMessages(Long productId, Long counterpartyId) {
+        return listConversationMessages(productId, counterpartyId, new com.mikasa.campusrunner.pojo.dto.MessagePageDTO());
+    }
+
+    @Override
+    @Transactional
+    public List<SecondHandMessageVO> listConversationMessages(Long productId, Long counterpartyId,
+            com.mikasa.campusrunner.pojo.dto.MessagePageDTO query) {
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.MessagePageDTO();
+        query.getLimit();
         ensureAuthenticated();
         SecondHandProduct product = requireProduct(productId);
         Long userId = BaseContext.getCurrentId();
         validateConversationCounterparty(product, userId, counterpartyId);
-        messageMapper.markConversationRead(productId, userId, counterpartyId);
-        return messageMapper.listConversation(productId, userId, counterpartyId);
+        var rows = readMessagePage(productId, counterpartyId, query);
+        var unreadIds = rows.stream().filter(row -> userId.equals(row.getReceiverId()) && row.getReadTime() == null)
+                .map(SecondHandMessageVO::getId).toList();
+        if (!unreadIds.isEmpty()) {
+            messageMapper.markMessagesRead(userId, unreadIds);
+            var readTime = LocalDateTime.now();
+            rows.stream().filter(row -> unreadIds.contains(row.getId())).forEach(row -> row.setReadTime(readTime));
+        }
+        return rows;
+    }
+
+    private List<SecondHandMessageVO> readMessagePage(Long productId, Long counterpartyId,
+            com.mikasa.campusrunner.pojo.dto.MessagePageDTO query) {
+        Long userId = BaseContext.getCurrentId();
+        Long cursorId = query.getBeforeId() != null ? query.getBeforeId() : query.getAfterId();
+        SecondHandMessageVO cursor = cursorId == null ? null : messageMapper.getCursorForUser(cursorId, userId);
+        if (cursorId != null && (cursor == null || !java.util.Objects.equals(productId, cursor.getProductId())
+                || !messageBelongsTo(cursor, userId, counterpartyId))) {
+            throw new ParamException("加载范围有误，请重新尝试");
+        }
+        var rows = new java.util.ArrayList<>(messageMapper.listMessagePage(productId, userId, counterpartyId, query, cursor));
+        if (rows.stream().anyMatch(row -> row == null || row.getId() == null
+                || !java.util.Objects.equals(productId, row.getProductId()) || !messageBelongsTo(row, userId, counterpartyId))) {
+            throw new SecondHandException("私信加载失败，请重试");
+        }
+        if (query.getAfterId() == null) java.util.Collections.reverse(rows);
+        return rows;
+    }
+
+    private boolean messageBelongsTo(SecondHandMessageVO row, Long userId, Long counterpartyId) {
+        return (userId.equals(row.getSenderId()) && (counterpartyId == null || counterpartyId.equals(row.getReceiverId())))
+                || (userId.equals(row.getReceiverId()) && (counterpartyId == null || counterpartyId.equals(row.getSenderId())));
     }
 
     @Override
-    public List<SecondHandProductVO> adminListProducts(SecondHandProductQueryDTO query) {
-        if (query == null) {
-            query = new SecondHandProductQueryDTO();
+    public com.mikasa.campusrunner.pojo.vo.AdminSecondHandProductPageVO adminListProducts(SecondHandProductQueryDTO query) {
+        if (query == null) query = new SecondHandProductQueryDTO();
+        query.getOffset();
+        if (query.getStatus() != null && (query.getStatus() < 0 || query.getStatus() > 4)) {
+            throw new ParamException("筛选条件有误，请重新选择");
         }
-        List<SecondHandProductVO> products = productMapper.list(query, null);
-        products.forEach(this::resolveProductImages);
-        return products;
+        List<SecondHandProductVO> products = productMapper.listPage(query, null);
+        long total = productMapper.countProducts(query, false, null);
+        long activeProducts = productMapper.countProducts(query, true, null);
+        resolveProductImagesBatch(products, 0);
+        return new com.mikasa.campusrunner.pojo.vo.AdminSecondHandProductPageVO(total,
+                query.getPage() == null ? 1 : query.getPage(), query.getLimit(), products, activeProducts);
     }
 
     @Override
@@ -817,11 +976,17 @@ public class SecondHandServiceImpl implements SecondHandService {
         update.setDeleted(DeleteConstant.DELETED);
         update.setUpdateTime(LocalDateTime.now());
         productMapper.update(update);
+        expireBargains(product, "不可购买", "商品已不可购买，报价已失效");
     }
 
     @Override
-    public List<SecondHandOrderVO> adminListOrders(Integer status) {
-        return enrichOrders(orderMapper.listAdmin(status));
+    public com.mikasa.campusrunner.pojo.vo.AdminSecondHandOrderPageVO adminListOrders(com.mikasa.campusrunner.pojo.dto.AdminSecondHandOrderQueryDTO query) {
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.AdminSecondHandOrderQueryDTO();
+        query.getOffset();
+        var orders = enrichOrders(orderMapper.listAdminPage(query));
+        var stats = orderMapper.summarizeAdmin(query);
+        return new com.mikasa.campusrunner.pojo.vo.AdminSecondHandOrderPageVO(stats,
+                query.getPage() == null ? 1 : query.getPage(), query.getLimit(), orders);
     }
 
     @Override
@@ -931,13 +1096,8 @@ public class SecondHandServiceImpl implements SecondHandService {
                 !isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING)) {
             throw new SecondHandException("当前订单状态不可重试收款");
         }
-        if (Boolean.TRUE.equals(mockPaymentEnabled)) {
-            order.setStatus(SecondHandConstant.ORDER_TRANSFER_SUCCESS);
-            order.setTransferTime(LocalDateTime.now());
-            order.setUpdateTime(LocalDateTime.now());
-            orderMapper.update(order);
-            return;
-        }
+        RealPaymentGuard.require(paymentLogMapper.getByOrderNumber(order.getOrderNumber()),
+                order.getOrderNumber(), order.getPayAmount());
         if (isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING)) {
             querySellerTransfer(order);
             return;
@@ -956,8 +1116,12 @@ public class SecondHandServiceImpl implements SecondHandService {
     }
 
     @Override
-    public List<SecondHandBargainVO> adminListBargains() {
-        return bargainMapper.listAdmin();
+    public com.mikasa.campusrunner.pojo.vo.AdminSecondHandBargainPageVO adminListBargains(com.mikasa.campusrunner.pojo.dto.ListPageDTO query) {
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.ListPageDTO();
+        query.getOffset();
+        var bargains = bargainMapper.listAdminPage(query);
+        return new com.mikasa.campusrunner.pojo.vo.AdminSecondHandBargainPageVO(bargainMapper.summarizeAdmin(),
+                query.getPage() == null ? 1 : query.getPage(), query.getLimit(), bargains);
     }
 
     @Override
@@ -977,8 +1141,12 @@ public class SecondHandServiceImpl implements SecondHandService {
     }
 
     @Override
-    public List<SecondHandMessageVO> adminListMessages(Long productId) {
-        return messageMapper.listAdmin(productId);
+    public com.mikasa.campusrunner.pojo.dto.PageResult<SecondHandMessageVO> adminListMessages(com.mikasa.campusrunner.pojo.dto.AdminSecondHandMessageQueryDTO query) {
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.AdminSecondHandMessageQueryDTO();
+        query.getOffset();
+        var messages = messageMapper.listAdminPage(query);
+        return new com.mikasa.campusrunner.pojo.dto.PageResult<>(messageMapper.countAdmin(query),
+                query.getPage() == null ? 1 : query.getPage(), query.getLimit(), messages);
     }
 
     @Override
@@ -1006,19 +1174,32 @@ public class SecondHandServiceImpl implements SecondHandService {
     }
 
     private void refreshUnpaidTimeouts() {
+        refreshUnpaidTimeouts(null);
+    }
+
+    private void refreshUnpaidTimeouts(Long ownerId) {
         int minutes = getIntConfig("second_hand_payment_timeout_minutes", SecondHandConstant.DEFAULT_PAYMENT_TIMEOUT_MINUTES);
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(minutes);
-        for (SecondHandOrder candidate : orderMapper.listUnpaidTimeout(cutoff)) {
-            inOrderTransaction(() -> {
-                SecondHandOrder order = SecondHandOrderLocks.byId(orderMapper, productMapper, candidate.getId());
-                if (order == null || isOfflineOrder(order) || !isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)
-                        || order.getCreateTime() == null || order.getCreateTime().isAfter(cutoff)) return;
-                try {
-                    cancelOnlineOrder(order, "支付超时自动关闭");
-                } catch (SecondHandException e) {
-                    log.warn("二手超时订单支付状态待核对, orderId={}", order.getId());
-                }
-            });
+        long afterId = 0;
+        while (true) {
+            var candidates = ownerId == null ? orderMapper.listUnpaidTimeoutBatch(cutoff, afterId, 100)
+                    : orderMapper.listUnpaidTimeoutForOwner(cutoff, ownerId, 20);
+            for (SecondHandOrder candidate : candidates) {
+                inOrderTransaction(() -> {
+                    SecondHandOrder order = SecondHandOrderLocks.byId(orderMapper, productMapper, candidate.getId());
+                    if (order == null || isOfflineOrder(order) || !isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)
+                            || order.getCreateTime() == null || order.getCreateTime().isAfter(cutoff)) return;
+                    try {
+                        cancelOnlineOrder(order, "支付超时自动关闭");
+                    } catch (SecondHandException e) {
+                        log.warn("二手超时订单支付状态待核对, orderId={}", order.getId());
+                    }
+                });
+            }
+            if (ownerId != null || candidates.size() < 100) break;
+            long nextId = candidates.stream().mapToLong(SecondHandOrder::getId).max().orElse(afterId);
+            if (nextId <= afterId) throw new IllegalStateException("Timeout batch cursor did not advance");
+            afterId = nextId;
         }
     }
 
@@ -1069,22 +1250,23 @@ public class SecondHandServiceImpl implements SecondHandService {
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     public void processAutoConfirm() {
         for (SecondHandOrder candidate : orderMapper.listAutoConfirm(LocalDateTime.now())) {
-            inOrderTransaction(() -> {
-                SecondHandOrder order = SecondHandOrderLocks.byId(orderMapper, productMapper, candidate.getId());
-                if (order == null || isOfflineOrder(order)
-                        || !isStatus(order.getStatus(), SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM)
-                        || order.getConfirmDeadline() == null || order.getConfirmDeadline().isAfter(LocalDateTime.now())) return;
-                completeOrder(order);
-            });
+            try {
+                inOrderTransaction(() -> {
+                    SecondHandOrder order = SecondHandOrderLocks.byId(orderMapper, productMapper, candidate.getId());
+                    if (order == null || isOfflineOrder(order)
+                            || !isStatus(order.getStatus(), SecondHandConstant.ORDER_DELIVERED_WAIT_CONFIRM)
+                            || order.getConfirmDeadline() == null || order.getConfirmDeadline().isAfter(LocalDateTime.now())) return;
+                    completeOrder(order);
+                });
+            } catch (com.mikasa.campusrunner.common.exception.OrderException e) {
+                log.warn("二手自动确认资金来源待核对, orderId={}", candidate.getId());
+            }
         }
     }
 
     @Override
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     public void processTransferQueries() {
-        if (Boolean.TRUE.equals(mockPaymentEnabled)) {
-            return;
-        }
         for (SecondHandOrder candidate : orderMapper.listTransferring()) {
             inOrderTransaction(() -> {
                 SecondHandOrder order = SecondHandOrderLocks.byId(orderMapper, productMapper, candidate.getId());
@@ -1146,7 +1328,7 @@ public class SecondHandServiceImpl implements SecondHandService {
             String bodyAsString = EntityUtils.toString(response.getEntity());
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode != 200 && statusCode != 204) {
-                throw new IOException("second hand pay request failed " + bodyAsString);
+                throw new IOException("WeChat request rejected");
             }
             Map<String, String> resultMap = JSONObject.parseObject(bodyAsString, HashMap.class);
             String prepayId = resultMap.get("prepay_id");
@@ -1167,34 +1349,28 @@ public class SecondHandServiceImpl implements SecondHandService {
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void processPayNotify(Map<String, Object> bodyMap) throws GeneralSecurityException {
         String plainText = decryptFromResource(bodyMap);
         Map plainTextMap = JSONObject.parseObject(plainText, HashMap.class);
         String orderNumber = (String) plainTextMap.get(WeChatPayConstant.OUT_TRADE_NO);
-        if (!payNotifyLock.tryLock()) {
-            throw new SecondHandException("通知处理中，请稍后重试");
-        }
-        try {
-            SecondHandOrder order = SecondHandOrderLocks.byNumber(orderMapper, productMapper, orderNumber);
-            if (order == null || isOfflineOrder(order)) return;
-            if (!WeChatPayConstant.TRADE_SUCCESS.equals(plainTextMap.get(WeChatPayConstant.TRADE_STATE))) return;
-            recordPaymentOnce(plainText, order);
-            if (isStatus(order.getStatus(), SecondHandConstant.ORDER_CANCELED)) {
-                order.setPayTime(LocalDateTime.now());
-                requestRefund(order);
-            } else if (isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)) {
-                order.setStatus(SecondHandConstant.ORDER_PAID_WAIT_DELIVERY);
-                order.setPayTime(LocalDateTime.now());
-                order.setUpdateTime(LocalDateTime.now());
-                orderMapper.update(order);
-                productMapper.markTrading(order.getProductId());
-            } else if (isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUNDING)
-                    || isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUND_ABNORMAL)) {
-                requestRefund(order);
-            }
-        } finally {
-            payNotifyLock.unlock();
+        SecondHandOrder order = SecondHandOrderLocks.byNumber(orderMapper, productMapper, orderNumber);
+        if (order == null) throw new SecondHandException("订单尚未确认，请稍后重试");
+        if (isOfflineOrder(order)) return;
+        if (!WeChatPayConstant.TRADE_SUCCESS.equals(plainTextMap.get(WeChatPayConstant.TRADE_STATE))) return;
+        recordPaymentOnce(plainText, order);
+        if (isStatus(order.getStatus(), SecondHandConstant.ORDER_CANCELED)) {
+            order.setPayTime(LocalDateTime.now());
+            requestRefund(order);
+        } else if (isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY)) {
+            order.setStatus(SecondHandConstant.ORDER_PAID_WAIT_DELIVERY);
+            order.setPayTime(LocalDateTime.now());
+            order.setUpdateTime(LocalDateTime.now());
+            orderMapper.update(order);
+            productMapper.markTrading(order.getProductId());
+        } else if (isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUNDING)
+                || isStatus(order.getStatus(), SecondHandConstant.ORDER_REFUND_ABNORMAL)) {
+            requestRefund(order);
         }
     }
 
@@ -1259,7 +1435,6 @@ public class SecondHandServiceImpl implements SecondHandService {
         BigDecimal sellerIncome = amount.subtract(serviceFee).setScale(2, RoundingMode.HALF_UP);
         LocalDateTime now = LocalDateTime.now();
         SecondHandOrder order = SecondHandOrder.builder()
-                .orderNumber("SH" + System.currentTimeMillis())
                 .productId(product.getId())
                 .bargainId(negotiated ? dto.getBargainId() : null)
                 .buyerId(buyerId)
@@ -1283,10 +1458,14 @@ public class SecondHandServiceImpl implements SecondHandService {
                 .createTime(now)
                 .updateTime(now)
                 .build();
-        orderMapper.insert(order);
+        com.mikasa.campusrunner.common.utils.OrderNumberGenerator.persist("SH", number -> {
+            order.setId(null);
+            order.setOrderNumber(number);
+            orderMapper.insert(order);
+            return order.getId();
+        }, number -> orderMapper.getByOrderNumberForUpdate(number) != null);
         // 已下单的成交报价保留，其余待回复及已接受但未下单的报价失效。
-        bargainMapper.expirePendingByProduct(product.getId());
-        bargainMapper.expireAcceptedWithoutOrder(product.getId());
+        expireBargains(product, "已被下单", "商品已被下单，报价已失效", order.getBuyerId());
         if (offline) {
             subscriptions.order(order, product.getSellerId(), "新订单", "买家已下单，请及时处理", now);
         }
@@ -1311,16 +1490,14 @@ public class SecondHandServiceImpl implements SecondHandService {
             productMapper.markSold(order.getProductId());
             return;
         }
+        RealPaymentGuard.require(paymentLogMapper.getByOrderNumber(order.getOrderNumber()),
+                order.getOrderNumber(), order.getPayAmount());
         order.setStatus(SecondHandConstant.ORDER_TRANSFERING);
         order.setFinishTime(now);
         order.setUpdateTime(now);
         orderMapper.update(order);
         productMapper.markSold(order.getProductId());
 
-        if (Boolean.TRUE.equals(mockPaymentEnabled)) {
-            log.info("开发模拟支付已开启，跳过二手订单真实微信转账请求, orderNumber={}", order.getOrderNumber());
-            return;
-        }
         int attempt = order.getTransferAttempt() == null ? 1 : Math.max(1, order.getTransferAttempt());
         if (trimToNull(order.getTransferOutBillNo()) == null) {
             order.setTransferAttempt(attempt);
@@ -1423,7 +1600,7 @@ public class SecondHandServiceImpl implements SecondHandService {
                 response.close();
             }
         } catch (Exception e) {
-            log.error("二手订单收款请求结果不确定, orderNumber={}", order.getOrderNumber(), e);
+            log.error("二手订单收款请求结果不确定, orderNumber={}", order.getOrderNumber());
             order.setTransferState("QUERY_REQUIRED");
             order.setTransferFailReason("收款结果待同步");
             order.setUpdateTime(LocalDateTime.now());
@@ -1433,6 +1610,13 @@ public class SecondHandServiceImpl implements SecondHandService {
 
     private void querySellerTransfer(SecondHandOrder order) {
         if (trimToNull(order.getTransferOutBillNo()) == null) {
+            return;
+        }
+        try {
+            RealPaymentGuard.require(paymentLogMapper.getByOrderNumber(order.getOrderNumber()),
+                    order.getOrderNumber(), order.getPayAmount());
+        } catch (com.mikasa.campusrunner.common.exception.OrderException e) {
+            log.warn("二手收款来源待核对, orderId={}", order.getId());
             return;
         }
         String queryPath = String.format(
@@ -1458,7 +1642,7 @@ public class SecondHandServiceImpl implements SecondHandService {
                     (String) result.get(WeChatTransferConstant.STATE),
                     (String) result.get(WeChatTransferConstant.TRANSFER_BILL_NO), body);
         } catch (Exception e) {
-            log.warn("二手订单收款状态同步异常, orderNumber={}", order.getOrderNumber(), e);
+            log.warn("二手订单收款状态同步异常, orderNumber={}", order.getOrderNumber());
         }
     }
 
@@ -1557,48 +1741,37 @@ public class SecondHandServiceImpl implements SecondHandService {
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void processRefundNotify(Map<String, Object> bodyMap) throws Exception {
         String plainText = decryptFromResource(bodyMap);
-        if (!refundNotifyLock.tryLock()) {
-            throw new SecondHandException("通知处理中，请稍后重试");
-        }
-        try {
-            refundRecovery.notifyResult(JSONObject.parseObject(plainText), plainText);
-        } finally {
-            refundNotifyLock.unlock();
-        }
+        refundRecovery.notifyResult(JSONObject.parseObject(plainText), plainText);
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void processTransferNotify(Map<String, Object> bodyMap) throws GeneralSecurityException {
         String plainText = decryptFromResource(bodyMap);
         Map plainTextMap = JSONObject.parseObject(plainText, HashMap.class);
         String transferOutBillNo = (String) plainTextMap.get(WeChatTransferConstant.OUT_BILL_NO);
-        if (!transferNotifyLock.tryLock()) {
-            throw new SecondHandException("通知处理中，请稍后重试");
+        SecondHandOrder order = orderMapper.getByTransferOutBillNo(transferOutBillNo);
+        if (order != null) order = SecondHandOrderLocks.byId(orderMapper, productMapper, order.getId());
+        if (order == null) throw new SecondHandException("收款记录尚未确认，请稍后重试");
+        if (!isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING)) {
+            return;
         }
-        try {
-            SecondHandOrder order = orderMapper.getByTransferOutBillNo(transferOutBillNo);
-            if (order != null) order = SecondHandOrderLocks.byId(orderMapper, productMapper, order.getId());
-            if (order == null || !isStatus(order.getStatus(), SecondHandConstant.ORDER_TRANSFERING)) {
-                return;
-            }
-            if (!java.util.Objects.equals(transferOutBillNo, order.getTransferOutBillNo())) return;
-            applyTransferResult(order, plainTextMap);
-            WxTransferLog log = WxTransferLog.builder()
-                    .orderNumber(order.getOrderNumber())
-                    .transferBillNo((String) plainTextMap.get(WeChatTransferConstant.TRANSFER_BILL_NO))
-                    .state((String) plainTextMap.get(WeChatTransferConstant.STATE))
-                    .mchId((String) plainTextMap.get(WeChatTransferConstant.MCH_ID))
-                    .content(plainText)
-                    .updateTime(LocalDateTime.now().toString())
-                    .build();
-            wxTransferLogMapper.updateByOrderNumber(log);
-        } finally {
-            transferNotifyLock.unlock();
-        }
+        if (!java.util.Objects.equals(transferOutBillNo, order.getTransferOutBillNo())) return;
+        RealPaymentGuard.require(paymentLogMapper.getByOrderNumber(order.getOrderNumber()),
+                order.getOrderNumber(), order.getPayAmount());
+        applyTransferResult(order, plainTextMap);
+        WxTransferLog log = WxTransferLog.builder()
+                .orderNumber(order.getOrderNumber())
+                .transferBillNo((String) plainTextMap.get(WeChatTransferConstant.TRANSFER_BILL_NO))
+                .state((String) plainTextMap.get(WeChatTransferConstant.STATE))
+                .mchId((String) plainTextMap.get(WeChatTransferConstant.MCH_ID))
+                .content(plainText)
+                .updateTime(LocalDateTime.now().toString())
+                .build();
+        wxTransferLogMapper.updateByOrderNumber(log);
     }
 
     private SecondHandProduct requireProduct(Long id) {
@@ -1622,6 +1795,33 @@ public class SecondHandServiceImpl implements SecondHandService {
             throw new SecondHandException("商品不存在");
         }
         return product;
+    }
+
+    private void expireBargains(SecondHandProduct product, String status, String tip) {
+        expireBargains(product, status, tip, null);
+    }
+
+    private void expireBargains(SecondHandProduct product, String status, String tip, Long orderingBuyer) {
+        // The caller holds the product lock; lock quotes before deciding notification recipients.
+        var expiring = bargainMapper.listExpirableForUpdate(product.getId());
+        bargainMapper.expirePendingByProduct(product.getId());
+        bargainMapper.expireAcceptedWithoutOrder(product.getId());
+        Map<Long, Long> recipients = new LinkedHashMap<>();
+        for (var quote : expiring) {
+            if (quote.getBuyerId() != null && !quote.getBuyerId().equals(orderingBuyer)) {
+                recipients.put(quote.getBuyerId(), quote.getId());
+            }
+        }
+        LocalDateTime now = LocalDateTime.now();
+        recipients.forEach((buyer, quoteId) -> subscriptions.bargainExpired(
+                buyer, product.getId(), product.getTitle(), quoteId, status, tip, now));
+    }
+
+    private void ensureQuoteHasNotBeenSuperseded(SecondHandBargain bargain) {
+        if (bargain.getCreateTime() != null
+                && bargainMapper.hasOrderSinceQuote(bargain.getProductId(), bargain.getCreateTime())) {
+            throw new SecondHandException("该报价已失效，请刷新查看");
+        }
     }
 
     private void ensureBargainProductAvailable(SecondHandProduct product) {
@@ -1723,8 +1923,57 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (dto.getImageAssetIds() == null || dto.getImageAssetIds().isEmpty()) {
             throw new ParamException("请至少选择一张商品图片");
         }
-        if (dto.getImageAssetIds() != null && dto.getImageAssetIds().size() > 6) {
-            throw new ParamException("商品图片不能超过 6 张");
+        validateProductFields(dto);
+    }
+
+    /** Shared by creation and partial editing; omitted edit fields keep their current values. */
+    private void validateProductFields(SecondHandProductDTO dto) {
+        if (dto.getTitle() != null && (dto.getTitle().trim().length() < 2 || dto.getTitle().length() > 80)) {
+            throw new ParamException("标题请填写 2 至 80 个字");
+        }
+        if (dto.getDescription() != null && (dto.getDescription().trim().length() < 4 || dto.getDescription().length() > 600)) {
+            throw new ParamException("描述请填写 4 至 600 个字");
+        }
+        if (dto.getPrice() != null) {
+            if (dto.getPrice().signum() <= 0 || dto.getPrice().compareTo(new BigDecimal("99999")) > 0) {
+                throw new ParamException("价格须大于 0 且不超过 99999 元");
+            }
+            try { dto.getPrice().setScale(2, java.math.RoundingMode.UNNECESSARY); }
+            catch (ArithmeticException e) { throw new ParamException("价格最多保留两位小数"); }
+        }
+        if (dto.getCategoryId() != null) {
+            SecondHandCategory category = categoryMapper.getByIdForUpdate(dto.getCategoryId());
+            if (category == null || Integer.valueOf(1).equals(category.getDeleted())) {
+                throw new ParamException("请选择有效的商品分类");
+            }
+        }
+        if (dto.getConditionLevel() != null && !java.util.Set.of("全新", "几乎全新", "轻微使用", "明显使用")
+                .contains(dto.getConditionLevel())) {
+            throw new ParamException("请选择有效的商品成色");
+        }
+        if ((dto.getPickupOnly() != null && dto.getPickupOnly() != 0 && dto.getPickupOnly() != 1)
+                || (dto.getNegotiable() != null && dto.getNegotiable() != 0 && dto.getNegotiable() != 1)) {
+            throw new ParamException("请选择有效的交付与议价设置");
+        }
+        if (dto.getPickupAddressSnapshot() != null
+                && (dto.getPickupAddressSnapshot().isBlank() || dto.getPickupAddressSnapshot().length() > 500)) {
+            throw new ParamException("自提点请填写 1 至 500 个字");
+        }
+        if (dto.getImageAssetIds() != null && (dto.getImageAssetIds().isEmpty() || dto.getImageAssetIds().size() > 6
+                || dto.getImageAssetIds().stream().anyMatch(id -> id == null || id <= 0)
+                || new java.util.HashSet<>(dto.getImageAssetIds()).size() != dto.getImageAssetIds().size())) {
+            throw new ParamException("请选择 1 至 6 张有效的商品图片");
+        }
+    }
+
+    private void resolveProductImagesBatch(List<SecondHandProductVO> products, int maxWidth) {
+        var images = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
+                products.stream().map(SecondHandProductVO::getId).distinct().toList(),
+                MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name(), maxWidth);
+        for (var product : products) {
+            var bound = images.getOrDefault(product.getId(), List.of());
+            product.setImageAssetIds(bound.stream().map(item -> item.getMediaId()).toList());
+            product.setImages(String.join(",", bound.stream().map(item -> item.getUrl()).toList()));
         }
     }
 
@@ -1955,19 +2204,24 @@ public class SecondHandServiceImpl implements SecondHandService {
     }
 
     private List<SecondHandOrderVO> enrichOrders(List<SecondHandOrderVO> orders) {
-        return orders.stream().map(this::enrichOrder).toList();
+        var images = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
+                orders.stream().map(SecondHandOrderVO::getProductId).filter(java.util.Objects::nonNull).distinct().toList(),
+                MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name(), 0);
+        Integer minutes = orders.stream().anyMatch(order -> !isOfflineTradeMode(order.getTradeMode())
+                && isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY) && order.getCreateTime() != null)
+                ? getIntConfig("second_hand_payment_timeout_minutes", SecondHandConstant.DEFAULT_PAYMENT_TIMEOUT_MINUTES) : null;
+        return orders.stream().map(order -> enrichOrder(order,
+                images.getOrDefault(order.getProductId(), List.of()), minutes)).toList();
     }
 
     private void resolveCounterpartyAvatars(List<SecondHandOrderVO> orders, boolean sellerView) {
-        Map<Long, String> avatarCache = new HashMap<>();
-        for (SecondHandOrderVO order : orders) {
-            Long counterpartyId = sellerView ? order.getBuyerId() : order.getSellerId();
-            if (counterpartyId == null) continue;
-            String avatar = avatarCache.computeIfAbsent(counterpartyId, id -> {
-                var avatars = mediaAssetService.resolvePublicBinding(
-                        MediaAssetConstant.BOUND_USER_AVATAR, id, MediaPurpose.AVATAR.name());
-                return avatars.isEmpty() ? "" : avatars.get(0).getUrl();
-            });
+        var avatars = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_USER_AVATAR,
+                orders.stream().map(order -> sellerView ? order.getBuyerId() : order.getSellerId())
+                        .filter(java.util.Objects::nonNull).distinct().toList(), MediaPurpose.AVATAR.name(), 0);
+        for (var order : orders) {
+            Long id = sellerView ? order.getBuyerId() : order.getSellerId();
+            var bound = avatars.getOrDefault(id, List.of());
+            String avatar = bound.isEmpty() ? "" : bound.get(0).getUrl();
             if (sellerView) order.setBuyerAvatar(avatar);
             else order.setSellerAvatar(avatar);
         }
@@ -1981,6 +2235,11 @@ public class SecondHandServiceImpl implements SecondHandService {
                 MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
                 order.getProductId(),
                 MediaPurpose.SECOND_HAND_PRODUCT_IMAGE.name());
+        return enrichOrder(order, images, null);
+    }
+
+    private SecondHandOrderVO enrichOrder(SecondHandOrderVO order,
+            List<com.mikasa.campusrunner.pojo.vo.BoundMediaVO> images, Integer timeoutMinutes) {
         if (!images.isEmpty()) {
             order.setProductImageAssetIds(images.stream().map(item -> item.getMediaId()).toList());
             order.setProductImages(String.join(",", images.stream().map(item -> item.getUrl()).toList()));
@@ -1990,7 +2249,7 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (!isOfflineTradeMode(order.getTradeMode()) &&
                 isStatus(order.getStatus(), SecondHandConstant.ORDER_PENDING_PAY) &&
                 order.getCreateTime() != null) {
-            int minutes = getIntConfig("second_hand_payment_timeout_minutes", SecondHandConstant.DEFAULT_PAYMENT_TIMEOUT_MINUTES);
+            int minutes = timeoutMinutes != null ? timeoutMinutes : getIntConfig("second_hand_payment_timeout_minutes", SecondHandConstant.DEFAULT_PAYMENT_TIMEOUT_MINUTES);
             LocalDateTime deadline = order.getCreateTime().plusMinutes(minutes);
             long remainSeconds = Math.max(0, Duration.between(LocalDateTime.now(), deadline).getSeconds());
             order.setPayDeadline(deadline);

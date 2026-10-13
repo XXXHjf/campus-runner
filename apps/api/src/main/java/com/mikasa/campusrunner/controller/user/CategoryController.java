@@ -38,9 +38,9 @@ public class CategoryController {
 
     @GetMapping
     @Operation(summary = "获取所有订单类型")
-    public Result<List<Category>> getAll(){
+    public Result<List<Category>> getAll(com.mikasa.campusrunner.pojo.dto.ListPageDTO page){
         log.info("Get all order categories");
-        List<Category> list = categoryService.getAll();
+        List<Category> list = categoryService.getAll(page);
         return Result.success(list);
     }
 

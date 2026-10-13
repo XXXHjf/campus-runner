@@ -28,14 +28,16 @@ import java.util.Map;
 @Tag(name = "校园二手交易用户端接口")
 public class SecondHandController {
     @Autowired
+    private com.mikasa.campusrunner.service.SubmissionService submissionService;
+    @Autowired
     private SecondHandService secondHandService;
     @Autowired
     private Verifier verifier;
 
     @GetMapping("/categories")
     @Operation(summary = "二手分类列表")
-    public Result<List<SecondHandCategory>> categories() {
-        return Result.success(secondHandService.listCategories());
+    public Result<List<SecondHandCategory>> categories(com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        return Result.success(secondHandService.listCategories(page));
     }
 
     @GetMapping("/products")
@@ -48,7 +50,8 @@ public class SecondHandController {
     @PostMapping("/products")
     @Operation(summary = "发布二手商品")
     public Result<SecondHandProductVO> publish(@RequestBody SecondHandProductDTO dto) {
-        return Result.success(secondHandService.publishProduct(dto));
+        return Result.success(submissionService.execute(com.mikasa.campusrunner.service.SubmissionService.Operation.SECOND_HAND_PRODUCT,
+                dto.getClientRequestId(), dto, SecondHandProductVO.class, () -> secondHandService.publishProduct(dto)));
     }
 
     @PutMapping("/products/{id}")
@@ -67,14 +70,14 @@ public class SecondHandController {
 
     @GetMapping("/products/my")
     @Operation(summary = "我的发布")
-    public Result<List<SecondHandProductVO>> myProducts() {
-        return Result.success(secondHandService.listMyProducts());
+    public Result<List<SecondHandProductVO>> myProducts(@RequestParam Map<String, String> params) {
+        return Result.success(secondHandService.listMyProducts(buildProductQuery(params)));
     }
 
     @GetMapping("/favorites")
     @Operation(summary = "我的商品收藏")
-    public Result<List<SecondHandProductVO>> favorites() {
-        return Result.success(secondHandService.listFavoriteProducts());
+    public Result<List<SecondHandProductVO>> favorites(@RequestParam Map<String, String> params) {
+        return Result.success(secondHandService.listFavoriteProducts(buildProductQuery(params)));
     }
 
     @PostMapping("/products/{id}/favorite")
@@ -112,8 +115,9 @@ public class SecondHandController {
 
     @PostMapping("/bargains/{id}/reject")
     @Operation(summary = "拒绝议价")
-    public Result<Void> rejectBargain(@PathVariable Long id) {
-        secondHandService.rejectBargain(id);
+    public Result<Void> rejectBargain(@PathVariable Long id,
+            @RequestBody(required = false) com.mikasa.campusrunner.pojo.dto.SecondHandBargainRejectDTO dto) {
+        secondHandService.rejectBargain(id, dto);
         return Result.success();
     }
 
@@ -126,32 +130,33 @@ public class SecondHandController {
 
     @GetMapping("/bargains/my")
     @Operation(summary = "我的议价记录")
-    public Result<List<SecondHandBargainVO>> myBargains() {
-        return Result.success(secondHandService.listMyBargains());
+    public Result<List<SecondHandBargainVO>> myBargains(@RequestParam java.util.Map<String,String> params) {
+        return Result.success(secondHandService.listMyBargains(buildBargainQuery(params)));
     }
 
     @GetMapping("/products/{id}/bargains")
     @Operation(summary = "商品议价记录")
-    public Result<List<SecondHandBargainVO>> productBargains(@PathVariable Long id) {
-        return Result.success(secondHandService.listProductBargains(id));
+    public Result<List<SecondHandBargainVO>> productBargains(@PathVariable Long id, @RequestParam java.util.Map<String,String> params) {
+        return Result.success(secondHandService.listProductBargains(id, buildBargainQuery(params)));
     }
 
     @PostMapping("/orders")
     @Operation(summary = "买家选择交付方式后按原价或已接受报价创建订单")
     public Result<SecondHandOrderVO> createOrder(@RequestBody SecondHandOrderCreateDTO dto) {
-        return Result.success(secondHandService.createOrder(dto));
+        return Result.success(submissionService.execute(com.mikasa.campusrunner.service.SubmissionService.Operation.SECOND_HAND_ORDER,
+                dto.getClientRequestId(), dto, SecondHandOrderVO.class, () -> secondHandService.createOrder(dto)));
     }
 
     @GetMapping("/orders/buyer")
     @Operation(summary = "我的购买订单")
-    public Result<List<SecondHandOrderVO>> buyerOrders() {
-        return Result.success(secondHandService.listBuyerOrders());
+    public Result<List<SecondHandOrderVO>> buyerOrders(@RequestParam Map<String, String> params) {
+        return Result.success(secondHandService.listBuyerOrders(buildOrderQuery(params)));
     }
 
     @GetMapping("/orders/seller")
     @Operation(summary = "我的出售订单")
-    public Result<List<SecondHandOrderVO>> sellerOrders() {
-        return Result.success(secondHandService.listSellerOrders());
+    public Result<List<SecondHandOrderVO>> sellerOrders(@RequestParam Map<String, String> params) {
+        return Result.success(secondHandService.listSellerOrders(buildOrderQuery(params)));
     }
 
     @GetMapping("/orders/{id}")
@@ -195,22 +200,23 @@ public class SecondHandController {
 
     @GetMapping("/products/{id}/messages")
     @Operation(summary = "商品私信兼容列表")
-    public Result<List<SecondHandMessageVO>> messages(@PathVariable Long id) {
-        return Result.success(secondHandService.listProductMessages(id));
+    public Result<List<SecondHandMessageVO>> messages(@PathVariable Long id,
+            com.mikasa.campusrunner.pojo.dto.MessagePageDTO query) {
+        return Result.success(secondHandService.listProductMessages(id, query));
     }
 
     @GetMapping("/conversations")
     @Operation(summary = "二手私信会话列表")
-    public Result<List<SecondHandConversationVO>> conversations() {
-        return Result.success(secondHandService.listConversations());
+    public Result<List<SecondHandConversationVO>> conversations(com.mikasa.campusrunner.pojo.dto.ListPageDTO query) {
+        return Result.success(secondHandService.listConversations(query));
     }
 
     @GetMapping("/conversations/{productId}/{counterpartyId}/messages")
     @Operation(summary = "二手私信会话消息")
     public Result<List<SecondHandMessageVO>> conversationMessages(
             @PathVariable Long productId,
-            @PathVariable Long counterpartyId) {
-        return Result.success(secondHandService.listConversationMessages(productId, counterpartyId));
+            @PathVariable Long counterpartyId, com.mikasa.campusrunner.pojo.dto.MessagePageDTO query) {
+        return Result.success(secondHandService.listConversationMessages(productId, counterpartyId, query));
     }
 
     @GetMapping("/orders/{id}/transfer-claim")
@@ -235,7 +241,7 @@ public class SecondHandController {
             response.setStatus(200);
             return null;
         } catch (Exception e) {
-            log.error("二手支付回调处理失败", e);
+            log.error("二手支付回调处理失败; failureType={}", e.getClass().getSimpleName());
             response.setStatus(500);
             return "{\"code\":\"FAIL\",\"message\":\"请求失败\"}";
         }
@@ -257,7 +263,7 @@ public class SecondHandController {
             response.setStatus(200);
             return null;
         } catch (Exception e) {
-            log.error("二手转账回调处理失败", e);
+            log.error("二手转账回调处理失败; failureType={}", e.getClass().getSimpleName());
             response.setStatus(500);
             return "{\"code\":\"FAIL\",\"message\":\"请求失败\"}";
         }
@@ -279,10 +285,20 @@ public class SecondHandController {
             response.setStatus(200);
             return null;
         } catch (Exception e) {
-            log.error("二手退款回调处理失败", e);
+            log.error("二手退款回调处理失败; failureType={}", e.getClass().getSimpleName());
             response.setStatus(500);
             return "{\"code\":\"FAIL\",\"message\":\"请求失败\"}";
         }
+    }
+
+    private SecondHandOrderQueryDTO buildOrderQuery(Map<String, String> params) {
+        var query = new SecondHandOrderQueryDTO();
+        query.setPage(parsePageInteger(params.get("page")));
+        query.setPageSize(parsePageInteger(params.get("pageSize")));
+        query.setGroup(blankToNull(params.get("group")));
+        query.setKeyword(params.get("keyword"));
+        query.getOffset();
+        return query;
     }
 
     private SecondHandProductQueryDTO buildProductQuery(Map<String, String> params) {
@@ -295,6 +311,9 @@ public class SecondHandController {
         query.setMinPrice(parseBigDecimal(params.get("minPrice")));
         query.setMaxPrice(parseBigDecimal(params.get("maxPrice")));
         query.setStatus(parseInteger(params.get("status")));
+        query.setPage(parsePageInteger(params.get("page")));
+        query.setPageSize(parsePageInteger(params.get("pageSize")));
+        query.getOffset();
         return query;
     }
 
@@ -310,6 +329,13 @@ public class SecondHandController {
         return isBlankQueryValue(value) ? null : Integer.valueOf(value);
     }
 
+    private Integer parsePageInteger(String value) {
+        try { return parseInteger(value); }
+        catch (NumberFormatException error) {
+            throw new com.mikasa.campusrunner.common.exception.ParamException("加载范围有误，请重新尝试");
+        }
+    }
+
     private BigDecimal parseBigDecimal(String value) {
         return isBlankQueryValue(value) ? null : new BigDecimal(value);
     }
@@ -320,4 +346,25 @@ public class SecondHandController {
                 || "null".equalsIgnoreCase(value)
                 || "undefined".equalsIgnoreCase(value);
     }
+    private com.mikasa.campusrunner.pojo.dto.BargainPageDTO buildBargainQuery(java.util.Map<String,String> params) {
+        var query = new com.mikasa.campusrunner.pojo.dto.BargainPageDTO();
+        query.setPage(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("page")));
+        query.setPageSize(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("pageSize")));
+        query.setRole(params.get("role"));
+        query.setStatus(com.mikasa.campusrunner.pojo.dto.ListPageDTO.parseInteger(params.get("status")));
+        String id = params.get("bargainId");
+        if (id != null && !id.isBlank()) {
+            try { query.setBargainId(Long.valueOf(id)); }
+            catch (NumberFormatException error) { throw new com.mikasa.campusrunner.common.exception.ParamException("报价信息有误，请重新选择"); }
+        }
+        String withoutOrder = params.get("withoutOrder");
+        if (withoutOrder != null) {
+            if (!"true".equalsIgnoreCase(withoutOrder) && !"false".equalsIgnoreCase(withoutOrder)) {
+                throw new com.mikasa.campusrunner.common.exception.ParamException("筛选条件有误，请重新选择");
+            }
+            query.setWithoutOrder(Boolean.valueOf(withoutOrder));
+        }
+        return query;
+    }
+
 }

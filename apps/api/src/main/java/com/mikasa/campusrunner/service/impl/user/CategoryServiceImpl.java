@@ -43,7 +43,35 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public List<Category> getAll() {
         List<Category> list = categoryMapper.getEnabled();
-        list.forEach(this::resolveImage);
+        if (!list.isEmpty()) {
+            var images = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_ORDER_CATEGORY,
+                    list.stream().map(Category::getId).distinct().toList(), MediaPurpose.ORDER_CATEGORY_ICON.name(), 0);
+            for (var category : list) {
+                var bound = images.getOrDefault(category.getId(), List.of());
+                if (!bound.isEmpty()) {
+                    category.setImageAssetId(bound.get(0).getMediaId());
+                    category.setImage(bound.get(0).getUrl());
+                }
+            }
+        }
+        return list;
+    }
+
+    @Override
+    public List<Category> getAll(com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        page.getLimit(); page.getOffset();
+        List<Category> list = categoryMapper.getEnabledPage(page);
+        if (!list.isEmpty()) {
+            var images = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_ORDER_CATEGORY,
+                    list.stream().map(Category::getId).distinct().toList(), MediaPurpose.ORDER_CATEGORY_ICON.name(), 0);
+            for (var category : list) {
+                var bound = images.getOrDefault(category.getId(), List.of());
+                if (!bound.isEmpty()) {
+                    category.setImageAssetId(bound.get(0).getMediaId());
+                    category.setImage(bound.get(0).getUrl());
+                }
+            }
+        }
         return list;
     }
 

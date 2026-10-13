@@ -13,10 +13,11 @@ const url = getApp().globalData.API_URL;
  * 获取订单信息 - 综合排序
  * @returns {Promise<Array>} 订单列表
  */
-function getOrdersByTime() {
+function getOrdersByTime(query = {}) {
   return request({
     url: `${url}/api/order/showByTime/0`,
-    method: 'GET'
+    method: 'GET',
+    data: { page: query.page, pageSize: query.pageSize }
   }).then(res => {
     const rawData = safeList(res);
     return addExpectTime(rawData);
@@ -28,10 +29,11 @@ function getOrdersByTime() {
  * @param {number} status - 排序状态 (0: 从高到低, 1: 从低到高)
  * @returns {Promise<Array>} 订单列表
  */
-function getOrdersByPrice(status) {
+function getOrdersByPrice(status, query = {}) {
   return request({
     url: `${url}/api/order/showByPrice/${status}`,
-    method: 'GET'
+    method: 'GET',
+    data: { page: query.page, pageSize: query.pageSize }
   }).then(res => {
     const rawData = safeList(res);
     return addExpectTime(rawData);
@@ -43,10 +45,11 @@ function getOrdersByPrice(status) {
  * @param {number} categoryId - 分类ID
  * @returns {Promise<Array>} 订单列表
  */
-function getOrdersByCategory(categoryId) {
+function getOrdersByCategory(categoryId, query = {}) {
   return request({
     url: `${url}/api/order/showByCategory/${categoryId}`,
-    method: 'GET'
+    method: 'GET',
+    data: { page: query.page, pageSize: query.pageSize }
   }).then(res => {
     const rawData = safeList(res);
     return addExpectTime(rawData);
@@ -60,13 +63,13 @@ function getOrdersByCategory(categoryId) {
  * @param {string|number} userSchoolId - 用户学校ID
  * @returns {Promise<Array>} 订单列表
  */
-function getOrdersBySingleAddress(addressData, type, userSchoolId) {
+function getOrdersBySingleAddress(addressData, type, userSchoolId, query = {}) {
   const params = buildSingleParams(addressData, type, userSchoolId);
   
   return request({
     url: `${url}/api/order/${type}`,
     method: 'GET',
-    data: params
+    data: { ...params, page: query.page, pageSize: query.pageSize }
   }).then(res => {
     const rawData = safeList(res);
     return addExpectTime(rawData);
@@ -80,13 +83,13 @@ function getOrdersBySingleAddress(addressData, type, userSchoolId) {
  * @param {string|number} userSchoolId - 用户学校ID
  * @returns {Promise<Array>} 订单列表
  */
-function getOrdersByDoubleAddress(pickupData, receiveData, userSchoolId) {
+function getOrdersByDoubleAddress(pickupData, receiveData, userSchoolId, query = {}) {
   const params = buildDoubleParams(pickupData, receiveData, userSchoolId);
   
   return request({
     url: `${url}/api/order/showByDoubleAdd`,
     method: 'GET',
-    data: params
+    data: { ...params, page: query.page, pageSize: query.pageSize }
   }).then(res => {
     const rawData = safeList(res);
     return addExpectTime(rawData);
@@ -94,8 +97,11 @@ function getOrdersByDoubleAddress(pickupData, receiveData, userSchoolId) {
 }
 
 module.exports = {
-  getPublicOrders() {
-    return request({ url: `${url}/api/order/public` }).then(safeList).then(addExpectTime);
+  getRunnerFeed(query = {}) {
+    return request({ url: `${url}/api/order/feed`, data: query }).then(safeList).then(addExpectTime);
+  },
+  getPublicOrders(query = {}) {
+    return request({ url: `${url}/api/order/public`, data: query }).then(safeList).then(addExpectTime);
   },
   getOrdersByTime,
   getOrdersByPrice,

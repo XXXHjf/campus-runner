@@ -42,7 +42,7 @@ Component({
         try {
           await this.changeAddressNew();
         } catch (error) {
-          console.error('加载地址数据失败:', error);
+          console.error("加载地址数据失败:");
           feedback.showToast(this, {
             title: '地址数据加载失败',
             icon: 'error',
@@ -63,8 +63,8 @@ Component({
       });
     },
     // 三级列表滑动任意一列触发的事件
-    onColumnChange(e) {
-      console.log('三级列表滑动:', e.detail);
+    async onColumnChange(e) {
+      console.log("三级列表滑动:");
       const {
         column,
         index
@@ -74,12 +74,15 @@ Component({
         category,
       } = this.data;
 
+      const version = column === 0 ? (this._columnVersion || 0) + 1 : this._columnVersion;
+      this._columnVersion = version;
       if (column === 0) {
         // 滑动校区列（第一列）变动类型和楼宇两列
         const {
           category,
           buildings
-        } = this._getCategory(compuses[index].value);
+        } = await this._getCategory(compuses[index]?.value);
+        if (version !== this._columnVersion) return;
         this.setData({
           category,
           buildings,
@@ -87,7 +90,7 @@ Component({
       }
       if (column === 1) {
         // 滑动类型列（第二列）变动楼宇列
-        const buildings = this._getBuildings(category[index].value);
+        const buildings = this._getBuildings(category[index]?.value);
         this.setData({
           buildings
         });
@@ -102,11 +105,12 @@ Component({
     },
     // 三级列表确定时触发的事件
     onPickerChange(e) {
+      if (this.data.addressLoading || !this.data.buildings?.some(item => String(item.value) === String(e.detail.value?.[2]))) return;
       const {
         value,
         label
       } = e.detail;
-      console.log('picker confirm:', e.detail);
+      console.log("picker confirm:");
       this.setData({
         areaValue: value
       });
@@ -174,9 +178,9 @@ Component({
           areaValue: [], // 重置选中值
           compuses: _getOptions(compuses),
         });
-        this._pickerOnFirstShow();
+        await this._pickerOnFirstShow();
       } catch (err) {
-        console.error("组件地址加载失败:", err.message);
+        console.error("组件地址加载失败:");
         // 只在用户操作时显示错误提示
         if (this.data.isVisible) {
           feedback.showToast(this, {
@@ -194,26 +198,45 @@ Component({
         const addressList = this._convertToListNew(rawData);
         return addressList;
       } catch (err) {
-        console.error("_getAllAddress failed:", err);
+        console.error("_getAllAddress failed:");
         throw new Error("获取地址数据失败: " + err.message);
       }
     },
     // 设置三级列表刚弹出时显示的地址
-    _pickerOnFirstShow() {
+    async _pickerOnFirstShow() {
+      const version = (this._columnVersion || 0) + 1;
+      this._columnVersion = version;
       const compuses = this.data.compuses;
       const {
         category,
         buildings
-      } = this._getCategory(compuses[0].value);
+      } = await this._getCategory(compuses[0]?.value);
+      if (version !== this._columnVersion) return;
       this.setData({
         category: category,
         buildings: buildings,
       });
     },
     // 根据校区编号获取类型，如传入1010010000000，此时前6位固定
-    _getCategory(campusValue) {
+    async _getCategory(campusValue) {
+      const version = (this._buildingVersion || 0) + 1;
+      this._buildingVersion = version;
+      this.setData({ buildings: [], category: [], addressLoading: true });
+      const token = tokenManager.getToken();
+      try {
+        if (!campusValue) return { category: [], buildings: [] };
+        const raw = await addressService.getThreeLevelAddress(campusValue);
+        if (version !== this._buildingVersion || token !== tokenManager.getToken()) return { category: [], buildings: [] };
+        const map = { ...(this.data.addressList.buildings || {}) };
+        for (const item of raw.building) map[item.numberId] = item.buildingName;
+        this.setData({ 'addressList.buildings': map });
+      } catch (error) {
+        feedback.showToast(this, { title: '地址加载失败，请重试', icon: 'error' });
+        return { category: [], buildings: [] };
+      } finally { if (version === this._buildingVersion) this.setData({ addressLoading: false }); }
+
       const category = _getOptions(this.data.addressList.category, (category) => _compareFirstNChars(category.value, campusValue, 6));
-      const buildings = this._getBuildings(category[0].value);
+      const buildings = this._getBuildings(category[0]?.value);
       return {
         category,
         buildings
@@ -221,6 +244,7 @@ Component({
     },
     // 从 this.data.addressList.buildings 中筛选出所有 value 属性与给定校区Value 前 9 个字符相匹配的建筑物，并返回这些建筑物的 value 和 label 作为对象的数组
     _getBuildings(categoryValue) {
+      if (!categoryValue) return [];
       return _getOptions(this.data.addressList.buildings, (building) => _compareFirstNChars(building.value, categoryValue, 9));
     },
   },

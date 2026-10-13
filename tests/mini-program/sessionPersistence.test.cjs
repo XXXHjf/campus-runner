@@ -102,3 +102,43 @@ test('401 续签后只重试读取，不重发写操作', async () => {
     assert.equal(calls, method === 'GET' ? 2 : 1);
   }
 });
+
+test('换号后的旧响应被拒绝，迟到 401 不清除新账号登录', async () => {
+  for (const statusCode of [200, 401]) {
+    let version = 1, token = 'A', finish, cleared = false;
+    const request = load('services/request.js', {
+      require: () => ({ getToken: () => token, getSessionVersion: () => version,
+        hasLoginIntent: () => false, clearToken: () => { cleared = true; } }),
+      getApp: () => ({ globalData: {} }),
+      wx: { request(options) { finish = () => options.success({ statusCode, data: { code: 1, data: { phone: 'A_PRIVATE' } } }); } },
+    }).request;
+    const pending = request({ url: 'https://example.test/api/user' });
+    version = 2; token = 'B'; finish();
+    await assert.rejects(pending, /登录状态已变化/);
+    assert.equal(cleared, false);
+  }
+});
+
+test('等待恢复登录时换号不能把原账号写入请求发送为新账号', async () => {
+  let version = 1, resume, calls = 0;
+  const request = load('services/request.js', {
+    require: () => ({ getToken: () => 'B', getSessionVersion: () => version, hasLoginIntent: () => true }),
+    getApp: () => ({ restoreLogin: () => new Promise(resolve => { resume = resolve; }) }),
+    wx: { request() { calls++; } },
+  }).request;
+  const pending = request({ url: 'https://example.test/api/order', method: 'POST', data: { phone: 'A_PRIVATE' } });
+  version = 2; resume(true);
+  await assert.rejects(pending, /登录状态已变化/); assert.equal(calls, 0);
+});
+
+test('401 续签期间换号不得用新账号重试原读取', async () => {
+  let version = 1, resume, calls = 0;
+  const request = load('services/request.js', {
+    require: () => ({ getToken: () => 'login', getSessionVersion: () => version, hasLoginIntent: () => true }),
+    getApp: () => ({ restoreLogin: ({ force } = {}) => force ? new Promise(resolve => { resume = resolve; }) : Promise.resolve(true) }),
+    wx: { request(options) { calls++; options.success({ statusCode: 401 }); } },
+  }).request;
+  const pending = request({ url: 'https://example.test/api/user' });
+  await new Promise(setImmediate); version = 2; resume(true);
+  await assert.rejects(pending, /登录状态已变化/); assert.equal(calls, 1);
+});

@@ -5,7 +5,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 
 @Data
-public class SecondHandProductQueryDTO {
+public class SecondHandProductQueryDTO extends ListPageDTO {
     private Long categoryId;
     private Long compusId;
     private String pickupAddressPrefix;
@@ -14,4 +14,8 @@ public class SecondHandProductQueryDTO {
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
     private Integer status;
+
+    public String getLiteralKeyword() {
+        return keyword == null ? null : keyword.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+    }
 }

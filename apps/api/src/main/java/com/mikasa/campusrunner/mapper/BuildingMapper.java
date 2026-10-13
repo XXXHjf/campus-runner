@@ -16,6 +16,8 @@ import java.util.List;
  */
 @Mapper
 public interface BuildingMapper {
+    List<AdminAdressBuildingVO> getBySchoolIdPage(@org.apache.ibatis.annotations.Param("schoolId") Long schoolId, @org.apache.ibatis.annotations.Param("page") com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
+    List<AddressBookThreeVO.Building> getThreePage(@Param("schoolId") Long schoolId, @Param("page") com.mikasa.campusrunner.pojo.dto.AddressTreeQueryDTO page);
 
     /**
      * 根据楼宇名和学校id，校区id查询number_id

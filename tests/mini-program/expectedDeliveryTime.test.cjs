@@ -27,7 +27,7 @@ test('旧订单保留原有进位显示，倒计时与显示共用截止时间',
   assert.equal(_getExpectTimeDisplay('2026-09-27 15:00:00', 30), '9月27日 15:30');
 });
 
-function loadPublishPage(now, selectedTime) {
+function loadPublishPage(now, selectedTime, pending = null) {
   let page;
   const requests = [];
   class Clock extends Date { static now() { return now; } }
@@ -36,8 +36,9 @@ function loadPublishPage(now, selectedTime) {
     console: { log() {}, error() {} },
     getApp: () => ({ globalData: {} }),
     require(id) {
-      if (id.endsWith('userOrderService')) return { createOrder: async data => { requests.push(data); return { data: { id: 1 } }; } };
+      if (id.endsWith('userOrderService')) return { getPendingCreation: () => pending, createOrder: async data => { requests.push(data); return { data: { id: 1 } }; } };
       if (id.endsWith('transformers')) return { showLoading() {}, hideLoading() {} };
+      if (id.endsWith('accountStorage')) return { captureSession: () => 'owner', isCurrent: () => true };
       if (id.endsWith('orderDraftManager')) return { clearDraft() {} };
       if (id.endsWith('orderConstants')) return require('../../apps/mini-program/utils/orderConstants');
       return {};
@@ -65,4 +66,13 @@ test('授权等待后时间已过期时不发送创建请求', async () => {
   await assert.rejects(page._apiPostOrder(), /预期送达时间已过/);
   assert.equal(requests.length, 0);
   assert.equal(page.data.showOrderConfirm, false);
+});
+
+
+test('uncertain runner submission replays original payload despite elapsed deadline and bound images', async () => {
+  const pending = { clientRequestId: 'original-request-0001', expectedDeliveryTime: '2026-09-27 15:30:00', gap: 29, payAmount: 0, imageAssetIds: [99], pickUpAddress: 1, reciveAddress: 2 };
+  const { page, requests } = loadPublishPage(+new Date(2026, 8, 28), 0, pending);
+  page._refreshDraftImages = async () => assert.fail('must not revalidate bound images');
+  await page._apiPostOrder();
+  assert.equal(requests[0], pending);
 });

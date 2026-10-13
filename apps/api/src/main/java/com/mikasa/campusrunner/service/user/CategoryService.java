@@ -22,4 +22,5 @@ public interface CategoryService {
      * @return
      */
     List<Category> getAll();
+    List<Category> getAll(com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
 }

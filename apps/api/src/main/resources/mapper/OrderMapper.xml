@@ -2,12 +2,13 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.mikasa.campusrunner.mapper.OrderMapper">
-    <!-- Public projection: never include phone, note, photos or address-book details. -->
+    <!-- Browsable task projection: never include phone or address-book details. -->
     <sql id="publicOrderProjection">
         select o.id, o.price, o.product_amount, o.business_type, o.create_time, o.expected_delivery_time, o.gap, o.category_id, c.category_name,
                p.public_address as pick_up_address,
-               r.public_address as recive_address
+               r.public_address as recive_address, o.user_id, sender.username as username, o.note, o.door_access
         from tb_orders o
+        left join tb_user sender on sender.id = o.user_id
         join tb_category c on c.id = o.category_id
         join tb_order_address_snapshot p on p.order_id = o.id and p.role = 'PICKUP'
         join tb_order_address_snapshot r on r.order_id = o.id and r.role = 'RECEIVE'
@@ -18,12 +19,86 @@
         order by o.create_time desc
         limit 100
     </select>
+    <select id="listPublicOrdersPage" resultType="com.mikasa.campusrunner.pojo.vo.PublicOrderVO">
+        <include refid="publicOrderProjection"/>
+        <if test="query.categoryId != null">AND o.category_id = #{query.categoryId}</if>
+        <foreach collection="query.pickupFilters" item="label">AND LOCATE(BINARY #{label}, BINARY p.public_address) > 0</foreach>
+        <foreach collection="query.receiveFilters" item="label">AND LOCATE(BINARY #{label}, BINARY r.public_address) > 0</foreach>
+        <if test="query.literalKeyword != ''">
+            AND (BINARY LOWER(COALESCE(o.note,'')) LIKE BINARY CONCAT('%',#{query.literalKeyword},'%') ESCAPE '!'
+              OR BINARY LOWER(COALESCE(c.category_name,'')) LIKE BINARY CONCAT('%',#{query.literalKeyword},'%') ESCAPE '!'
+              OR BINARY LOWER(COALESCE(p.public_address,'')) LIKE BINARY CONCAT('%',#{query.literalKeyword},'%') ESCAPE '!'
+              OR BINARY LOWER(COALESCE(r.public_address,'')) LIKE BINARY CONCAT('%',#{query.literalKeyword},'%') ESCAPE '!')
+        </if>
+        ORDER BY
+        <choose>
+            <when test="query.sort == 'price_desc'">COALESCE(o.price,0) desc,</when>
+            <when test="query.sort == 'price_asc'">COALESCE(o.price,0) asc,</when>
+        </choose>
+        o.create_time desc, o.id desc
+        LIMIT #{query.limit} OFFSET #{query.offset}
+    </select>
     <select id="getPublicOrderById" resultType="com.mikasa.campusrunner.pojo.vo.PublicOrderVO">
         <include refid="publicOrderProjection"/>
         AND o.id = #{id}
     </select>
 
 
+
+    <sql id="feedPrivateAccess">(COALESCE(o.user_id = #{callerId},0) OR access_take.id IS NOT NULL)</sql>
+    <select id="listRunnerFeed" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+        SELECT o.id, o.price, o.product_amount, o.business_type, o.create_time, o.expected_delivery_time,
+            o.gap, o.category_id, c.category_name, o.status,
+            #{callerId} AS access_user_id, <include refid="feedPrivateAccess"/> AS private_access,
+            p.public_address AS pick_up_address,
+            r.public_address AS recive_address,
+            IF(<include refid="feedPrivateAccess"/>, o.product_amount+o.price, NULL) AS runner_receivable,
+            IF(<include refid="feedPrivateAccess"/>, o.order_number, NULL) AS order_number,
+            IF(<include refid="feedPrivateAccess"/>, o.service_fee_rate, NULL) AS service_fee_rate,
+            IF(<include refid="feedPrivateAccess"/>, o.service_fee, NULL) AS service_fee,
+            IF(<include refid="feedPrivateAccess"/>, o.pay_amount, NULL) AS pay_amount,
+            IF(<include refid="feedPrivateAccess"/>, o.delivery_time, NULL) AS delivery_time,
+            IF(<include refid="feedPrivateAccess"/>, o.cancel_time, NULL) AS cancel_time,
+            IF(<include refid="feedPrivateAccess"/>, o.cancel_reson, NULL) AS cancel_reson,
+            IF(<include refid="feedPrivateAccess"/>, o.exceed_time, NULL) AS exceed_time,
+            o.door_access, o.user_id, sender.username AS username,
+            IF(<include refid="feedPrivateAccess"/>, o.phone, NULL) AS phone,
+            o.note,
+            IF(<include refid="feedPrivateAccess"/>, o.deleted, NULL) AS deleted
+        FROM tb_orders o
+        LEFT JOIN tb_user sender ON sender.id = o.user_id
+        JOIN tb_category c ON c.id=o.category_id
+        JOIN tb_order_address_snapshot p ON p.order_id=o.id AND p.role='PICKUP' AND p.school_id=#{schoolId}
+        JOIN tb_order_address_snapshot r ON r.order_id=o.id AND r.role='RECEIVE' AND r.school_id=#{schoolId}
+        LEFT JOIN tb_take_orders access_take ON access_take.id = (
+            SELECT MAX(access_candidate.id) FROM tb_take_orders access_candidate
+            WHERE access_candidate.order_id=o.id AND access_candidate.user_id=#{callerId}
+              AND access_candidate.deleted=0 AND access_candidate.status IN (0,1,2))
+        WHERE o.deleted=0 AND o.status=0
+        <if test="pickup.compusId != null">AND p.compus_id = #{pickup.compusId}</if>
+        <if test="pickup.buildCategoryId != null">AND p.build_category_id = #{pickup.buildCategoryId}</if>
+        <if test="pickup.buildingId != null">AND p.building_id = #{pickup.buildingId}</if>
+        <if test="receive.compusId != null">AND r.compus_id = #{receive.compusId}</if>
+        <if test="receive.buildCategoryId != null">AND r.build_category_id = #{receive.buildCategoryId}</if>
+        <if test="receive.buildingId != null">AND r.building_id = #{receive.buildingId}</if>
+        <if test="query.categoryId != null">AND o.category_id=#{query.categoryId}</if>
+        <if test="query.literalKeyword != ''">
+            AND (BINARY LOWER(COALESCE(o.note,'')) LIKE BINARY CONCAT('%',#{query.literalKeyword},'%') ESCAPE '!'
+              OR BINARY LOWER(COALESCE(c.category_name,'')) LIKE BINARY CONCAT('%',#{query.literalKeyword},'%') ESCAPE '!'
+              OR BINARY LOWER(COALESCE(p.public_address,'')) LIKE BINARY CONCAT('%',#{query.literalKeyword},'%') ESCAPE '!'
+              OR BINARY LOWER(COALESCE(r.public_address,'')) LIKE BINARY CONCAT('%',#{query.literalKeyword},'%') ESCAPE '!')
+        </if>
+        ORDER BY
+        <choose>
+            <when test="query.sort == 'price_desc'">COALESCE(o.price,0) desc,</when>
+            <when test="query.sort == 'price_asc'">COALESCE(o.price,0) asc,</when>
+        </choose>
+        <choose>
+            <when test="query.sort == 'time_asc'">o.create_time asc, o.id asc</when>
+            <otherwise>o.create_time desc, o.id desc</otherwise>
+        </choose>
+        LIMIT #{query.limit} OFFSET #{query.offset}
+    </select>
 
     <select id="showByPrice" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
         -- 这里查找出来的字段为OrderShowVO字段，别名为了能够匹配上
@@ -80,6 +155,7 @@
             ORDER BY orders.price
         </if>
 
+        LIMIT 20
     </select>
 
     <select id="showByPickUpAdd" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
@@ -136,6 +212,7 @@
 
         ORDER BY orders.create_time desc
 
+        LIMIT 20
     </select>
 
     <select id="showByReciveAdd" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
@@ -190,9 +267,10 @@
             </if>
 
         ORDER BY orders.create_time desc
+        LIMIT 20
     </select>
 
-    <select id="getMy" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+    <sql id="publisherOrderSelect">
         SELECT
             orders.id,
             address_pick_up.address AS pick_up_address,
@@ -238,7 +316,44 @@
             orders.id = address_pick_up.id AND
             orders.id = address_recive.id AND
             orders.user_id = #{id}
-        ORDER BY orders.create_time desc
+    </sql>
+    <select id="getMy" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+        <include refid="publisherOrderSelect"/>
+        ORDER BY orders.create_time desc, orders.id desc
+        LIMIT 20
+    </select>
+    <select id="getMyPage" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
+        <include refid="publisherOrderSelect"/>
+        <choose>
+            <when test="query.group == 'unpaid'">AND orders.status = -1</when>
+            <when test="query.group == 'waiting'">AND orders.status = 0</when>
+            <when test="query.group == 'processing'">AND orders.status IN (1,2,3)</when>
+            <when test="query.group == 'completed'">AND orders.status IN (5,6,7)</when>
+            <when test="query.group == 'canceled'">AND orders.status = 4</when>
+            <when test="query.group == 'refund'">AND orders.status IN (-2,-3,-4)</when>
+        </choose>
+        <if test="query.searchKeyword != ''">
+            AND BINARY LOWER(
+                <foreach collection="query.whitespaceCharacters" item="space">REPLACE(</foreach>
+                CONCAT(COALESCE(category.category_name,''), COALESCE(orders.note,''),
+                    IF(LOCATE(' ',address_pick_up.address)>0,SUBSTRING(address_pick_up.address,LOCATE(' ',address_pick_up.address)+1),''),
+                    IF(LOCATE(' ',address_recive.address)>0,SUBSTRING(address_recive.address,LOCATE(' ',address_recive.address)+1),''),
+                    CASE
+                        WHEN orders.business_type='PURCHASE' AND orders.status=1 THEN '采购中'
+                        WHEN orders.business_type='PURCHASE' AND orders.status=2 THEN '配送中'
+                        ELSE CASE orders.status
+                            WHEN -4 THEN '退款异常' WHEN -3 THEN '退款成功' WHEN -2 THEN '退款中'
+                            WHEN -1 THEN '待支付' WHEN 0 THEN '待接单' WHEN 1 THEN '已接单'
+                            WHEN 2 THEN '配送中' WHEN 3 THEN '已送达' WHEN 4 THEN '已取消'
+                            WHEN 5 THEN '已完成' WHEN 6 THEN '提现成功' WHEN 7 THEN '提现失败'
+                            ELSE '订单状态' END END,
+                    COALESCE(orders.order_number,''), COALESCE(DATE_FORMAT(orders.create_time,'%Y-%m-%d %H:%i:%s'),''),
+                    CAST(CAST(COALESCE(orders.pay_amount,0) AS DECIMAL(20,2)) AS CHAR))
+                <foreach collection="query.whitespaceCharacters" item="space">, #{space}, '')</foreach>
+            ) LIKE BINARY CONCAT('%', #{query.searchKeyword}, '%') ESCAPE '!'
+        </if>
+        ORDER BY orders.create_time desc, orders.id desc
+        LIMIT #{query.limit} OFFSET #{query.offset}
     </select>
 
     <select id="showByTime" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
@@ -295,6 +410,7 @@
             ORDER BY orders.create_time
         </if>
 
+        LIMIT 20
     </select>
 
     <select id="detail" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
@@ -326,7 +442,8 @@
                 orders.category_id,
                 category.category_name,
                 orders.deleted,
-                user.realname
+                user.realname,
+                user.username AS sender_nickname
 --                 user.phone
         FROM
             tb_orders AS orders,
@@ -423,6 +540,7 @@
 <!--            </if>-->
 
         ORDER BY orders.create_time desc
+        LIMIT 20
     </select>
 
     <select id="showByCategory" resultType="com.mikasa.campusrunner.pojo.vo.OrderShowVO">
@@ -476,6 +594,7 @@
             orders.category_id = #{categoryId}
 
         order by orders.create_time desc
+        LIMIT 20
     </select>
 
 
@@ -729,7 +848,7 @@
         <include refid="latestAdminRefundJoin"/>
         WHERE o.deleted = 0
         <include refid="adminOrderKeyword"/>
-        ORDER BY o.create_time DESC
+        ORDER BY o.create_time DESC, o.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 
@@ -757,7 +876,7 @@
               #{s}
           </foreach>
         <include refid="adminOrderKeyword"/>
-        ORDER BY o.create_time DESC
+        ORDER BY o.create_time DESC, o.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 

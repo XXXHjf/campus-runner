@@ -64,6 +64,15 @@
             tb_user.deleted = 0 AND
             tb_user.student_id_card_review = 1 AND
             tb_user.`school_id` = tb_school.`id`
+        order by tb_user.create_time desc, tb_user.id desc limit 20
+    </select>
+
+    <select id="getPendingAuthPage" resultType="com.mikasa.campusrunner.pojo.vo.UserVO">
+        select u.*, s.school_name from tb_user u
+        inner join tb_school s on u.school_id = s.id
+        where u.deleted = 0 and u.student_id_card_review = 1
+        order by u.create_time desc, u.id desc
+        limit #{query.limit} offset #{query.offset}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
@@ -129,7 +138,7 @@
         LEFT JOIN tb_school s ON u.school_id = s.id
         WHERE u.deleted = 0
         <include refid="adminUserKeyword"/>
-        ORDER BY u.create_time DESC
+        ORDER BY u.create_time DESC, u.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 
@@ -143,7 +152,7 @@
         LEFT JOIN tb_school s ON u.school_id = s.id
         WHERE u.deleted = 0 AND u.authentication = 1
         <include refid="adminUserKeyword"/>
-        ORDER BY u.create_time DESC
+        ORDER BY u.create_time DESC, u.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 
@@ -157,7 +166,7 @@
         LEFT JOIN tb_school s ON u.school_id = s.id
         WHERE u.deleted = 0 AND u.student_id_card_review = 1
         <include refid="adminUserKeyword"/>
-        ORDER BY u.create_time DESC
+        ORDER BY u.create_time DESC, u.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 

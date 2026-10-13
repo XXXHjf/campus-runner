@@ -7,6 +7,11 @@
 
     <select id="getAll" resultType="com.mikasa.campusrunner.pojo.entity.School">
         select * from tb_school where deleted = 0
+    order by id limit 50
+    </select>
+    <select id="getAllPage" resultType="com.mikasa.campusrunner.pojo.entity.School">
+        select * from tb_school where deleted = 0
+    order by id limit #{page.limit} offset #{page.offset}
     </select>
 
     <select id="getNumberIdByName" resultType="java.lang.Long">
@@ -30,6 +35,14 @@
         FROM tb_school
         WHERE deleted = 0
         <if test="schoolId != null">AND id = #{schoolId}</if>
+        order by number_id, id limit 50
+    </select>
+    <select id="getThreePage" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookThreeVO$School">
+        SELECT school_name,number_id
+        FROM tb_school
+        WHERE deleted = 0
+        <if test="schoolId != null">AND id = #{schoolId}</if>
+        order by number_id, id limit #{page.limit} offset #{page.offset}
     </select>
 
     <select id="getNameById" resultType="java.lang.String">

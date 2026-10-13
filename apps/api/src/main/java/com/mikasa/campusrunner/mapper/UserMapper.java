@@ -19,6 +19,8 @@ import java.util.List;
  */
 @Mapper
 public interface UserMapper {
+    @org.apache.ibatis.annotations.Select("SELECT id,school_id,authentication,deleted FROM tb_user WHERE id=#{id} FOR UPDATE")
+    UserVO lockRunnerIdentity(@Param("id") Long id);
     /**
      * 根据openid查询用户
      * @param openid
@@ -82,6 +84,7 @@ public interface UserMapper {
      * @return
      */
     List<UserVO> getPendingAuthList();
+    List<UserVO> getPendingAuthPage(@Param("query") com.mikasa.campusrunner.pojo.dto.ListPageDTO query);
 
 //    List<User> getAll();
 //

@@ -23,7 +23,7 @@ class PublicBrowseMapperTest {
         String query = sql("OrderMapper", "listPublicOrders", Map.of());
         assertTrue(query.contains("o.status = 0"));
         assertTrue(query.contains("limit 100"));
-        for (String field : new String[]{"o.phone", "o.username", "o.note", "o.image", "o.order_number", "p.details", "r.details", "select *"}) {
+        for (String field : new String[]{"o.phone", "o.image", "o.order_number", "p.details", "r.details", "p.address ", "r.address ", "select *"}) {
             assertFalse(query.contains(field), field);
         }
     }
@@ -33,7 +33,7 @@ class PublicBrowseMapperTest {
         String query = sql("OrderMapper", "getPublicOrderById", Map.of("id",1L));
         assertTrue(query.contains("o.status = 0"));
         assertTrue(query.contains("and o.id = ?"));
-        for (String field : new String[]{"o.phone","o.username","o.note","o.image","o.order_number","p.details","r.details","select *"}) {
+        for (String field : new String[]{"o.phone","o.image","o.order_number","p.details","r.details","p.address ","r.address ","select *"}) {
             assertFalse(query.contains(field), field);
         }
     }

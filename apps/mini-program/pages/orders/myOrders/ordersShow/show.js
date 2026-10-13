@@ -1,3 +1,4 @@
+const tokenManager = require('../../../../utils/tokenManager');
 const feedback = require('../../../../utils/feedback');
 const userOrderService = require('../../../../services/userOrderService');
 const { showError } = require('../../../../utils/transformers');
@@ -36,6 +37,7 @@ Page({
     orders: [],
     filteredOrders: [],
     loading: false,
+    hasMoreOrders: true,
     actionSheetVisible: false,
     actionOrder: {},
     editVisible: false,
@@ -107,7 +109,7 @@ Page({
           feedback.showToast(this, { title: '确认成功', icon: 'success' });
           this.loadOrders();
         } catch (error) {
-          console.error('确认订单失败:', error);
+          console.error("确认订单失败:");
           showError(this, '确认失败，请重试');
         }
       },
@@ -153,7 +155,7 @@ Page({
             try {
               await userOrderService.refundOrder(order.orderNumber, '发单人取消订单');
             } catch (error) {
-              console.error('退款申请失败:', error);
+              console.error("退款申请失败:");
               feedback.showMessage(this, '订单已取消，退款申请未成功', { persistent: true, key: 'refund', action: '查看订单', onAction: () => wx.navigateTo({ url: `/pages/orders/myOrders/ordersInfo/info?id=${order.id}` }) });
               await feedback.showModal(this, { title: '退款申请未成功', content: '订单已取消，但退款申请未成功。请查看订单并反馈异常。', confirmText: '查看订单', cancelText: '稍后处理', allowDuringAction: true, success: result => { if (result.confirm) wx.navigateTo({ url: `/pages/orders/myOrders/ordersInfo/info?id=${order.id}` }); } });
               this.loadOrders();
@@ -163,7 +165,7 @@ Page({
           feedback.showToast(this, { title: needsRefund ? '已发起退款' : '已取消', theme: 'warning' });
           this.loadOrders();
         } catch (error) {
-          console.error('取消订单失败:', error);
+          console.error("取消订单失败:");
           showError(this, '取消失败，请重试');
           this.loadOrders();
         }
@@ -351,38 +353,71 @@ Page({
   },
 
   onSearchChange(event) {
-    this.setData({ keyword: event.detail.value }, () => this.applyFilters());
+    this.setData({ keyword: event.detail.value });
+    clearTimeout(this._searchTimer);
+    this._loadVersion = (this._loadVersion || 0) + 1;
+    this._searchTimer = setTimeout(() => this.loadOrders(), 300);
   },
 
   onSearchSubmit() {
-    this.applyFilters();
+    clearTimeout(this._searchTimer);
+    this.loadOrders();
     wx.hideKeyboard();
   },
 
   clearSearch() {
-    this.setData({ keyword: '' }, () => this.applyFilters());
+    clearTimeout(this._searchTimer);
+    this.setData({ keyword: '' });
+    return this.loadOrders();
   },
 
   selectTab(event) {
-    this.setData({ tabValue: event.currentTarget.dataset.value }, () => this.applyFilters());
+    clearTimeout(this._searchTimer);
+    this.setData({ tabValue: event.currentTarget.dataset.value });
+    return this.loadOrders();
   },
 
-  async loadOrders() {
+  async loadOrders(append = false) {
+    const token = tokenManager.getToken() || '';
+    const scope = JSON.stringify([token, this.data.tabValue, normalizeSearchText(this.data.keyword)]);
+    if (append && (this.data.loading || !this.data.hasMoreOrders)) return false;
+    if (append && this._listScope !== scope) append = false;
+    const version = this._loadVersion = (this._loadVersion || 0) + 1;
+    const page = append ? (this._page || 1) + 1 : 1;
+    this._listScope = scope;
+    if (!append) this.setData({ orders: [], filteredOrders: [], hasMoreOrders: true });
     feedback.loaded(this);
     this.setData({ loading: true });
+    const current = () => version === this._loadVersion
+      && token === (tokenManager.getToken() || '')
+      && scope === JSON.stringify([token, this.data.tabValue, normalizeSearchText(this.data.keyword)]);
     try {
-      const result = await userOrderService.getMyOrders();
-      const orders = (Array.isArray(result) ? result : []).map(order => this.prepareOrder(order));
-      this.setData({ orders }, () => this.applyFilters());
+      const result = await userOrderService.getMyOrders({ page, pageSize: 20, group: this.data.tabValue, keyword: this.data.keyword });
+      if (!current()) return false;
+      const rows = (Array.isArray(result) ? result : []).map(order => this.prepareOrder(order));
+      const previous = append ? this.data.orders : [];
+      const known = new Set(previous.map(order => String(order.id)));
+      const orders = [...previous, ...rows.filter(order => !known.has(String(order.id)))];
+      this._page = page;
+      this.setData({ orders, hasMoreOrders: rows.length === 20 }, () => this.applyFilters());
       return true;
     } catch (error) {
-      console.error('获取订单失败:', error);
-      feedback.loadError(this, '加载失败，请重试', () => this.loadOrders(), !!this.data.orders.length);
+      if (current()) feedback.loadError(this, '加载失败，请重试', () => this.loadOrders(append), !!this.data.orders.length);
       return false;
     } finally {
-      this.setData({ loading: false });
+      if (current()) this.setData({ loading: false });
     }
   },
+
+  onReachBottom() { return this.loadOrders(true); },
+
+  onHide() {
+    clearTimeout(this._searchTimer);
+    this._loadVersion = (this._loadVersion || 0) + 1;
+    this.setData({ loading: false });
+  },
+
+  onUnload() { this.onHide(); },
 
   onLoad() {
     this.updateNavigationMetrics();
@@ -393,6 +428,10 @@ Page({
   },
 
   onShow() {
+    if (this._shownToken !== (tokenManager.getToken() || '')) {
+      this.setData({ actionSheetVisible: false, actionOrder: {}, editVisible: false, editOrder: {}, editFiles: [] });
+    }
+    this._shownToken = tokenManager.getToken() || '';
     this.loadOrders();
   },
 

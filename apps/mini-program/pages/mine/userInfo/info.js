@@ -37,7 +37,6 @@ Page({
   // 昵称
   tiptChangeUsername(e) {
     const nickName = e.detail.value.replace(/\s+/g, ''); // 移除所有空格
-    console.log(nickName);
     this.setData({
       newNickName: nickName,
     });
@@ -87,7 +86,7 @@ Page({
         this.setData({ newAvatarAssetId: null });
       }
       hideLoading();
-      console.error('[保存失败]:', error);
+      console.error("[保存失败]:");
       showErrorToast(this, error.message || "保存失败，请重试");
     }
   },
@@ -164,10 +163,10 @@ Page({
       };
       
       this.setData({ userInfo: userInfoWithToken });
-      console.log('获取用户数据成功:', userInfo);
+      console.log("获取用户数据成功:");
       return userInfo;
     } catch (error) {
-      console.error('获取用户数据失败:', error);
+      console.error("获取用户数据失败:");
       throw error;
     }
   },
@@ -192,7 +191,7 @@ Page({
       await this.getGlobalData();
       console.log('页面显示时获取用户数据成功');
     } catch (error) {
-      console.error('页面显示时获取用户数据失败:', error);
+      console.error("页面显示时获取用户数据失败:");
       feedback.loadError(this, '资料加载失败，请重试', () => this.onShow(), !!this.data.userInfo?.id);
     }
   },

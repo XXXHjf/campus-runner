@@ -46,9 +46,9 @@ Page({
   // 删除（使用封装的 service）
   async b1() {
     let addresses;
-    try { addresses = await addressService.getAllAddresses(); }
+    try { addresses = await addressService.getAddressSummary(); }
     catch (error) { showError(this, '地址加载失败，请重试'); return; }
-    const result = await feedback.showModal(this, { title: '删除地址？', content: this.data.addressInfo.isDefault == 1 && addresses.length > 1 ? '删除后，最近添加的其他地址将设为默认地址。' : '删除后需要重新添加该地址。', confirmText: '删除', cancelText: '保留', danger: true });
+    const result = await feedback.showModal(this, { title: '删除地址？', content: this.data.addressInfo.isDefault == 1 && addresses.total > 1 ? '删除后，最近添加的其他地址将设为默认地址。' : '删除后需要重新添加该地址。', confirmText: '删除', cancelText: '保留', danger: true });
     if (!result.confirm) return;
     try {
       showLoading('删除中');
@@ -56,7 +56,7 @@ Page({
       await addressService.deleteUserAddress(id);
       feedback.navigate(this, 'navigateBack', {}, '删除成功');
     } catch (error) {
-      console.error('删除地址失败:', error);
+      console.error("删除地址失败:");
       showError(this, '删除失败');
     } finally {
       hideLoading();
@@ -96,9 +96,8 @@ Page({
       // 历史地址可能没有默认地址；服务端会在本次写入时补齐。
       if (!defaultMatches && data.isDefault === 0 && Number(savedAddress.isDefault) === 1
           && this.data.addressInfo.isDefault != 1) {
-        const addresses = await addressService.getAllAddresses();
-        const defaults = addresses.filter(address => Number(address.isDefault) === 1);
-        defaultMatches = defaults.length === 1 && String(defaults[0].id) === String(id);
+        const summary = await addressService.getAddressSummary();
+        defaultMatches = Number(summary.defaultCount) === 1 && String(summary.defaultAddress?.id) === String(id);
       }
       if (!defaultMatches
           || (savedAddress.details || '') !== requestedDetails
@@ -110,7 +109,7 @@ Page({
 
       feedback.navigate(this, 'navigateBack', {}, '更新成功');
     } catch (error) {
-      console.error('更新地址失败:', error);
+      console.error("更新地址失败:");
       showError(this, error && error.code === ADDRESS_SAVE_NOT_APPLIED ? '保存未生效，请稍后重试' : '更新失败');
     } finally {
       hideLoading();
@@ -153,7 +152,7 @@ Page({
       });
     }
     
-    console.log('details值： ' + value);
+    console.log("details值： ");
     
     this.setData({
       showDetailsTip: false
@@ -195,7 +194,7 @@ Page({
       });
     }
     
-    console.log('label值： ' + value);
+    console.log("label值： ");
     
     this.setData({
       showLabelTip: false
@@ -240,7 +239,7 @@ Page({
       upBuildingNumberId
     } = e.detail;
     
-    console.log('选择的地址:', upCompus, upCategory, upBuilding);
+    console.log("选择的地址:");
     
     this.setData({
       upCompus: upCompus,
@@ -257,7 +256,7 @@ Page({
     try {
       const id = this.data.id;
       const addressInfo = await addressService.getUserAddressDetail(id);
-      console.log('地址详情:', addressInfo);
+      console.log("地址详情:");
       this.setData({
         addressInfo,
         upSchool: addressInfo.schoolName,
@@ -271,7 +270,7 @@ Page({
         showDetailsTip: false,
       });
     } catch (error) {
-      console.error('获取地址详情失败:', error);
+      console.error("获取地址详情失败:");
       feedback.loadError(this, '资料加载失败，请重试', () => this.getAddressInfo(), !!this.data.addressInfo.id);
     }
   },
@@ -289,30 +288,33 @@ Page({
         this.setData({
           schools: getOptions(schools),
         });
-        this.lifetimes();
+        await this.lifetimes();
       } else {
         console.log('Address list is undefined or null.');
         throw new Error('Address list is undefined or null.');
       }
     } catch (error) {
-      console.error('修改地址失败:', error);
+      console.error("修改地址失败:");
       throw error;
     }
   },
-  lifetimes() {
+  async lifetimes() {
+    const version = (this._addressColumnVersion || 0) + 1;
+    this._addressColumnVersion = version;
     const schools = this.data.schools;
     // 初次显示的校区与建筑
     const {
       compuses,
       buildings
-    } = this.getCompus(schools[0].value);
+    } = await this.getCompus(schools[0]?.value);
+    if (version !== this._addressColumnVersion) return;
     this.setData({
       compuses: compuses,
       buildings: buildings,
     });
   },
-  onColumnChange(e) {
-    console.log('pick:', e.detail);
+  async onColumnChange(e) {
+    console.log("pick:");
     const {
       column,
       index
@@ -322,12 +324,16 @@ Page({
       compuses
     } = this.data;
 
+    if (column > 1) return;
+    const columnVersion = (this._addressColumnVersion || 0) + 1;
+    this._addressColumnVersion = columnVersion;
     if (column === 0) {
       // 更改学校
       const {
         compuses,
         buildings
-      } = this.getCompus(schools[index].value);
+      } = await this.getCompus(schools[index]?.value);
+      if (columnVersion !== this._addressColumnVersion) return;
       this.setData({
         compuses,
         buildings,
@@ -335,7 +341,8 @@ Page({
     }
     if (column === 1) {
       // 更改校区
-      const buildings = this.getBuildings(compuses[index].value);
+      const buildings = await this.getBuildings(compuses[index]?.value);
+      if (columnVersion !== this._addressColumnVersion) return;
       this.setData({
         buildings
       });
@@ -344,23 +351,41 @@ Page({
       // 更改建筑
     }
   },
-  getCompus(schoolValue) {
+  async getCompus(schoolValue) {
+    if (!schoolValue) return { compuses: [], buildings: [] };
     const compuses = getOptions(this.data.addressList.compuses, (compus) => match(compus.value, schoolValue, 3));
-    const buildings = this.getBuildings(compuses[0].value);
+    this.setData({ compuses });
+    const buildings = await this.getBuildings(compuses[0]?.value);
     return {
       compuses,
       buildings
     };
   },
-  getBuildings(compusValue) {
-    return getOptions(this.data.addressList.buildings, (building) => match(building.value, compusValue, 6));
+  async getBuildings(compusValue) {
+    const version = (this._buildingVersion || 0) + 1;
+    this._buildingVersion = version;
+    this.setData({ buildings: [], addressLoading: true });
+    const token = tokenManager.getToken();
+    try {
+      if (!compusValue) return [];
+      const raw = await addressService.getThreeLevelAddress(compusValue);
+      if (version !== this._buildingVersion || token !== tokenManager.getToken()) return [];
+      const map = { ...(this.data.addressList.buildings || {}) };
+      for (const item of raw.building) map[item.numberId] = item.buildingName;
+      this.setData({ 'addressList.buildings': map });
+      return getOptions(map, building => match(building.value, compusValue, 6));
+    } catch (error) {
+      if (version === this._buildingVersion) feedback.showToast(this, { title: '地址加载失败，请重试', icon: 'error' });
+      return [];
+    } finally { if (version === this._buildingVersion) this.setData({ addressLoading: false }); }
   },
   onPickerChange(e) {
+    if (this.data.addressLoading || !this.data.buildings?.some(item => String(item.value) === String(e.detail.value?.[2]))) return;
     const {
       value,
       label
     } = e.detail;
-    console.log('picker confirm:', e.detail);
+    console.log("picker confirm:");
     this.setData({
       areaVisible: false,
       areaValue: value,
@@ -374,7 +399,7 @@ Page({
     });
   },
   onPickerCancel(e) {
-    console.log('picker cancel', e.detail);
+    console.log("picker cancel");
     this.setData({
       areaVisible: false,
     });
@@ -386,7 +411,7 @@ Page({
       const addressList = this.convertToListNew(addressData);
       this.setData({ addressList });
     } catch (error) {
-      console.error('获取地址列表失败:', error);
+      console.error("获取地址列表失败:");
       feedback.showMessage(this, '地址列表加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.getAllAddress() });
       throw error;
     }
@@ -433,7 +458,7 @@ Page({
       // 获取地址详情
       await this.getAddressInfo();
     } catch (error) {
-      console.error('页面加载失败:', error);
+      console.error("页面加载失败:");
       feedback.loadError(this, '资料加载失败，请重试', () => this.getAddressInfo(), !!this.data.addressInfo.id);
     }
   },

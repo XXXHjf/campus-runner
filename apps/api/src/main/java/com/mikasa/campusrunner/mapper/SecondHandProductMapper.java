@@ -32,9 +32,16 @@ public interface SecondHandProductMapper {
     List<SecondHandProductVO> list(@Param("query") SecondHandProductQueryDTO query,
                                    @Param("schoolId") Long schoolId);
 
-    List<SecondHandProductVO> listBySeller(@Param("sellerId") Long sellerId);
+    long countProducts(@Param("query") SecondHandProductQueryDTO query, @Param("onSaleOnly") boolean onSaleOnly, @Param("schoolId") Long schoolId);
 
-    List<SecondHandProductVO> listFavorites(@Param("userId") Long userId);
+    List<SecondHandProductVO> listPage(@Param("query") SecondHandProductQueryDTO query,
+                                      @Param("schoolId") Long schoolId);
+
+    List<SecondHandProductVO> listBySeller(@Param("sellerId") Long sellerId,
+                                         @Param("query") SecondHandProductQueryDTO query);
+
+    List<SecondHandProductVO> listFavorites(@Param("userId") Long userId,
+                                          @Param("query") SecondHandProductQueryDTO query);
 
     int lockOnSaleProduct(@Param("id") Long id);
 

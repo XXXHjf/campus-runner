@@ -31,6 +31,7 @@ Page({
     schoolName: '',
     keyword: '',
     searchKeyword: '',
+    hasMoreOrders: true,
     statusBarHeight: 0,
     navigationBarHeight: 44,
     navigationRightPadding: 96,
@@ -128,7 +129,7 @@ Page({
         ? school.schoolName.trim() : '' });
     } catch (error) {
       if (version === this._schoolVersion) this.setData({ schoolName: '' });
-      console.error('跑腿首页学校信息加载失败', error);
+      console.error("跑腿首页学校信息加载失败");
     }
   },
 
@@ -173,7 +174,7 @@ Page({
         }))
       });
     } catch (error) {
-      console.error('获取首页轮播图失败:', error);
+      console.error("获取首页轮播图失败:");
       if (requestId === this._bannerRequestId && this.data.swiperList.length === 0) {
         this.setData({ swiperList: [] });
       }
@@ -199,7 +200,6 @@ Page({
     }
     if (!await require('../../utils/accessGuard').ensureAuthenticated()) return;
     const id = item.id;
-    console.log(id)
     wx.navigateTo({
       url: `/pages/orders/takeOrders/takesInfo/info?id=${id}`,
     })
@@ -345,56 +345,55 @@ Page({
       return (aPrice - bPrice) * direction;
     });
   },
-  async _loadFilteredTakes() {
-    const { upPickUp, upRecive, selectedCategoryId, selectedCategoryName, userInfo } = this.data;
-    let takes;
-
-    if (upPickUp && upRecive) {
-      takes = await orderService.getOrdersByDoubleAddress(upPickUp, upRecive, userInfo.schoolId);
-    } else if (upPickUp) {
-      takes = await orderService.getOrdersBySingleAddress(
-        upPickUp,
-        FILTER_TYPES.PICKUP_ADDRESS,
-        userInfo.schoolId
-      );
-    } else if (upRecive) {
-      takes = await orderService.getOrdersBySingleAddress(
-        upRecive,
-        FILTER_TYPES.RECEIVE_ADDRESS,
-        userInfo.schoolId
-      );
-    } else if (selectedCategoryId != null) {
-      takes = await orderService.getOrdersByCategory(selectedCategoryId);
-    } else if (this.data.sortMode === 'price') {
-      takes = await orderService.getOrdersByPrice(this.data.priceSort);
-    } else {
-      takes = await orderService.getOrdersByTime();
+  async _loadFilteredTakes(pageQuery = {}) {
+    const query = { ...pageQuery, keyword: this.data.searchKeyword,
+      sort: this.data.sortMode === 'price' ? (this.data.priceSort === 0 ? 'price_desc' : 'price_asc') : 'time' };
+    if (this.data.selectedCategoryId != null) query.categoryId = this.data.selectedCategoryId;
+    for (const [selection, prefix] of [[this.data.upPickUp, 'pick'], [this.data.upRecive, 'receive']]) {
+      if (!selection) continue;
+      for (const [index, field] of ['CampusNumberId', 'BuildCategoryNumberId', 'BuildingNumberId'].entries()) {
+        const value = selection.value?.[index];
+        if (value != null && value !== '') query[prefix + field] = value;
+      }
     }
-
-    if ((upPickUp || upRecive) && selectedCategoryId != null) {
-      takes = takes.filter((item) => (
-        Number(item.categoryId) === Number(selectedCategoryId)
-        || item.categoryName === selectedCategoryName
-      ));
-    }
+    const takes = await orderService.getRunnerFeed(query);
     return this._sortTakes(this._decorateTakes(takes));
   },
-  applyFilters() {
+  applyFilters(append = false) {
     const token = tokenManager.getToken();
-    const key = JSON.stringify([token, this.data.userInfo.schoolId, this.data.upPickUp,
+    const session = tokenManager.getSessionVersion?.();
+    const key = JSON.stringify([token, session, this.data.userInfo.authentication, this.data.userInfo.schoolId, this.data.upPickUp,
       this.data.upRecive, this.data.selectedCategoryId, this.data.sortMode,
       this.data.priceSort, this.data.searchKeyword]);
+    const publicOnly = !token || Number(this.data.userInfo.authentication) !== 1;
+    if (append && (this.data.ordersLoading || !this.data.hasMoreOrders)) return Promise.resolve(false);
+    if (append && this._feedListKey !== key) append = false;
     if (this._ordersPending?.key === key) return this._ordersPending.promise;
+    if (this._feedListKey !== key) {
+      if (this._feedListKey) this.setData({ takes: [], hasMoreOrders: true });
+      this._feedPage = 0;
+    }
+    this._feedListKey = key;
+    if (append && !this._feedPage) append = false;
+    const page = append ? (this._feedPage || 1) + 1 : 1;
     const version = (this._ordersVersion || 0) + 1;
     this._ordersVersion = version;
-    const isCurrent = () => version === this._ordersVersion && token === tokenManager.getToken();
+    const isCurrent = () => version === this._ordersVersion && token === tokenManager.getToken()
+      && session === tokenManager.getSessionVersion?.();
     feedback.loaded(this);
     this.setData({ ordersLoading: true });
     const promise = (async () => {
       try {
         let takes;
-        if (!token || Number(this.data.userInfo.authentication) !== 1) {
-          takes = await orderService.getPublicOrders();
+        let rowCount = 0;
+        if (publicOnly) {
+          const query = { page, pageSize: 20, keyword: this.data.searchKeyword,
+            sort: this.data.sortMode === 'price' ? (this.data.priceSort === 0 ? 'price_desc' : 'price_asc') : 'time',
+            pickupLabels: JSON.stringify((this.data.upPickUp?.label || []).filter(Boolean)),
+            receiveLabels: JSON.stringify((this.data.upRecive?.label || []).filter(Boolean)) };
+          if (this.data.selectedCategoryId != null) query.categoryId = this.data.selectedCategoryId;
+          takes = await orderService.getPublicOrders(query);
+          rowCount = takes.length;
           if (this.data.selectedCategoryId != null) {
             takes = takes.filter((item) => Number(item.categoryId) === Number(this.data.selectedCategoryId));
           }
@@ -404,7 +403,8 @@ Page({
           }
           takes = this._sortTakes(this._decorateTakes(takes));
         } else {
-          takes = await this._loadFilteredTakes();
+          takes = await this._loadFilteredTakes({ page, pageSize: 20 });
+          rowCount = takes.length;
         }
         const keyword = this.data.searchKeyword.trim().toLowerCase();
         if (keyword) {
@@ -413,12 +413,17 @@ Page({
             .some((value) => String(value || '').toLowerCase().includes(keyword)));
         }
         if (!isCurrent()) return false;
-        this.setData({ takes });
+        if (append) {
+          const seen = new Set(this.data.takes.map(item => String(item.id)));
+          takes = [...this.data.takes, ...takes.filter(item => !seen.has(String(item.id)))];
+        }
+        this._feedPage = page;
+        this.setData({ takes, hasMoreOrders: rowCount === 20 });
         return true;
       } catch (error) {
         if (isCurrent()) {
-          console.error('获取订单失败:', error);
-          feedback.loadError(this, '订单加载失败，请重试', () => this.applyFilters(), !!this.data.takes.length);
+          console.error("获取订单失败:");
+          feedback.loadError(this, '订单加载失败，请重试', () => this.applyFilters(append), !!this.data.takes.length);
         }
         return false;
       } finally {
@@ -431,6 +436,7 @@ Page({
     this._ordersPending = { key, promise };
     return promise;
   },
+  onReachBottom() { return this._feedHidden ? Promise.resolve(false) : this.applyFilters(true); },
   getTakeByTime() {
     this.setData({ sortMode: 'time' });
     return this.applyFilters();
@@ -472,18 +478,18 @@ Page({
           areaValue: [], // 重置选择器的值
         });
         this.getAllAddress()
-          .then(() => {
+          .then(async () => {
             const {
               schools
             } = this.data.addressList;
             this.setData({
               schools: _getOptions(schools),
             });
-            this.lifetimes();
+            await this.lifetimes();
             resolve(); // 成功加载地址数据后 resolve
           })
           .catch((error) => {
-            console.log('Failed to change address:', error);
+            console.log("Failed to change address:");
             reject(error); // 加载地址数据失败时 reject
           });
       } else {
@@ -492,20 +498,23 @@ Page({
       }
     });
   },
-  lifetimes() {
+  async lifetimes() {
+    const version = (this._addressColumnVersion || 0) + 1;
+    this._addressColumnVersion = version;
     const schools = this.data.schools;
     // 初次显示的校区与建筑
     const {
       compuses,
       buildings
-    } = this.getCompus(schools[0].value);
+    } = await this.getCompus(schools[0]?.value);
+    if (version !== this._addressColumnVersion) return;
     this.setData({
       compuses: compuses,
       buildings: buildings,
     });
   },
-  onColumnChange(e) {
-    console.log('pick:', e.detail);
+  async onColumnChange(e) {
+    console.log("pick:");
     const {
       column,
       index
@@ -515,12 +524,16 @@ Page({
       compuses
     } = this.data;
 
+    if (column > 1) return;
+    const columnVersion = (this._addressColumnVersion || 0) + 1;
+    this._addressColumnVersion = columnVersion;
     if (column === 0) {
       // 更改学校
       const {
         compuses,
         buildings
-      } = this.getCompus(schools[index].value);
+      } = await this.getCompus(schools[index]?.value);
+      if (columnVersion !== this._addressColumnVersion) return;
       this.setData({
         compuses,
         buildings,
@@ -528,7 +541,8 @@ Page({
     }
     if (column === 1) {
       // 更改校区
-      const buildings = this.getBuildings(compuses[index].value);
+      const buildings = await this.getBuildings(compuses[index]?.value);
+      if (columnVersion !== this._addressColumnVersion) return;
       this.setData({
         buildings
       });
@@ -537,23 +551,41 @@ Page({
       // 更改建筑
     }
   },
-  getCompus(schoolValue) {
+  async getCompus(schoolValue) {
+    if (!schoolValue) return { compuses: [], buildings: [] };
     const compuses = _getOptions(this.data.addressList.compuses, (compus) => _compareFirstNChars(compus.value, schoolValue, 3));
-    const buildings = this.getBuildings(compuses[0].value);
+    this.setData({ compuses });
+    const buildings = await this.getBuildings(compuses[0]?.value);
     return {
       compuses,
       buildings
     };
   },
-  getBuildings(compusValue) {
-    return _getOptions(this.data.addressList.buildings, (building) => _compareFirstNChars(building.value, compusValue, 6));
+  async getBuildings(compusValue) {
+    const version = (this._buildingVersion || 0) + 1;
+    this._buildingVersion = version;
+    this.setData({ buildings: [], addressLoading: true });
+    const token = tokenManager.getToken();
+    try {
+      if (!compusValue) return [];
+      const raw = await addressService.getThreeLevelAddress(compusValue);
+      if (version !== this._buildingVersion || token !== tokenManager.getToken()) return [];
+      const map = { ...(this.data.addressList.buildings || {}) };
+      for (const item of raw.building) map[item.numberId] = item.buildingName;
+      this.setData({ 'addressList.buildings': map });
+      return _getOptions(map, building => _compareFirstNChars(building.value, compusValue, 6));
+    } catch (error) {
+      if (version === this._buildingVersion) feedback.showToast(this, { title: '地址加载失败，请重试', icon: 'error' });
+      return [];
+    } finally { if (version === this._buildingVersion) this.setData({ addressLoading: false }); }
   },
   onPickerChange(e) {
+    if (this.data.addressLoading || !this.data.buildings?.some(item => String(item.value) === String(e.detail.value?.[2]))) return;
     const {
       value,
       label
     } = e.detail;
-    console.log('picker confirm:', e.detail);
+    console.log("picker confirm:");
     this.setData({
       areaVisible: false,
       areaValue: value,
@@ -580,7 +612,7 @@ Page({
     this._updateFilterMeta();
   },
   onPickerCancel(e) {
-    console.log('picker cancel', e.detail);
+    console.log("picker cancel");
     this.setData({
       areaVisible: false,
     });
@@ -592,7 +624,7 @@ Page({
       const addressList = addressService.convertAddressList(addressData);
       this.setData({ addressList });
     } catch (error) {
-      console.error('Failed to get address data:', error);
+      console.error("Failed to get address data:");
       throw error;
     }
   },
@@ -602,7 +634,7 @@ Page({
       const category = await addressService.getCategories();
       this.setData({ category: Array.isArray(category) ? category : [] });
     } catch (error) {
-      console.error('获取分类失败:', error);
+      console.error("获取分类失败:");
       showError(this, ERROR_MESSAGES.GET_CATEGORY_FAILED);
     }
   },
@@ -629,7 +661,7 @@ Page({
         this.setData({ visible: true });
       }
     } catch (error) {
-      console.error('读取用户协议状态失败:', error);
+      console.error("读取用户协议状态失败:");
       this.setData({ visible: true });
     }
   },
@@ -647,7 +679,7 @@ Page({
         console.log('openPrivacyContract success')
       },
       fail: res => {
-        console.error('openPrivacyContract fail', res)
+        console.error("openPrivacyContract fail")
       }
     })
   },
@@ -660,7 +692,7 @@ Page({
     return new Promise((resolve, reject) => {
       wx.login({
         success: (loginRes) => {
-          console.log("code is " + loginRes.code);
+          console.log("code is ");
           wx.request({
             url: `${url}/api/user/login`,
             method: 'POST',
@@ -708,6 +740,7 @@ Page({
   //   return timeStr;
   // },
   onHide() {
+    this._feedHidden = true;
     // 离页后丢弃旧结果；再次进入仍可发起新的静默刷新。
     this._refreshVersion = (this._refreshVersion || 0) + 1;
     this._ordersVersion = (this._ordersVersion || 0) + 1;
@@ -721,6 +754,7 @@ Page({
     this.onHide();
   },
   onShow() {
+    this._feedHidden = false;
     getApp().refreshMineTabRedDot().catch(() => {});
     return this.refreshRunner();
   },
@@ -814,7 +848,6 @@ Page({
       upBuilding,
       upBuildingNumberId
     } = e.detail;
-    console.log(upCompus, upCategory, upBuilding);
 
     // 判断取件收件地址，给不同属性赋值
     if (this.data.pickerTag == "pickup") {
@@ -825,7 +858,7 @@ Page({
           value: [upCompusNumberId, upCategoryNumberId, upBuildingNumberId]
         }
       });
-      console.log('设置取件地址:', this.data.upPickUp);
+      console.log("设置取件地址:");
     } else if (this.data.pickerTag == "recive") {
       // 设置收件地址信息
       this.setData({
@@ -834,7 +867,7 @@ Page({
           value: [upCompusNumberId, upCategoryNumberId, upBuildingNumberId]
         }
       });
-      console.log('设置收件地址:', this.data.upRecive);
+      console.log("设置收件地址:");
     }
     
     // 更新页面显示信息

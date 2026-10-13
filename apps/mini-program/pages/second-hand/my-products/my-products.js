@@ -1,6 +1,7 @@
 const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
 const { friendlyError } = require('../../../utils/secondHandStatus');
+const tokenManager = require('../../../utils/tokenManager');
 
 Page({
   retryFeedbackLoad() { return this._feedbackRetry?.(); },
@@ -13,6 +14,7 @@ Page({
     filteredProducts: [],
     tab: 'selling',
     loading: false,
+    hasMoreProducts: false,
     actionSheetVisible: false,
     actionProduct: {},
     pricePopupVisible: false,
@@ -29,8 +31,13 @@ Page({
   },
 
   onShow() {
-    this.loadProducts();
+    this._hidden = false;
+    return this.loadProducts();
   },
+
+  onHide() { this._hidden = true; this._listVersion = (this._listVersion || 0) + 1; },
+  onUnload() { this._disposed = true; this.onHide(); },
+  onReachBottom() { return this.loadProducts(true); },
 
   updateNavigationMetrics() {
     const windowInfo = typeof wx.getWindowInfo === 'function'
@@ -54,18 +61,40 @@ Page({
     else wx.switchTab({ url: '/pages/mine/mine/mine' });
   },
 
-  async loadProducts() {
+  async loadProducts(append = false) {
+    if (this._hidden || this._disposed || (append && (this.data.loading || !this.data.hasMoreProducts))) return;
+    const token = tokenManager.getToken();
+    if (token !== this._ownerToken) {
+      this.setData({ actionSheetVisible: false, pricePopupVisible: false, actionProduct: {}, priceProduct: null });
+      this._ownerToken = token;
+    }
+    const tab = this.data.tab;
+    const key = JSON.stringify([token, tab]);
+    if (append && key !== this._listKey) return this.loadProducts();
+    if (key !== this._listKey) this.setData({ products: [], filteredProducts: [], hasMoreProducts: false });
+    this._listKey = key;
+    const version = this._listVersion = (this._listVersion || 0) + 1;
+    const page = append ? (this._page || 1) + 1 : 1;
+    const current = () => !this._hidden && !this._disposed && version === this._listVersion && token === tokenManager.getToken();
     feedback.loaded(this);
     this.setData({ loading: true });
     try {
-      const products = await secondHandService.listMyProducts();
+      const products = await secondHandService.listMyProducts({ page, pageSize: 20, status: tab === 'offShelf' ? 4 : 0 });
+      if (!current()) return;
       const decorated = products.map((item) => this.decorateProduct(item));
-      this.setData({ products: decorated, filteredProducts: this.filterProducts(decorated, this.data.tab) });
+      const combined = append ? [...new Map([...this.data.products, ...decorated].map(item => [String(item.id), item])).values()] : decorated;
+      this._page = page;
+      feedback.clearMessage(this, 'product-pagination');
+      this.setData({ products: combined, filteredProducts: this.filterProducts(combined, tab), hasMoreProducts: products.length === 20 });
     } catch (error) {
-      feedback.loadError(this, '商品加载失败，请重试', () => this.loadProducts(), !!this.data.products.length);
+      if (!current()) return;
+      if (append) feedback.showMessage(this, '后续商品加载失败，请重试', { key: 'product-pagination', theme: 'error', action: '重试', onAction: () => this.loadProducts(true) });
+      else feedback.loadError(this, '商品加载失败，请重试', () => this.loadProducts(), !!this.data.products.length);
     } finally {
+      if (current()) {
       this.setData({ loading: false });
       wx.stopPullDownRefresh();
+      }
     }
   },
 
@@ -87,6 +116,7 @@ Page({
     const tab = e.currentTarget.dataset.tab;
     if (tab === this.data.tab) return;
     this.setData({ tab, filteredProducts: this.filterProducts(this.data.products, tab) });
+    return this.loadProducts();
   },
 
   openActionSheet(e) {
@@ -277,6 +307,6 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.loadProducts();
+    return this.loadProducts();
   },
 });

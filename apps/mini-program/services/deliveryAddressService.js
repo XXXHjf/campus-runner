@@ -3,7 +3,7 @@
  * 封装收货地址管理相关的 API 调用
  */
 
-const { request, safeList } = require('./request');
+const { request, safeList, requiredObject } = require('./request');
 
 const url = getApp().globalData.API_URL;
 
@@ -11,10 +11,11 @@ const url = getApp().globalData.API_URL;
  * 获取我的所有地址
  * @returns {Promise<Array>} 地址列表
  */
-function getMyAddresses() {
+function getMyAddresses(query = {}) {
   return request({
     url: `${url}/api/address/show`,
-    method: 'GET'
+    method: 'GET',
+    data: query
   }).then(res => {
     return safeList(res);
   });
@@ -30,7 +31,7 @@ function getAddressDetail(addressId) {
     url: `${url}/api/deliveryAddress/${addressId}`,
     method: 'GET'
   }).then(res => {
-    return res.data.data || {};
+    return requiredObject(res);
   });
 }
 

@@ -15,6 +15,7 @@ public interface SchoolService {
      * @return
      */
     List<School> getAll();
+    List<School> getAll(com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
 
     /**
      * 添加预设校园地址信息

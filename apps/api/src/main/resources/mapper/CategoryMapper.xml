@@ -14,10 +14,20 @@
 
     <select id="getAll" resultType="com.mikasa.campusrunner.pojo.entity.Category">
         select * from tb_category where deleted = 0 order by sort_order, id
+     limit 50
+    </select>
+    <select id="getAllPage" resultType="com.mikasa.campusrunner.pojo.entity.Category">
+        select * from tb_category where deleted = 0 order by sort_order, id
+     limit #{page.limit} offset #{page.offset}
     </select>
 
     <select id="getEnabled" resultType="com.mikasa.campusrunner.pojo.entity.Category">
         select * from tb_category where deleted = 0 and enabled = 1 order by sort_order, id
+     limit 50
+    </select>
+    <select id="getEnabledPage" resultType="com.mikasa.campusrunner.pojo.entity.Category">
+        select * from tb_category where deleted = 0 and enabled = 1 order by sort_order, id
+     limit #{page.limit} offset #{page.offset}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

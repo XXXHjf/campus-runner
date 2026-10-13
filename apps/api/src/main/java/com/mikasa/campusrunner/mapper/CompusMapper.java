@@ -14,6 +14,7 @@ import java.util.List;
  */
 @Mapper
 public interface CompusMapper {
+    List<AddressBookThreeVO.Compus> getThreePage(@Param("schoolId") Long schoolId, @Param("page") com.mikasa.campusrunner.pojo.dto.AddressTreeQueryDTO page);
     /**
      * 根据校区名和学校id查询校区number_id
      * @param compusName

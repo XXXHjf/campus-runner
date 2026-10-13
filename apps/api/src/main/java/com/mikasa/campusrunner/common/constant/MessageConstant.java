@@ -20,6 +20,7 @@ public class MessageConstant {
     public static final String NOT_FOUND_ORDER = "Order not found";
 
     public static final String ORDER_ALREADY_TAKE = "该订单已被接单，请选择其他订单";
+    public static final String TAKE_TEMPORARILY_FAILED = "接单暂未成功，请刷新后重试";
 
     public static final String ORDER_ALREADY_CANCEL = "This order has already been canceled";
 

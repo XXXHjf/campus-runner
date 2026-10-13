@@ -1,3 +1,4 @@
+const { loadAddressPage } = require('../../../utils/addressPager');
 const feedback = require('../../../utils/feedback');
 // 引入服务和工具
 const deliveryAddressService = require('../../../services/deliveryAddressService');
@@ -28,16 +29,17 @@ Page({
   },
 
   // 获取用户地址簿（使用封装的 service）
-  async _getAddressBook() {
+  async _getAddressBook(reset = true) {
     feedback.loaded(this);
     try {
       showLoading('加载中');
-      const addressBook = await deliveryAddressService.getMyAddresses();
+      const addressBook = await loadAddressPage(this, "addressBook", deliveryAddressService.getMyAddresses, reset);
+      if (!addressBook) return;
       this.setData({
         addressBook
       });
     } catch (error) {
-      console.error('获取地址簿失败:', error);
+      console.error("获取地址簿失败:");
       feedback.loadError(this, '加载失败，请重试', () => this._getAddressBook(), !!this.data.addressBook.length);
     } finally {
       hideLoading();
@@ -62,22 +64,29 @@ Page({
           token: tokenManager.getToken()
         }
       });
-      console.log('系统返回用户数据', userInfo);
+      console.log("系统返回用户数据");
     } catch (error) {
-      console.error('获取用户数据失败', error);
+      console.error("获取用户数据失败");
     }
   },
 
   // 生命周期函数--监听页面显示
   async onShow() {
+    this._unloaded = false;
+    if (!this._unsubscribeSession) this._unsubscribeSession = tokenManager.onSessionChange(() => {
+      this._addressPages = {};
+      this.setData({ addressBook: [], userInfo: null });
+    });
     try {
       await this.getGlobalData();
       console.log('getGlobalData执行成功');
       await this._getAddressBook();
     } catch (error) {
-      console.error('页面初始化失败', error);
+      console.error("页面初始化失败");
     }
   },
+  onUnload() { this._unloaded = true; this._unsubscribeSession?.(); },
+  onReachBottom() { return this._getAddressBook(false); },
   // 下拉刷新事件
   async onPullDownRefresh() {
     try {

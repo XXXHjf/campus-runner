@@ -13,6 +13,30 @@ const TOKEN_REFRESH_AHEAD_MS = 30 * 60 * 1000;
 const TOKEN_UPDATED_AT_KEY = 'tokenUpdatedAt';
 const LOGIN_INTENT_KEY = 'hasLoggedIn';
 let sessionVersion = 0;
+const sessionListeners = new Set();
+
+function normalizeAccountId(value) {
+  const id = String(value ?? '');
+  return /^[1-9]\d*$/.test(id) ? id : null;
+}
+
+function getAccountId() {
+  const info = getAppSafe()?.globalData?.userInfo;
+  return info?.token && !isTokenExpired(getTokenUpdatedAt()) ? normalizeAccountId(info.id) : null;
+}
+
+function onSessionChange(listener) {
+  sessionListeners.add(listener);
+  return () => sessionListeners.delete(listener);
+}
+
+function notifySessionChange(reason, previousAccountId) {
+  sessionVersion++;
+  sessionListeners.forEach(listener => {
+    try { listener({ reason, previousAccountId }); }
+    catch (_) { console.warn('会话切换清理失败'); }
+  });
+}
 
 function getAppSafe() {
   try {
@@ -130,7 +154,7 @@ function initTokenSync() {
       return false;
     }
   } catch (e) {
-    console.error('Token 初始化失败:', e);
+    console.error("Token 初始化失败:");
     markTokenReady(); // 即使失败也标记为就绪
     return false;
   }
@@ -150,8 +174,10 @@ function updateToken(token, userInfo = {}) {
   
   // 更新全局数据
   const previous = app.globalData.userInfo;
+  const previousAccountId = normalizeAccountId(previous?.id);
+  const nextAccountId = normalizeAccountId(userInfo.id);
   app.globalData.userInfo = {
-    ...(previous?.token === token ? previous : {}),
+    ...(previous?.token === token || (nextAccountId && previousAccountId === nextAccountId) ? previous : {}),
     ...userInfo,
     token: token
   };
@@ -160,6 +186,9 @@ function updateToken(token, userInfo = {}) {
   wx.setStorageSync('userInfo', app.globalData.userInfo);
   setTokenUpdatedAt(Date.now());
   wx.setStorageSync(LOGIN_INTENT_KEY, true);
+  if (previousAccountId !== normalizeAccountId(app.globalData.userInfo.id)) {
+    notifySessionChange('accountChanged', previousAccountId);
+  }
   
   markTokenReady();
 }
@@ -168,14 +197,15 @@ function updateToken(token, userInfo = {}) {
  * 清除 token
  */
 function clearToken({ preserveLoginIntent = false } = {}) {
-  sessionVersion++;
   const app = getAppSafe();
+  const previousAccountId = normalizeAccountId(app?.globalData?.userInfo?.id);
   if (app && app.globalData) {
     app.globalData.userInfo = null;
   }
   wx.removeStorageSync('userInfo');
   clearTokenMeta();
   if (!preserveLoginIntent) wx.removeStorageSync(LOGIN_INTENT_KEY);
+  notifySessionChange(preserveLoginIntent ? 'expired' : 'logout', previousAccountId);
   markTokenReady();
   console.log('Token 已清除');
 }
@@ -199,6 +229,8 @@ module.exports = {
   getTokenUpdatedAt,
   hasLoginIntent,
   needsRefresh,
-  getSessionVersion
+  getSessionVersion,
+  getAccountId,
+  onSessionChange
 };
 

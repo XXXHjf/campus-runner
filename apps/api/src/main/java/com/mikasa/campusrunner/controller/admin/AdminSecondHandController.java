@@ -23,8 +23,8 @@ public class AdminSecondHandController {
 
     @GetMapping("/categories")
     @Operation(summary = "二手分类列表")
-    public Result<List<SecondHandCategory>> categories() {
-        return Result.success(secondHandService.listCategories());
+    public Result<List<SecondHandCategory>> categories(com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        return Result.success(secondHandService.listCategories(page));
     }
 
     @PostMapping("/categories")
@@ -51,7 +51,7 @@ public class AdminSecondHandController {
 
     @GetMapping("/products")
     @Operation(summary = "二手商品管理列表")
-    public Result<List<SecondHandProductVO>> products(SecondHandProductQueryDTO query) {
+    public Result<com.mikasa.campusrunner.pojo.vo.AdminSecondHandProductPageVO> products(SecondHandProductQueryDTO query) {
         return Result.success(secondHandService.adminListProducts(query));
     }
 
@@ -77,8 +77,8 @@ public class AdminSecondHandController {
 
     @GetMapping("/orders")
     @Operation(summary = "二手订单管理列表")
-    public Result<List<SecondHandOrderVO>> orders(Integer status) {
-        return Result.success(secondHandService.adminListOrders(status));
+    public Result<com.mikasa.campusrunner.pojo.vo.AdminSecondHandOrderPageVO> orders(com.mikasa.campusrunner.pojo.dto.AdminSecondHandOrderQueryDTO query) {
+        return Result.success(secondHandService.adminListOrders(query));
     }
 
     @GetMapping("/orders/{id}")
@@ -103,8 +103,8 @@ public class AdminSecondHandController {
 
     @GetMapping("/bargains")
     @Operation(summary = "二手议价记录")
-    public Result<List<SecondHandBargainVO>> bargains() {
-        return Result.success(secondHandService.adminListBargains());
+    public Result<com.mikasa.campusrunner.pojo.vo.AdminSecondHandBargainPageVO> bargains(com.mikasa.campusrunner.pojo.dto.ListPageDTO query) {
+        return Result.success(secondHandService.adminListBargains(query));
     }
 
     @PutMapping("/bargains/{id}/status")
@@ -116,7 +116,7 @@ public class AdminSecondHandController {
 
     @GetMapping("/messages")
     @Operation(summary = "二手留言记录")
-    public Result<List<SecondHandMessageVO>> messages(Long productId) {
-        return Result.success(secondHandService.adminListMessages(productId));
+    public Result<com.mikasa.campusrunner.pojo.dto.PageResult<SecondHandMessageVO>> messages(com.mikasa.campusrunner.pojo.dto.AdminSecondHandMessageQueryDTO query) {
+        return Result.success(secondHandService.adminListMessages(query));
     }
 }

@@ -35,18 +35,30 @@ public class AdminAuthServiceImpl implements AdminAuthService {
      */
     @Override
     public List<UserVO> getPendingList() {
+        return getPendingList(new com.mikasa.campusrunner.pojo.dto.ListPageDTO());
+    }
+
+    @Override
+    public List<UserVO> getPendingList(com.mikasa.campusrunner.pojo.dto.ListPageDTO query) {
+        if (query == null) query = new com.mikasa.campusrunner.pojo.dto.ListPageDTO();
+        query.getOffset();
         log.info("Get student authentication review list...");
-        List<UserVO> list = userMapper.getPendingAuthList();
+        List<UserVO> list = userMapper.getPendingAuthPage(query);
+        if (list.isEmpty()) return list;
+        var ids = list.stream().map(UserVO::getId).distinct().toList();
+        var avatarMap = mediaAssetService.resolvePublicBindings(
+                MediaAssetConstant.BOUND_USER_AVATAR, ids, MediaPurpose.AVATAR.name(), 0);
+        // This endpoint is protected by the administrator identity interceptor.
+        var cardMap = mediaAssetService.resolveAuthorizedBindings(
+                MediaAssetConstant.BOUND_USER_STUDENT_CARD, ids, MediaPurpose.STUDENT_CARD.name(), 0);
         list.forEach(user -> {
-            var avatars = mediaAssetService.resolvePublicBinding(
-                    MediaAssetConstant.BOUND_USER_AVATAR, user.getId(), MediaPurpose.AVATAR.name());
+            var avatars = avatarMap.getOrDefault(user.getId(), List.of());
             if (!avatars.isEmpty()) {
                 user.setHeadImgAssetId(avatars.get(0).getMediaId());
                 user.setHeadImg(avatars.get(0).getUrl());
             }
             // 学生证为私有资源，仅在管理员鉴权后的审核接口生成短期签名地址。
-            var studentCards = mediaAssetService.resolveAuthorizedBinding(
-                    MediaAssetConstant.BOUND_USER_STUDENT_CARD, user.getId(), MediaPurpose.STUDENT_CARD.name());
+            var studentCards = cardMap.getOrDefault(user.getId(), List.of());
             if (!studentCards.isEmpty()) {
                 user.setStudentIdCardAssetId(studentCards.get(0).getMediaId());
                 user.setStudentIdCard(studentCards.get(0).getUrl());

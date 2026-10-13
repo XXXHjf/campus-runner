@@ -76,8 +76,7 @@
         where p.id = #{id} and p.deleted = 0
     </select>
 
-    <select id="list" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandProductVO">
-        select <include refid="productVoSelect"/>
+    <sql id="productListFrom">
         from tb_second_hand_product p
         left join tb_user u on p.seller_id = u.id
         left join tb_school s on p.school_id = s.id
@@ -103,7 +102,27 @@
                 and (p.title like concat('%', #{query.keyword}, '%') or p.description like concat('%', #{query.keyword}, '%'))
             </if>
         </where>
-        order by p.create_time desc
+    </sql>
+    <sql id="productListSql">
+        select <include refid="productVoSelect"/>
+        <include refid="productListFrom"/>
+        order by p.create_time desc, p.id desc
+    </sql>
+    <select id="countProducts" resultType="long">
+        select count(*)
+        <include refid="productListFrom"/>
+        <if test="onSaleOnly">and p.status = 0</if>
+    </select>
+
+
+    <select id="list" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandProductVO">
+        <include refid="productListSql"/>
+        limit 20
+    </select>
+
+    <select id="listPage" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandProductVO">
+        <include refid="productListSql"/>
+        limit #{query.limit} offset #{query.offset}
     </select>
 
     <select id="listBySeller" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandProductVO">
@@ -114,7 +133,9 @@
         left join tb_compus cp on p.compus_id = cp.id
         left join tb_second_hand_category c on p.category_id = c.id
         where p.deleted = 0 and p.seller_id = #{sellerId}
-        order by p.create_time desc
+        <if test="query.status != null">and p.status = #{query.status}</if>
+        order by p.create_time desc, p.id desc
+        limit #{query.limit} offset #{query.offset}
     </select>
 
     <select id="listFavorites" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandProductVO">
@@ -126,7 +147,13 @@
         left join tb_compus cp on p.compus_id = cp.id
         left join tb_second_hand_category c on p.category_id = c.id
         where f.user_id = #{userId} and p.deleted = 0
+        <if test="query.keyword != null and query.keyword != ''">
+            and (binary lower(p.title) like binary concat('%', lower(#{query.literalKeyword}), '%') escape '!'
+              or binary lower(c.name) like binary concat('%', lower(#{query.literalKeyword}), '%') escape '!'
+              or binary lower(p.condition_level) like binary concat('%', lower(#{query.literalKeyword}), '%') escape '!')
+        </if>
         order by f.create_time desc, f.id desc
+        limit #{query.limit} offset #{query.offset}
     </select>
 
     <update id="lockOnSaleProduct">

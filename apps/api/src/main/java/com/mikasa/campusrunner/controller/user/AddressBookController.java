@@ -33,7 +33,7 @@ public class AddressBookController {
     @PostMapping
     @Operation(summary = "新增地址")
     public Result save(@RequestBody AddressBookDTO addressBookDTO){
-        log.info("Add address, {}", addressBookDTO);
+        log.info("Add address");
         addressBookService.save(addressBookDTO);
         return Result.success();
     }
@@ -49,24 +49,29 @@ public class AddressBookController {
 
     @GetMapping("/show")
     @Operation(summary = "我的地址展示")
-    public Result<List<AddressBookShowVO>> show(){
+    public Result<List<AddressBookShowVO>> show(com.mikasa.campusrunner.pojo.dto.ListPageDTO page){
         log.info("Show my addresses, user_id: {}", BaseContext.getCurrentId());
-        List<AddressBookShowVO> list = addressBookService.show();
+        List<AddressBookShowVO> list = addressBookService.show(page);
         return Result.success(list);
     }
 
     @GetMapping("/three")
     @Operation(summary = "地址筛选")
-    public Result<AddressBookThreeVO> three(){
+    public Result<AddressBookThreeVO> three(com.mikasa.campusrunner.pojo.dto.AddressTreeQueryDTO query){
         log.info("Filter addresses...");
-        AddressBookThreeVO list = addressBookService.three();
+        AddressBookThreeVO list = addressBookService.three(query);
         return Result.success(list);
+    }
+
+    @GetMapping("/summary")
+    public Result<java.util.Map<String,Object>> summary() {
+        return Result.success(addressBookService.summary());
     }
 
     @GetMapping
     @Operation(summary = "条件查询")
     public Result<List<AddressBookShowVO>> query( AddressBookQueryDTO addressBookQueryDTO){
-        log.info("Conditional query, {}", addressBookQueryDTO);
+        log.info("Conditional query");
         List<AddressBookShowVO> list = addressBookService.query(addressBookQueryDTO);
         return Result.success(list);
     }
@@ -75,7 +80,7 @@ public class AddressBookController {
     @PutMapping
     @Operation(summary = "设置默认地址")
     public Result setDefault(@RequestBody AddressBookDefaultDTO addressBookDefaultDTO){
-        log.info("Set default address, {}", addressBookDefaultDTO);
+        log.info("Set default address");
         addressBookService.setDefault(addressBookDefaultDTO);
         return Result.success();
     }
@@ -84,7 +89,7 @@ public class AddressBookController {
     @PutMapping("/update")
     @Operation(summary = "修改我的地址")
     public Result update(@RequestBody AddressBookUpdateDTO addressBookUpdateDTO){
-        log.info("Update my address, {}", addressBookUpdateDTO);
+        log.info("Update my address");
         addressBookService.update(addressBookUpdateDTO);
         return Result.success();
     }

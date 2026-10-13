@@ -13,14 +13,16 @@ const detailTemplate = fs.readFileSync(path.join(root, 'takesInfo/info.wxml'), '
 function createPage({ takeService = {}, orderService = {}, wxOverrides = {} } = {}) {
   let page;
   const wx = {
+    getStorageSync: () => 'owner-a',
     getWindowInfo: () => ({ statusBarHeight: 47, windowWidth: 375 }),
     getMenuButtonBoundingClientRect: () => ({ top: 54, height: 32, left: 286, width: 87 }),
     ...wxOverrides,
   };
   vm.runInNewContext(source, {
     console,
+    setTimeout, clearTimeout,
     wx,
-    require: (name) => name.endsWith('runnerAmount') ? require('../../apps/mini-program/utils/runnerAmount') : name.endsWith('feedback') ? feedbackStub(wx) : name.includes('takeOrderService') ? takeService
+    require: (name) => name.endsWith('tokenManager') ? { getToken: () => wx.getStorageSync('token') } : name.endsWith('runnerAmount') ? require('../../apps/mini-program/utils/runnerAmount') : name.endsWith('feedback') ? feedbackStub(wx) : name.includes('takeOrderService') ? takeService
       : name.includes('userOrderService') ? orderService
         : name.includes('transformers') ? { showError: () => {} }
           : {},
@@ -137,4 +139,41 @@ test('列表和代买详情没有接单人取消入口', () => {
   assert.doesNotMatch(detailTemplate, /取消接单/);
   assert.match(listTemplate, /order.senderAvatar/);
   assert.match(listTemplate, /take-orders__controls/);
+});
+
+function pagedHarness() {
+ let token='a',failure=false,pending;const queries=[];
+ const records=Array.from({length:45},(_,i)=>({id:i+1,orderId:i+100,status:1,price:2,note:i===43?'target':'book',username:'sender'}));
+ records.push({id:90,orderId:190,status:5,price:0,note:'free'}, {id:91,orderId:191,status:5,price:0,businessType:'PURCHASE',productAmount:5}, {id:92,orderId:192,status:99});
+ const page=createPage({wxOverrides:{getStorageSync:()=>token},takeService:{getMyTakeOrders:async q=>{
+  queries.push({...q});if(failure)throw Error('network');if(pending&&q.page===2)return pending;
+  const rows=records.filter(row=>q.group==='all'||page.getStatusGroup(row)===q.group)
+    .filter(row=>!q.keyword||page.prepareOrder(row).searchText.includes(q.keyword));
+  return rows.slice((q.page-1)*20,q.page*20);
+ }}});
+ return {page,queries,setToken:value=>token=value,setFailure:value=>failure=value,setPending:value=>pending=value};
+}
+test('taken list reads all pages and keeps unknown historical states',async()=>{
+ const h=pagedHarness();await h.page.loadOrders();await h.page.onReachBottom();await h.page.onReachBottom();await h.page.onReachBottom();
+ assert.equal(h.page.data.orders.length,48);assert.equal(h.queries.length,3);assert.equal(h.page.data.hasMoreOrders,false);
+});
+test('taken status filters include free completion and purchase reimbursement before paging',async()=>{
+ const h=pagedHarness();await h.page.loadOrders();await h.page.selectTab({currentTarget:{dataset:{value:'completed'}}});
+ assert.equal(h.page.data.filteredOrders[0].id,90);await h.page.selectTab({currentTarget:{dataset:{value:'settling'}}});
+ assert.equal(h.page.data.filteredOrders[0].id,91);assert.equal(h.queries.at(-1).page,1);
+});
+test('taken search finds later-page record from page one',async()=>{
+ const h=pagedHarness();await h.page.loadOrders();h.page.setData({keyword:'target'});await h.page.loadOrders();
+ assert.equal(h.page.data.filteredOrders[0].id,44);assert.equal(h.queries.at(-1).page,1);
+});
+test('taken failed next page retains rows and retries the same cursor',async()=>{
+ const h=pagedHarness();await h.page.loadOrders();h.setFailure(true);await h.page.onReachBottom();
+ assert.equal(h.page.data.orders.length,20);h.setFailure(false);await h.page.onReachBottom();assert.equal(h.page.data.orders.length,40);assert.equal(h.queries.at(-1).page,2);
+});
+test('taken late responses cannot cross account, filter or page lifetime',async()=>{
+ for(const action of ['account','filter','hide']) {
+  const h=pagedHarness();await h.page.loadOrders();let resolve;h.setPending(new Promise(yes=>resolve=yes));const loading=h.page.onReachBottom();
+  if(action==='account')h.setToken('b');else if(action==='filter')await h.page.selectTab({currentTarget:{dataset:{value:'completed'}}});else h.page.onHide();
+  resolve([{id:999,orderId:1999,status:1}]);await loading;assert.equal(h.page.data.orders.some(row=>row.id===999),false);
+ }
 });

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-function harness(addresses) {
+function harness(addresses, extraAddresses = []) {
   let page;
   vm.runInNewContext(fs.readFileSync(require.resolve(
     '../../apps/mini-program/pages/orders/myOrders/ordersAdd/add'
@@ -15,9 +15,12 @@ function harness(addresses) {
         setData(update) { Object.assign(this.data, update); } };
     },
     require(id) {
+      if (id.endsWith('addressPager')) return require('./helpers/addressPagerHarness.cjs')({});
+      if (id.endsWith('accountStorage')) return { captureSession: () => 'a', isCurrent: () => true, read: () => null };
+      if (id.endsWith('feedback')) return { loaded() {}, showMessage() {} };
       if (id.endsWith('orderConstants')) return require('../../apps/mini-program/utils/orderConstants');
       if (id.endsWith('tokenManager')) return { waitForToken: async () => {} };
-      if (id.endsWith('addressService')) return { getAllAddresses: async () => addresses };
+      if (id.endsWith('addressService')) return { getAllAddresses: async () => addresses, getOptionalAddress: async id => [...addresses, ...extraAddresses].find(row => String(row.id) === String(id)) || null };
       return {};
     },
   });
@@ -48,6 +51,14 @@ test('editing an address selected for both ends updates both selections', async 
   await page.onShow();
   assert.equal(page.data.showPickUp, updated);
   assert.equal(page.data.showRecive, updated);
+});
+
+test('selected historical addresses outside the first page are reloaded by ID and stay selectable', async () => {
+  const first = Array.from({ length: 20 }, (_, i) => ({ id: i + 1 }));
+  const older = { id: 61, details: '最新的旧地址内容' };
+  const page = harness(first, [older]);page.setData({ showPickUp: { id: 61, details: '缓存内容' }, showRecive: { id: 1 } });
+  await page.onShow();assert.equal(page.data.showPickUp, older);assert.equal(page.data.showRecive.id, 1);
+  assert.equal(page.data.addrList.some(row => row.id === 61), true);
 });
 
 test('deleted selections clear independently and refreshing never selects an unchosen address', async () => {

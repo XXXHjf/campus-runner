@@ -28,10 +28,10 @@ public class AdminTakeOrderServiceImpl implements AdminTakeOrderService {
     @Override
     public PageResult<AdminTakeOrderListVO> listAll(int page, int pageSize, String keyword) {
         log.info("Listing all take orders...");
-        int offset = (page - 1) * pageSize;
+        int offset = com.mikasa.campusrunner.pojo.dto.ListPageDTO.checkedOffset(page, pageSize);
         keyword = normalizeKeyword(keyword);
         List<AdminTakeOrderListVO> list = takeOrderMapper.listAllTakeOrders(offset, pageSize, keyword);
-        list.forEach(this::resolveProofImage);
+        resolveProofImages(list);
         long total = takeOrderMapper.countAdminTakeOrders(false, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
@@ -39,10 +39,10 @@ public class AdminTakeOrderServiceImpl implements AdminTakeOrderService {
     @Override
     public PageResult<AdminTakeOrderListVO> listUnpaid(int page, int pageSize, String keyword) {
         log.info("Listing unpaid take orders...");
-        int offset = (page - 1) * pageSize;
+        int offset = com.mikasa.campusrunner.pojo.dto.ListPageDTO.checkedOffset(page, pageSize);
         keyword = normalizeKeyword(keyword);
         List<AdminTakeOrderListVO> list = takeOrderMapper.listUnpaidTakeOrders(offset, pageSize, keyword);
-        list.forEach(this::resolveProofImage);
+        resolveProofImages(list);
         long total = takeOrderMapper.countAdminTakeOrders(true, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
@@ -68,14 +68,19 @@ public class AdminTakeOrderServiceImpl implements AdminTakeOrderService {
         return keyword == null || keyword.trim().isEmpty() ? null : keyword.trim();
     }
 
-    private void resolveProofImage(AdminTakeOrderListVO takeOrder) {
-        var images = mediaAssetService.resolveAuthorizedBinding(
+    private void resolveProofImages(List<AdminTakeOrderListVO> orders) {
+        if (orders.isEmpty()) return;
+        // All rows come from the administrator-only management query.
+        var byOrder = mediaAssetService.resolveAuthorizedBindings(
                 MediaAssetConstant.BOUND_TAKE_ORDER,
-                takeOrder.getId(),
-                MediaPurpose.DELIVERY_PROOF.name());
-        if (!images.isEmpty()) {
-            takeOrder.setTakeOrderImageAssetId(images.get(0).getMediaId());
-            takeOrder.setTakeOrderImage(images.get(0).getUrl());
+                orders.stream().map(AdminTakeOrderListVO::getId).distinct().toList(),
+                MediaPurpose.DELIVERY_PROOF.name(), 0);
+        for (var takeOrder : orders) {
+            var images = byOrder.getOrDefault(takeOrder.getId(), List.of());
+            if (!images.isEmpty()) {
+                takeOrder.setTakeOrderImageAssetId(images.get(0).getMediaId());
+                takeOrder.setTakeOrderImage(images.get(0).getUrl());
+            }
         }
     }
 }

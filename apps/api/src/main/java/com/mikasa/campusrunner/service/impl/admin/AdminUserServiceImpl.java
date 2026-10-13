@@ -29,10 +29,10 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public PageResult<AdminUserListVO> listAll(int page, int pageSize, String keyword) {
         log.info("Listing all users, page={}, pageSize={}", page, pageSize);
-        int offset = (page - 1) * pageSize;
+        int offset = com.mikasa.campusrunner.pojo.dto.ListPageDTO.checkedOffset(page, pageSize);
         keyword = normalizeKeyword(keyword);
         List<AdminUserListVO> list = userMapper.getAllUsers(offset, pageSize, keyword);
-        list.forEach(this::resolveListAvatar);
+        resolveListAvatars(list);
         long total = userMapper.countAdminUsers(null, null, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
@@ -40,10 +40,10 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public PageResult<AdminUserListVO> listAuthenticated(int page, int pageSize, String keyword) {
         log.info("Listing authenticated users, page={}, pageSize={}", page, pageSize);
-        int offset = (page - 1) * pageSize;
+        int offset = com.mikasa.campusrunner.pojo.dto.ListPageDTO.checkedOffset(page, pageSize);
         keyword = normalizeKeyword(keyword);
         List<AdminUserListVO> list = userMapper.getAuthenticatedUsers(offset, pageSize, keyword);
-        list.forEach(this::resolveListAvatar);
+        resolveListAvatars(list);
         long total = userMapper.countAdminUsers(1, null, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
@@ -51,10 +51,10 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public PageResult<AdminUserListVO> listPendingReview(int page, int pageSize, String keyword) {
         log.info("Listing pending review users, page={}, pageSize={}", page, pageSize);
-        int offset = (page - 1) * pageSize;
+        int offset = com.mikasa.campusrunner.pojo.dto.ListPageDTO.checkedOffset(page, pageSize);
         keyword = normalizeKeyword(keyword);
         List<AdminUserListVO> list = userMapper.getPendingReviewUsers(offset, pageSize, keyword);
-        list.forEach(this::resolveListAvatar);
+        resolveListAvatars(list);
         long total = userMapper.countAdminUsers(null, 1, keyword);
         return new PageResult<>(total, page, pageSize, list);
     }
@@ -89,14 +89,18 @@ public class AdminUserServiceImpl implements AdminUserService {
         return keyword == null || keyword.trim().isEmpty() ? null : keyword.trim();
     }
 
-    private void resolveListAvatar(AdminUserListVO user) {
-        var avatars = mediaAssetService.resolvePublicBinding(
+    private void resolveListAvatars(List<AdminUserListVO> users) {
+        if (users.isEmpty()) return;
+        var byUser = mediaAssetService.resolvePublicBindings(
                 MediaAssetConstant.BOUND_USER_AVATAR,
-                user.getId(),
-                MediaPurpose.AVATAR.name());
-        if (!avatars.isEmpty()) {
-            user.setHeadImgAssetId(avatars.get(0).getMediaId());
-            user.setHeadImg(avatars.get(0).getUrl());
+                users.stream().map(AdminUserListVO::getId).distinct().toList(),
+                MediaPurpose.AVATAR.name(), 0);
+        for (var user : users) {
+            var avatars = byUser.getOrDefault(user.getId(), List.of());
+            if (!avatars.isEmpty()) {
+                user.setHeadImgAssetId(avatars.get(0).getMediaId());
+                user.setHeadImg(avatars.get(0).getUrl());
+            }
         }
     }
 

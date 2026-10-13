@@ -1,10 +1,20 @@
 const tokenManager = require('../utils/tokenManager');
 
 function safeList(res) {
-  if (res && res.data && res.data.code !== undefined && res.data.code !== 1) {
+  if (res?.data?.code !== 1) {
     throw new Error(res.data.msg || '请求失败，请稍后重试');
   }
-  return Array.isArray(res?.data?.data) ? res.data.data : [];
+  if (!Array.isArray(res.data.data)) throw new Error('加载失败，请稍后重试');
+  return res.data.data;
+}
+
+function requiredObject(res) {
+  if (res?.data?.code !== 1) throw new Error(res?.data?.msg || '加载失败，请稍后重试');
+  const value = res.data.data;
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !Object.keys(value).length) {
+    throw new Error('加载失败，请稍后重试');
+  }
+  return value;
 }
 
 function isPublicRead(options) {
@@ -17,10 +27,14 @@ function isPublicRead(options) {
 }
 
 async function request(options) {
+  const initialSessionVersion = tokenManager.getSessionVersion?.();
   const publicRead = isPublicRead(options);
   const app = typeof getApp === 'function' ? getApp() : null;
   if (!options.skipTokenCheck && !publicRead && tokenManager.hasLoginIntent?.()) {
     await app?.restoreLogin?.();
+  }
+  if (initialSessionVersion !== tokenManager.getSessionVersion?.()) {
+    throw new Error('登录状态已变化，请重试操作');
   }
   const token = options.skipTokenCheck ? null : tokenManager.getToken();
   // Background reads never create accounts or open a login prompt.
@@ -31,12 +45,17 @@ async function request(options) {
 }
 
 function send(options, token, app, retried) {
+  const sessionVersion = tokenManager.getSessionVersion?.();
   return new Promise((resolve, reject) => wx.request({
     ...options,
     method: options.method || 'GET',
     header: { 'Content-Type': 'application/json', ...(token ? { token } : {}), ...options.header },
     timeout: options.timeout || 10000,
     success: (res) => {
+      if (token && sessionVersion !== tokenManager.getSessionVersion?.()) {
+        reject(new Error('登录状态已变化，请重试操作'));
+        return;
+      }
       if (res.statusCode === 401) {
         // Refresh identity once. Only reads may be retried automatically.
         if (!token || retried || !tokenManager.hasLoginIntent?.()) {
@@ -46,6 +65,10 @@ function send(options, token, app, retried) {
         }
         Promise.resolve(app?.restoreLogin?.({ force: true }))
           .then((restored) => {
+            if (sessionVersion !== tokenManager.getSessionVersion?.()) {
+              reject(new Error('登录状态已变化，请重试操作'));
+              return;
+            }
             const freshToken = tokenManager.getToken();
             if (!restored || !freshToken) {
               if (token === tokenManager.getToken()) tokenManager.clearToken?.({ preserveLoginIntent: true });
@@ -60,7 +83,11 @@ function send(options, token, app, retried) {
         return;
       }
       if (res.statusCode !== 200) {
-        reject(new Error('请求失败，请稍后重试'));
+        const error = new Error(res.statusCode === 429 ? '操作较频繁，请稍后再试' : '请求失败，请稍后重试');
+        error.statusCode = res.statusCode;
+        // A rejected transport response does not confirm the result of an older
+        // write attempt. Preserve its identifier and never retry writes here.
+        reject(error);
         return;
       }
       const msg = String(res.data?.msg || '');
@@ -76,7 +103,10 @@ function send(options, token, app, retried) {
         return;
       }
       if (res.data?.code !== 1) {
-        reject(new Error(res.data?.msg || '操作失败，请稍后重试'));
+        const error = new Error(res.data?.msg || '操作失败，请稍后重试');
+        // Transport errors and malformed responses can hide a committed write.
+        if (res.data?.code === 0) error.requestOutcome = 'rejected';
+        reject(error);
         return;
       }
       resolve(res);
@@ -84,4 +114,20 @@ function send(options, token, app, retried) {
     fail: () => reject(new Error('网络连接失败，请稍后重试')),
   }));
 }
-module.exports = { request, safeList, isPublicRead };
+async function collectListPages(fetchPage) {
+  const token = tokenManager.getToken?.();
+  const version = tokenManager.getSessionVersion?.();
+  const result = [];
+  const seenPages = new Set();
+  for (let page = 1; ; page++) {
+    const rows = await fetchPage({ page, pageSize: 50 });
+    if (token !== tokenManager.getToken?.() || version !== tokenManager.getSessionVersion?.()) throw new Error('登录状态已变化，请重试');
+    if (!Array.isArray(rows)) throw new Error('加载失败，请稍后重试');
+    const signature = JSON.stringify(rows.map(row => row.id ?? row.numberId));
+    if (rows.length > 50 || (rows.length && seenPages.has(signature))) throw new Error('加载失败，请稍后重试');
+    seenPages.add(signature);
+    result.push(...rows);
+    if (rows.length < 50) return result;
+  }
+}
+module.exports = { request, safeList, requiredObject, isPublicRead, collectListPages };

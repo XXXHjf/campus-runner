@@ -192,9 +192,8 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
             } else if (statusCode == 204) { //处理成功，无返回Body
                 log.info("Success");
             } else {
-                log.info("Transfer request failed, response code = " + statusCode + ", body = " +
-                        bodyAsString);
-                throw new IOException("request failed " + bodyAsString);
+                log.warn("WeChat request failed, httpStatus={}", statusCode);
+                throw new IOException("WeChat request rejected");
             }
             //响应结果
 //            JSONObject.parseObject(bodyAsString, HashMap.class);
@@ -239,77 +238,8 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
     }
 
     private BigDecimal getTransferMax() {
-        var config = systemConfigMapper.getByConfigKey(OrderBusinessConstant.CONFIG_RUNNER_TRANSFER_SINGLE_MAX);
-        if (config == null || config.getConfigValue() == null) {
-            return OrderBusinessConstant.DEFAULT_AMOUNT_LIMIT;
-        }
-        try {
-            return new BigDecimal(config.getConfigValue());
-        } catch (NumberFormatException exception) {
-            throw new OrderException("收款额度配置有误，请联系平台处理");
-        }
+        return RunnerAmountPolicy.transferMax(systemConfigMapper);
     }
-
-    /**
-     * 撤销转账
-     * @param orderNumber
-     */
-    @Override
-    public void closeTransfer(String orderNumber) throws Exception{
-        Order order = orderMapper.getByOrderNumber(orderNumber);
-        if (order == null) {
-            throw new OrderException(MessageConstant.NOT_FOUND_ORDER);
-        }
-        //构造url
-        String url = String.format(WeChatTransferConstant.WX_CLOSE_TRANSFER, orderNumber);
-        url = weChatProperties.getWxDomain().concat(url);
-        log.info("Canceling transfer order, url ===> {}", url);
-
-        HttpPost httpPost = new HttpPost(url);
-        httpPost.setHeader("Accept", "application/json");
-        StringEntity stringEntity = new StringEntity("");
-        stringEntity.setContentType("application/json");
-        httpPost.setEntity(stringEntity);
-        //完成签名并执行请求
-        CloseableHttpResponse response = wxPayClient.execute(httpPost);
-
-        try {
-            String bodyAsString = EntityUtils.toString(response.getEntity());//响应体
-            int statusCode = response.getStatusLine().getStatusCode();//响应状态码
-            if (statusCode == 200) { //处理成功
-                log.info("WeChat request accepted, httpStatus={}", statusCode);
-            } else if (statusCode == 204) { //处理成功，无返回Body
-                log.info("Success");
-            } else {
-                log.info("Transfer request failed, response code = " + statusCode + ", body = " +
-                        bodyAsString);
-                throw new IOException("request failed " + bodyAsString);
-            }
-            //响应结果
-//            JSONObject.parseObject(bodyAsString, HashMap.class);
-//            Map<String, String> resultMap = gson.fromJson(bodyAsString,
-//                    HashMap.class);
-            Map<String, String> resultMap = JSONObject.parseObject(bodyAsString, HashMap.class);
-
-            //构造返回结果
-            String outBillNo = resultMap.get("out_bill_no");
-            String transferBillNo = resultMap.get("transfer_bill_no");
-            String updateTime = resultMap.get("update_time");
-            String state = resultMap.get("state");
-
-            WxTransferLog wxTransferLog = WxTransferLog.builder()
-                    .orderNumber(outBillNo)
-                    .updateTime(updateTime)
-                    .content(bodyAsString)
-                    .state(state).build();
-            //更新日志
-            wxTransferLogMapper.updateByOrderNumber(wxTransferLog);
-
-        } finally {
-            response.close();
-        }
-    }
-
 
     /**
      * 根据商户单号查询账单
@@ -325,7 +255,7 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
         //构造url
         String url = String.format(WeChatTransferConstant.WX_QUERY_TRANSFER_BY_NO, orderNumber);
         url = weChatProperties.getWxDomain().concat(url);
-        log.info("Querying bill by merchant order number, url ===> {}", url);
+        log.debug("Transfer query prepared");
 
         HttpGet httpGet = new HttpGet(url);
         httpGet.setHeader("Accept", "application/json");
@@ -341,10 +271,9 @@ public class WeChatTransferServiceImpl implements WeChatTransferService {
             } else if (statusCode == 204) { //处理成功，无返回Body
                 log.info("Success");
             } else {
-                log.info("Transfer query request failed, response code = " + statusCode + ", body = " +
-                        bodyAsString);
-                return "ERROR " + statusCode + bodyAsString;
-//                throw new IOException("request failed " + bodyAsString); //修改异常返回结果，使得前端显示更清晰
+                log.warn("WeChat request failed, httpStatus={}", statusCode);
+                return "ERROR " + statusCode;
+//                throw new IOException("WeChat request rejected"); //修改异常返回结果，使得前端显示更清晰
             }
             //响应结果
 //            JSONObject.parseObject(bodyAsString, HashMap.class);

@@ -80,6 +80,34 @@
           and status = 'BOUND'
     </update>
 
+    <select id="listPublicBoundAssetsBatch" resultType="com.mikasa.campusrunner.pojo.entity.MediaAsset">
+        select * from tb_media_asset
+        where bound_type = #{boundType} and purpose = #{purpose}
+          and status = 'BOUND' and visibility = 'PUBLIC'
+          and bound_id in
+          <foreach collection="boundIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        order by bound_id asc, sort_order asc, id asc
+    </select>
+    <select id="listBoundAssetsBatch" resultType="com.mikasa.campusrunner.pojo.entity.MediaAsset">
+        select * from tb_media_asset
+        where bound_type = #{boundType} and purpose = #{purpose}
+          and status = 'BOUND' and visibility in ('PUBLIC', 'PRIVATE')
+          and bound_id in
+          <foreach collection="boundIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        order by bound_id asc, sort_order asc, id asc
+    </select>
+
+    <select id="listOrderPreviewAssetsBatch" resultType="com.mikasa.campusrunner.pojo.entity.MediaAsset">
+        select m.* from tb_media_asset m
+        join tb_orders o on o.id = m.bound_id and o.deleted = 0 and o.status = 0
+        where m.bound_type = 'ORDER' and m.purpose = 'ORDER_IMAGE'
+          and m.status = 'BOUND' and m.visibility in ('PUBLIC', 'PRIVATE')
+          and exists (select 1 from tb_order_address_snapshot p where p.order_id = o.id and p.role = 'PICKUP')
+          and exists (select 1 from tb_order_address_snapshot r where r.order_id = o.id and r.role = 'RECEIVE')
+          and m.bound_id in
+          <foreach collection="orderIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        order by m.bound_id asc, m.sort_order asc, m.id asc
+    </select>
     <select id="listBoundAssets" resultType="com.mikasa.campusrunner.pojo.entity.MediaAsset">
         select *
         from tb_media_asset

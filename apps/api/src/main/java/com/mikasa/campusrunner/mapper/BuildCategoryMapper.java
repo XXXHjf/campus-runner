@@ -14,6 +14,7 @@ import java.util.List;
  */
 @Mapper
 public interface BuildCategoryMapper {
+    List<AddressBookThreeVO.BuildCategory> getThreePage(@Param("schoolId") Long schoolId, @Param("page") com.mikasa.campusrunner.pojo.dto.AddressTreeQueryDTO page);
 
     /**
      * 根据number_id查找对应的楼宇类型，返回id

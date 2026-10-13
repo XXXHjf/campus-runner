@@ -55,7 +55,8 @@ for (const data of [JSON.stringify({ code: 1, data: uploaded }), { code: 1, data
     const result = await service.uploadImage('small.jpg', purpose, (value) => progress.push(value));
     assert.equal(result.mediaId, uploaded.mediaId);
     assert.equal(result.previewUrl, uploaded.previewUrl);
-    assert.equal(uploads[0].formData.purpose, purpose);
+    assert.equal(new URL(uploads[0].url).searchParams.get('purpose'), purpose);
+    assert.equal(uploads[0].formData, undefined);
     assert.deepEqual(progress, [100]);
   });
 }
@@ -64,6 +65,8 @@ for (const { statusCode, data, message } of [
   { statusCode: 413, data: '<html>413 Request Entity Too Large</html>', message: '图片过大，请压缩后重试' },
   { statusCode: 413, data: '{"code":1,"data":{"mediaId":123}}', message: '图片过大，请压缩后重试' },
   { statusCode: 401, data: '<html>Unauthorized</html>', message: '登录已失效，请重新登录' },
+  { statusCode: 429, data: '<html>too many requests</html>', message: '操作较频繁，请稍后再试' },
+  { statusCode: 503, data: '<html>unavailable</html>', message: '服务繁忙，请稍后重试' },
   { statusCode: 502, data: '<html>Bad Gateway</html>', message: '图片上传失败，请稍后重试' },
   { statusCode: 500, data: '{"msg":"internal implementation details"}', message: '图片上传失败，请稍后重试' },
 ]) {

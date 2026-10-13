@@ -23,9 +23,100 @@
         where m.deleted = 0
           and m.product_id = #{productId}
           and (m.sender_id = #{userId} or m.receiver_id = #{userId})
-        order by m.create_time asc
+        order by m.create_time asc, m.id asc limit 20
     </select>
 
+
+    <select id="getForUser" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandMessageVO">
+        select <include refid="messageVoSelect"/>
+        from tb_second_hand_message m
+        left join tb_user sender on m.sender_id = sender.id
+        left join tb_user receiver on m.receiver_id = receiver.id
+        where m.id = #{id} and m.deleted = 0 and (m.sender_id = #{userId} or m.receiver_id = #{userId})
+    </select>
+    <!-- A deleted anchor remains usable for paging, but never exposes its content. -->
+    <select id="getCursorForUser" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandMessageVO">
+        select m.id, m.product_id, m.sender_id, m.receiver_id, m.create_time
+        from tb_second_hand_message m
+        where m.id = #{id} and (m.sender_id = #{userId} or m.receiver_id = #{userId})
+    </select>
+    <select id="listMessagePage" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandMessageVO">
+        select <include refid="messageVoSelect"/>
+        from tb_second_hand_message m
+        left join tb_user sender on m.sender_id = sender.id
+        left join tb_user receiver on m.receiver_id = receiver.id
+        where m.deleted = 0 and m.product_id = #{productId}
+          and (m.sender_id = #{userId} or m.receiver_id = #{userId})
+        <if test="counterpartyId != null">
+          and ((m.sender_id = #{userId} and m.receiver_id = #{counterpartyId})
+            or (m.sender_id = #{counterpartyId} and m.receiver_id = #{userId}))
+        </if>
+        <if test="query.beforeId != null">
+            <choose>
+                <when test="cursor.createTime != null">
+                    and (m.create_time &lt; #{cursor.createTime} or m.create_time is null
+                      or (m.create_time = #{cursor.createTime} and m.id &lt; #{cursor.id}))
+                </when>
+                <otherwise>and m.create_time is null and m.id &lt; #{cursor.id}</otherwise>
+            </choose>
+        </if>
+        <if test="query.afterId != null">
+            <choose>
+                <when test="cursor.createTime != null">
+                    and (m.create_time &gt; #{cursor.createTime}
+                      or (m.create_time = #{cursor.createTime} and m.id &gt; #{cursor.id}))
+                </when>
+                <otherwise>
+                    and (m.create_time is not null or (m.create_time is null and m.id &gt; #{cursor.id}))
+                </otherwise>
+            </choose>
+        </if>
+        <choose>
+            <when test="query.afterId != null">order by m.create_time asc, m.id asc</when>
+            <otherwise>order by m.create_time desc, m.id desc</otherwise>
+        </choose>
+        limit #{query.limit}
+    </select>
+    <update id="markMessagesRead">
+        update tb_second_hand_message set read_time = now()
+        where deleted = 0 and receiver_id = #{userId} and read_time is null
+          and id in <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+    <select id="listConversationsPage" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandConversationVO">
+        select latest.product_id, p.title as product_title, p.id as media_product_id,
+            #{userId} as access_user_id, latest.counterparty_id, counterparty.username as counterparty_name,
+            coalesce(latest.order_id, (
+                select history.order_id from tb_second_hand_message history
+                where history.deleted = 0 and history.product_id = latest.product_id and history.order_id is not null
+                  and ((history.sender_id = #{userId} and history.receiver_id = latest.counterparty_id)
+                    or (history.receiver_id = #{userId} and history.sender_id = latest.counterparty_id))
+                order by history.create_time desc, history.id desc limit 1)) as order_id,
+            latest.content as last_message, latest.create_time as last_message_time,
+            (select count(*) from tb_second_hand_message unread
+             where unread.deleted = 0 and unread.product_id = latest.product_id
+               and unread.sender_id = latest.counterparty_id and unread.receiver_id = #{userId}
+               and unread.read_time is null) as unread_count
+        from (
+            select m.id, m.product_id, m.order_id, m.content, m.create_time,
+                case when m.sender_id = #{userId} then m.receiver_id else m.sender_id end as counterparty_id
+            from tb_second_hand_message m
+            where m.deleted = 0 and (m.sender_id = #{userId} or m.receiver_id = #{userId})
+              and not exists (
+                select 1 from tb_second_hand_message newer
+                where newer.deleted = 0 and newer.product_id = m.product_id
+                  and (newer.sender_id = #{userId} or newer.receiver_id = #{userId})
+                  and ((newer.sender_id = m.sender_id and newer.receiver_id = m.receiver_id)
+                    or (newer.sender_id = m.receiver_id and newer.receiver_id = m.sender_id))
+                  and (newer.create_time &gt; m.create_time
+                    or (m.create_time is null and newer.create_time is not null)
+                    or ((newer.create_time &lt;=> m.create_time) and newer.id &gt; m.id)))
+            order by m.create_time desc, m.id desc
+            limit #{query.limit} offset #{query.offset}
+        ) latest
+        left join tb_second_hand_product p on p.id = latest.product_id and p.deleted = 0
+        left join tb_user counterparty on counterparty.id = latest.counterparty_id
+        order by latest.create_time desc, latest.id desc
+    </select>
     <select id="listForUser" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandMessageVO">
         select <include refid="messageVoSelect"/>
         from tb_second_hand_message m
@@ -33,7 +124,7 @@
         left join tb_user receiver on m.receiver_id = receiver.id
         where m.deleted = 0
           and (m.sender_id = #{userId} or m.receiver_id = #{userId})
-        order by m.create_time desc, m.id desc
+        order by m.create_time desc, m.id desc limit 20
     </select>
 
     <select id="listConversation" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandMessageVO">
@@ -47,7 +138,7 @@
             (m.sender_id = #{userId} and m.receiver_id = #{counterpartyId})
             or (m.sender_id = #{counterpartyId} and m.receiver_id = #{userId})
           )
-        order by m.create_time asc, m.id asc
+        order by m.create_time asc, m.id asc limit 20
     </select>
 
     <update id="markConversationRead">
@@ -97,6 +188,24 @@
             m.deleted = 0
             <if test="productId != null">and m.product_id = #{productId}</if>
         </where>
-        order by m.create_time desc
+        order by m.create_time desc, m.id desc limit 20
     </select>
+    <sql id="adminMessageFilters">
+        where m.deleted = 0
+        <if test="query.productId != null">and m.product_id = #{query.productId}</if>
+    </sql>
+    <select id="listAdminPage" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandMessageVO">
+        select <include refid="messageVoSelect"/>
+        from tb_second_hand_message m
+        left join tb_user sender on m.sender_id = sender.id
+        left join tb_user receiver on m.receiver_id = receiver.id
+        <include refid="adminMessageFilters"/>
+        order by m.create_time desc, m.id desc
+        limit #{query.limit} offset #{query.offset}
+    </select>
+    <select id="countAdmin" resultType="long">
+        select count(*) from tb_second_hand_message m
+        <include refid="adminMessageFilters"/>
+    </select>
+
 </mapper>

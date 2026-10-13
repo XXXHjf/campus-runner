@@ -24,6 +24,7 @@ public interface AdminBannerService {
      * @return
      */
     List<Banner> getListBySchoolId(Long schoolId);
+    List<Banner> getListBySchoolId(Long schoolId, com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
 
     /**
      * 根据轮播图id删除对应轮播图

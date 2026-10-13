@@ -3,7 +3,7 @@
  * 封装所有地址相关的 API 调用
  */
 
-const { request } = require('./request');
+const { request, collectListPages, safeList, requiredObject } = require('./request');
 
 function checkResult(res) {
   if (res.data?.code !== 1) throw new Error(res.data?.msg || '操作失败，请重试');
@@ -16,13 +16,26 @@ const url = getApp().globalData.API_URL;
  * 获取三级地址数据
  * @returns {Promise<Object>} 地址数据
  */
-function getThreeLevelAddress() {
-  return request({
-    url: `${url}/api/address/three`,
-    method: 'GET'
-  }).then(checkResult).then(res => {
-    return res.data.data;
-  });
+async function getThreeLevelAddress(compusNumberId) {
+  const result = { school: [], compus: [], buildCategory: [], building: [] };
+  const token = require('../utils/tokenManager').getToken();
+  const seenPages = new Set();
+  for (let page = 1; ; page++) {
+    const res = await request({ url: `${url}/api/address/three`, method: 'GET',
+      data: { page, pageSize: 50, ...(compusNumberId ? { compusNumberId } : {}) } });
+    checkResult(res);
+    if (token !== require('../utils/tokenManager').getToken()) throw new Error('登录状态已变化，请重试');
+    const data = requiredObject(res);
+    const keys = compusNumberId ? ['building'] : ['school', 'compus', 'buildCategory'];
+    const signature = JSON.stringify(keys.map(key => (data[key] || []).map(row => row.numberId)));
+    if (keys.some(key => (data[key] || []).length > 50) || seenPages.has(signature)) throw new Error('地址加载失败，请重试');
+    seenPages.add(signature);
+    for (const key of keys) {
+      if (!Array.isArray(data[key])) throw new Error('地址加载失败，请重试');
+      result[key].push(...data[key]);
+    }
+    if (keys.every(key => data[key].length < 50)) return result;
+  }
 }
 
 /**
@@ -30,25 +43,30 @@ function getThreeLevelAddress() {
  * @returns {Promise<Array>} 分类列表
  */
 function getCategories() {
-  return request({
+  return collectListPages(query => request({
     url: `${url}/api/category`,
-    method: 'GET'
+    method: 'GET', data: query
   }).then(checkResult).then(res => {
-    return res.data.data;
-  });
+    return safeList(res);
+  }));
 }
 
 /**
  * 获取所有地址（用于选择器）
  * @returns {Promise<Array>} 地址列表
  */
-function getAllAddresses() {
+function getAllAddresses(query = {}) {
   return request({
     url: `${url}/api/address/show`,
-    method: 'GET'
+    method: 'GET',
+    data: query
   }).then(checkResult).then(res => {
-    return res.data.data || [];
+    return safeList(res);
   });
+}
+
+function getAddressSummary() {
+  return request({ url: `${url}/api/address/summary`, method: 'GET' }).then(checkResult).then(requiredObject);
 }
 
 /**
@@ -121,8 +139,15 @@ function getUserAddressDetail(addressId) {
     method: 'GET',
     data: { id: addressId }
   }).then(checkResult).then(res => {
-    return res.data.data?.[0] || {};
+    const address = safeList(res)[0];
+    if (!address || typeof address !== 'object' || !address.id) throw new Error('地址已不存在，请重新选择');
+    return address;
   });
+}
+
+function getOptionalAddress(id) {
+  return request({ url: `${url}/api/address`, method: 'GET', data: { id, pageSize: 1 } })
+    .then(checkResult).then(res => safeList(res)[0] || null);
 }
 
 /**
@@ -162,10 +187,12 @@ module.exports = {
   getThreeLevelAddress,
   getCategories,
   getAllAddresses,
+  getAddressSummary,
   createUserAddress,
   updateUserAddress,
   updateUserAddressDetail,
   deleteUserAddress,
   getUserAddressDetail,
+  getOptionalAddress,
   convertAddressList
 };

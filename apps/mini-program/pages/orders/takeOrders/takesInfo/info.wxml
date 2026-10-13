@@ -3,7 +3,7 @@
 <view class="runner-detail-page">
   <view wx:if="{{orderInfo.id}}" class="runner-detail-sender">
     <t-avatar image="{{orderInfo.senderAvatar || ''}}" icon="user" shape="circle" size="72rpx" />
-    <text class="runner-detail-sender-name">{{orderInfo.username || '同学'}}</text>
+    <text class="runner-detail-sender-name">{{orderInfo.senderNickname || orderInfo.username || '同学'}}</text>
   </view>
 
   <view wx:if="{{orderInfo.id}}" class="runner-detail-main">
@@ -35,19 +35,17 @@
         <view class="runner-detail-address-dot runner-detail-address-dot--pickup"></view>
         <view class="runner-detail-address-content">
           <view class="runner-detail-address-label">{{orderInfo.businessType === 'PURCHASE' ? '购买地点' : '取件地址'}}</view>
-          <view class="runner-detail-address-main">{{pickUpAddress[0]}} {{pickUpAddress[1]}} {{pickUpAddress[2]}}</view>
-          <view wx:if="{{pickUpAddress[3]}}" class="runner-detail-muted">{{pickUpAddress[3]}}</view>
+          <view class="runner-detail-address-main" style="white-space: pre-wrap;">{{pickUpAddress}}</view>
         </view>
       </view>
       <view class="runner-detail-address">
         <view class="runner-detail-address-dot runner-detail-address-dot--delivery"></view>
         <view class="runner-detail-address-content">
           <view class="runner-detail-address-label">{{orderInfo.businessType === 'PURCHASE' ? '送达地点' : '收件地址'}}</view>
-          <view class="runner-detail-address-main">{{reciveAddress[0]}} {{reciveAddress[1]}} {{reciveAddress[2]}}</view>
-          <view wx:if="{{reciveAddress[3]}}" class="runner-detail-muted">{{reciveAddress[3]}}</view>
+          <view class="runner-detail-address-main" style="white-space: pre-wrap;">{{reciveAddress}}</view>
         </view>
       </view>
-      <view wx:if="{{orderInfo.businessType !== 'PURCHASE'}}" class="runner-detail-door">{{door[orderInfo.doorAccess]}}</view>
+      <view wx:if="{{orderInfo.businessType !== 'PURCHASE'}}" class="runner-detail-door">{{orderInfo.doorAccess === 0 || orderInfo.doorAccess === '0' ? '无门禁' : (orderInfo.doorAccess === 1 || orderInfo.doorAccess === '1' ? '有门禁' : '暂不清楚')}}</view>
     </view>
 
     <view wx:if="{{orderInfo.businessType === 'PURCHASE' && orderInfo.price != null}}" class="runner-detail-section">
@@ -61,7 +59,10 @@
     <view wx:if="{{orderInfo.images && orderInfo.images.length}}" class="runner-detail-section">
       <view class="runner-detail-section-title">任务图片</view>
       <view class="runner-detail-images">
-        <t-image wx:for="{{orderInfo.images}}" wx:key="*this" src="{{item}}" bind:tap="tapOnImageToPreview" data-src="{{item}}" data-flag="{{isMyTaken ? 1 : 0}}" mode="aspectFit" shape="round" class="runner-detail-image" style="{{isMyTaken ? '' : 'filter:blur(10rpx)'}}" />
+        <view wx:for="{{orderInfo.images}}" wx:key="*this" class="runner-task-photo {{isMyTaken ? '' : 'runner-task-photo--frosted'}}">
+          <t-image src="{{item}}" bind:tap="tapOnImageToPreview" data-src="{{item}}" data-flag="{{isMyTaken ? 1 : 0}}" mode="aspectFit" shape="round" class="runner-detail-image" />
+          <view wx:if="{{!isMyTaken}}" class="runner-task-photo-frost"></view>
+        </view>
       </view>
     </view>
 

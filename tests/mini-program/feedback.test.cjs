@@ -210,3 +210,16 @@ test('all page feedback hosts are registered and native feedback calls are absen
     }
   }
 });
+
+test('readable error reasons longer than 36 characters survive toast and message feedback', () => {
+  const h = harness();
+  const reason = '当前商品已被其他同学订下，请返回商品列表选择其他商品，或者稍后查看该商品是否重新开放购买。';
+  assert.ok(reason.length > 36);
+  h.feedback.showToast(h.page, { title: reason, theme: 'error' });
+  assert.equal(h.calls.at(-1)[0], 'message');
+  assert.equal(h.calls.at(-1)[2].content, reason);
+  h.feedback.showMessage(h.page, reason, { theme: 'error' });
+  assert.equal(h.calls.at(-1)[2].content, reason);
+  h.feedback.showToast(h.page, { title: '操作失败，请查看数据库中的 token 并联系管理员', theme: 'error' });
+  assert.equal(h.calls.at(-1)[1].message, '操作失败，请重试');
+});

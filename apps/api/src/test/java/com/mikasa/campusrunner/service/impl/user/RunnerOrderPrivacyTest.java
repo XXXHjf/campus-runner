@@ -108,18 +108,23 @@ class RunnerOrderPrivacyTest {
         verify(media).resolveAuthorizedBinding(MediaAssetConstant.BOUND_ORDER,1L,"ORDER_IMAGE",0);
     }
 
-    @Test void unrelatedPendingDetailUsesPublicProjectionWithoutSigningPrivateMedia() {
+    @Test void unrelatedPendingDetailShowsTaskWithOnlyBlurredMediaAndPublicAddress() {
         BaseContext.setCurrentId(30L);
         when(orders.detail(1L)).thenReturn(detail());
         when(orders.getPublicOrderById(1L)).thenReturn(new PublicOrderVO(1L,BigDecimal.ONE,
-                BigDecimal.ZERO,"NORMAL",null,null,30,4L,"配送","校园 楼栋","校园 楼栋"));
+                BigDecimal.ZERO,"NORMAL",null,null,30,4L,"配送","校园 楼栋","校园 楼栋",10L,"小林同学","说明中电话13800001234保留",1));
+        when(media.resolveOrderPreviewBindings(List.of(1L))).thenReturn(java.util.Map.of(1L,
+                List.of(new BoundMediaVO(null,"signed-blurred-url",0))));
+        when(media.resolvePublicBindings(eq("USER_AVATAR"),anyList(),eq("AVATAR"),eq(0)))
+                .thenReturn(java.util.Map.of(10L,List.of(new BoundMediaVO(9L,"avatar-url",0))));
         OrderShowVO result = orderService.detail(1L);
         assertEquals("校园 楼栋",result.getPickUpAddress());
         assertEquals(BigDecimal.ONE,result.getPrice());
-        assertNull(result.getPhone()); assertNull(result.getRealname()); assertNull(result.getUsername());
-        assertNull(result.getOrderNumber()); assertNull(result.getUserId()); assertNull(result.getNote());
-        assertNull(result.getImage()); assertNull(result.getImageAssetId()); assertTrue(result.getImages().isEmpty());
-        verifyNoInteractions(media);
+        assertNull(result.getPhone()); assertNull(result.getRealname()); assertEquals("小林同学",result.getUsername());
+        assertNull(result.getOrderNumber()); assertNull(result.getUserId()); assertEquals("说明中电话13800001234保留",result.getNote());
+        assertEquals(1,result.getDoorAccess());assertEquals("avatar-url",result.getSenderAvatar());assertFalse(result.getViewerIsTaker());
+        assertEquals("signed-blurred-url",result.getImage()); assertNull(result.getImageAssetId()); assertEquals(List.of("signed-blurred-url"),result.getImages());
+        verify(media,never()).resolveAuthorizedBinding(anyString(),anyLong(),anyString(),anyInt());
     }
     @Test void unrelatedNonPublicOrderHasNoReadableDetail() {
         BaseContext.setCurrentId(30L);
@@ -129,14 +134,16 @@ class RunnerOrderPrivacyTest {
     }
     @Test void filteredLobbyListCannotExposePrivateFieldsOrImageUrls() {
         BaseContext.setCurrentId(30L);
-        when(users.getSchoolId(30L)).thenReturn(1L);
-        when(orders.showByCategory(4L,1L)).thenReturn(List.of(detail()));
-        when(orders.getPublicOrderById(1L)).thenReturn(new PublicOrderVO(1L,BigDecimal.ONE,
-                BigDecimal.ZERO,"NORMAL",null,null,30,4L,"配送","校园 楼栋","校园 楼栋"));
+        var user = new com.mikasa.campusrunner.pojo.vo.UserVO();user.setAuthentication(1);user.setSchoolId(1L);
+        when(users.getById(30L)).thenReturn(user);
+        var row = detail();row.setAccessUserId(30L);row.setPrivateAccess(false);
+        row.setPickUpAddress("校园 楼宇");row.setReciveAddress("校园 楼宇");
+        when(orders.listRunnerFeed(any(),eq(30L),eq(1L),any(),any())).thenReturn(List.of(row));
         var result = orderService.showByCategory(4L);
         assertEquals(1,result.size()); assertNull(result.get(0).getPhone());
-        assertNull(result.get(0).getNote()); assertNull(result.get(0).getImage());
-        verifyNoInteractions(media);
+        assertEquals("private-note",result.get(0).getNote()); assertNull(result.get(0).getImage());
+        verify(media).resolveOrderPreviewBindings(List.of(1L));
+        verify(media,never()).resolveAuthorizedBindings(anyString(),anyList(),anyString(),anyInt());
     }
     @Test void legacyPurchaseUrlIsRemovedWhenNoAuthorizedBindingExists() {
         BaseContext.setCurrentId(10L); privateSetup();
@@ -165,10 +172,8 @@ class RunnerOrderPrivacyTest {
         row.setPhone("private-phone"); row.setRealname("private-name"); row.setNote("private-note");
         row.setPickUpAddress("private-door"); row.setReciveAddress("private-door");
         row.setImage("old-url"); row.setTakeOrderImage("old-proof"); row.setPurchaseProofImage("old-receipt");
-        TakeOrder cancelled = take(); cancelled.setStatus(3);
-        when(takes.getMy(20L)).thenReturn(List.of(row));
-        when(takes.getById(2L)).thenReturn(cancelled);
-        when(orders.getById(1L)).thenReturn(source());
+        row.setTakerId(20L); row.setTakeStatus(3);
+        when(takes.getMyPage(eq(20L),any())).thenReturn(List.of(row));
         var result = takeService.getMy().get(0);
         assertNull(result.getPhone()); assertNull(result.getRealname()); assertNull(result.getNote());
         assertNull(result.getPickUpAddress()); assertNull(result.getReciveAddress());
@@ -178,15 +183,14 @@ class RunnerOrderPrivacyTest {
     @Test void validTakerListSignsBoundEvidenceOnly() {
         BaseContext.setCurrentId(20L);
         TakeOrderVO row = new TakeOrderVO(); row.setId(2L); row.setOrderId(1L);
-        when(takes.getMy(20L)).thenReturn(List.of(row));
-        when(takes.getById(2L)).thenReturn(take());
-        when(orders.getById(1L)).thenReturn(source());
-        when(media.resolveAuthorizedBinding(MediaAssetConstant.BOUND_ORDER,1L,"ORDER_IMAGE"))
-                .thenReturn(List.of());
-        when(media.resolveAuthorizedBinding(MediaAssetConstant.BOUND_TAKE_ORDER,2L,"DELIVERY_PROOF"))
-                .thenReturn(List.of(image()));
-        when(media.resolveAuthorizedBinding(MediaAssetConstant.BOUND_TAKE_ORDER,2L,"PURCHASE_PROOF"))
-                .thenReturn(List.of(image()));
+        when(takes.getMyPage(eq(20L),any())).thenReturn(List.of(row));
+        row.setTakerId(20L); row.setTakeStatus(0); row.setUserId(10L);
+        when(media.resolveAuthorizedBindings(MediaAssetConstant.BOUND_ORDER,List.of(1L),"ORDER_IMAGE",320))
+                .thenReturn(java.util.Map.of());
+        when(media.resolveAuthorizedBindings(MediaAssetConstant.BOUND_TAKE_ORDER,List.of(2L),"DELIVERY_PROOF",320))
+                .thenReturn(java.util.Map.of(2L,List.of(image())));
+        when(media.resolveAuthorizedBindings(MediaAssetConstant.BOUND_TAKE_ORDER,List.of(2L),"PURCHASE_PROOF",320))
+                .thenReturn(java.util.Map.of(2L,List.of(image())));
         var result = takeService.getMy().get(0);
         assertEquals("signed-private-url",result.getTakeOrderImage());
         assertEquals("signed-private-url",result.getPurchaseProofImage());

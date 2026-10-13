@@ -53,7 +53,7 @@ public class AdminSystemConfigController {
     @PutMapping("/service_fee_rate")
     @Operation(summary = "修改服务费率")
     public Result updateServiceFeeRate(@RequestBody AdminSystemConfigDTO dto) {
-        log.info("Update service fee rate, {}", dto);
+        log.info("Update service fee rate");
         adminSystemConfigService.updateServiceFeeRate(dto.getServiceFeeRate());
         return Result.success();
     }
@@ -61,7 +61,7 @@ public class AdminSystemConfigController {
     @PutMapping("/service_fee_min")
     @Operation(summary = "修改最低服务费")
     public Result updateServiceFeeMin(@RequestBody AdminSystemConfigDTO dto) {
-        log.info("Update minimum service fee, {}", dto);
+        log.info("Update minimum service fee");
         adminSystemConfigService.updateServiceFeeMin(dto.getServiceFeeMin());
         return Result.success();
     }

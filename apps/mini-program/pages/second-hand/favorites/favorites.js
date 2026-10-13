@@ -1,6 +1,7 @@
 const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
 const { friendlyError } = require('../../../utils/secondHandStatus');
+const tokenManager = require('../../../utils/tokenManager');
 
 Page({
   retryFeedbackLoad() { return this._feedbackRetry?.(); },
@@ -13,6 +14,7 @@ Page({
     products: [],
     filteredProducts: [],
     loading: false,
+    hasMoreProducts: false,
   },
 
   onLoad() {
@@ -20,11 +22,16 @@ Page({
     this.pendingRemovalIds = new Set();
     this.loadVersion = 0;
     this.disposed = false;
+    this.ownerToken = tokenManager.getToken();
   },
 
   onShow() {
+    this.hidden = false;
     return this.loadFavorites();
   },
+
+  onHide() { this.hidden = true; this.loadVersion += 1; },
+  onReachBottom() { return this.loadFavorites(true); },
 
   updateNavigationMetrics() {
     const windowInfo = typeof wx.getWindowInfo === 'function'
@@ -51,10 +58,12 @@ Page({
   onSearchChange(e) {
     const keyword = String(e.detail.value || '');
     this.setData({ keyword, filteredProducts: this.filterProducts(this.data.products, keyword) });
+    return this.loadFavorites();
   },
 
   clearSearch() {
     this.setData({ keyword: '', filteredProducts: this.data.products });
+    return this.loadFavorites();
   },
 
   filterProducts(products, keyword) {
@@ -70,11 +79,13 @@ Page({
     this.loadVersion += 1;
     const ids = Array.from(this.pendingRemovalIds);
     this.pendingRemovalIds.clear();
+    if (this.ownerToken !== tokenManager.getToken()) return Promise.resolve();
     // Page lifecycle callbacks are not awaited. The service retains each write
     // so a new favorites page cannot read before these requests have settled.
     this.commitPromise = Promise.all(ids.map((id) => (
       secondHandService.unfavoriteProduct(id).then(() => false, () => true)
     ))).then((failures) => {
+      if (this.ownerToken !== tokenManager.getToken()) return;
       const failedCount = failures.filter(Boolean).length;
       if (!failedCount) return;
       // The save happens on leaving. Report its failure on the active page.
@@ -87,20 +98,34 @@ Page({
     return this.commitPromise;
   },
 
-  async loadFavorites() {
+  async loadFavorites(append = false) {
     feedback.loaded(this);
-    if (this.disposed) return;
+    if (this.disposed || this.hidden || (append && (this.data.loading || !this.data.hasMoreProducts))) return;
+    const token = tokenManager.getToken();
+    const keyword = String(this.data.keyword || '').trim();
+    if (token !== this.ownerToken) { this.pendingRemovalIds.clear(); this.ownerToken = token; this.updateProducts([]); }
+    const key = JSON.stringify([token, keyword]);
+    if (append && key !== this.queryKey) return this.loadFavorites();
+    if (key !== this.queryKey) { this.page = 0; this.setData({ hasMoreProducts: false }); }
+    this.queryKey = key;
+    const page = append ? (this.page || 1) + 1 : 1;
     const version = ++this.loadVersion;
+    const current = () => !this.disposed && !this.hidden && version === this.loadVersion && token === tokenManager.getToken();
     this.setData({ loading: true });
     try {
-      const products = await secondHandService.listFavoriteProducts();
-      if (this.disposed || version !== this.loadVersion) return;
-      this.updateProducts(products.map((item) => this.decorateProduct(item)));
+      const products = await secondHandService.listFavoriteProducts({ page, pageSize: 20, keyword });
+      if (!current()) return;
+      const decorated = products.map((item) => this.decorateProduct(item));
+      this.updateProducts(append ? [...new Map([...this.data.products, ...decorated].map(item => [String(item.id), item])).values()] : decorated);
+      this.page = page;
+      this.setData({ hasMoreProducts: products.length === 20 });
+      feedback.clearMessage(this, 'favorite-pagination');
     } catch (error) {
-      if (this.disposed || version !== this.loadVersion) return;
-      feedback.loadError(this, '收藏加载失败，请重试', () => this.loadFavorites(), !!this.data.products.length);
+      if (!current()) return;
+      if (append) feedback.showMessage(this, '后续收藏加载失败，请重试', { key: 'favorite-pagination', theme: 'error', action: '重试', onAction: () => this.loadFavorites(true) });
+      else feedback.loadError(this, '收藏加载失败，请重试', () => this.loadFavorites(), !!this.data.products.length);
     } finally {
-      if (!this.disposed && version === this.loadVersion) {
+      if (current()) {
         this.setData({ loading: false });
         wx.stopPullDownRefresh();
       }

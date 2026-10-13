@@ -12,7 +12,7 @@
   无数据库迁移；回滚需保留公开读取兼容或同步回滚客户端。
 
 - `POST /api/order/amount-preview`：按分类和金额返回服务端计算的服务费、实付、接单人应收及额度；发布订单前使用。
-- `POST /api/order`：发布订单；图片只提交 `imageAssetId`。服务端依据启用分类重新判断业务类型并计算金额。
+- `POST /api/order`：发布订单；图片提交 `imageAssetIds`，至少 1 张、最多 9 张；旧单图入参 `imageAssetId` 仍兼容。服务端依据启用分类重新判断业务类型并计算金额。
   小程序发单只填写一个必填的订单描述（最多 100 字），直接提交为 `note`；无需另填短标题。
   这样发单和订单展示使用同一份内容。旧草稿中的短标题与详细要求在恢复时合并为描述。
   验证时检查旧草稿恢复、空描述拦截和跑腿大厅展示；如需回滚，仅恢复小程序表单与草稿处理，接口和数据库无需回滚。
@@ -20,7 +20,7 @@
 - `GET /api/order/detail/{id}`：发单人或有效接单人读取完整详情；其他已登录用户仅能查看待接单订单的公开投影，已接单及终态订单拒绝无关用户访问。筛选列表遵循相同角色规则，私人内容不通过列表泄露。
 - `GET /api/order/showByPrice/{status}`、`showByTime/{status}`、`showByCategory/{id}`：订单列表筛选。
 - `PUT /api/order/cancel`：取消订单。
-- `PUT /api/order/{id}/content`：发单人仅在待接单时修改 `note` 与 `imageAssetId`；说明至少 4 个非空白字符、最多 100 个字符，图片必填且限一张。金额和履约信息不可修改。
+- `PUT /api/order/{id}/content`：发单人仅在待接单时修改 `note` 与 `imageAssetIds`；说明至少 4 个非空白字符、最多 100 个字符，图片 1～9 张，兼容旧单图入参。金额和履约信息不可修改。
 - `PUT /api/order/confirm/{id}`：确认收货。
 - `DELETE /api/order/{id}`：仅发单人隐藏符合终态及资金规则的订单，不删除资金记录或释放图片，见 [订单隐藏](order-flow.md#跑腿订单隐藏与数据保留)。
 

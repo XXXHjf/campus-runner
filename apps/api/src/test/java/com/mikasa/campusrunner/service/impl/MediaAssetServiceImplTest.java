@@ -225,7 +225,6 @@ class MediaAssetServiceImplTest {
                 .id(4L)
                 .purpose("SECOND_HAND_PRODUCT_IMAGE")
                 .status(MediaAssetConstant.STATUS_BOUND)
-                .boundType("SECOND_HAND_PRODUCT")
                 .boundId(20L)
                 .build();
         MediaAsset replacement = MediaAsset.builder()
@@ -342,6 +341,39 @@ class MediaAssetServiceImplTest {
         assertEquals("https://public.example/original",
                 service.resolvePublicBinding("SECOND_HAND_PRODUCT", 15L, "SECOND_HAND_PRODUCT_IMAGE")
                         .get(0).getUrl());
+    }
+
+    @Test
+    void draftChecksOnlySignUnexpiredOwnedTemporaryImages() {
+        LocalDateTime now = LocalDateTime.now();
+        for (long id = 1; id <= 6; id++) {
+            MediaAsset asset = MediaAsset.builder().id(id).ownerType("USER").ownerId(7L)
+                    .purpose("ORDER_IMAGE").status("TEMP").expiresAt(now.plusHours(1))
+                    .objectKey("image/" + id).build();
+            if (id == 2) asset.setOwnerId(8L);
+            if (id == 3) asset.setPurpose("AVATAR");
+            if (id == 4) asset.setStatus("BOUND");
+            if (id == 5) asset.setExpiresAt(now.minusSeconds(1));
+            if (id == 6) asset.setStatus("DELETED");
+            when(mediaAssetMapper.getById(id)).thenReturn(asset);
+        }
+        when(aliOSSUtil.generatePresignedUrl("image/1", Duration.ofHours(1))).thenReturn("fresh-preview");
+        var result = service.usableTemporaryImages(List.of(1L, 2L, 3L, 4L, 5L, 6L, 9L),
+                "ORDER_IMAGE", "USER", 7L);
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getMediaId());
+        assertEquals("fresh-preview", result.get(0).getPreviewUrl());
+        verify(aliOSSUtil, org.mockito.Mockito.times(1)).generatePresignedUrl(anyString(), any());
+    }
+
+    @Test
+    void draftChecksBoundRequestSizeAndRejectInvalidOwnerOrIds() {
+        assertThrows(UploadException.class, () -> service.usableTemporaryImages(
+                java.util.Collections.nCopies(10, 1L), "ORDER_IMAGE", "USER", 7L));
+        assertThrows(UploadException.class, () -> service.usableTemporaryImages(List.of(0L), "ORDER_IMAGE", "USER", 7L));
+        assertThrows(UploadException.class, () -> service.usableTemporaryImages(List.of(1L), "ORDER_IMAGE", "USER", null));
+        assertTrue(service.usableTemporaryImages(List.of(), "ORDER_IMAGE", "USER", 7L).isEmpty());
+        verify(mediaAssetMapper, never()).getById(anyLong());
     }
 
     private byte[] imageBytes() throws Exception {

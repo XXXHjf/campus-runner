@@ -47,6 +47,12 @@
     <select id="getListBySchoolId" resultType="com.mikasa.campusrunner.pojo.entity.Banner">
         SELECT * FROM tb_banner
         WHERE school_id = #{schoolId} AND deleted = 0
+    order by id limit 50
+    </select>
+    <select id="getListBySchoolIdPage" resultType="com.mikasa.campusrunner.pojo.entity.Banner">
+        SELECT * FROM tb_banner
+        WHERE school_id = #{schoolId} AND deleted = 0
+    order by id limit #{page.limit} offset #{page.offset}
     </select>
 
 

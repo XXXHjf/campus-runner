@@ -41,14 +41,18 @@ fi
 
 cd "$APP_DIR"
 nohup "$JAVA_BIN" -jar "$APP_JAR" \
+    --server.address=127.0.0.1 \
     --server.port=8080 \
     --server.ssl.enabled=false \
+    --server.forward-headers-strategy=none \
     --spring.servlet.multipart.max-file-size=10MB \
     --spring.servlet.multipart.max-request-size=20MB \
     --com.mikasa.campus-runner.dev.mock-payment-enabled="$MOCK_PAYMENT_ENABLED" \
     --com.mikasa.campus-runner.wechat.second-hand-transfer-scene-id=1010 \
     --logging.level.com.mikasa.campusrunner.mapper=INFO \
     --logging.level.com.wechat.pay.contrib.apache.httpclient.SignatureExec=OFF \
+    --logging.level.org.apache.http.wire=OFF \
+    --logging.level.org.apache.http.headers=OFF \
     > "$APP_LOG" 2>&1 &
 
 echo $! > "$APP_PID"

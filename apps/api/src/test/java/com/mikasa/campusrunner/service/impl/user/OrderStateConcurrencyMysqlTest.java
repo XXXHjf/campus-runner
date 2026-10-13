@@ -81,15 +81,19 @@ class OrderStateConcurrencyMysqlTest {
         secondOrders=session.getMapper(SecondHandOrderMapper.class); products=session.getMapper(SecondHandProductMapper.class);
         var manager=new DataSourceTransactionManager(db); tx=new TransactionTemplate(manager);
         var users=mock(UserMapper.class); when(users.getById(anyLong())).thenReturn(UserVO.builder().authentication(1).build());
+        when(users.lockRunnerIdentity(anyLong())).thenReturn(UserVO.builder().authentication(1).deleted(0).schoolId(1L).build());
+        var takeSnapshots=mock(OrderAddressSnapshotMapper.class);
+        when(takeSnapshots.countMatchingSchool(anyLong(),eq(1L))).thenReturn(2);
         runner=new TakeOrderServiceImpl(); publisher=new OrderServiceImpl(); second=new SecondHandServiceImpl();
         ReflectionTestUtils.setField(runner,"orderMapper",orders); ReflectionTestUtils.setField(runner,"takeOrderMapper",takes);
         ReflectionTestUtils.setField(runner,"userMapper",users); ReflectionTestUtils.setField(runner,"messages",mock(MessageSendService.class));
+        ReflectionTestUtils.setField(runner,"addressSnapshots",takeSnapshots);
         ReflectionTestUtils.setField(runner,"mediaAssetService",mock(MediaAssetService.class));
         ReflectionTestUtils.setField(publisher,"orderMapper",orders);
         ReflectionTestUtils.setField(second,"orderMapper",secondOrders); ReflectionTestUtils.setField(second,"productMapper",products);
         ReflectionTestUtils.setField(second,"userMapper",users); ReflectionTestUtils.setField(second,"configMapper",mock(AdminSystemConfigMapper.class));
         ReflectionTestUtils.setField(second,"subscriptions",mock(SecondHandSubscriptionService.class));
-        ReflectionTestUtils.setField(second,"transactionManager",manager); ReflectionTestUtils.setField(second,"mockPaymentEnabled",true);
+        ReflectionTestUtils.setField(second,"transactionManager",manager);
         cancellation=new OrderCancellationService(orders,mock(RefundInfoService.class),mock(WeChatPayService.class),
                 mock(com.mikasa.campusrunner.common.utils.WeChatPayUtil.class),manager);
     }

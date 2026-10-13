@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mikasa.campusrunner.mapper.UserTaskMapper">
+    <!-- Preserve the existing notWithdrawn selection and school restriction. -->
+    <sql id="receivableFrom">
+        FROM tb_take_orders tk
+        JOIN tb_orders o ON o.id=tk.order_id AND o.deleted=0
+        JOIN tb_user u ON u.id=o.user_id
+        JOIN tb_category c ON c.id=o.category_id
+        JOIN tb_order_address_snapshot p ON p.order_id=o.id AND p.role='PICKUP' AND p.school_id=#{schoolId}
+        JOIN tb_order_address_snapshot r ON r.order_id=o.id AND r.role='RECEIVE' AND r.school_id=#{schoolId}
+        WHERE tk.user_id=#{userId} AND tk.deleted=0 AND tk.status=2 AND o.status=5
+          AND o.price IS NOT NULL AND o.price != 0
+    </sql>
+    <sql id="unpaidFrom">
+        FROM tb_orders o JOIN tb_category c ON c.id=o.category_id
+        JOIN tb_order_address_snapshot p ON p.order_id=o.id AND p.role='PICKUP'
+        JOIN tb_order_address_snapshot r ON r.order_id=o.id AND r.role='RECEIVE'
+        WHERE o.user_id=#{userId} AND o.deleted=0 AND o.status=-1 AND o.create_time > #{unpaidAfter}
+    </sql>
+    <select id="summarize" resultType="com.mikasa.campusrunner.pojo.vo.UserTaskSummaryVO">
+        SELECT
+        (SELECT COUNT(*) <include refid="receivableFrom"/>) AS runner_receivable_count,
+        (SELECT MIN(o.id) <include refid="receivableFrom"/>) AS runner_receivable_order_id,
+        (SELECT COUNT(*) <include refid="unpaidFrom"/>) AS runner_unpaid_count,
+        (SELECT MIN(o.id) <include refid="unpaidFrom"/>) AS runner_unpaid_order_id,
+        (SELECT COUNT(*) FROM tb_second_hand_order WHERE buyer_id=#{userId} AND deleted=0 AND status IN (0,2)) AS second_hand_buyer_count,
+        (SELECT COUNT(*) FROM tb_second_hand_order WHERE buyer_id=#{userId} AND deleted=0 AND status=2) AS second_hand_buyer_notice_count,
+        (SELECT COUNT(*) FROM tb_second_hand_order WHERE seller_id=#{userId} AND deleted=0
+            AND (status=1 OR (status=8 AND transfer_state='WAIT_USER_CONFIRM'))) AS second_hand_seller_count,
+        (SELECT COUNT(*) FROM tb_second_hand_bargain WHERE seller_id=#{userId} AND deleted=0 AND status=0) AS bargain_pending_count
+    </select>
+</mapper>

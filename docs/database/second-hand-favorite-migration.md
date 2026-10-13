@@ -45,12 +45,6 @@ WHERE COALESCE(p.favorite_count, 0) <> COALESCE(f.favorite_count, 0);
 
 ## 回滚
 
-先回滚小程序和 API，确认旧版本不再读写收藏表后，再执行：
+优先回滚 API 和小程序，保留收藏表、唯一索引与计数，避免为代码回退永久删除用户收藏。新增表不影响旧版显式列读写。
 
-```sql
-DROP TABLE IF EXISTS tb_second_hand_favorite;
-UPDATE tb_second_hand_product SET favorite_count = 0;
-```
-
-删除收藏表会永久丢失用户收藏关系。若仍需保留数据，应使用发布前数据库备份恢复，不要执行
-上述删除语句。
+本迁移同时按关系表重算 `favorite_count`；执行或重跑前仍须核对结构、备份并停止并发收藏写入。不要通过删表、计数归零或恢复旧整库备份处理应用回滚。

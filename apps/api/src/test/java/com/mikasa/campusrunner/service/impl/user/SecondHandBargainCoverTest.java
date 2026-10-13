@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
 class SecondHandBargainCoverTest {
@@ -34,17 +35,18 @@ class SecondHandBargainCoverTest {
             SecondHandBargainVO first = bargain(10L);
             SecondHandBargainVO repeat = bargain(10L);
             SecondHandBargainVO missing = bargain(20L);
-            when(bargainMapper.listMine(100L)).thenReturn(List.of(first, repeat, missing));
-            when(mediaAssetService.resolvePublicBinding(MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT, 10L, "SECOND_HAND_PRODUCT_IMAGE"))
-                    .thenReturn(List.of(new BoundMediaVO(1L, "https://example.test/first.jpg", 0), new BoundMediaVO(2L, "https://example.test/second.jpg", 1)));
-            when(mediaAssetService.resolvePublicBinding(MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT, 20L, "SECOND_HAND_PRODUCT_IMAGE"))
-                    .thenReturn(List.of());
+            when(bargainMapper.listMinePage(eq(100L),any())).thenReturn(List.of(first, repeat, missing));
+            when(mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT,
+                    List.of(10L,10L,20L), "SECOND_HAND_PRODUCT_IMAGE",480))
+                    .thenReturn(java.util.Map.of(10L,List.of(new BoundMediaVO(1L,"https://example.test/first.jpg",0),
+                            new BoundMediaVO(2L,"https://example.test/second.jpg",1))));
             var result = service.listMyBargains();
             assertEquals(3, result.size());
             assertEquals("https://example.test/first.jpg", first.getProductCoverImage());
             assertEquals(first.getProductCoverImage(), repeat.getProductCoverImage());
             assertEquals("", missing.getProductCoverImage());
-            verify(mediaAssetService, times(1)).resolvePublicBinding(MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT, 10L, "SECOND_HAND_PRODUCT_IMAGE");
+            verify(mediaAssetService).resolvePublicBindings(MediaAssetConstant.BOUND_SECOND_HAND_PRODUCT, List.of(10L,10L,20L), "SECOND_HAND_PRODUCT_IMAGE",480);
+            verifyNoMoreInteractions(mediaAssetService);
         } finally {
             BaseContext.removeCurrentId();
         }

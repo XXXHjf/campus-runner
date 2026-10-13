@@ -8,10 +8,12 @@ function harness() {
   let saved = { id: 2, isDefault: 0, details: 'old', label: 'old' };
   let responseCode = 1, navigated = false, page;
   const writes = [];
+  const responseModule = { exports: {} };
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'services/request.js'), 'utf8'), { module: responseModule, require: () => ({}) });
   const serviceModule = { exports: {} };
   vm.runInNewContext(fs.readFileSync(path.join(root, 'services/addressService.js'), 'utf8'), {
     module: serviceModule, getApp: () => ({ globalData: { API_URL: '' } }),
-    require: () => ({ request: async o => {
+    require: () => ({ ...responseModule.exports, request: async o => {
       if (o.method === 'PUT') { writes.push(o); if (responseCode === 1) saved = { ...saved, ...o.data }; }
       return { data: { code: responseCode, msg: '保存失败', data: [saved] } };
     } }),

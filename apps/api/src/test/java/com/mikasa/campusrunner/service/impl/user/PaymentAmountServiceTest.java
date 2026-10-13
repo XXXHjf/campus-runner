@@ -39,6 +39,7 @@ class PaymentAmountServiceTest {
     @Mock CloseableHttpClient client;
     @Mock WeChatProperties properties;
     @Mock com.mikasa.campusrunner.common.utils.WeChatPayUtil payUtil;
+    @Mock AdminSystemConfigMapper systemConfigMapper;
     @InjectMocks WeChatPayServiceImpl service;
 
     @AfterEach void clearContext() { BaseContext.removeCurrentId(); }
@@ -54,7 +55,17 @@ class PaymentAmountServiceTest {
 
     Order order(String yuan, int status) {
         return Order.builder().id(1L).userId(2L).orderNumber("O1").status(status)
-                .payAmount(new BigDecimal(yuan)).serviceFee(new BigDecimal("0.29")).build();
+                .price(new BigDecimal(yuan)).payAmount(new BigDecimal(yuan)).serviceFee(BigDecimal.ZERO).build();
+    }
+
+    @Test void loweredCeilingStopsExistingUnpaidOrderBeforeProviderCall() throws Exception {
+        SystemConfig config = new SystemConfig(); config.setConfigValue("100");
+        when(systemConfigMapper.getByConfigKey("runner_transfer_single_max")).thenReturn(config);
+        Order existing = order("150", -1);
+        when(orderService.getNoPayOrderByOrderId(1L)).thenReturn(existing);
+        assertThrows(OrderException.class, () -> service.jsapiPay(1L));
+        verifyNoInteractions(client, users, properties, logs);
+        assertEquals(new BigDecimal("150"), existing.getPayAmount());
     }
 
     String result(int cents) {
@@ -75,6 +86,8 @@ class PaymentAmountServiceTest {
 
     @ParameterizedTest @CsvSource({"0.29,29", "0.57,57", "1.13,113", "0.01,1", "21474836.47,2147483647"})
     void prepaySendsExactCents(String yuan, int cents) throws Exception {
+        SystemConfig config = new SystemConfig(); config.setConfigValue("21474836.47");
+        when(systemConfigMapper.getByConfigKey("runner_transfer_single_max")).thenReturn(config);
         when(orderService.getNoPayOrderByOrderId(1L)).thenReturn(order(yuan, -1));
         when(properties.getWxDomain()).thenReturn("https://example.test");
         when(properties.getNotifyUrl()).thenReturn("https://example.test");
@@ -97,8 +110,10 @@ class PaymentAmountServiceTest {
     @ParameterizedTest @ValueSource(strings = {"0", "-0.01", "0.001", "21474836.48"})
     void invalidPrepayAmountNeverReachesProvider(String yuan) throws Exception {
         when(orderService.getNoPayOrderByOrderId(1L)).thenReturn(order(yuan, -1));
-        when(properties.getWxDomain()).thenReturn("https://example.test");
-        when(properties.getNotifyUrl()).thenReturn("https://example.test");
+        if ("0".equals(yuan)) {
+            when(properties.getWxDomain()).thenReturn("https://example.test");
+            when(properties.getNotifyUrl()).thenReturn("https://example.test");
+        }
         assertThrows(OrderException.class, () -> service.jsapiPay(1L));
         verifyNoInteractions(client);
     }
@@ -135,7 +150,8 @@ class PaymentAmountServiceTest {
         PaymentLogServiceImpl logService = new PaymentLogServiceImpl();
         org.springframework.test.util.ReflectionTestUtils.setField(logService, "orderMapper", orders);
         org.springframework.test.util.ReflectionTestUtils.setField(logService, "paymentLogMapper", mapper);
-        when(orders.getByOrderNumber("O1")).thenReturn(order("1.13", -1));
+        Order stored = order("1.13", -1); stored.setServiceFee(new BigDecimal("0.29"));
+        when(orders.getByOrderNumber("O1")).thenReturn(stored);
         logService.savePaymentInfoLog(result(113));
         verify(mapper).insert(argThat(log -> log.getTotal() == 113L && log.getServiceFee() == 29L));
         clearInvocations(mapper);

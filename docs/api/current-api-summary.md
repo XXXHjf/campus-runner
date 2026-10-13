@@ -21,6 +21,12 @@
 | `/api/second-hand` | 二手商品、收藏、议价、私信、线下交易下单与交付记录；历史支付接口保留但当前禁用 |
 | `/api/wx-pay` | 跑腿微信支付、查询与退款 |
 | `/api/wx-transfer` | 骑手商家转账 |
+| `/api/message` | 旧跑腿通知兼容入口，返回成功空响应；通知已由服务端履约成功后触发 |
+
+转账测试入口 `GET /api/wx-transfer/{orderNumber}` 和
+`POST /api/wx-transfer/close/{orderNumber}` 已移除，无业务调用方。内部定时对账仍查询微信；
+用户发起收款继续通过订单接单人归属校验。移除入口的 MockMvc 检查返回 404，不代表生产
+已经部署。回滚时不得重新开放可读取完整资金报文或无权限撤销转账的旧测试入口。
 
 用户登录、资料完整度与校园认证的先后约束见
 [用户登录、资料注册与校园认证](user-onboarding.md)。
@@ -48,6 +54,17 @@
 图片只通过 `POST /api/media/images` 或 `POST /admin/api/media/images` 上传，业务提交时只传
 媒体资源 id。用途、限制和生命周期见 [统一图片资源接口](media-assets.md)。
 
+## 小程序响应校验
+
+业务服务统一经过 `services/request.js`：HTTP 非 200、缺失成功码或 `code` 不为 1 均拒绝，
+不把 HTTP 200 本身视为业务成功。列表必须返回数组，真正的空列表使用 `[]`；必需的用户、
+订单、商品、地址、金额预览、支付参数、议价与消息结果必须返回对象，缺失时不能替换为
+空对象并继续操作。订单创建还检查生成的 ID。合法的无数据更新，以及没有接单人、没有
+送达图片的可选结果继续保留原语义。金额配置缺失、空白或非有效非负数时拒绝，不转换为 0。
+
+接口结构不变。客户端验证使用 `requestBusinessFailure.test.cjs`；发布时仍应人工核对失败
+提示和保留的表单内容。回退响应校验会恢复空数据被当作成功或配置零值的风险。
+
 ## 开发支付联调
 
 `/api/dev/**` 只在后端 `mock-payment-enabled=true` 时可用。当前二手模块为线下交易模式，
@@ -62,3 +79,45 @@
 - 旧图片 URL、二手旧配送字段及其兼容请求参数。
 
 这些能力不会再提供兼容响应；客户端不得继续调用。
+
+## 创建请求幂等
+
+`POST /api/order`、`POST /api/second-hand/products`、`POST /api/second-hand/orders` 要求 `clientRequestId`。按账号及操作重放原结果，未确认或内容冲突返回 HTTP 409，未知异常返回 HTTP 500；客户端保留原提交。迁移、客户端恢复和版本发布约束统一见[创建请求幂等](../database/submission-idempotency.md)。
+
+
+`GET /api/order/my` 已改为发单人分页列表，参数和兼容发布约束见 [订单流程](../mini-program/order-flow.md#我发布的列表分页)。默认 20 条、上限 50 条，状态与关键词在分页前过滤；旧客户端应协调更新。
+
+
+`GET /api/takeOrders` 已按当前接单人分页，默认 20 条、上限 50 条。状态及关键词在分页前过滤，取消接单历史不读取或搜索私有内容。参数、状态分组及协调发布要求见 [订单流程](../mini-program/order-flow.md#我接的列表分页)。
+
+
+`GET /api/user/tasks` 为当前认证账号返回完整待办计数与仅单条时的跑腿订单编号，用户编号从登录身份取得，无客户端指定账号参数。计数条件、红点/页面既有口径差异及协调发布约束见 [订单流程](../mini-program/order-flow.md#待办计数与列表分页隔离)。该读接口不发起支付、退款、转账或图片签名。
+
+
+接单条件查询 `/api/takeOrders/query` 及旧未收款列表 `/api/takeOrders/notWithdrawn` 已限制单页默认 20、最多 50，并支持后续页。条件状态属于接单记录（0–3），不是订单状态；当前账号、学校及未收款口径见 [订单流程](../mini-program/order-flow.md#接单条件与旧未收款列表)。
+
+
+个人及商品议价列表已支持分页、角色/状态及指定报价筛选，默认 20 条、上限 50 条；购买入口的报价筛选在分页前执行，避免漏掉指定旧报价。详见 [二手交易议价列表](second-hand.md#议价列表分页)。
+
+
+公开跑腿预览 `/api/order/public` 已支持分页前筛选和排序，默认 20、最多 50；公开字段及待接单范围保持。参数、地址标签和协调发布要求见 [订单流程](../mini-program/order-flow.md#大厅公开预览分页)。已认证大厅使用 `/api/order/feed`，按当前账号学校分页，组合分类、双方地址、关键词和排序，参与者判定在同次查询中完成；详情见 [已认证大厅分页](../mini-program/order-flow.md#已认证大厅分页)。六个旧排序/地址入口也支持分页并复用同一授权查询，参数与排序兼容见 [旧大厅入口分页兼容](../mini-program/order-flow.md#旧大厅入口分页兼容)。管理端和其他列表仍待继续整改。
+
+
+管理端二手商品 `/admin/api/second-hand/products` 已改为分页对象（`total/page/pageSize/list/activeProducts`），默认 20 条、最多 50，筛选及完整在售计数在数据库执行；管理页同步服务端分页。详情和协调发布要求见 [管理端商品分页](second-hand.md#管理端商品分页)。其他列表入口仍待继续核对。
+
+
+管理端二手订单 `/admin/api/second-hand/orders` 已改为 `total/page/pageSize/list/abnormalOrders/turnover` 分页对象，默认 20、最多 50，筛选在分页前执行，原异常数和金额统计以完整筛选范围汇总。管理页同步服务器分页；详见 [管理端订单分页](second-hand.md#管理端订单分页)，API 与管理端须协调更新。
+
+
+管理端议价和留言已支持默认 20、最多 50 的分页对象，议价返回完整待回复数量，留言商品过滤在分页前执行。原关联和处理权限保持，四个管理页列表同步服务器分页。参数、历史关联行与协调发布要求见 [管理端议价与留言分页](second-hand.md#管理端议价与留言分页)。其他列表及用户会话入口仍待继续审计。
+
+
+用户二手会话列表 `/api/second-hand/conversations` 支持 `page/pageSize`（默认 20、最大 50），响应仍为数组；数据库按最近消息分页并汇总当前页会话的完整未读数，商品图片按页批量读取。会话内及旧商品消息接口已支持互斥 `beforeId/afterId` 游标与 `pageSize`（默认 20、最大 50），保持时间/编号升序展示，只标记返回的接收消息；小程序支持上滑历史、增量轮询及账号保护。兼容性和验证边界见 [会话消息历史与增量读取](second-hand.md#会话消息历史与增量读取)。
+
+管理端用户/跑腿订单/接单列表已补齐每页最多 50 条、页码及偏移溢出校验、同秒编号排序；用户头像和送达凭证按页批量查询。旧待审核数组接口 `/admin/api/auth/pendingList` 接受 `page/pageSize`，默认 1/20、最大 50，头像及学生证批量解析，当前前端不调用。完整统计与详情鉴权保持；见 [管理端接口与页面](admin-management.md)。账号/IP/上传额度已确认并本地实现，共享 MySQL，生产默认关闭；见 [请求保护与发布](../deployment/server-operations.md#请求频次与上传额度保护本地已实现生产尚未启用)。
+
+## 地址与完整配置候选的分页
+
+`/api/address/show`、`/api/address`、`/api/school`、`/api/category`、用户/管理端二手分类、管理端学校/建筑及轮播图候选支持 `page/pageSize`，默认 1/20、最大 50，数组形状不变。个人地址维持当前账号授权；默认优先、ID 倒序。`GET /api/address/summary` 返回 `total/defaultCount/defaultAddress`，总量独立于当前页，默认最多一条。
+
+`/api/address/three` 使用相同分页，默认仅返回学校/校区/类型数组，`building=[]`；传 `compusNumberId` 后只读取当前允许学校中该校区的建筑页，其他数组为空。客户端逐页取得候选元数据，按需加载建筑分支；旧地址按 ID 单独核对，不依赖初始页。协调 API/小程序更新，完整操作和部署边界见 [生产操作文档](../deployment/server-operations.md#地址与配置候选集)。

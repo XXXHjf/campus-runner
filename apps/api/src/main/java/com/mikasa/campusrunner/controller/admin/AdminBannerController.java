@@ -28,16 +28,16 @@ public class AdminBannerController {
     @PostMapping("/add")
     @Operation(summary = "新增轮播图")
     public Result addNewBanner(@RequestBody AdminBannerAddDTO dto) {
-        log.info("Add banner, {}", dto);
+        log.info("Add banner");
         adminBannerService.addNewBanner(dto);
         return Result.success();
     }
 
     @GetMapping("/getList/{schoolId}")
     @Operation(summary = "获取对应学校的轮播图片")
-    public Result<List<Banner>> getListBySchoolId(@PathVariable Long schoolId) {
+    public Result<List<Banner>> getListBySchoolId(@PathVariable Long schoolId, com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
         log.info("Get school banners, school ID: {}", schoolId);
-        List<Banner> list = adminBannerService.getListBySchoolId(schoolId);
+        List<Banner> list = adminBannerService.getListBySchoolId(schoolId, page);
         return Result.success(list);
     }
 

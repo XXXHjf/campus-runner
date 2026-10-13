@@ -1,9 +1,8 @@
 const feedback = require('../../../utils/feedback');
 // 引入服务和工具
 const userService = require('../../../services/userService');
-const takeOrderService = require('../../../services/takeOrderService');
 const userOrderService = require('../../../services/userOrderService');
-const secondHandService = require('../../../services/secondHandService');
+const taskSummaryService = require('../../../services/taskSummaryService');
 const mineTabBadgeService = require('../../../services/mineTabBadgeService');
 const tokenManager = require('../../../utils/tokenManager');
 const { maskPhone } = require('../../../utils/privacy');
@@ -88,6 +87,8 @@ Page({
         ],
       },
     ],
+    notReceiveOrderCount: 0,
+    unpaidOrderCount: 0,
     notReceiveOrderList: [],
     unpaidOrderList: [],
     secondHandOrderCount: 0,
@@ -156,7 +157,7 @@ Page({
       try {
         await app.globalData.silentLoginPromise;
       } catch (error) {
-        console.error('启动登录未完成:', error);
+        console.error("启动登录未完成:");
       }
     }
   },
@@ -169,7 +170,7 @@ Page({
         const route = getRequiredOnboardingRoute(userInfo) || CAMPUS_AUTH_PAGE;
         wx.navigateTo({ url: route });
       } catch (error) {
-        console.error('读取用户资料失败:', error);
+        console.error("读取用户资料失败:");
         feedback.showMessage(this, '资料加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.onShow() });
       }
       return;
@@ -226,7 +227,7 @@ Page({
       // 获取用户信息（使用封装的 service）
       try {
         const userInfo = await userService.getUserInfo();
-        console.log('获取用户信息:', userInfo);
+        console.log("获取用户信息:");
         
         this.setData({
           userInfo: {
@@ -248,7 +249,7 @@ Page({
           loginLoadShow: false
         });
       } catch (userInfoError) {
-        console.error('获取用户信息失败:', userInfoError);
+        console.error("获取用户信息失败:");
         this.setData({
           loginLoadShow: false
         });
@@ -256,7 +257,7 @@ Page({
       }
     } catch (error) {
       // 如果登录失败，关闭加载中的遮罩层，弹出登录失败
-      console.error('登录失败:', error);
+      console.error("登录失败:");
       this.setData({
         loginLoadShow: false
       });
@@ -283,7 +284,7 @@ Page({
       await userService.updateUserInfo(userData);
       console.log('更新用户信息成功');
     } catch (error) {
-      console.error('更新用户信息失败:', error);
+      console.error("更新用户信息失败:");
       showError(this, '更新失败');
     }
   },
@@ -302,7 +303,9 @@ Page({
         this.setData({
           userInfo: null,
           displayPhone: '',
-          notReceiveOrderList: [],
+          notReceiveOrderCount: 0,
+        unpaidOrderCount: 0,
+        notReceiveOrderList: [],
           unpaidOrderList: [],
           secondHandOrderCount: 0,
           secondHandSellerOrderCount: 0,
@@ -319,7 +322,7 @@ Page({
   },
   // 未收款订单跳转 - 优化：跳转到我的接单页面
   tapToReceive() {
-    const orderCount = this.data.notReceiveOrderList.length;
+    const orderCount = this.data.notReceiveOrderCount;
     
     if (orderCount === 1) {
       // 只有一个订单时，直接跳转到订单详情
@@ -335,14 +338,6 @@ Page({
     }
   },
   // 查询已经完成但是未收款的订单（使用封装的 service）
-  async _getOrderWithNotReceive() {
-    try {
-      return await takeOrderService.getNotWithdrawnOrders();
-    } catch (error) {
-      console.error('获取未收款订单失败:', error);
-      return [];
-    }
-  },
   // 邀请好友（button属性open-type="share"，该方法用于cell背景透明）
   share: function () {
     // 设置 shareFlag 为 true
@@ -371,8 +366,11 @@ Page({
   },
   // 获取用户数据（使用封装的 service）
   async getGlobalData() {
+    const token = tokenManager.getToken();
+    const session = tokenManager.getSessionVersion?.();
     try {
       const userInfo = await userService.getUserInfo();
+      if (token !== tokenManager.getToken() || session !== tokenManager.getSessionVersion?.()) throw new Error('登录状态已变化，请刷新');
       const app = getApp();
       const userInfoWithToken = {
         ...userInfo,
@@ -383,10 +381,10 @@ Page({
         userInfo: userInfoWithToken,
         displayPhone: maskPhone(userInfo.phone),
       });
-      console.log('获取用户数据成功:', userInfo);
+      console.log("获取用户数据成功:");
       return userInfo;
     } catch (error) {
-      console.error('获取用户数据失败:', error);
+      console.error("获取用户数据失败:");
       throw error;
     }
   },
@@ -407,7 +405,9 @@ Page({
   // 查询未支付订单，超时通过取消流程关闭支付
   async _getUnpaidOrders() {
     try {
-      const orders = await userOrderService.getMyOrders();
+      const token = tokenManager.getToken();
+      const orders = await userOrderService.getMyOrders({ group: 'unpaid', pageSize: 20 });
+      if (token !== tokenManager.getToken()) return [];
       const unpaidOrders = orders.filter(order => Number(order.status) === -1);
 
       const validOrders = [];
@@ -426,7 +426,7 @@ Page({
         await Promise.all(
           expiredOrders.map(order =>
             userOrderService.cancelOrder(order.id, '支付超时', order.orderNumber).catch(err => {
-              console.warn('取消超时未支付订单失败:', order.id, err);
+              console.warn("取消超时未支付订单失败:");
             })
           )
         );
@@ -434,47 +434,14 @@ Page({
 
       return validOrders;
     } catch (error) {
-      console.error('获取未支付订单失败:', error);
+      console.error("获取未支付订单失败:");
       return [];
-    }
-  },
-
-  async _getSecondHandTaskCounts() {
-    try {
-      const [buyerOrders, sellerOrders, bargains] = await Promise.all([
-        secondHandService.listBuyerOrders(),
-        secondHandService.listSellerOrders(),
-        secondHandService.listMyBargains(),
-      ]);
-      const buyerActionCount = buyerOrders.filter((item) => [0, 2].includes(Number(item.status))).length;
-      const sellerActionCount = sellerOrders.filter((item) => (
-        Number(item.status) === 1
-        || (Number(item.status) === 8 && item.transferState === 'WAIT_USER_CONFIRM')
-      )).length;
-      const userId = this.data.userInfo && this.data.userInfo.id;
-      const bargainPendingCount = bargains.filter((item) => (
-        Number(item.status) === 0
-        && userId != null
-        && Number(item.sellerId) === Number(userId)
-      )).length;
-      return {
-        secondHandOrderCount: buyerActionCount,
-        secondHandSellerOrderCount: sellerActionCount,
-        bargainPendingCount,
-      };
-    } catch (error) {
-      console.error('获取二手待办失败:', error);
-      return {
-        secondHandOrderCount: 0,
-        secondHandSellerOrderCount: 0,
-        bargainPendingCount: 0,
-      };
     }
   },
 
   // 未支付订单跳转
   tapToUnpaid() {
-    const orderCount = this.data.unpaidOrderList.length;
+    const orderCount = this.data.unpaidOrderCount;
     if (orderCount <= 0) return;
 
     if (orderCount === 1) {
@@ -491,8 +458,22 @@ Page({
   },
   
   // 生命周期函数--监听页面显示
+  onHide() { this._taskLoadVersion = (this._taskLoadVersion || 0) + 1; },
+  onUnload() { this.onHide(); },
   async onShow() {
     await this._waitForStartupLogin();
+    const version = this._taskLoadVersion = (this._taskLoadVersion || 0) + 1;
+    const showToken = tokenManager.getToken();
+    const session = tokenManager.getSessionVersion?.();
+    const current = () => version === this._taskLoadVersion && showToken === tokenManager.getToken()
+      && session === tokenManager.getSessionVersion?.();
+    const scope = JSON.stringify([showToken, session]);
+    if (this._tasksScope !== scope) {
+      this._tasksScope = scope;
+      this.setData({ notReceiveOrderCount: 0, unpaidOrderCount: 0, notReceiveOrderList: [], unpaidOrderList: [],
+        secondHandOrderCount: 0, secondHandSellerOrderCount: 0, bargainPendingCount: 0 });
+      mineTabBadgeService.clearMineTabRedDot();
+    }
     // 检查是否已登录（有 token）
     const hasToken = tokenManager.hasToken();
     
@@ -502,6 +483,8 @@ Page({
       this.setData({
         userInfo: null,
         displayPhone: '',
+        notReceiveOrderCount: 0,
+        unpaidOrderCount: 0,
         notReceiveOrderList: [],
         unpaidOrderList: [],
         secondHandOrderCount: 0,
@@ -513,40 +496,46 @@ Page({
     }
 
     // 已登录状态，加载用户数据
+    let loadedProfile = false;
     try {
       const userInfo = await this.getGlobalData();
+      if (!current()) return;
+      loadedProfile = true;
       // 返回资料页后可继续浏览，不在生命周期中强制进入注册。
       if (Number(userInfo.authentication) !== 1) {
-        this.setData({ notReceiveOrderList: [], unpaidOrderList: [],
+        this.setData({ notReceiveOrderCount: 0, unpaidOrderCount: 0, notReceiveOrderList: [], unpaidOrderList: [],
           secondHandOrderCount: 0, secondHandSellerOrderCount: 0, bargainPendingCount: 0 });
         mineTabBadgeService.clearMineTabRedDot();
         return;
       }
       
-      const [notReceiveOrders, unpaidOrders, secondHandTasks] = await Promise.all([
-        this._getOrderWithNotReceive(),
-        this._getUnpaidOrders(),
-        this._getSecondHandTaskCounts(),
-      ]);
+      const [summary] = await Promise.all([taskSummaryService.getSummary(), this._getUnpaidOrders()]);
+      if (!current()) return;
       this.setData({
-        notReceiveOrderList: notReceiveOrders,
-        unpaidOrderList: unpaidOrders,
-        ...secondHandTasks,
+        notReceiveOrderCount: summary.runnerReceivableCount,
+        unpaidOrderCount: summary.runnerUnpaidCount,
+        notReceiveOrderList: summary.runnerReceivableCount === 1 ? [{ orderId: summary.runnerReceivableOrderId }] : [],
+        unpaidOrderList: summary.runnerUnpaidCount === 1 ? [{ id: summary.runnerUnpaidOrderId }] : [],
+        secondHandOrderCount: summary.secondHandBuyerCount,
+        secondHandSellerOrderCount: summary.secondHandSellerCount,
+        bargainPendingCount: summary.bargainPendingCount,
       });
-      mineTabBadgeService.setMineTabRedDot(
-        notReceiveOrders.length
-        + unpaidOrders.length
-        + secondHandTasks.secondHandOrderCount
-        + secondHandTasks.secondHandSellerOrderCount
-        + secondHandTasks.bargainPendingCount,
-      );
+      mineTabBadgeService.setMineTabRedDot(summary.runnerReceivableCount + summary.runnerUnpaidCount
+        + summary.secondHandBuyerCount + summary.secondHandSellerCount + summary.bargainPendingCount);
       
     } catch (err) {
-      console.error('页面数据加载失败:', err);
+      if (!current()) return;
+      console.error("页面数据加载失败:");
+      if (loadedProfile) {
+        feedback.showMessage(this, '待办加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.onShow() });
+        return;
+      }
       // 如果是 401 错误，说明 token 已失效，清空登录状态
       this.setData({
         userInfo: null,
         displayPhone: '',
+        notReceiveOrderCount: 0,
+        unpaidOrderCount: 0,
         notReceiveOrderList: [],
         unpaidOrderList: [],
         secondHandOrderCount: 0,

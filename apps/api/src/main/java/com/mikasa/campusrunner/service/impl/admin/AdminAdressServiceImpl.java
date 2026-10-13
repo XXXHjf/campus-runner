@@ -38,6 +38,14 @@ public class AdminAdressServiceImpl implements AdminAdressService {
         return list;
     }
 
+    @Override
+    public List<AdminAdressBuildingVO> getListBySchool(Long schoolID, com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        page.getLimit(); page.getOffset();
+        log.info("Query address list by school ID...");
+        List<AdminAdressBuildingVO> list = buildingMapper.getBySchoolIdPage(schoolID, page);
+        return list;
+    }
+
     /**
      * 管理员修改地址信息
      * @param adminUpdateAddressDTO

@@ -31,10 +31,10 @@
 
 * 生产 MySQL 密码通过权限为 `600` 的 `/root/campus-runner.env` 注入 `DB_PASSWORD`。
 * `apps/api/src/main/resources/application.yaml` 虽被 Git 忽略，但会被 Maven 打入 JAR；API 打包前必须核对。
-* 当前拓扑：
+* 生产部署约束：
 
   * Nginx 对外提供 HTTPS
-  * Spring Boot 仅监听本机 HTTP `8080`
+  * Nginx 通过回环地址访问 Spring Boot HTTP `8080`；API 不应对公网开放。当前仓库启动脚本未指定 `server.address`，不能据此声称只监听本机，发布前须核实实际监听和网络防护
   * `server.port=8080`
   * `server.ssl.enabled=false`
 * admin 生产环境使用同域 API，`VITE_API_BASE_URL` 保持为空，由 Nginx 代理 `/api/` 与 `/admin/api/`。

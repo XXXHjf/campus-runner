@@ -103,6 +103,26 @@
         where o.id = #{id} and o.deleted = 0
     </select>
 
+    <sql id="personalOrderFilters">
+        <if test="query.group != 'all'">
+            and (case when upper(coalesce(o.trade_mode, '')) = 'OFFLINE' then
+                case when o.status in (1,2,11) then 'processing'
+                     when o.status = 3 then 'completed'
+                     when o.status = 4 then 'canceled' else 'all' end
+                else case when o.status in (0,1,2,8,10,11) then 'processing'
+                     when o.status in (3,9) then 'completed'
+                     when o.status = 4 then 'canceled'
+                     when o.status in (5,6,7) then 'refund' else 'all' end end) = #{query.group}
+        </if>
+        <if test="query.searchKeyword != ''">
+            and binary lower(
+            <foreach collection="query.whitespaceCharacters" item="space">replace(</foreach>
+            concat(coalesce(p.title, ''), coalesce(${counterparty}.username, ''), coalesce(o.order_number, ''))
+            <foreach collection="query.whitespaceCharacters" item="space">, #{space}, '')</foreach>
+            ) like binary concat('%', #{query.searchKeyword}, '%') escape '!'
+        </if>
+    </sql>
+
     <select id="listByBuyer" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandOrderVO">
         select <include refid="orderVoSelect"/>
         from tb_second_hand_order o
@@ -110,7 +130,9 @@
         left join tb_user buyer on o.buyer_id = buyer.id
         left join tb_user seller on o.seller_id = seller.id
         where o.buyer_id = #{buyerId} and o.deleted = 0
-        order by o.create_time desc
+        <include refid="personalOrderFilters"><property name="counterparty" value="seller"/></include>
+        order by o.create_time desc, o.id desc
+        limit #{query.limit} offset #{query.offset}
     </select>
 
     <select id="listBySeller" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandOrderVO">
@@ -120,7 +142,9 @@
         left join tb_user buyer on o.buyer_id = buyer.id
         left join tb_user seller on o.seller_id = seller.id
         where o.seller_id = #{sellerId} and o.deleted = 0
-        order by o.create_time desc
+        <include refid="personalOrderFilters"><property name="counterparty" value="buyer"/></include>
+        order by o.create_time desc, o.id desc
+        limit #{query.limit} offset #{query.offset}
     </select>
 
     <select id="listAdmin" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandOrderVO">
@@ -133,12 +157,53 @@
             o.deleted = 0
             <if test="status != null">and o.status = #{status}</if>
         </where>
-        order by o.create_time desc
+        order by o.create_time desc, o.id desc
+        limit 20
     </select>
+    <sql id="adminOrderFilters">
+        where o.deleted = 0
+        <if test="query.status != null">and o.status = #{query.status}</if>
+    </sql>
+    <select id="listAdminPage" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandOrderVO">
+        select <include refid="orderVoSelect"/>
+        from tb_second_hand_order o
+        left join tb_second_hand_product p on o.product_id = p.id
+        left join tb_user buyer on o.buyer_id = buyer.id
+        left join tb_user seller on o.seller_id = seller.id
+        <include refid="adminOrderFilters"/>
+        order by o.create_time desc, o.id desc
+        limit #{query.limit} offset #{query.offset}
+    </select>
+    <select id="summarizeAdmin" resultType="com.mikasa.campusrunner.pojo.vo.AdminSecondHandOrderStatsVO">
+        select count(*) as total,
+            coalesce(sum(case when o.status in (7,10,11) then 1 else 0 end),0) as abnormal_orders,
+            coalesce(sum(case when o.status in (3,8,9,10) then coalesce(o.pay_amount,0) else 0 end),0) as turnover
+        from tb_second_hand_order o
+        <include refid="adminOrderFilters"/>
+    </select>
+
 
     <select id="listUnpaidTimeout" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
         select * from tb_second_hand_order
         where deleted = 0 and trade_mode = 'ONLINE' and status = 0 and create_time &lt; #{time}
+        order by create_time asc, id asc
+        limit 100
+    </select>
+
+    <select id="listUnpaidTimeoutBatch" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
+        select * from tb_second_hand_order
+        where deleted = 0 and trade_mode = 'ONLINE' and status = 0 and create_time &lt; #{time}
+          and id &gt; #{afterId}
+        order by id asc
+        limit #{limit}
+    </select>
+
+    <select id="listUnpaidTimeoutForOwner" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">
+        select * from tb_second_hand_order
+        where deleted = 0 and trade_mode = 'ONLINE' and status = 0 and create_time &lt; #{time}
+          and (buyer_id = #{ownerId} or seller_id = #{ownerId})
+        order by create_time asc, id asc
+        limit #{limit}
     </select>
 
     <select id="listAutoConfirm" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandOrder">

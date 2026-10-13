@@ -22,7 +22,7 @@ import {
   Upload,
 } from 'antd'
 import type { UploadFile, UploadProps } from 'antd'
-import { del, get, post, put } from '../../services/request'
+import { del, get, post, put, getListPages } from '../../services/request'
 import {
   releaseTemporaryImage,
   uploadImage,
@@ -35,6 +35,7 @@ import {
   AdminPageHeader,
   createAdminTableLocale,
 } from '../../components/admin'
+import { tokenManager } from '../../utils/token'
 import './SecondHandManagement.css'
 
 type Category = {
@@ -67,6 +68,9 @@ type Product = {
   createTime?: string
   updateTime?: string
 }
+
+type ProductFilter = { keyword?: string; categoryId?: number; status?: number }
+type ProductPage = { total: number; page: number; pageSize: number; list: Product[]; activeProducts: number }
 
 type Order = {
   id: number
@@ -102,6 +106,9 @@ type Order = {
   updateTime?: string
 }
 
+type OrderFilter = { status?: number }
+type OrderPage = { total: number; page: number; pageSize: number; list: Order[]; abnormalOrders: number; turnover: number }
+
 type Bargain = {
   id: number
   productId: number
@@ -126,6 +133,10 @@ type MessageRecord = {
   content: string
   createTime?: string
 }
+
+type ListPage<T> = { total: number; page: number; pageSize: number; list: T[] }
+type BargainPage = ListPage<Bargain> & { pendingBargains: number }
+type MessageFilter = { productId?: number }
 
 type DetailState =
   | { open: false; type: null; data: null; loading: false }
@@ -240,8 +251,19 @@ export default function SecondHandManagement() {
   const [categoryImageError, setCategoryImageError] = useState<string | null>(null)
   const [detail, setDetail] = useState<DetailState>({ open: false, type: null, data: null, loading: false })
   const [orderModal, setOrderModal] = useState<{ open: boolean; order: Order | null }>({ open: false, order: null })
-  const [productFilter, setProductFilter] = useState<{ keyword?: string; categoryId?: number; status?: number }>({})
-  const [orderFilter, setOrderFilter] = useState<{ status?: number }>({})
+  const [productFilter, setProductFilter] = useState<ProductFilter>({})
+  const [productPager, setProductPager] = useState({ current: 1, pageSize: 20, total: 0 })
+  const [activeProductCount, setActiveProductCount] = useState(0)
+  const appliedProductFilterRef = useRef<ProductFilter>({})
+  const loadVersionRef = useRef(0)
+  const [orderFilter, setOrderFilter] = useState<OrderFilter>({})
+  const [orderPager, setOrderPager] = useState({ current: 1, pageSize: 20, total: 0 })
+  const [orderStats, setOrderStats] = useState({ abnormalOrders: 0, turnover: 0 })
+  const appliedOrderFilterRef = useRef<OrderFilter>({})
+  const [bargainPager, setBargainPager] = useState({ current: 1, pageSize: 20, total: 0 })
+  const [pendingBargainCount, setPendingBargainCount] = useState(0)
+  const [messagePager, setMessagePager] = useState({ current: 1, pageSize: 20, total: 0 })
+  const appliedMessageFilterRef = useRef<MessageFilter>({})
   const [messageProductId, setMessageProductId] = useState<string>('')
   const [categoryForm] = Form.useForm()
   const [orderForm] = Form.useForm()
@@ -250,41 +272,136 @@ export default function SecondHandManagement() {
   const categoryModalSessionRef = useRef(0)
 
   const stats = useMemo(() => {
-    const activeProducts = products.filter((item) => item.status === 0).length
-    const abnormalOrders = orders.filter((item) => [7, 10, 11].includes(item.status)).length
-    const pendingBargains = bargains.filter((item) => item.status === 0).length
-    const turnover = orders
-      .filter((item) => [3, 8, 9, 10].includes(item.status))
-      .reduce((sum, item) => sum + Number(item.payAmount || 0), 0)
+    const activeProducts = activeProductCount
+    const { abnormalOrders, turnover } = orderStats
+    const pendingBargains = pendingBargainCount
     return { activeProducts, abnormalOrders, pendingBargains, turnover }
-  }, [products, orders, bargains])
+  }, [activeProductCount, orderStats, pendingBargainCount])
 
-  const loadAll = async () => {
+  const fetchPagedList = async <T extends ListPage<unknown>>(
+    url: string, page: number, pageSize: number, filter: Record<string, unknown>,
+    validate: (data: T) => boolean, failure: string, allowRepage = true,
+  ): Promise<T> => {
+    const data = await get<T>(url, { ...filter, page, pageSize })
+    if (!data || !Array.isArray(data.list) || !Number.isSafeInteger(data.total) || data.total < 0
+      || data.page !== page || data.pageSize !== pageSize || data.list.length > pageSize || !validate(data)) {
+      throw new Error(failure)
+    }
+    const lastPage = Math.max(1, Math.ceil(data.total / pageSize))
+    if (page > lastPage) {
+      if (!allowRepage) throw new Error('记录数量已变化，请刷新后重试')
+      return fetchPagedList(url, lastPage, pageSize, filter, validate, failure, false)
+    }
+    return data
+  }
+
+  const runPagedLoad = async <T,>(load: () => Promise<T>, apply: (data: T) => void, failure: string) => {
+    const version = ++loadVersionRef.current
+    const token = tokenManager.getToken()
+    const isCurrent = () => version === loadVersionRef.current && token === tokenManager.getToken()
     setLoading(true)
     try {
-      const messageParams = messageProductId ? { productId: Number(messageProductId) } : undefined
-      const [categoryData, productData, orderData, bargainData, messageData] = await Promise.all([
-        get<Category[]>('/admin/api/second-hand/categories'),
-        get<Product[]>('/admin/api/second-hand/products', productFilter),
-        get<Order[]>('/admin/api/second-hand/orders', orderFilter),
-        get<Bargain[]>('/admin/api/second-hand/bargains'),
-        get<MessageRecord[]>('/admin/api/second-hand/messages', messageParams),
-      ])
-      setCategories(Array.isArray(categoryData) ? categoryData : [])
-      setProducts(Array.isArray(productData) ? productData : [])
-      setOrders(Array.isArray(orderData) ? orderData : [])
-      setBargains(Array.isArray(bargainData) ? bargainData : [])
-      setMessages(Array.isArray(messageData) ? messageData : [])
+      const data = await load()
+      if (isCurrent()) apply(data)
     } catch (error) {
+      if (isCurrent()) message.error(getErrorText(error, failure))
+    } finally {
+      if (version === loadVersionRef.current) setLoading(false)
+    }
+  }
+
+  const fetchProductPage = (page: number, pageSize: number, filter: ProductFilter) =>
+    fetchPagedList<ProductPage>('/admin/api/second-hand/products', page, pageSize, filter,
+      (data) => Number.isSafeInteger(data.activeProducts) && data.activeProducts >= 0, '商品加载失败，请重试')
+  const fetchOrderPage = (page: number, pageSize: number, filter: OrderFilter) =>
+    fetchPagedList<OrderPage>('/admin/api/second-hand/orders', page, pageSize, filter,
+      (data) => Number.isSafeInteger(data.abnormalOrders) && data.abnormalOrders >= 0 && Number.isFinite(data.turnover), '订单加载失败，请重试')
+  const fetchBargainPage = (page: number, pageSize: number) =>
+    fetchPagedList<BargainPage>('/admin/api/second-hand/bargains', page, pageSize, {},
+      (data) => Number.isSafeInteger(data.pendingBargains) && data.pendingBargains >= 0, '议价加载失败，请重试')
+  const fetchMessagePage = (page: number, pageSize: number, filter: MessageFilter) =>
+    fetchPagedList<ListPage<MessageRecord>>('/admin/api/second-hand/messages', page, pageSize, filter, () => true, '留言加载失败，请重试')
+
+  const applyProductPage = (data: ProductPage, filter: ProductFilter) => {
+    setProducts(data.list)
+    setProductPager({ current: data.page, pageSize: data.pageSize, total: data.total })
+    setActiveProductCount(data.activeProducts)
+    appliedProductFilterRef.current = { ...filter }
+  }
+  const applyOrderPage = (data: OrderPage, filter: OrderFilter) => {
+    setOrders(data.list)
+    setOrderPager({ current: data.page, pageSize: data.pageSize, total: data.total })
+    setOrderStats({ abnormalOrders: data.abnormalOrders, turnover: data.turnover })
+    appliedOrderFilterRef.current = { ...filter }
+  }
+  const applyBargainPage = (data: BargainPage) => {
+    setBargains(data.list)
+    setBargainPager({ current: data.page, pageSize: data.pageSize, total: data.total })
+    setPendingBargainCount(data.pendingBargains)
+  }
+  const applyMessagePage = (data: ListPage<MessageRecord>, filter: MessageFilter) => {
+    setMessages(data.list)
+    setMessagePager({ current: data.page, pageSize: data.pageSize, total: data.total })
+    appliedMessageFilterRef.current = { ...filter }
+  }
+
+  const loadProductPage = (page: number, pageSize: number) => {
+    const filter = { ...appliedProductFilterRef.current }
+    return runPagedLoad(() => fetchProductPage(pageSize === productPager.pageSize ? page : 1, pageSize, filter),
+      (data) => applyProductPage(data, filter), '商品加载失败，请重试')
+  }
+  const loadOrderPage = (page: number, pageSize: number) => {
+    const filter = { ...appliedOrderFilterRef.current }
+    return runPagedLoad(() => fetchOrderPage(pageSize === orderPager.pageSize ? page : 1, pageSize, filter),
+      (data) => applyOrderPage(data, filter), '订单加载失败，请重试')
+  }
+  const loadBargainPage = (page: number, pageSize: number) =>
+    runPagedLoad(() => fetchBargainPage(pageSize === bargainPager.pageSize ? page : 1, pageSize), applyBargainPage, '议价加载失败，请重试')
+  const loadMessagePage = (page: number, pageSize: number) => {
+    const filter = { ...appliedMessageFilterRef.current }
+    return runPagedLoad(() => fetchMessagePage(pageSize === messagePager.pageSize ? page : 1, pageSize, filter),
+      (data) => applyMessagePage(data, filter), '留言加载失败，请重试')
+  }
+
+  const loadAll = async () => {
+    const version = ++loadVersionRef.current
+    const token = tokenManager.getToken()
+    const filter = { ...productFilter }
+    const page = JSON.stringify(filter) === JSON.stringify(appliedProductFilterRef.current) ? productPager.current : 1
+    const submittedOrderFilter = { ...orderFilter }
+    const orderPage = JSON.stringify(submittedOrderFilter) === JSON.stringify(appliedOrderFilterRef.current) ? orderPager.current : 1
+    const isCurrent = () => version === loadVersionRef.current && token === tokenManager.getToken()
+    setLoading(true)
+    try {
+      const text = messageProductId.trim()
+      if (text && (!/^\d+$/.test(text) || Number(text) <= 0 || !Number.isSafeInteger(Number(text)))) throw new Error('请输入有效的商品编号')
+      const messageParams: MessageFilter = text ? { productId: Number(text) } : {}
+      const messagePage = JSON.stringify(messageParams) === JSON.stringify(appliedMessageFilterRef.current) ? messagePager.current : 1
+      const [categoryData, productData, orderData, bargainData, messageData] = await Promise.all([
+        getListPages<Category>('/admin/api/second-hand/categories'),
+        fetchProductPage(page, productPager.pageSize, filter),
+        fetchOrderPage(orderPage, orderPager.pageSize, submittedOrderFilter),
+        fetchBargainPage(bargainPager.current, bargainPager.pageSize),
+        fetchMessagePage(messagePage, messagePager.pageSize, messageParams),
+      ])
+      if (!isCurrent()) return
+      setCategories(Array.isArray(categoryData) ? categoryData : [])
+      applyProductPage(productData, filter)
+      applyOrderPage(orderData, submittedOrderFilter)
+      applyBargainPage(bargainData)
+      applyMessagePage(messageData, messageParams)
+    } catch (error) {
+      if (!isCurrent()) return
       console.error('加载二手交易数据失败', error)
       message.error(getErrorText(error, '加载二手交易数据失败'))
     } finally {
-      setLoading(false)
+      if (version === loadVersionRef.current) setLoading(false)
     }
   }
 
   useEffect(() => {
     loadAll()
+    return () => { loadVersionRef.current += 1 }
   }, [])
 
   const openCategoryModal = (record?: Category) => {
@@ -692,6 +809,7 @@ export default function SecondHandManagement() {
                   loading={loading}
                   rowKey="id"
                   dataSource={products}
+                  pagination={{ ...productPager, showSizeChanger: true, pageSizeOptions: [20, 50], onChange: loadProductPage }}
                   locale={createAdminTableLocale('暂无商品数据')}
                   scroll={{ x: 1180 }}
                   columns={[
@@ -757,6 +875,7 @@ export default function SecondHandManagement() {
                   loading={loading}
                   rowKey="id"
                   dataSource={orders}
+                  pagination={{ ...orderPager, showSizeChanger: true, pageSizeOptions: [20, 50], onChange: loadOrderPage }}
                   locale={createAdminTableLocale('暂无订单数据')}
                   scroll={{ x: 1280 }}
                   columns={[
@@ -861,8 +980,9 @@ export default function SecondHandManagement() {
             children: (
               <Table
                 loading={loading}
-                rowKey="id"
+                rowKey={(record) => `${record.id}:${record.orderId ?? 'none'}`}
                 dataSource={bargains}
+                pagination={{ ...bargainPager, showSizeChanger: true, pageSizeOptions: [20, 50], onChange: loadBargainPage }}
                 locale={createAdminTableLocale('暂无议价数据')}
                 scroll={{ x: 980 }}
                 columns={[
@@ -916,6 +1036,7 @@ export default function SecondHandManagement() {
                   loading={loading}
                   rowKey="id"
                   dataSource={messages}
+                  pagination={{ ...messagePager, showSizeChanger: true, pageSizeOptions: [20, 50], onChange: loadMessagePage }}
                   locale={createAdminTableLocale('暂无留言数据')}
                   columns={[
                     { title: 'ID', dataIndex: 'id', width: 80 },

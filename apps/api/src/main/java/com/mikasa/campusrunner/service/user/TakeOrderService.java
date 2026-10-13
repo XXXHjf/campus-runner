@@ -13,6 +13,9 @@ import java.util.List;
  */
 public interface TakeOrderService {
 
+    /** 原接单事务结束后，在独立事务中核实失败提示。 */
+    String takeFailureMessage(Long id);
+
     /**
      * 接单
      * @param id
@@ -30,6 +33,7 @@ public interface TakeOrderService {
      * @return
      */
     List<TakeOrderVO> getMy();
+    List<TakeOrderVO> getMy(com.mikasa.campusrunner.pojo.dto.TakenOrderPageDTO query);
 
     /**
      * 条件查询
@@ -57,4 +61,5 @@ public interface TakeOrderService {
      * @return
      */
     List<TakeOrderVO> getNoWithdrawn();
+    List<TakeOrderVO> getNoWithdrawn(com.mikasa.campusrunner.pojo.dto.ListPageDTO query);
 }

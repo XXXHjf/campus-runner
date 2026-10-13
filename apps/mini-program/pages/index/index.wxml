@@ -38,7 +38,7 @@
       <text class="runner-filter-summary-reset" bindtap="resetFilters">清除</text>
     </view>
   </view>
-  <scroll-view class="runner-feed" scroll-y="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}" refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" refresher-background="#f6f8f7" bindrefresherrefresh="onPullDownRefresh">
+  <scroll-view class="runner-feed" scroll-y="{{true}}" enhanced="{{true}}" show-scrollbar="{{false}}" refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" refresher-background="#f6f8f7" bindrefresherrefresh="onPullDownRefresh" bindscrolltolower="onReachBottom">
     <view wx:if="{{takes.length === 0 && (isLoginChecking || ordersLoading)}}" class="runner-list-loading">
       <t-loading theme="dots" size="36rpx" text="加载中" />
     </view>
@@ -55,7 +55,7 @@
               <t-tag class="margin-16" size="small" variant="light" theme="primary">{{item.displayDeliveryTime}}送达</t-tag>
             </view>
             <!-- 门禁tag -->
-            <view wx:if="{{item.businessType !== 'PURCHASE' && item.doorAccess!=0}}">
+            <view wx:if="{{item.businessType !== 'PURCHASE' && (item.doorAccess === 1 || item.doorAccess === '1')}}">
               <t-tag class="margin-16" size="small" variant="light" theme="primary">门禁</t-tag>
             </view>
             <!-- 金额tag -->

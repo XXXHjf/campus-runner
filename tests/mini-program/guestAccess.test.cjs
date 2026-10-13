@@ -206,7 +206,7 @@ test('未完善资料用户返回我的页，不再次跳转注册或加载认�
     console,
     getApp: () => ({ globalData: {} }),
     require(id) {
-      if (id.endsWith('tokenManager')) return { hasToken: () => true };
+      if (id.endsWith('tokenManager')) return { hasToken: () => true, getToken: () => 'a' };
       if (id.endsWith('mineTabBadgeService')) return { clearMineTabRedDot() {} };
       return {};
     },

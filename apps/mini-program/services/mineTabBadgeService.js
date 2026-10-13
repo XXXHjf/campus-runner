@@ -1,17 +1,15 @@
 const userService = require('./userService');
-const takeOrderService = require('./takeOrderService');
-const userOrderService = require('./userOrderService');
-const secondHandService = require('./secondHandService');
+const taskSummaryService = require('./taskSummaryService');
 const tokenManager = require('../utils/tokenManager');
 const { isProfileComplete } = require('../utils/profileStatus');
 
 const MINE_TAB_INDEX = 2;
-const UNPAID_TIMEOUT_MS = 30 * 60 * 1000;
 const REFRESH_INTERVAL_MS = 15000;
 
 let lastRefreshAt = 0;
 let lastSummary = null;
 let refreshPromise = null;
+let refreshScope = null;
 
 function setMineTabRedDot(totalCount) {
   const hasNotice = Number(totalCount) > 0;
@@ -23,72 +21,23 @@ function setMineTabRedDot(totalCount) {
   });
 }
 
-function activeRunnerUnpaidCount(orders) {
-  const now = Date.now();
-  return orders.filter((item) => {
-    if (Number(item.status) !== -1 || !item.createTime) return false;
-    const createdAt = new Date(String(item.createTime).replace(/-/g, '/'));
-    return !Number.isNaN(createdAt.getTime())
-      && createdAt.getTime() + UNPAID_TIMEOUT_MS > now;
-  }).length;
-}
-
-function fulfilledValue(result) {
-  return result.status === 'fulfilled' && Array.isArray(result.value) ? result.value : [];
-}
-
 async function loadSummary(userInfo) {
-  const currentUser = userInfo && userInfo.id != null
-    ? userInfo
-    : await userService.getUserInfo();
-  if (!isProfileComplete(currentUser) || Number(currentUser.authentication) !== 1) {
-    return { totalCount: 0 };
-  }
-
-  const results = await Promise.allSettled([
-    takeOrderService.getNotWithdrawnOrders(),
-    userOrderService.getMyOrders(),
-    secondHandService.listBuyerOrders(),
-    secondHandService.listSellerOrders(),
-    secondHandService.listMyBargains(),
-  ]);
-  const hasPartialFailure = results.some((result) => result.status === 'rejected');
-  const [notReceivedResult, runnerOrdersResult, buyerOrdersResult, sellerOrdersResult, bargainsResult] = results;
-  const notReceivedOrders = fulfilledValue(notReceivedResult);
-  const runnerOrders = fulfilledValue(runnerOrdersResult);
-  const buyerOrders = fulfilledValue(buyerOrdersResult);
-  const sellerOrders = fulfilledValue(sellerOrdersResult);
-  const bargains = fulfilledValue(bargainsResult);
-
-  const runnerUnpaidCount = activeRunnerUnpaidCount(runnerOrders);
-  const secondHandBuyerCount = buyerOrders.filter((item) => Number(item.status) === 2).length;
-  const secondHandSellerCount = sellerOrders.filter((item) => (
-    Number(item.status) === 1
-    || (Number(item.status) === 8 && item.transferState === 'WAIT_USER_CONFIRM')
-  )).length;
-  const bargainPendingCount = bargains.filter((item) => (
-    Number(item.status) === 0
-    && Number(item.sellerId) === Number(currentUser.id)
-  )).length;
-  const totalCount = notReceivedOrders.length
-    + runnerUnpaidCount
-    + secondHandBuyerCount
-    + secondHandSellerCount
-    + bargainPendingCount;
-  if (totalCount === 0 && hasPartialFailure) {
-    throw new Error('待办数据暂时不可用');
-  }
-
-  return {
-    totalCount,
-  };
+  const currentUser = userInfo && userInfo.id != null ? userInfo : await userService.getUserInfo();
+  if (!isProfileComplete(currentUser) || Number(currentUser.authentication) !== 1) return { totalCount: 0 };
+  const summary = await taskSummaryService.getSummary();
+  return { totalCount: summary.runnerReceivableCount + summary.runnerUnpaidCount
+    + summary.secondHandBuyerNoticeCount + summary.secondHandSellerCount + summary.bargainPendingCount };
 }
 
 async function refreshMineTabRedDot(options = {}) {
   if (!tokenManager.hasToken()) {
-    lastSummary = { totalCount: 0 };
-    setMineTabRedDot(0);
+    clearMineTabRedDot();
     return lastSummary;
+  }
+  const scope = JSON.stringify([tokenManager.getToken(), tokenManager.getSessionVersion?.()]);
+  if (refreshScope !== scope) {
+    lastSummary = null; lastRefreshAt = 0; refreshPromise = null; refreshScope = scope;
+    setMineTabRedDot(0);
   }
   const now = Date.now();
   if (!options.force && lastSummary && now - lastRefreshAt < REFRESH_INTERVAL_MS) {
@@ -97,21 +46,25 @@ async function refreshMineTabRedDot(options = {}) {
   }
   if (refreshPromise) return refreshPromise;
 
-  refreshPromise = loadSummary(options.userInfo)
+  const pending = loadSummary(options.userInfo)
     .then((summary) => {
+      if (refreshScope !== scope || scope !== JSON.stringify([tokenManager.getToken(), tokenManager.getSessionVersion?.()])) return { totalCount: 0 };
       lastSummary = summary;
       lastRefreshAt = Date.now();
       setMineTabRedDot(summary.totalCount);
       return summary;
     })
-    .catch(() => lastSummary || { totalCount: 0 })
+    .catch(() => refreshScope === scope && scope === JSON.stringify([tokenManager.getToken(), tokenManager.getSessionVersion?.()])
+      ? lastSummary || { totalCount: 0 } : { totalCount: 0 })
     .finally(() => {
-      refreshPromise = null;
+      if (refreshPromise === pending) refreshPromise = null;
     });
-  return refreshPromise;
+  refreshPromise = pending;
+  return pending;
 }
 
 function clearMineTabRedDot() {
+  refreshScope = null; refreshPromise = null;
   lastSummary = { totalCount: 0 };
   lastRefreshAt = 0;
   setMineTabRedDot(0);

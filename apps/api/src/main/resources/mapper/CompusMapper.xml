@@ -26,6 +26,14 @@
         FROM tb_compus
         WHERE deleted = 0
         <if test="schoolId != null">AND school_id = #{schoolId}</if>
+        order by number_id, id limit 50
+    </select>
+    <select id="getThreePage" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookThreeVO$Compus">
+        SELECT compus_name,number_id
+        FROM tb_compus
+        WHERE deleted = 0
+        <if test="schoolId != null">AND school_id = #{schoolId}</if>
+        order by number_id, id limit #{page.limit} offset #{page.offset}
     </select>
 
 

@@ -95,8 +95,8 @@ Page({
       value,
       label
     } = e.detail;
-    console.log("01", label);
-    console.log('picker confirm:', e.detail);
+    console.log("01");
+    console.log("picker confirm:");
     this.setData({
       pickerVisible: false,
       onPickValue: label[0],
@@ -114,7 +114,7 @@ Page({
     try {
       return await userService.getSchools();
     } catch (error) {
-      console.error('获取学校列表失败:', error);
+      console.error("获取学校列表失败:");
       feedback.showMessage(this, '学校列表加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.onShow() });
       throw error;
     }
@@ -154,7 +154,7 @@ Page({
       console.log('选择学生证照片成功');
     } catch (err) {
       if (/cancel/i.test(err?.errMsg || err?.message || '')) return;
-      console.error('选择图片失败:', err);
+      console.error("选择图片失败:");
       feedback.showToast(this, {
         title: '选择图片失败',
         theme: 'error',
@@ -261,7 +261,7 @@ Page({
       feedback.showToast(this, { title: '提交成功，等待审核', theme: 'success' });
       await this.refreshStatus();
     } catch (error) {
-      console.error('重新认证失败:', error);
+      console.error("重新认证失败:");
       showError(this, error.message || '修改失败');
     } finally {
       this.setData({ submitting: false });
@@ -357,7 +357,7 @@ Page({
         this.setData({ showAuthNotice: true });
       }
     } catch (error) {
-      console.error("页面加载失败:", error);
+      console.error("页面加载失败:");
       feedback.loadError(this, '资料加载失败，请重试', () => this.onShow(), !!this.data.userInfo?.id);
     }
   },

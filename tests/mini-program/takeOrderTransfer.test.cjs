@@ -19,7 +19,7 @@ function createPage(wxOverrides = {}) {
     console,
     wx,
     getApp: () => ({ globalData: { API_URL: 'https://example.test', MOCK_PAYMENT: false } }),
-    require: (name) => name.endsWith('runnerAmount') ? require('../../apps/mini-program/utils/runnerAmount') : name.endsWith('feedback') ? feedbackStub(wx) : name.includes('tokenManager') ? { getToken: () => 'test-token' }
+    require: (name) => name.endsWith('subscriptionService') ? { requestRunnerReceipt: () => new Promise(resolve => wx.requestSubscribeMessage({ tmplIds: ['9t_UqwTYTDOrPkVU24Z_heEtj4MyVqNCXQN0ntLnvCY'], success: resolve, fail: resolve })) } : name.endsWith('runnerAmount') ? require('../../apps/mini-program/utils/runnerAmount') : name.endsWith('feedback') ? feedbackStub(wx) : name.includes('tokenManager') ? { getToken: () => 'test-token' }
       : name.includes('transformers') ? { showLoading: () => {}, hideLoading: () => {}, showError: () => {} }
         : name.includes('commonJs') ? { errorCilcleToast: () => {} }
           : {},
@@ -66,4 +66,36 @@ test('零元和旧空金额订单不会调用收款接口或微信弹窗', async
     assert.equal(page.data.orderInfo.status, 5);
     assert.equal(page.data.transferBusy, false);
   }
+});
+
+test('接单前申请收款订阅，拒绝不阻断接单，零元订单不申请', async () => {
+  for (const order of [{ price: 2 }, { price: 0, productAmount: 15, businessType: 'PURCHASE' }, { price: 0 }]) {
+    const steps = [];
+    const page = createPage({ requestSubscribeMessage: ({ tmplIds, success }) => {
+      steps.push('subscribe');
+      assert.deepEqual(Array.from(tmplIds), ['9t_UqwTYTDOrPkVU24Z_heEtj4MyVqNCXQN0ntLnvCY']);
+      success({ [tmplIds[0]]: 'reject' });
+    } });
+    page.data.id = 42;
+    page.data.orderInfo = order;
+    page.statusTo1 = async () => steps.push('take');
+    await page._subscribeAndTake();
+    assert.deepEqual(steps, order.price > 0 || order.productAmount > 0 ? ['subscribe', 'take'] : ['take']);
+  }
+});
+
+test('授权期间重复点击只接单一次，离页后不继续接单', async () => {
+  let resolveSubscription;
+  let takes = 0;
+  const page = createPage({ requestSubscribeMessage: ({ success }) => { resolveSubscription = success; } });
+  page.data.id = 42;
+  page.data.orderInfo = { price: 2 };
+  page.statusTo1 = async () => { takes += 1; };
+  const first = page._subscribeAndTake();
+  await page._subscribeAndTake();
+  page._detailDisposed = true;
+  resolveSubscription({});
+  await first;
+  assert.equal(takes, 0);
+  assert.equal(page._takingOrder, false);
 });

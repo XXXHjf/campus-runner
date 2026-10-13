@@ -80,6 +80,9 @@ public class WeChatPayServiceImpl implements WeChatPayService {
     @Autowired
     private PaymentLogMapper paymentLogMapper;
 
+    @Autowired
+    private com.mikasa.campusrunner.mapper.AdminSystemConfigMapper systemConfigMapper;
+
 
 
     /**
@@ -103,6 +106,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         if (callerId == null || !callerId.equals(order.getUserId())) {
             throw new OrderException("只能支付自己发布的订单");
         }
+        RunnerAmountPolicy.beforePayment(order, systemConfigMapper);
 
 //        Order order = new Order();
 
@@ -163,9 +167,8 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             } else if (statusCode == 204) { //处理成功，无返回Body
                 log.info("Success");
             } else {
-                log.info("Mini-program order creation failed, response code = " + statusCode + ", body = " +
-                        bodyAsString);
-                throw new IOException("request failed " + bodyAsString);
+                log.warn("WeChat request failed, httpStatus={}", statusCode);
+                throw new IOException("WeChat request rejected");
             }
             //响应结果
 //            JSONObject.parseObject(bodyAsString, HashMap.class);
@@ -357,7 +360,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
         url = weChatProperties.getWxDomain().concat(url).concat("?mchid=").concat(weChatProperties.getMchid());
 
         HttpGet httpGet = new HttpGet(url);
-        log.info("Order query URL: {}", url);
+        log.debug("Payment query prepared");
 
         httpGet.setHeader("Accept", "application/json");
         //完成签名并执行请求
@@ -370,10 +373,9 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             } else if (statusCode == 204) { //处理成功，无返回Body
                 log.info("Success");
             } else {
-                log.info("Mini-program order query failed, response code = " + statusCode + ", body = " +
-                        bodyAsString);
+                log.warn("WeChat request failed, httpStatus={}", statusCode);
                 return "ERROR " + statusCode + " " + bodyAsString;
-//                throw new IOException("request failed " + bodyAsString);//修改异常返回结果，使得前端显示更清晰
+//                throw new IOException("WeChat request rejected");//修改异常返回结果，使得前端显示更清晰
             }
 
             return bodyAsString;
@@ -529,10 +531,9 @@ public class WeChatPayServiceImpl implements WeChatPayService {
             } else if (statusCode == 204) { //处理成功，无返回Body
                 log.info("Success");
             } else {
-                log.info("Mini-program refund query failed, response code = " + statusCode + ", body = " +
-                        bodyAsString);
+                log.warn("WeChat request failed, httpStatus={}", statusCode);
                 return "ERROR " + statusCode + " " + bodyAsString;
-//                throw new IOException("request failed " + bodyAsString);//修改异常返回结果，使得前端显示更清晰
+//                throw new IOException("WeChat request rejected");//修改异常返回结果，使得前端显示更清晰
             }
             //响应结果
 

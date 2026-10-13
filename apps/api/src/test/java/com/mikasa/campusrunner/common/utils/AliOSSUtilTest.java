@@ -9,6 +9,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AliOSSUtilTest {
     @Test
+    void blurParametersArePartOfSignatureAndCannotBeRemovedToReadTheSource() {
+        AliOSSUtil oss = new AliOSSUtil("https://oss-cn-hangzhou.aliyuncs.com", "example-bucket",
+                "test-access-key", "test-secret", "cn-hangzhou", "unused");
+        String blurred=oss.generatePresignedImageUrl("media/order.jpg",Duration.ofMinutes(15),
+                "image/resize,m_lfit,w_320,h_320,limit_1/blur,r_30,s_20/quality,q_75");
+        String clear=oss.generatePresignedUrl("media/order.jpg",Duration.ofMinutes(15));
+        assertTrue(blurred.contains("%2Fblur%2Cr_30%2Cs_20"));
+        String blurredSignature=blurred.split("Signature=")[1].split("&")[0];
+        String clearSignature=clear.split("Signature=")[1].split("&")[0];
+        org.junit.jupiter.api.Assertions.assertNotEquals(clearSignature,blurredSignature);
+    }
+    @Test
     void keepsSignedImageUrlStableWithinWindowAndRenewsBeforeExpiry() {
         AliOSSUtil oss = new AliOSSUtil(
                 "https://oss-cn-hangzhou.aliyuncs.com", "example-bucket",

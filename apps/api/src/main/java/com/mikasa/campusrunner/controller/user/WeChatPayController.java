@@ -70,7 +70,7 @@ public class WeChatPayController {
             Map<String, Object> bodyMap = JSONObject.parseObject(body, HashMap.class);
             String requestId = (String) bodyMap.get("id");
             log.info("Callback success, notification ID: {}", bodyMap.get("id"));
-            log.info("Callback success, request body: {}", body);
+            log.debug("Payment notification received");
 
             //验签
             WechatPay2ValidatorForRequest wechatPay2ValidatorForRequest =
@@ -100,7 +100,7 @@ public class WeChatPayController {
 
         }catch (GeneralSecurityException e) {
             //出错了，返回错误信息
-            e.printStackTrace();
+            log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
             response.setStatus(401);
             //构造响应体Validation
             JsapiNotifyVO jsapiNotifyVO = JsapiNotifyVO.builder()
@@ -109,7 +109,7 @@ public class WeChatPayController {
             return JSONObject.toJSONString(jsapiNotifyVO);
         } catch (Exception e) {
             //出错了，返回错误信息
-            e.printStackTrace();
+            log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
             response.setStatus(500);
             //构造响应体Validation
             JsapiNotifyVO jsapiNotifyVO = JsapiNotifyVO.builder()
@@ -132,7 +132,7 @@ public class WeChatPayController {
     @PostMapping("/refunds")
     @Operation(summary = "微信支付退款")
     public Result refunds(@RequestBody RefundInfoDTO refundInfoDTO) throws Exception {
-        log.info("WeChat Pay refund, {}", refundInfoDTO);
+        log.info("WeChat Pay refund");
         var order = orderMapper.getByOrderNumber(refundInfoDTO.getOrderNumber());
         if (order == null) throw new com.mikasa.campusrunner.common.exception.OrderException("订单不存在");
         cancellationService.cancel(order.getId(), refundInfoDTO.getReason(),
@@ -158,7 +158,7 @@ public class WeChatPayController {
             Map<String, Object> bodyMap = JSONObject.parseObject(body, HashMap.class);
             String requestId = (String) bodyMap.get("id");
             log.info("Refund callback success, notification ID: {}", bodyMap.get("id"));
-            log.info("Refund callback success, request body: {}", body);
+            log.debug("Payment notification received");
 
             //验签
             WechatPay2ValidatorForRequest wechatPay2ValidatorForRequest =
@@ -188,7 +188,7 @@ public class WeChatPayController {
 
         }catch (GeneralSecurityException e) {
             //出错了，返回错误信息
-            e.printStackTrace();
+            log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
             response.setStatus(401);
             //构造响应体Validation
             JsapiNotifyVO jsapiNotifyVO = JsapiNotifyVO.builder()
@@ -197,7 +197,7 @@ public class WeChatPayController {
             return JSONObject.toJSONString(jsapiNotifyVO);
         } catch (Exception e) {
             //出错了，返回错误信息
-            e.printStackTrace();
+            log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
             response.setStatus(500);
             //构造响应体Validation
             JsapiNotifyVO jsapiNotifyVO = JsapiNotifyVO.builder()

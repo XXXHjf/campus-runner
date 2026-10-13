@@ -6,6 +6,13 @@
         select * from tb_second_hand_category
         where deleted = 0
         order by sort asc, id asc
+     limit 50
+    </select>
+    <select id="listPage" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandCategory">
+        select * from tb_second_hand_category
+        where deleted = 0
+        order by sort asc, id asc
+     limit #{page.limit} offset #{page.offset}
     </select>
 
     <select id="getByIdForUpdate" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandCategory">

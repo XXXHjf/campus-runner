@@ -39,7 +39,7 @@ function showToast(context, options = {}) {
   if (deferUntilReady(context, () => showToast(context, options))) return;
   const instance = host(context);
   if (!instance || !instance.active || instance.dialogOpen) return;
-  const message = userText(options.title || options.message);
+  const message = userText(options.title || options.message, undefined, true);
   const theme = options.theme || (options.icon === 'success' || options.icon === 'check-circle' ? 'success'
     : options.icon === 'error' || options.icon === 'close-circle' ? 'error'
       : options.icon === 'error-circle' ? 'warning' : 'info');
@@ -69,7 +69,7 @@ function showMessage(context, content, options = {}) {
   if (!instance || !instance.active || instance.dialogOpen) return;
   if (instance.notice?.persistent && !options.persistent && !options.replace) return;
   const theme = options.theme || 'warning';
-  instance.notice = { content: userText(content), ...options, theme };
+  instance.notice = { content: userText(content, undefined, true), ...options, theme };
   // TDesign removes a hidden single message after its closing animation.
   // Wait for that removal before reusing the same message id.
   const remaining = (instance.messageResetUntil || 0) - Date.now();

@@ -25,7 +25,7 @@ import {
 import { UploadOutlined } from '@ant-design/icons'
 import type { AdminCategory } from '../../types/admin'
 import { mediaService } from '../../services'
-import { get, post, put } from '../../services/request'
+import { post, put, getListPages } from '../../services/request'
 import {
   AdminContentCard,
   AdminFilterBar,
@@ -51,7 +51,7 @@ export default function CategoryManagement() {
   const loadList = async () => {
     setLoading(true)
     try {
-      const data = await get<AdminCategory[]>('/admin/api/categories')
+      const data = await getListPages<AdminCategory>('/admin/api/categories')
       setList(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error('获取分类列表失败', err)

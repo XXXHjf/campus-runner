@@ -14,5 +14,6 @@ function requestTemplates(tmplIds) {
 module.exports = {
   requestTemplates,
   requestSecondHandOrder: () => requestTemplates([SECOND_HAND_ORDER_TEMPLATE_ID]),
+  requestRunnerReceipt: () => requestTemplates([SECOND_HAND_ORDER_TEMPLATE_ID]),
   requestSecondHandMessage: () => requestTemplates([SECOND_HAND_MESSAGE_TEMPLATE_ID]),
 };

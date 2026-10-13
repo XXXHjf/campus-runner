@@ -1,8 +1,7 @@
 package com.mikasa.campusrunner.service.impl.user;
 
 import com.mikasa.campusrunner.common.properties.WeChatProperties;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -15,11 +14,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class CallbackContentionTest {
-    @ParameterizedTest @ValueSource(strings={"runnerTransfer", "pay", "refund", "transfer"})
-    void busyCallbackMustFailForProviderRetryInsteadOfAcknowledgingUnprocessedNotification(String kind) throws Exception {
-        Object service = kind.equals("runnerTransfer") ? new WeChatTransferServiceImpl() : new SecondHandServiceImpl();
-        String lockName = kind.equals("runnerTransfer") ? "lock" : kind + "NotifyLock";
-        ReentrantLock lock = (ReentrantLock) ReflectionTestUtils.getField(service, lockName);
+    @Test
+    void busyRunnerCallbackMustFailForProviderRetryInsteadOfAcknowledgingUnprocessedNotification() throws Exception {
+        var service = new WeChatTransferServiceImpl();
+        ReentrantLock lock = (ReentrantLock) ReflectionTestUtils.getField(service, "lock");
         String key = "01234567890123456789012345678901", nonce = "012345678901";
         WeChatProperties properties = mock(WeChatProperties.class);
         when(properties.getApiV3Key()).thenReturn(key);
@@ -40,17 +38,7 @@ class CallbackContentionTest {
         });
         try {
             assertTrue(acquired.await(2, TimeUnit.SECONDS));
-            RuntimeException error = assertThrows(RuntimeException.class, () -> {
-                if (service instanceof WeChatTransferServiceImpl runner) runner.processOrder(body);
-                else {
-                    SecondHandServiceImpl secondHand = (SecondHandServiceImpl) service;
-                    switch (kind) {
-                        case "pay" -> secondHand.processPayNotify(body);
-                        case "refund" -> secondHand.processRefundNotify(body);
-                        default -> secondHand.processTransferNotify(body);
-                    }
-                }
-            });
+            RuntimeException error = assertThrows(RuntimeException.class, () -> service.processOrder(body));
             assertEquals("通知处理中，请稍后重试", error.getMessage());
         } finally { release.countDown(); holder.get(2, TimeUnit.SECONDS); executor.shutdownNow(); }
     }

@@ -3,14 +3,14 @@
  * 封装地址相关的 API 调用
  */
 
-import { get, post, put, del } from './request'
+import { post, put, del, getListPages } from './request'
 import type { AdminSchoolReserve, AdminSchool, AdminAddressBuilding, AdminUpdateBuildingRequest } from '../types'
 
 /**
  * 管理端：查询所有学校
  */
 export async function getSchools(): Promise<AdminSchool[]> {
-  return get<AdminSchool[]>('/admin/api/address/schools')
+  return getListPages<AdminSchool>('/admin/api/address/schools')
 }
 
 /**
@@ -19,7 +19,7 @@ export async function getSchools(): Promise<AdminSchool[]> {
 export async function getBuildingsBySchool(
   schoolId: number | string,
 ): Promise<AdminAddressBuilding[]> {
-  return get<AdminAddressBuilding[]>(`/admin/api/address/getListBySchool/${schoolId}`)
+  return getListPages<AdminAddressBuilding>(`/admin/api/address/getListBySchool/${schoolId}`)
 }
 
 /**

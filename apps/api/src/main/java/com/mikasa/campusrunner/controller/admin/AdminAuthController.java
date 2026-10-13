@@ -28,9 +28,9 @@ public class AdminAuthController {
 
     @GetMapping("/pendingList")
     @Operation(summary = "获取所有待审核的学生列表")
-    public Result<List<UserVO>> getPendingList() {
+    public Result<List<UserVO>> getPendingList(com.mikasa.campusrunner.pojo.dto.ListPageDTO query) {
         log.info("Get student authentication review list");
-        List<UserVO> list = adminAuthService.getPendingList();
+        List<UserVO> list = adminAuthService.getPendingList(query);
         return Result.success(list);
     }
 

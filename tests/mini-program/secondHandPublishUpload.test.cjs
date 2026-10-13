@@ -12,9 +12,17 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
-function harness() {
+function harness({ pendingWrites = false } = {}) {
   let page;
-  const state = { uploads: [], released: [], toasts: [], updates: 0, saved: [] };
+  const state = { uploads: [], writes: [], released: [], toasts: [], updates: 0, saved: [] };
+  const save = async (payload) => {
+    state.saved.push(payload);
+    if (pendingWrites) {
+      const pending = deferred();
+      state.writes.push(pending);
+      return pending.promise;
+    }
+  };
   vm.runInNewContext(source, {
     Page(config) {
       page = {
@@ -32,6 +40,9 @@ function harness() {
       };
     },
     require(id) {
+      if (id.endsWith('addressPager')) return require('./helpers/addressPagerHarness.cjs')({});
+      if (id.endsWith('accountStorage')) return { isCurrent: session => !!session };
+      if (id.endsWith('tokenManager') || id.endsWith('secondHandDraftManager')) return {};
       if (id.endsWith('feedback')) return feedbackStub({ showToast: (o) => state.toasts.push(o.title) });
       if (id.endsWith('mediaService')) return {
         uploadImage(url, purpose) {
@@ -42,8 +53,8 @@ function harness() {
         releaseTemporaryImage: async (id) => { state.released.push(id); },
       };
       if (id.endsWith('secondHandService')) return {
-        publishProduct: async (payload) => { state.saved.push(payload); },
-        updateProduct: async (_, payload) => { state.saved.push(payload); },
+        publishProduct: save,
+        updateProduct: async (_, payload) => save(payload),
       };
       if (id.endsWith('subscriptionService')) return { requestSecondHandOrder: async () => {} };
       if (id.endsWith('deliveryAddressService')) return {};
@@ -181,3 +192,47 @@ for (const isEdit of [false, true]) {
     assert.deepEqual(state.released, []);
   });
 }
+
+for (const isEdit of [false, true]) {
+  for (const outcome of ['success', 'rejected', 'unknown']) {
+    test(`exit during ${isEdit ? 'editing' : 'publishing'} handles ${outcome} without releasing in-flight images`, async () => {
+      const { page, state } = harness({ pendingWrites: true });
+      page.setData({ isEdit, id: isEdit ? 1 : null, fileList: [
+        { mediaId: 5, temporary: false, status: 'done' },
+        { mediaId: 11, temporary: true, status: 'done' },
+      ] });
+      page.syncImages();
+      const pending = page.doSubmit();
+      await page.doSubmit();
+      remove(page, 1);
+      assert.equal(state.saved.length, 1);
+      assert.equal(page.data.fileList.length, 2);
+      page.onUnload();
+      const updates = state.updates;
+      assert.deepEqual(state.released, []);
+      if (outcome === 'success') state.writes[0].resolve();
+      else state.writes[0].reject(Object.assign(new Error('failure'), {
+        requestOutcome: outcome === 'rejected' ? 'rejected' : undefined,
+      }));
+      await pending;
+      assert.deepEqual(state.released, outcome === 'rejected' ? [11] : []);
+      assert.equal(state.updates, updates);
+      assert.deepEqual(state.toasts, []);
+    });
+  }
+}
+
+test('a later rejection cannot release images from an earlier uncertain submission', async () => {
+  const { page, state } = harness({ pendingWrites: true });
+  page.setData({ fileList: [{ mediaId: 11, temporary: true, status: 'done' }] });
+  page.syncImages();
+  const first = page.doSubmit();
+  state.writes[0].reject(new Error('network timeout'));
+  await first;
+  const retry = page.doSubmit();
+  state.writes[1].reject(Object.assign(new Error('rejected'), { requestOutcome: 'rejected' }));
+  await retry;
+  remove(page, 0);
+  page.onUnload();
+  assert.deepEqual(state.released, []);
+});

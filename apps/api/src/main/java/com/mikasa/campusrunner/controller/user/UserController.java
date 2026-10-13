@@ -35,6 +35,14 @@ public class UserController {
     private UserService userService;
 
     @Autowired
+    private com.mikasa.campusrunner.service.user.UserTaskService userTaskService;
+
+    @GetMapping("/tasks")
+    public Result<com.mikasa.campusrunner.pojo.vo.UserTaskSummaryVO> tasks() {
+        return Result.success(userTaskService.summary());
+    }
+
+    @Autowired
     private JWTProperties jwtProperties;
 
     @PostMapping("/login")
@@ -58,7 +66,7 @@ public class UserController {
     @PutMapping("/update")
     @Operation(summary = "用户信息更新")
     public Result update(@RequestBody UserSaveDTO userSaveDTO){
-        log.info("User info update: {}", userSaveDTO);
+        log.info("User info update");
         userService.save(userSaveDTO);
         return Result.success();
     }
@@ -66,7 +74,7 @@ public class UserController {
     @PutMapping
     @Operation(summary = "用户认证")
     public Result authentication(@RequestBody UserAuthenDTO userAuthenDTO){
-        log.info("User authentication: {}", userAuthenDTO);
+        log.info("User authentication");
         userService.userAuthen(userAuthenDTO);
         return Result.success();
     }

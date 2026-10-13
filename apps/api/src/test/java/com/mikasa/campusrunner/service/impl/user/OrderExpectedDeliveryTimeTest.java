@@ -91,6 +91,27 @@ class OrderExpectedDeliveryTimeTest {
         sequence.verify(orderAddressSnapshotMapper).capture(order.getId(), 31L, "RECEIVE");
     }
 
+    @Test void orderNumberCollisionRetriesInsertionBeforeSnapshotsAndMediaBinding() {
+        var numbers = new java.util.ArrayList<String>();
+        when(orderMapper.insert(any())).thenAnswer(invocation -> {
+            var order = invocation.getArgument(0, com.mikasa.campusrunner.pojo.entity.Order.class);
+            numbers.add(order.getOrderNumber());
+            if (numbers.size() == 1) throw new org.springframework.dao.DuplicateKeyException("number collision");
+            order.setId(50L);
+            return 1;
+        });
+        when(orderMapper.getByOrderNumberForUpdate(anyString()))
+                .thenReturn(new com.mikasa.campusrunner.pojo.entity.Order());
+        var dto = request(); dto.setGap(30);
+        var created = service.submit(dto);
+        assertEquals(2, numbers.size());
+        assertNotEquals(numbers.get(0), numbers.get(1));
+        assertEquals(numbers.get(1), created.getOrderNumber());
+        assertTrue(created.getOrderNumber().matches("R[a-f0-9]{31}"));
+        verify(orderAddressSnapshotMapper, times(1)).capture(50L, 30L, "PICKUP");
+        verify(orderAddressSnapshotMapper, times(1)).capture(50L, 31L, "RECEIVE");
+    }
+
     @Test void expiredDeadlineCannotCreateOrderEvenWithPositiveGap() {
         OrderSubmitDTO dto = request();
         dto.setExpectedDeliveryTime(LocalDateTime.now().minusMinutes(1));

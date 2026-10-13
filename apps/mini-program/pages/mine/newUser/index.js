@@ -58,7 +58,7 @@ Page({
         phone: currentUser.phone || '',
       });
     } catch (error) {
-      console.error('[注册资料加载失败]:', error);
+      console.error("[注册资料加载失败]:");
       feedback.loadError(this, '资料加载失败，请重试', () => this.onLoad(this._feedbackLoadOptions), !!this.data.token);
     }
   },
@@ -119,7 +119,7 @@ Page({
         mediaService.releaseTemporaryImage(this.data.headImgAssetId).catch(() => {});
         this.setData({ headImgAssetId: null });
       }
-      console.error('[注册失败]:', error);
+      console.error("[注册失败]:");
       showErrorToast(this, error.message || "注册失败，请重试");
     } finally {
       hideLoading();
@@ -197,7 +197,7 @@ Page({
         console.log('openPrivacyContract success')
       },
       fail: res => {
-        console.error('openPrivacyContract fail', res)
+        console.error("openPrivacyContract fail")
       }
     })
   },
@@ -215,7 +215,6 @@ Page({
   // input表单的input事件--昵称修改
   iptInputNickName(e) {
     const nickName = e.detail.value.replace(/\s+/g, '');
-    console.log(nickName);
     this.setData({
       "userInfo.nickName": nickName,
     });
@@ -223,7 +222,7 @@ Page({
   // 手机号输入
   iptInputPhone(e) {
     const phone = e.detail.value.replace(/\s+/g, '');
-    console.log('[手机号输入]:', phone);
+    console.log("[手机号输入]:");
     this.setData({
       phone: phone,
     });

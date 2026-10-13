@@ -15,11 +15,11 @@
         <view class="runner-detail-description">{{orderInfo.note || '暂无说明'}}</view>
         <view class="runner-detail-muted">预计送达：{{orderInfo.expectTime}}</view>
 
-        <view wx:if="{{orderInfo.price > 0 || orderInfo.productAmount > 0}}" class="publisher-detail-payment">
+        <view wx:if="{{orderInfo.hasPaymentAmount}}" class="publisher-detail-payment">
           <view wx:if="{{orderInfo.businessType === 'PURCHASE'}}" class="runner-detail-money-row"><text>商品金额</text><text>¥{{orderInfo.productAmount}}</text></view>
           <view class="publisher-detail-payment-row">
             <text>{{orderInfo.businessType === 'PURCHASE' ? '预计实付' : '实付金额'}}</text>
-            <text class="publisher-detail-payment-amount">¥{{orderInfo.pay_amount != null ? orderInfo.pay_amount : orderInfo.price}}</text>
+            <text class="publisher-detail-payment-amount">¥{{orderInfo.paymentDisplayAmount}}</text>
             <view class="publisher-detail-payment-info" aria-role="button" aria-label="查看实付金额说明" bind:tap="togglePaymentFeeHint"><t-icon name="info-circle" size="30rpx" color="#8b94a1" /></view>
           </view>
           <view wx:if="{{showPaymentFeeHint}}" class="runner-detail-muted">实付金额已包含本单服务费。</view>
@@ -47,16 +47,14 @@
             <view class="runner-detail-address-dot runner-detail-address-dot--pickup"></view>
             <view class="runner-detail-address-content">
               <view class="runner-detail-address-label">{{orderInfo.businessType === 'PURCHASE' ? '购买地点' : '取件地址'}}</view>
-              <view class="runner-detail-address-main">{{pickUpAddress[0]}} {{pickUpAddress[1]}} {{pickUpAddress[2]}}</view>
-              <view wx:if="{{pickUpAddress[3]}}" class="runner-detail-muted">{{pickUpAddress[3]}}</view>
+              <view class="runner-detail-address-main" style="white-space: pre-wrap;">{{pickUpAddress}}</view>
             </view>
           </view>
           <view class="runner-detail-address">
             <view class="runner-detail-address-dot runner-detail-address-dot--delivery"></view>
             <view class="runner-detail-address-content">
               <view class="runner-detail-address-label">{{orderInfo.businessType === 'PURCHASE' ? '送达地点' : '收件地址'}}</view>
-              <view class="runner-detail-address-main">{{reciveAddress[0]}} {{reciveAddress[1]}} {{reciveAddress[2]}}</view>
-              <view wx:if="{{reciveAddress[3]}}" class="runner-detail-muted">{{reciveAddress[3]}}</view>
+              <view class="runner-detail-address-main" style="white-space: pre-wrap;">{{reciveAddress}}</view>
             </view>
           </view>
           <view wx:if="{{orderInfo.businessType !== 'PURCHASE'}}" class="runner-detail-door">{{door[orderInfo.doorAccess]}}</view>

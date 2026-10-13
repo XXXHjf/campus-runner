@@ -11,6 +11,7 @@ const template = fs.readFileSync(path.resolve(__dirname, '../../apps/mini-progra
 function createPage({ services = {}, wxOverrides = {}, showError = () => {} } = {}) {
   let page;
   const wx = {
+    getStorageSync: () => 'owner-a',
     getWindowInfo: () => ({ statusBarHeight: 47, windowWidth: 375 }),
     getMenuButtonBoundingClientRect: () => ({ top: 54, height: 32, left: 286, width: 87 }),
     ...wxOverrides,
@@ -18,8 +19,9 @@ function createPage({ services = {}, wxOverrides = {}, showError = () => {} } = 
   vm.runInNewContext(source, {
     console,
     Date,
+    setTimeout, clearTimeout,
     wx,
-    require: (name) => name.endsWith('feedback') ? feedbackStub(wx) : name.includes('userOrderService') ? services
+    require: (name) => name.endsWith('tokenManager') ? { getToken: () => wx.getStorageSync('token') } : name.endsWith('feedback') ? feedbackStub(wx) : name.includes('userOrderService') ? services
       : name.includes('transformers') ? { showError: (_, message) => showError(message) }
       : name.includes('validators') ? { validateNote: () => ({ valid: true }) }
       : name.includes('orderShare') ? require('../../apps/mini-program/utils/orderShare')
@@ -247,4 +249,36 @@ test('支付入口只对加载后的待支付订单拉起支付', async () => {
   status = 0;
   await detail.onLoad({ id: 1, pay: '1' });
   assert.equal(payments, 1);
+});
+
+function pagedHarness() {
+  let token='a';let fail=false;let pending;const queries=[];
+  const rows=Array.from({length:45},(_,i)=>({id:i+1,status:i===44?-3:0,note:i===43?'target':'book',payAmount:1}));
+  const page=createPage({wxOverrides:{getStorageSync:()=>token},services:{getMyOrders:async query=>{
+    queries.push({...query}); if(fail)throw Error('network');if(pending&&query.page===2)return pending;
+    return rows.filter(row=>query.group==='all'||(query.group==='refund'?row.status===-3:row.status===0))
+      .filter(row=>!query.keyword||row.note.includes(query.keyword)).slice((query.page-1)*20,query.page*20);
+  }}});
+  return {page,queries,setToken:value=>token=value,setFail:value=>fail=value,setPending:value=>pending=value};
+}
+test('publisher pagination reads later pages and stops at the end',async()=>{
+ const {page,queries}=pagedHarness();await page.loadOrders();await page.onReachBottom();await page.onReachBottom();await page.onReachBottom();
+ assert.equal(page.data.orders.length,45);assert.equal(queries.length,3);assert.equal(page.data.hasMoreOrders,false);
+});
+test('publisher filters query full history before pagination',async()=>{
+ const {page,queries}=pagedHarness();await page.loadOrders();await page.selectTab({currentTarget:{dataset:{value:'refund'}}});
+ assert.equal(page.data.filteredOrders[0].id,45);assert.equal(queries.at(-1).page,1);
+ page.setData({tabValue:'all',keyword:'target'});await page.loadOrders();assert.equal(page.data.filteredOrders[0].id,44);
+});
+test('publisher failed append preserves cursor for retry',async()=>{
+ const h=pagedHarness();await h.page.loadOrders();h.setFail(true);assert.equal(await h.page.onReachBottom(),false);
+ assert.equal(h.page.data.orders.length,20);h.setFail(false);await h.page.onReachBottom();assert.equal(h.page.data.orders.length,40);
+ assert.equal(h.queries.at(-1).page,2);
+});
+test('publisher late pages cannot enter another account or a hidden page',async()=>{
+ for(const action of ['account','hide']) {
+  const h=pagedHarness();await h.page.loadOrders();let resolve;h.setPending(new Promise(yes=>resolve=yes));const loading=h.page.onReachBottom();
+  if(action==='account')h.setToken('b');else h.page.onHide();resolve([{id:99,status:0}]);await loading;
+  assert.equal(h.page.data.orders.length,20);
+ }
 });

@@ -9,6 +9,7 @@ import java.util.List;
 /** Immutable order evidence; address-book changes never update these rows. */
 @Mapper
 public interface OrderAddressSnapshotMapper {
+    int countMatchingSchool(@Param("orderId") Long orderId, @Param("schoolId") Long schoolId);
     List<Long> lockUsableAddresses(@Param("pickupId") Long pickupId,
             @Param("receiveId") Long receiveId, @Param("userId") Long userId,
             @Param("schoolId") Long schoolId);

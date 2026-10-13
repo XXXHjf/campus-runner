@@ -51,6 +51,8 @@ public class DevPaymentController {
 
     @Value("${com.mikasa.campus-runner.dev.mock-payment-enabled:false}")
     private Boolean mockPaymentEnabled;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.mikasa.campusrunner.mapper.AdminSystemConfigMapper systemConfigMapper;
 
     public DevPaymentController(OrderMapper orderMapper,
                                 SecondHandOrderMapper secondHandOrderMapper,
@@ -81,6 +83,8 @@ public class DevPaymentController {
         if (!OrderStatusConstant.NO_PAY.equals(order.getStatus())) {
             return Result.success();
         }
+
+        com.mikasa.campusrunner.service.impl.user.RunnerAmountPolicy.beforePayment(order, systemConfigMapper);
 
         orderMapper.updateStatusByOrderNumber(order.getOrderNumber(), OrderStatusConstant.WAIT_TO_TAKE_ORDER);
         saveMockPaymentLog(

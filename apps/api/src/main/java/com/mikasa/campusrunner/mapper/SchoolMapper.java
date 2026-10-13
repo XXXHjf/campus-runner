@@ -14,6 +14,8 @@ import java.util.List;
  */
 @Mapper
 public interface SchoolMapper {
+    List<School> getAllPage(@org.apache.ibatis.annotations.Param("page") com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
+    List<AddressBookThreeVO.School> getThreePage(@Param("schoolId") Long schoolId, @Param("page") com.mikasa.campusrunner.pojo.dto.AddressTreeQueryDTO page);
 
     /**
      * 查询所有

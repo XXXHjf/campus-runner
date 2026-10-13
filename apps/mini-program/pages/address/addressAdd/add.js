@@ -89,7 +89,7 @@ Page({
       await addressService.createUserAddress(addressData);
       feedback.navigate(this, 'navigateBack', {}, '添加成功');
     } catch (error) {
-      console.error('保存地址失败:', error);
+      console.error("保存地址失败:");
       showError(this, '保存失败');
     } finally {
       hideLoading();
@@ -129,7 +129,7 @@ Page({
   },
   // 详细地址修改（实时输入）
   tiptChangeDetail(e) {
-    console.log('details值： ' + e.detail.value);
+    console.log("details值： ");
     this.setData({
       upDetails: e.detail.value
     });
@@ -155,12 +155,12 @@ Page({
       });
     }
     
-    console.log('details最终值： ' + value);
+    console.log("details最终值： ");
   },
   
   // 地址标签修改（实时输入）
   tiptChangeLabel(e) {
-    console.log('label值： ' + e.detail.value);
+    console.log("label值： ");
     this.setData({
       upLabel: e.detail.value
     });
@@ -186,7 +186,7 @@ Page({
       });
     }
     
-    console.log('label最终值： ' + value);
+    console.log("label最终值： ");
   },
   // 设置为默认地址
   changeDefault(event) {
@@ -206,10 +206,10 @@ Page({
       };
       
       this.setData({ userInfo: userInfoWithToken });
-      console.log('获取用户数据成功:', userInfo);
+      console.log("获取用户数据成功:");
       return userInfo;
     } catch (error) {
-      console.error('获取用户数据失败:', error);
+      console.error("获取用户数据失败:");
       throw error;
     }
   },
@@ -229,7 +229,7 @@ Page({
       await this.getGlobalData();
       console.log('getGlobalData执行成功');
     } catch (error) {
-      console.error('页面加载失败:', error);
+      console.error("页面加载失败:");
       feedback.loadError(this, '资料加载失败，请重试', () => this.onShow(), !!this.data.userInfo?.id);
     }
   },

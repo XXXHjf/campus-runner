@@ -3,8 +3,9 @@
  * 封装"我发布的"订单相关的 API 调用
  */
 
-const { request, safeList } = require('./request');
+const { request, safeList, requiredObject } = require('./request');
 const { _delbefore1stBlank } = require('../utils/commonJs');
+const submissions = require('../utils/submissionManager');
 
 const url = getApp().globalData.API_URL;
 
@@ -19,9 +20,10 @@ function requireSuccess(res) {
  * 获取我发布的所有订单
  * @returns {Promise<Array>} 订单列表
  */
-function getMyOrders() {
+function getMyOrders(query = {}) {
   return request({
     url: `${url}/api/order/my`,
+    data: query,
     method: 'GET'
   }).then(res => {
     const rawData = safeList(res);
@@ -40,8 +42,8 @@ function getMyOrderDetail(orderId) {
     url: `${url}/api/order/detail/${orderId}`,
     method: 'GET'
   }).then(res => {
-    console.log('userOrderService - 订单详情响应:', res.data);
-    return res.data.data || {};
+    console.log("userOrderService - 订单详情响应:");
+    return requiredObject(res);
   });
 }
 
@@ -51,13 +53,15 @@ function getMyOrderDetail(orderId) {
  * @returns {Promise<Object>} 创建结果
  */
 function createOrder(orderData) {
-  return request({
+  return submissions.submit('RUNNER_ORDER', orderData, payload => request({
     url: `${url}/api/order`,
     method: 'POST',
-    data: orderData
+    data: payload
   }).then(res => {
+    const created = requiredObject(res);
+    if (!created.id) throw new Error('提交结果暂未确认，请查看我的订单');
     return res.data;
-  });
+  }));
 }
 
 /**
@@ -130,7 +134,7 @@ function previewOrderAmount(orderData) {
     url: `${url}/api/order/amount-preview`,
     method: 'POST',
     data: orderData
-  }).then(res => res.data?.data || {});
+  }).then(requiredObject);
 }
 
 /**
@@ -177,6 +181,7 @@ module.exports = {
   getMyOrders,
   getMyOrderDetail,
   createOrder,
+  getPendingCreation: () => submissions.getPending('RUNNER_ORDER'),
   previewOrderAmount,
   updateOrder,
   updateOrderContent,

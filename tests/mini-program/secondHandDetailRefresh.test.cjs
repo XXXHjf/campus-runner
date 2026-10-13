@@ -20,9 +20,11 @@ function harness(service = {}) {
     getApp: () => app,
     wx: { showShareMenu() {}, getStorageSync: () => null, setStorageSync() {} },
     require(id) {
+      if (id.endsWith('addressPager')) return require('./helpers/addressPagerHarness.cjs')({ getToken: () => state.token });
       if (id.endsWith('feedback')) return feedbackStub({ navigateTo: (o) => state.routes.push(o.url) }, (e) => state.errors.push(e));
       if (id.endsWith('secondHandService')) return { getProduct: async () => { state.reads++; return state.product; }, listProductBargains: async () => [], ...service };
       if (id.endsWith('tokenManager')) return { getToken: () => state.token, hasToken: () => !!state.token };
+      if (id.endsWith('accountStorage')) return { captureSession: () => state.token, isCurrent: session => session === state.token };
       if (id.endsWith('accessGuard')) return { ensureAuthenticated: async () => true };
       if (id.endsWith('secondHandStatus')) return { friendlyError: (_, fallback) => fallback };
       if (id.endsWith('subscriptionService')) return { requestSecondHandOrder: async () => {} };
@@ -174,4 +176,26 @@ test('quote lookup failure prevents opening checkout at an unconfirmed price', a
   const { page } = harness({ listProductBargains: async () => { throw new Error('network'); } });
   await page.onShow(); await page.buyNow();
   assert.equal(page.data.showBuySheet, false);
+});
+
+
+test('pending purchase can replay after product became unavailable', async () => {
+ const original={clientRequestId:'original-request-0001',productId:1,deliveryMode:0}; let sent;
+ const {page,state}=harness({getPendingOrder:()=>original,createOrder:async data=>{sent=data;return {id:22};}});
+ state.product=product({status:2});await page.onShow();
+ assert.equal(page.data.product.canBuy,false);
+ await page.createOrder(true);
+ assert.equal(sent,original);
+ assert.equal(state.routes[0],'/pages/second-hand/order-detail/order-detail?id=22');
+});
+
+test('purchase resolves an older requested accepted quote before pagination', async () => {
+  let query;
+  const { page } = harness({ listProductBargains: async (_, filters) => {
+    query = filters;
+    return [{ id: 123, buyerId: 7, status: 1, offerPrice: 12 }];
+  }});
+  await page.onShow(); page._requestedBargainId = 123; await page.buyNow();
+  assert.equal(query.status,1);assert.equal(query.withoutOrder,true);assert.equal(query.bargainId,123);assert.equal(query.page,1);
+  assert.equal(page.data.acceptedBargain.id,123);assert.equal(page.data.orderPrice,12);
 });

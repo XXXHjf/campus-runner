@@ -45,13 +45,23 @@ public interface SecondHandOrderMapper {
 
     SecondHandOrderVO detail(@Param("id") Long id);
 
-    List<SecondHandOrderVO> listByBuyer(@Param("buyerId") Long buyerId);
+    List<SecondHandOrderVO> listByBuyer(@Param("buyerId") Long buyerId,
+            @Param("query") com.mikasa.campusrunner.pojo.dto.SecondHandOrderQueryDTO query);
 
-    List<SecondHandOrderVO> listBySeller(@Param("sellerId") Long sellerId);
+    List<SecondHandOrderVO> listBySeller(@Param("sellerId") Long sellerId,
+            @Param("query") com.mikasa.campusrunner.pojo.dto.SecondHandOrderQueryDTO query);
 
     List<SecondHandOrderVO> listAdmin(@Param("status") Integer status);
+    List<SecondHandOrderVO> listAdminPage(@Param("query") com.mikasa.campusrunner.pojo.dto.AdminSecondHandOrderQueryDTO query);
+    com.mikasa.campusrunner.pojo.vo.AdminSecondHandOrderStatsVO summarizeAdmin(@Param("query") com.mikasa.campusrunner.pojo.dto.AdminSecondHandOrderQueryDTO query);
 
     List<SecondHandOrder> listUnpaidTimeout(@Param("time") LocalDateTime time);
+
+    List<SecondHandOrder> listUnpaidTimeoutForOwner(@Param("time") LocalDateTime time,
+            @Param("ownerId") Long ownerId, @Param("limit") int limit);
+
+    List<SecondHandOrder> listUnpaidTimeoutBatch(@Param("time") LocalDateTime time,
+            @Param("afterId") long afterId, @Param("limit") int limit);
 
     List<SecondHandOrder> listAutoConfirm(@Param("now") LocalDateTime now);
 

@@ -113,7 +113,13 @@ public class AddressBookServiceImpl implements AddressBookService {
      */
     @Override
     public List<AddressBookShowVO> show() {
-        List<AddressBookShowVO> list = addressBookMapper.show(BaseContext.getCurrentId());
+        return show(new com.mikasa.campusrunner.pojo.dto.ListPageDTO());
+    }
+
+    @Override
+    public List<AddressBookShowVO> show(com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        page.getLimit(); page.getOffset();
+        List<AddressBookShowVO> list = addressBookMapper.showPage(BaseContext.getCurrentId(), page);
         return list;
     }
 
@@ -123,15 +129,20 @@ public class AddressBookServiceImpl implements AddressBookService {
      * @return
      */
     @Override
-    public AddressBookThreeVO three() {
+    public AddressBookThreeVO three() { return three(new com.mikasa.campusrunner.pojo.dto.AddressTreeQueryDTO()); }
+
+    @Override
+    public AddressBookThreeVO three(com.mikasa.campusrunner.pojo.dto.AddressTreeQueryDTO query) {
+        query.getLimit(); query.getOffset();
+        if (query.getCompusNumberId() != null && query.getCompusNumberId() <= 0) throw new AddressException("请选择有效的校区");
         //查找当前用户所绑定的学校
         Long userId = BaseContext.getCurrentId();
         UserVO user = userId == null ? null : userMapper.getById(userId);
         Long schoolId = user == null ? null : user.getSchoolId();
-        List<AddressBookThreeVO.School> schools = schoolMapper.getThree(schoolId);
-        List<AddressBookThreeVO.Compus> compuses = compusMapper.getThree(schoolId);
-        List<AddressBookThreeVO.BuildCategory> buildCategories = buildCategoryMapper.getThree(schoolId);
-        List<AddressBookThreeVO.Building> buildings = buildingMapper.getThree(schoolId);
+        List<AddressBookThreeVO.School> schools = query.getCompusNumberId() == null ? schoolMapper.getThreePage(schoolId, query) : List.of();
+        List<AddressBookThreeVO.Compus> compuses = query.getCompusNumberId() == null ? compusMapper.getThreePage(schoolId, query) : List.of();
+        List<AddressBookThreeVO.BuildCategory> buildCategories = query.getCompusNumberId() == null ? buildCategoryMapper.getThreePage(schoolId, query) : List.of();
+        List<AddressBookThreeVO.Building> buildings = query.getCompusNumberId() == null ? List.of() : buildingMapper.getThreePage(schoolId, query);
 
         AddressBookThreeVO addressBookThreeVO = AddressBookThreeVO.builder()
                 .school(schools)
@@ -165,7 +176,8 @@ public class AddressBookServiceImpl implements AddressBookService {
         addressBook.setUserId(user.getId());
         addressBook.setSchoolId(user.getSchoolId());
 
-        List<AddressBookShowVO> list = addressBookMapper.query(addressBook);
+        addressBookQueryDTO.getLimit(); addressBookQueryDTO.getOffset();
+        List<AddressBookShowVO> list = addressBookMapper.queryPage(addressBook, addressBookQueryDTO);
         return list;
     }
 
@@ -182,18 +194,22 @@ public class AddressBookServiceImpl implements AddressBookService {
         update(dto);
     }
 
+    @Override
+    public java.util.Map<String,Object> summary() {
+        var result = new java.util.HashMap<>(addressBookMapper.summary(BaseContext.getCurrentId()));
+        AddressBook filter = new AddressBook(); filter.setUserId(BaseContext.getCurrentId()); filter.setIsDefault(1);
+        var page = new com.mikasa.campusrunner.pojo.dto.ListPageDTO(); page.setPageSize(1);
+        var defaults = addressBookMapper.queryPage(filter, page);
+        result.put("defaultAddress", defaults.isEmpty() ? null : defaults.get(0));
+        result.remove("latestId"); result.remove("defaultId");
+        return result;
+    }
+
     private void ensureDefault() {
-        AddressBook filter = new AddressBook();
-        filter.setUserId(BaseContext.getCurrentId());
-        filter.setDeleted(DeleteConstant.UN_DELETED);
-        filter.setIsDefault(1);
-        List<Long> defaults = addressBookMapper.getIds(filter);
-        if (defaults.size() == 1) return;
-        filter.setIsDefault(null);
-        List<Long> ids = addressBookMapper.getIds(filter);
-        if (ids.isEmpty()) return;
-        // 自增 ID 对应添加顺序；历史缺失或重复默认也在写入时恢复。
-        Long chosen = (defaults.isEmpty() ? ids : defaults).stream().max(Long::compareTo).orElseThrow();
+        var summary = addressBookMapper.summary(BaseContext.getCurrentId());
+        if (((Number) summary.get("defaultCount")).intValue() == 1 || ((Number) summary.get("total")).longValue() == 0) return;
+        Long chosen = ((Number) (summary.get("defaultId") == null ? summary.get("latestId") : summary.get("defaultId"))).longValue();
+        AddressBook filter = new AddressBook(); filter.setUserId(BaseContext.getCurrentId());
         addressBookMapper.clearDefault(filter);
         AddressBook target = new AddressBook();
         target.setId(chosen);

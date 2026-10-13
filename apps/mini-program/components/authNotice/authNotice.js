@@ -51,7 +51,7 @@ Component({
           console.log('打开隐私协议成功');
         },
         fail: res => {
-          console.error('打开隐私协议失败', res);
+          console.error("打开隐私协议失败");
           feedback.showToast(this, {
             title: '打开隐私协议失败',
             icon: 'none',

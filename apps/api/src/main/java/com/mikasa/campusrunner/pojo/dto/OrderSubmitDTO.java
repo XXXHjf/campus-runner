@@ -12,6 +12,7 @@ import java.util.List;
  */
 @Data
 public class OrderSubmitDTO {
+    private String clientRequestId;
     private Long pickUpAddress;//接单地址
     private Long reciveAddress;//送达地址
     private BigDecimal price;

@@ -44,11 +44,14 @@ class AddressBookRulesTest {
             AddressBook a = rows.get(i.getArgument(0));
             return a == null || a.getDeleted() == 1 ? null : copy(a);
         });
-        when(mapper.getIds(any())).thenAnswer(i -> {
-            AddressBook f = i.getArgument(0);
-            return rows.values().stream().filter(a -> a.getDeleted() == 0 && a.getUserId().equals(f.getUserId())
-                && (f.getIsDefault() == null || f.getIsDefault().equals(a.getIsDefault())))
-                .map(AddressBook::getId).toList();
+        when(mapper.summary(anyLong())).thenAnswer(i -> {
+            var active = rows.values().stream().filter(a -> a.getDeleted() == 0 && a.getUserId().equals(i.getArgument(0))).toList();
+            var defaults = active.stream().filter(a -> Integer.valueOf(1).equals(a.getIsDefault())).toList();
+            Map<String,Object> result = new HashMap<>();
+            result.put("total", active.size()); result.put("defaultCount", defaults.size());
+            result.put("latestId", active.stream().map(AddressBook::getId).max(Long::compareTo).orElse(null));
+            result.put("defaultId", defaults.stream().map(AddressBook::getId).max(Long::compareTo).orElse(null));
+            return result;
         });
         doAnswer(i -> { rows.values().forEach(a -> { if(a.getDeleted() == 0) a.setIsDefault(0); }); return null; })
             .when(mapper).clearDefault(any());

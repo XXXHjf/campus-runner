@@ -22,9 +22,9 @@ public class AdminCategoryController {
 
     @GetMapping
     @Operation(summary = "分类列表", description = "获取所有可用的订单分类列表，返回分类ID、名称和图标地址")
-    public Result<List<Category>> list() {
+    public Result<List<Category>> list(com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
         log.info("Listing categories...");
-        List<Category> list = adminCategoryService.list();
+        List<Category> list = adminCategoryService.list(page);
         return Result.success(list);
     }
 

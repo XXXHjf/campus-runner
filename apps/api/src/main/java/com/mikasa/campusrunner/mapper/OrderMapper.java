@@ -25,7 +25,14 @@ public interface OrderMapper {
     @Select("SELECT * FROM tb_orders WHERE order_number = #{orderNumber} FOR UPDATE")
     Order getByOrderNumberForUpdate(@Param("orderNumber") String orderNumber);
     List<com.mikasa.campusrunner.pojo.vo.PublicOrderVO> listPublicOrders();
+    List<com.mikasa.campusrunner.pojo.vo.PublicOrderVO> listPublicOrdersPage(
+            @Param("query") com.mikasa.campusrunner.pojo.dto.PublicOrderQueryDTO query);
     com.mikasa.campusrunner.pojo.vo.PublicOrderVO getPublicOrderById(@Param("id") Long id);
+
+    List<OrderShowVO> listRunnerFeed(@Param("query") com.mikasa.campusrunner.pojo.dto.RunnerFeedDTO query,
+            @Param("callerId") Long callerId, @Param("schoolId") Long schoolId,
+            @Param("pickup") com.mikasa.campusrunner.pojo.entity.AddressBook pickup,
+            @Param("receive") com.mikasa.campusrunner.pojo.entity.AddressBook receive);
 
     /**
      * 根据价格优先排序，
@@ -41,7 +48,6 @@ public interface OrderMapper {
      * @param order
      * @return
      */
-    @Transactional
     int insert(Order order);
 
     /**
@@ -73,6 +79,8 @@ public interface OrderMapper {
      * @return
      */
     List<OrderShowVO> getMy(Long id);
+    List<OrderShowVO> getMyPage(@org.apache.ibatis.annotations.Param("id") Long id,
+            @org.apache.ibatis.annotations.Param("query") com.mikasa.campusrunner.pojo.dto.RunnerOrderQueryDTO query);
 
 
     /**

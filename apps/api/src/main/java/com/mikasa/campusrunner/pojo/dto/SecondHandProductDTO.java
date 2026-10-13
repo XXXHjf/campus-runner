@@ -7,6 +7,7 @@ import java.util.List;
 
 @Data
 public class SecondHandProductDTO {
+    private String clientRequestId;
     private Long id;
     private Long compusId;
     private Long categoryId;

@@ -15,6 +15,16 @@
         from tb_build_category
         where deleted = 0
         <if test="schoolId != null">AND school_id = #{schoolId}</if>
+        order by number_id, id limit 50
+    </select>
+    <select id="getThreePage" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookThreeVO$BuildCategory">
+        select
+            name AS build_category_name,
+            number_id
+        from tb_build_category
+        where deleted = 0
+        <if test="schoolId != null">AND school_id = #{schoolId}</if>
+        order by number_id, id limit #{page.limit} offset #{page.offset}
     </select>
 
     <select id="getIdBySchoolIdAndCompusIdAndName" resultType="java.lang.Long">

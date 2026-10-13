@@ -1,5 +1,5 @@
 const tokenManager = require('../utils/tokenManager');
-const { request } = require('./request');
+const { request, safeList } = require('./request');
 
 const url = getApp().globalData.API_URL;
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -68,7 +68,7 @@ async function prepareImage(filePath, purpose) {
         break;
       }
     } catch (error) {
-      console.warn('[图片上传] 上传前优化失败，继续尝试上传原图', error);
+      console.warn("[图片上传] 上传前优化失败，继续尝试上传原图");
       break;
     }
   }
@@ -90,6 +90,8 @@ function parseUploadResponse(response) {
     if (response.statusCode === 401) {
       throw new Error('登录已失效，请重新登录');
     }
+    if (response.statusCode === 429) throw new Error('操作较频繁，请稍后再试');
+    if (response.statusCode === 503) throw new Error('服务繁忙，请稍后重试');
     throw new Error('图片上传失败，请稍后重试');
   }
 
@@ -114,10 +116,9 @@ async function uploadImage(filePath, purpose, onProgress) {
   const uploadPath = await prepareImage(filePath, purpose);
   return new Promise((resolve, reject) => {
     const task = wx.uploadFile({
-      url: `${url}/api/media/images`,
+      url: `${url}/api/media/images?purpose=${encodeURIComponent(purpose)}`,
       filePath: uploadPath,
       name: 'file',
-      formData: { purpose },
       header: {
         token: tokenManager.getToken(),
       },
@@ -130,7 +131,7 @@ async function uploadImage(filePath, purpose, onProgress) {
         }
       },
       fail: (error) => {
-        console.error('[图片上传] 网络请求失败', error);
+        console.error("[图片上传] 网络请求失败");
         reject(new Error('图片上传失败，请检查网络后重试'));
       },
     });
@@ -154,7 +155,14 @@ async function releaseTemporaryImage(mediaId) {
   }
 }
 
+async function usableTemporaryImages(ids, purpose) {
+  if (!ids.length) return [];
+  return request({ url: `${url}/api/media/images/temporary`, method: 'GET',
+    data: { ids: ids.join(','), purpose } }).then(safeList);
+}
+
 module.exports = {
+  usableTemporaryImages,
   uploadImage,
   releaseTemporaryImage,
 };

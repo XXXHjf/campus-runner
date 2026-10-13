@@ -105,7 +105,46 @@ public class AdminBannerServiceImpl implements AdminBannerService {
 
 
         List<Banner> list = bannerMapper.getListBySchoolId(schoolId);
-        list.forEach(this::resolveBannerImage);
+        if (!list.isEmpty()) {
+            var images = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_BANNER,
+                    list.stream().map(Banner::getId).distinct().toList(), MediaPurpose.BANNER.name(), 0);
+            for (var banner : list) {
+                var bound = images.getOrDefault(banner.getId(), List.of());
+                if (!bound.isEmpty()) {
+                    banner.setImageAssetId(bound.get(0).getMediaId());
+                    banner.setImgUrl(bound.get(0).getUrl());
+                }
+            }
+        }
+        return list;
+    }
+
+    @Override
+    public List<Banner> getListBySchoolId(Long schoolId, com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
+        page.getLimit(); page.getOffset();
+        log.info("Getting school banners...");
+
+        if (!schoolId.equals(0L)) {
+            String schoolName = schoolMapper.getNameById(schoolId);
+            if (schoolName == null || schoolName.length() == 0) {
+                //找不到学校名字 该学校不存在
+                throw new SchoolException(MessageConstant.NO_SCHOOL_NAME);
+            }
+        }
+
+
+        List<Banner> list = bannerMapper.getListBySchoolIdPage(schoolId, page);
+        if (!list.isEmpty()) {
+            var images = mediaAssetService.resolvePublicBindings(MediaAssetConstant.BOUND_BANNER,
+                    list.stream().map(Banner::getId).distinct().toList(), MediaPurpose.BANNER.name(), 0);
+            for (var banner : list) {
+                var bound = images.getOrDefault(banner.getId(), List.of());
+                if (!bound.isEmpty()) {
+                    banner.setImageAssetId(bound.get(0).getMediaId());
+                    banner.setImgUrl(bound.get(0).getUrl());
+                }
+            }
+        }
         return list;
     }
 
@@ -133,14 +172,4 @@ public class AdminBannerServiceImpl implements AdminBannerService {
                 Duration.ofDays(7));
     }
 
-    private void resolveBannerImage(Banner banner) {
-        var images = mediaAssetService.resolvePublicBinding(
-                MediaAssetConstant.BOUND_BANNER,
-                banner.getId(),
-                MediaPurpose.BANNER.name());
-        if (!images.isEmpty()) {
-            banner.setImageAssetId(images.get(0).getMediaId());
-            banner.setImgUrl(images.get(0).getUrl());
-        }
-    }
 }

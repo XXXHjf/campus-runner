@@ -17,6 +17,7 @@ public interface AdminAdressService {
      * @return
      */
     List<AdminAdressBuildingVO> getListBySchool(Long schoolID);
+    List<AdminAdressBuildingVO> getListBySchool(Long schoolID, com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
 
     /**
      * 根据楼宇id修改地址信息

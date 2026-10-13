@@ -25,6 +25,8 @@ function createHarness({ beforeRequest = async () => {} } = {}) {
   const calls = [];
   const toasts = [];
   const navigation = [];
+  const session = { token: 'session-a' };
+  const tokens = { getToken: () => session.token };
   async function request(options) {
     const pathname = new URL(options.url).pathname;
     const call = { method: options.method, path: pathname };
@@ -41,11 +43,13 @@ function createHarness({ beforeRequest = async () => {} } = {}) {
       : records.filter((item) => favorites.has(item.id)).map((item) => ({ ...item, favorited: true }));
     return { data: { code: 1, data } };
   }
+  const responseModule = { exports: {} };
+  vm.runInNewContext(read('services/request.js'), { module: responseModule, require: () => ({}) });
   const serviceModule = { exports: {} };
   vm.runInNewContext(read('services/secondHandService.js'), {
     module: serviceModule,
     getApp: () => ({ globalData: { API_URL: 'https://example.test' } }),
-    require: () => ({ request, safeList: (response) => response.data.data }),
+    require: id => id.endsWith('tokenManager') ? tokens : ({ ...responseModule.exports, request }),
   });
   const service = serviceModule.exports;
   function createPage() {
@@ -62,6 +66,7 @@ function createHarness({ beforeRequest = async () => {} } = {}) {
       require(id) {
         if (id.endsWith('feedback')) return feedbackStub({ showToast: ({ title }) => toasts.push(title) });
         if (id.endsWith('secondHandService')) return service;
+        if (id.endsWith('tokenManager')) return tokens;
         return { friendlyError: (error, fallback) => error.message || fallback };
       },
       wx: {
@@ -76,7 +81,7 @@ function createHarness({ beforeRequest = async () => {} } = {}) {
     page.onLoad();
     return page;
   }
-  return { createPage, service, calls, favorites, toasts, navigation };
+  return { createPage, service, calls, favorites, toasts, navigation, session };
 }
 
 test('cancel keeps the card, changes local state, and can be undone without requests', async () => {
@@ -100,11 +105,11 @@ test('search filters saved cards and keeps local cancellation state', async () =
   const h = createHarness();
   const page = h.createPage();
   await page.onShow();
-  page.onSearchChange({ detail: { value: '商品二' } });
+  await page.onSearchChange({ detail: { value: '商品二' } });
   assert.deepEqual(Array.from(page.data.filteredProducts, (item) => item.id), [2]);
   page.toggleFavorite(event(2));
   assert.equal(page.data.filteredProducts[0].isFavorited, false);
-  page.clearSearch();
+  await page.clearSearch();
   assert.deepEqual(Array.from(page.data.filteredProducts, (item) => item.id), [1, 2]);
   assert.equal(page.data.filteredProducts[1].isFavorited, false);
   await page.onUnload();
@@ -216,4 +221,14 @@ test('the newest refresh wins when list responses arrive out of order', async ()
   await initial;
   assert.equal(page.renderCount, renderCount);
   assert.equal(page.data.products[0].isFavorited, false);
+});
+
+
+test('queued favorite writes do not use a replacement account token', async () => {
+ const pending=deferred();const h=createHarness({beforeRequest:call=>call.method==='DELETE'&&call.path.includes('/1/')?pending.promise:Promise.resolve()});
+ const first=h.service.unfavoriteProduct(1);const second=h.service.unfavoriteProduct(2);
+ const rejected=assert.rejects(second,/登录已变化/);await tick();h.session.token='session-b';pending.resolve();
+ await first;await rejected;
+ assert.equal(h.calls.filter(call=>call.method==='DELETE').length,1);
+ await h.service.favoriteProduct(2);assert.equal(h.calls.at(-1).method,'POST');
 });

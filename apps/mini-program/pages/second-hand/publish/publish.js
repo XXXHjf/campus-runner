@@ -1,8 +1,12 @@
+const { loadAddressPage } = require('../../../utils/addressPager');
 const feedback = require('../../../utils/feedback');
 const subscriptions = require('../../../services/subscriptionService');
 const secondHandService = require('../../../services/secondHandService');
 const deliveryAddressService = require('../../../services/deliveryAddressService');
 const mediaService = require('../../../services/mediaService');
+const accountStorage = require('../../../utils/accountStorage');
+const tokenManager = require('../../../utils/tokenManager');
+const drafts = require('../../../utils/secondHandDraftManager');
 const CONDITION_OPTIONS = ['全新', '几乎全新', '轻微使用', '明显使用'];
 
 Page({
@@ -36,35 +40,150 @@ Page({
   },
 
   async onLoad(options) {
+    this._initialData = JSON.parse(JSON.stringify(this.data));
+    this._unsubscribeSession = tokenManager.onSessionChange(() => {
+      this._draftSession = null;
+      this._savedDraftImageIds = new Set();
+      this._protectedImageIds = new Set();
+      this._dirty = false;
+      this._draftRevision = null;
+      this.submitted = false;
+      this._draftImageCheckFailed = false;
+      this.setData(JSON.parse(JSON.stringify(this._initialData)));
+    });
+    await tokenManager.waitForToken();
+    if (this._unloaded) return;
+    const session = this._draftSession = accountStorage.captureSession();
     const id = options && options.id ? options.id : null;
     this.setData({ id, isEdit: !!id });
     wx.setNavigationBarTitle({ title: id ? '编辑闲置' : '发布闲置' });
+    await drafts.waitPending(id, session);
+    if (this._unloaded || !accountStorage.isCurrent(session)) return;
     await Promise.all([this.loadCategories(), this.loadAddressBook()]);
+    if (this._unloaded || !accountStorage.isCurrent(session)) return;
     if (id) {
-      await this.loadProduct(id);
+      if (!await this.loadProduct(id)) return;
+    }
+    if (!this._unloaded && accountStorage.isCurrent(session)) await this.restoreDraft();
+  },
+
+  saveDraft(markDirty = false) {
+    if (markDirty) this._dirty = true;
+    if (!this._dirty && !this._draftRevision) return false;
+    if (this.submitted || !accountStorage.isCurrent(this._draftSession)) return false;
+    let revision;
+    try {
+      revision = drafts.save(this.data.id, { form: this.data.form, fileList: this.data.fileList,
+        protectedImageIds: this._protectedImageIds }, this._draftSession);
+    } catch (error) {
+      if (!this._unloaded) feedback.showMessage(this, '内容暂未保存，请稍后重试', { theme: 'error', key: 'draft-save' });
+      return false;
+    }
+    if (!revision) return false;
+    this._draftRevision = revision;
+    this._savedDraftImageIds = new Set(this.data.fileList.filter(file => file.status === 'done').map(file => file.mediaId));
+    return true;
+  },
+
+  async restoreDraft() {
+    if (this._unloaded) return;
+    const session = this._draftSession;
+    const draft = drafts.load(this.data.id, session);
+    if (!draft) return;
+    const result = await feedback.showModal(this, { title: '发现未完成的内容', content: '是否恢复上次填写的内容？',
+      confirmText: '恢复', cancelText: '重新填写' });
+    if (this._unloaded || !accountStorage.isCurrent(session)) return;
+    if (!result.confirm && !result.cancel) return;
+    if (!result.confirm) {
+      drafts.clear(this.data.id, session, draft.revision);
+      (draft.fileList || []).filter(file => file.temporary && !(draft.protectedImageIds || []).includes(file.mediaId))
+        .forEach(file => mediaService.releaseTemporaryImage(file.mediaId).catch(() => {}));
+      return;
+    }
+    const originals = new Map(this.data.fileList.filter(file => !file.temporary).map(file => [String(file.mediaId), file]));
+    this._protectedImageIds = new Set(draft.protectedImageIds || []);
+    this._dirty = true;
+    this._draftRevision = draft.revision;
+    const fileList = (draft.fileList || []).map(file => file.temporary ? { ...file, url: '' }
+      : originals.get(String(file.mediaId))).filter(Boolean);
+    const lostOriginal = fileList.length !== (draft.fileList || []).length;
+    this.setData({ form: { ...this.data.form, ...draft.form }, fileList,
+      pickupAddressText: draft.form.pickupAddressSnapshot || '' });
+    this.syncCategoryName();
+    this.syncImages();
+    await this.refreshDraftImages();
+    if (lostOriginal && !this._unloaded && accountStorage.isCurrent(session)) {
+      feedback.showMessage(this, '部分图片已变化，请重新选择', { theme: 'warning', key: 'draft-images' });
     }
   },
 
+  async refreshDraftImages() {
+    const session = this._draftSession;
+    const ids = this.data.fileList.filter(file => file.temporary && file.mediaId).map(file => file.mediaId);
+    if (!ids.length) { this._draftImageCheckFailed = false; return true; }
+    try {
+      const usable = await mediaService.usableTemporaryImages(ids, 'SECOND_HAND_PRODUCT_IMAGE');
+      if (this._unloaded || !accountStorage.isCurrent(session)) return false;
+      const byId = new Map(usable.map(asset => [String(asset.mediaId), asset]));
+      let expired = false;
+      const fileList = this.data.fileList.filter(file => {
+        if (!file.temporary || !ids.includes(file.mediaId) || byId.has(String(file.mediaId))) return true;
+        expired = true; return false;
+      }).map(file => byId.has(String(file.mediaId)) ? { ...file, url: byId.get(String(file.mediaId)).previewUrl } : file);
+      this.setData({ fileList });
+      this._draftImageCheckFailed = false;
+      this.syncImages();
+      if (expired) feedback.showMessage(this, '部分图片已失效，请重新上传', { theme: 'warning', key: 'draft-images' });
+      else feedback.clearMessage(this, 'draft-images');
+      return !expired;
+    } catch (error) {
+      if (!this._unloaded && accountStorage.isCurrent(session)) {
+        this._draftImageCheckFailed = true;
+        feedback.showMessage(this, '图片暂时无法确认，请稍后重试', { theme: 'error', key: 'draft-images',
+          action: '重试', onAction: () => this.refreshDraftImages() });
+      }
+      return false;
+    }
+  },
+
+  onHide() { this.saveDraft(); },
+
   async onShow() {
+    if (this._draftSession === null) {
+      const session = this._draftSession = accountStorage.captureSession();
+      if (!accountStorage.isCurrent(session)) return;
+      wx.setNavigationBarTitle({ title: '发布闲置' });
+      await Promise.all([this.loadCategories(), this.loadAddressBook()]);
+      if (accountStorage.isCurrent(session)) await this.restoreDraft();
+      return;
+    }
     if (this.data.hasLoadedAddresses) {
       await this.loadAddressBook(false);
     }
   },
 
   async loadCategories() {
+    const session = this._draftSession;
     try {
       const categories = await secondHandService.listCategories();
+      if (this._unloaded || (session && !accountStorage.isCurrent(session))) return;
       this.setData({ categories });
       this.syncCategoryName();
       feedback.clearMessage(this, 'category');
     } catch (error) {
+      if (this._unloaded || (session && !accountStorage.isCurrent(session))) return;
       feedback.showMessage(this, '分类加载失败，请重试', { persistent: true, key: 'category', theme: 'error', action: '重试', onAction: () => this.loadCategories() });
     }
   },
 
-  async loadAddressBook(showError = true) {
+  loadMoreAddresses() { return this.loadAddressBook(true, false); },
+
+  async loadAddressBook(showError = true, reset = true) {
+    const session = this._draftSession;
     try {
-      const addressBook = await deliveryAddressService.getMyAddresses();
+      const addressBook = await loadAddressPage(this, "addressBook", deliveryAddressService.getMyAddresses, reset);
+      if (!addressBook) return;
+      if (this._unloaded || (session && !accountStorage.isCurrent(session))) return;
       this.setData({
         addressBook: (addressBook || []).map((item) => ({
           ...item,
@@ -73,6 +192,7 @@ Page({
         hasLoadedAddresses: true,
       });
     } catch (error) {
+      if (this._unloaded || (session && !accountStorage.isCurrent(session))) return;
       if (showError) {
         feedback.showMessage(this, '地址列表加载失败，请重试', { theme: 'error', action: '重试', onAction: () => this.loadAddressBook() });
       }
@@ -80,9 +200,11 @@ Page({
   },
 
   async loadProduct(id) {
+    const session = this._draftSession;
     feedback.loaded(this);
     try {
       const product = await secondHandService.getProduct(id);
+      if (this._unloaded || (session && !accountStorage.isCurrent(session))) return false;
       const assetIds = product.imageAssetIds || [];
       const imageList = this.parseImages(product.images).map((image, index) => ({
         url: image,
@@ -110,8 +232,11 @@ Page({
         fileList: imageList,
       });
       this.syncCategoryName();
+      return true;
     } catch (error) {
+      if (this._unloaded || (session && !accountStorage.isCurrent(session))) return false;
       feedback.loadError(this, '商品加载失败，请重试', () => this.loadProduct(this.data.id));
+      return false;
     }
   },
 
@@ -121,18 +246,24 @@ Page({
   },
 
   setField(e) {
+    if (this.data.submitting) return;
     const field = e.currentTarget.dataset.field;
     this.setData({ [`form.${field}`]: e.detail.value });
+    this.saveDraft(true);
   },
 
   setSwitch(e) {
+    if (this.data.submitting) return;
     const field = e.currentTarget.dataset.field;
     this.setData({ [`form.${field}`]: e.detail.value ? 1 : 0 });
+    this.saveDraft(true);
   },
 
   setPickupOnly(e) {
+    if (this.data.submitting) return;
     const pickupOnly = e.detail.value ? 1 : 0;
     this.setData({ 'form.pickupOnly': pickupOnly });
+    this.saveDraft(true);
   },
 
   chooseCategory() {
@@ -148,6 +279,7 @@ Page({
   },
 
   selectCategory(e) {
+    if (this.data.submitting) return;
     const category = this.data.categories.find((item) => Number(item.id) === Number(e.currentTarget.dataset.id));
     if (!category) return;
     this.setData({
@@ -155,6 +287,7 @@ Page({
       categoryName: category.name,
       showCategorySheet: false,
     });
+    this.saveDraft(true);
   },
 
   choosePickupAddress() {
@@ -166,6 +299,7 @@ Page({
   },
 
   selectPickupAddress(e) {
+    if (this.data.submitting) return;
     const address = this.data.addressBook.find((item) => Number(item.id) === Number(e.currentTarget.dataset.id));
     if (!address) return;
     this.setData({
@@ -174,6 +308,7 @@ Page({
       pickupAddressText: address.addressText,
       showPickupAddressSheet: false,
     });
+    this.saveDraft(true);
   },
 
   gotoAddPickupAddress() {
@@ -185,7 +320,9 @@ Page({
     wx.showActionSheet({
       itemList: CONDITION_OPTIONS,
       success: (res) => {
+        if (this.data.submitting || this._unloaded) return;
         this.setData({ 'form.conditionLevel': CONDITION_OPTIONS[res.tapIndex] });
+        this.saveDraft(true);
       },
     });
   },
@@ -199,8 +336,9 @@ Page({
   },
 
   async uploadImage(file) {
-    if (this._unloaded) return;
+    if (this._unloaded || this.data.submitting) return;
     const uploadId = this._nextUploadId = (this._nextUploadId || 0) + 1;
+    const session = this._draftSession;
     this.setData({
       uploading: true,
       fileList: [...this.data.fileList, { ...file, uploadId, status: 'loading' }],
@@ -212,6 +350,7 @@ Page({
       );
       // Deletion can shift indices or replace a file while its upload is pending.
       const index = this.data.fileList.findIndex((item) => item.uploadId === uploadId);
+      if (session && !accountStorage.isCurrent(session)) return;
       if (this._unloaded || index === -1) {
         mediaService.releaseTemporaryImage(uploaded.mediaId).catch(() => {});
         return;
@@ -224,18 +363,20 @@ Page({
       });
     } catch (error) {
       const index = this.data.fileList.findIndex((item) => item.uploadId === uploadId);
+      if (session && !accountStorage.isCurrent(session)) return;
       if (this._unloaded || index === -1) return;
       this.setData({ [`fileList[${index}].status`]: 'failed' });
       feedback.showToast(this, { title: this.errorText(error, '图片上传失败'), theme: 'error' });
     } finally {
-      if (!this._unloaded) this.syncImages();
+      if (!this._unloaded && (!session || accountStorage.isCurrent(session))) this.syncImages();
     }
   },
 
   handleRemove(e) {
+    if (this.data.submitting) return;
     const index = e.detail.index;
     const removed = this.data.fileList[index];
-    if (removed && removed.temporary && removed.mediaId) {
+    if (removed && removed.temporary && removed.mediaId && !this._protectedImageIds?.has(removed.mediaId)) {
       mediaService.releaseTemporaryImage(removed.mediaId).catch(() => {});
     }
     const fileList = this.data.fileList.filter((_, idx) => idx !== index);
@@ -254,6 +395,7 @@ Page({
       'form.imageAssetIds': imageAssetIds,
       uploading: this.data.fileList.some((file) => file.status === 'loading'),
     });
+    this.saveDraft(true);
   },
 
   parseImages(images) {
@@ -287,6 +429,11 @@ Page({
 
   async submit() {
     if (!await require('../../../utils/accessGuard').ensureAuthenticated()) return;
+    if (!this.data.isEdit && secondHandService.getPendingPublication?.()) {
+      const answer = await feedback.showModal(this, { title: '确认上次发布', content: '上次发布结果暂未确认。继续重试上次发布？', confirmText: '继续重试' });
+      if (answer.confirm) await this.doSubmit();
+      return;
+    }
     const error = this.validateForm();
     if (error) {
       feedback.showToast(this, { title: error, theme: 'warning' });
@@ -307,42 +454,72 @@ Page({
   },
 
   async doSubmit() {
+    if (this._unloaded || this.data.submitting || this.data.uploading) return;
+    if (this._draftSession !== undefined && !accountStorage.isCurrent(this._draftSession)) return;
     this.setData({ submitting: true });
+    const pending = !this.data.isEdit && secondHandService.getPendingPublication?.();
+    if (!pending && this._draftSession && !await this.refreshDraftImages()) {
+      if (!this._unloaded) this.setData({ submitting: false });
+      return;
+    }
     const form = this.data.form;
-    const payload = {
+    const payload = pending || {
       ...form,
       title: form.title.trim(),
       description: form.description.trim(),
       pickupAddressSnapshot: form.pickupAddressSnapshot.trim(),
       price: Number(form.price),
     };
+    payload.imageAssetIds = [...payload.imageAssetIds];
+    const previouslyProtected = new Set(this._protectedImageIds || []);
+    this._protectedImageIds = new Set([...previouslyProtected, ...payload.imageAssetIds]);
+    const session = this._draftSession;
+    const finish = session ? drafts.beginSubmission(this.data.id, session) : () => {};
+    this.saveDraft(true);
     try {
       if (this.data.isEdit) {
         await secondHandService.updateProduct(this.data.id, payload);
       } else {
         await secondHandService.publishProduct(payload);
-        this.submitted = true;
-        await subscriptions.requestSecondHandOrder();
       }
+      if (session && !accountStorage.isCurrent(session)) return;
       this.submitted = true;
-      feedback.navigate(this, 'navigateBack', {}, this.data.isEdit ? '已保存' : '已发布');
+      if (session) drafts.clear(this.data.id, session, this._draftRevision);
+      if (!this.data.isEdit && !this._unloaded) await subscriptions.requestSecondHandOrder();
+      if (!this._unloaded) feedback.navigate(this, 'navigateBack', {}, this.data.isEdit ? '已保存' : '已发布');
     } catch (error) {
-      feedback.showToast(this, { title: this.errorText(error, '提交失败'), theme: 'error' });
+      if (session && !accountStorage.isCurrent(session)) return;
+      if (!this.submitted && error.requestOutcome === 'rejected') {
+        this._protectedImageIds = previouslyProtected;
+      }
+      this.saveDraft();
+      if (!this._unloaded && (!session || accountStorage.isCurrent(session))) feedback.showToast(this, { title: this.errorText(error, '提交失败'), theme: 'error' });
     } finally {
-      this.setData({ submitting: false });
+      if (!session || accountStorage.isCurrent(session)) {
+        if (this._unloaded) this.releaseUnusedImages();
+        else this.setData({ submitting: false });
+      }
+      finish();
     }
   },
 
   onUnload() {
+    this.saveDraft();
     this._unloaded = true;
+    this._unsubscribeSession?.();
+    this.releaseUnusedImages();
+  },
+
+  releaseUnusedImages() {
     if (this.submitted) return;
     this.data.fileList
-      .filter((file) => file.temporary && file.mediaId)
+      .filter((file) => file.temporary && file.mediaId && !this._protectedImageIds?.has(file.mediaId)
+        && !this._savedDraftImageIds?.has(file.mediaId))
       .forEach((file) => mediaService.releaseTemporaryImage(file.mediaId).catch(() => {}));
   },
 
   errorText(error, fallback) {
     const message = error && error.message ? error.message : fallback;
-    return message.length > 18 ? message.slice(0, 18) : message;
+    return message;
   },
 });

@@ -55,6 +55,32 @@ public class MessageSendServiceImpl implements MessageSendService {
     @Autowired
     private AddressBookMapper addressBookMapper;
 
+    @Override
+    public String sendRunnerReceipt(Long orderId) {
+        Order order = orderMapper.getById(orderId);
+        if (order == null || !OrderStatusConstant.SENDER_CONFIRMS_RECEIPT.equals(order.getStatus())) {
+            return "{\"skipped\":true}";
+        }
+        // Use the same amount as the existing transfer flow, including purchase reimbursement.
+        var receivable = (order.getPrice() == null ? java.math.BigDecimal.ZERO : order.getPrice())
+                .add(order.getProductAmount() == null ? java.math.BigDecimal.ZERO : order.getProductAmount());
+        if (receivable.signum() <= 0) return "{\"skipped\":true}";
+        TakeOrder take = takeOrderMapper.getByOrderId(orderId);
+        if (!RunnerOrderAccess.activeTake(take, orderId)
+                || !com.mikasa.campusrunner.common.constant.TakeOrderStatusConstant.ORDER_FINISH.equals(take.getStatus())
+                || take.getUserId() == null) return "{\"skipped\":true}";
+        UserVO runner = userMapper.getById(take.getUserId());
+        if (runner == null) return "{\"skipped\":true}";
+        JSONObject data = getData(Map.of(
+                "character_string1", SecondHandSubscriptionService.text(order.getOrderNumber(), 32, orderId.toString()),
+                "phrase2", "已完成",
+                "time3", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                "thing4", "订单已完成，可确认收款",
+                "short_thing5", OrderBusinessConstant.PURCHASE.equals(order.getBusinessType()) ? "代买订单" : "跑腿订单"));
+        return subscriptionSender.send(weChatProperties.getSecondHandOrderTemplateId(), runner.getOpenid(),
+                "pages/orders/takeOrders/takesInfo/info?id=" + orderId, data, "runner-receipt", orderId);
+    }
+
     /**
      * 发送订单已接单消息
      *

@@ -6,6 +6,7 @@ import com.mikasa.campusrunner.mapper.*;
 import com.mikasa.campusrunner.pojo.entity.Order;
 import com.mikasa.campusrunner.pojo.entity.TakeOrder;
 import com.mikasa.campusrunner.pojo.entity.PaymentLog;
+import com.mikasa.campusrunner.pojo.entity.SystemConfig;
 import com.mikasa.campusrunner.pojo.vo.UserVO;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +36,23 @@ class WeChatTransferAuthorizationTest {
     TakeOrder take() {
         TakeOrder take = new TakeOrder(); take.setOrderId(1L); take.setUserId(42L);
         take.setDeleted(0); take.setStatus(2); return take;
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings={"0", "-1", "invalid", " "})
+    void invalidTransferLimitIsReportedBeforeProviderCall(String limit) {
+        when(orders.getById(1L)).thenReturn(order(5));
+        when(takes.getByOrderId(1L)).thenReturn(take());
+        when(payments.getByOrderNumber("O1")).thenReturn(PaymentLog.builder().orderNumber("O1")
+                .paymentType("微信支付").tradeType("JSAPI").transactionId("WX1").tradeState("SUCCESS")
+                .total(110L).serviceFee(10L).build());
+        SystemConfig config = new SystemConfig();
+        config.setConfigValue(limit);
+        when(configs.getByConfigKey("runner_transfer_single_max")).thenReturn(config);
+        BaseContext.setCurrentId(42L);
+        OrderException error = assertThrows(OrderException.class, () -> service.wxTransfer(1L));
+        assertEquals("收款额度配置有误，请联系平台处理", error.getMessage());
+        verifyNoInteractions(client, users);
     }
 
     @ParameterizedTest

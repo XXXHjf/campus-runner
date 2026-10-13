@@ -66,6 +66,7 @@
     refresher-triggered="{{refreshing}}"
     refresher-background="#f6f8f7"
     bindrefresherrefresh="onRefresh"
+    bindscrolltolower="loadMoreProducts"
   >
     <view wx:if="{{products.length>0}}" class="product-grid">
       <view wx:for="{{products}}" wx:key="id" class="product-card" data-id="{{item.id}}" bindtap="gotoDetail">

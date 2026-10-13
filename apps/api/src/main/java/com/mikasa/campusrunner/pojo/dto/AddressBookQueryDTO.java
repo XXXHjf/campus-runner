@@ -7,7 +7,7 @@ import lombok.Data;
  * created  2024/4/27 22:36
  */
 @Data
-public class AddressBookQueryDTO {
+public class AddressBookQueryDTO extends ListPageDTO {
     private Integer isDefault;
     private Long id;
     private String label;

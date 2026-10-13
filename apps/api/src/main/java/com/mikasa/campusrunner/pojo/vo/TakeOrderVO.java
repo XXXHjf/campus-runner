@@ -12,6 +12,10 @@ import java.util.List;
  */
 @Data
 public class TakeOrderVO {
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Long takerId;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Integer takeStatus;
     private Long id;
     private Long orderId;
     private String pickUpAddress;

@@ -7,6 +7,16 @@ const { request } = require('./request');
 
 const url = getApp().globalData.API_URL;
 
+function configNumber(res) {
+  const value = res.data?.data;
+  if ((typeof value !== 'number' && typeof value !== 'string') || String(value).trim() === ''
+      || !Number.isFinite(Number(value)) || Number(value) < 0) {
+    throw new Error('服务信息加载失败，请稍后重试');
+  }
+  return Number(value);
+}
+
+
 /**
  * 获取服务费率
  * @returns {Promise<number>} 服务费率（如 0.05）
@@ -15,7 +25,7 @@ function getServiceFeeRate() {
   return request({
     url: `${url}/admin/api/config/service_fee_rate`,
     method: 'GET'
-  }).then((res) => Number(res.data?.data));
+  }).then(configNumber);
 }
 
 /**
@@ -26,14 +36,14 @@ function getServiceFeeMin() {
   return request({
     url: `${url}/admin/api/config/service_fee_min`,
     method: 'GET'
-  }).then((res) => Number(res.data?.data));
+  }).then(configNumber);
 }
 
 function getRunnerTransferSingleMax() {
   return request({
     url: `${url}/admin/api/config/runner_transfer_single_max`,
     method: 'GET'
-  }).then((res) => Number(res.data?.data));
+  }).then(configNumber);
 }
 
 module.exports = {

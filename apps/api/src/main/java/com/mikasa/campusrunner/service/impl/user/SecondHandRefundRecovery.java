@@ -131,7 +131,8 @@ public class SecondHandRefundRecovery {
     @Transactional(propagation = Propagation.MANDATORY)
     public void notifyResult(JSONObject result, String plainText) {
         SecondHandOrder order = SecondHandOrderLocks.byNumber(orders, products, result.getString("out_trade_no"));
-        if (order == null || !SecondHandConstant.TRADE_MODE_ONLINE.equals(order.getTradeMode())) return;
+        if (order == null) throw new SecondHandException("订单尚未确认，请稍后重试");
+        if (!SecondHandConstant.TRADE_MODE_ONLINE.equals(order.getTradeMode())) return;
         if (!java.util.Set.of(SecondHandConstant.ORDER_CANCELED, SecondHandConstant.ORDER_REFUNDING,
                 SecondHandConstant.ORDER_REFUND_ABNORMAL, SecondHandConstant.ORDER_REFUND_SUCCESS).contains(order.getStatus())) {
             throw new SecondHandException("订单状态与退款记录不一致，请联系客服");

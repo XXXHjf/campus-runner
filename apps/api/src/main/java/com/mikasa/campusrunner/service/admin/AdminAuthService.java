@@ -17,6 +17,7 @@ public interface AdminAuthService {
      * @return
      */
     List<UserVO> getPendingList();
+    List<UserVO> getPendingList(com.mikasa.campusrunner.pojo.dto.ListPageDTO query);
 
     /**
      * 审核学生认证

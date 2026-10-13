@@ -37,14 +37,21 @@ public class SubscriptionSender {
             });
 
     public String send(String template, String openid, String page, JSONObject data) {
-        if (template == null || template.isBlank() || openid == null || openid.isBlank()) return "{\"errcode\":-1}";
+        return send(template, openid, page, data, "subscription", null);
+    }
+
+    public String send(String template, String openid, String page, JSONObject data, String event, Long orderId) {
+        if (template == null || template.isBlank() || openid == null || openid.isBlank()) {
+            log.warn("Subscription configuration unavailable, event={}, orderId={}", event, orderId);
+            return "{\"errcode\":-1}";
+        }
         // Keep WeChat latency outside the successful order/message HTTP response.
         JSONObject snapshot = JSON.parseObject(data.toJSONString());
         try {
-            executor.execute(() -> sendNow(template, openid, page, snapshot));
+            executor.execute(() -> sendNow(template, openid, page, snapshot, event, orderId));
             return "{\"queued\":true}";
         } catch (RejectedExecutionException e) {
-            log.warn("Subscription queue unavailable");
+            log.warn("Subscription queue unavailable, event={}, orderId={}", event, orderId);
             return "{\"errcode\":-1}";
         }
     }
@@ -56,7 +63,7 @@ public class SubscriptionSender {
         catch (InterruptedException e) { executor.shutdownNow(); Thread.currentThread().interrupt(); }
     }
 
-    private String sendNow(String template, String openid, String page, JSONObject data) {
+    private String sendNow(String template, String openid, String page, JSONObject data, String event, Long orderId) {
         try {
             String usedToken = accessToken();
             JSONObject result = post(template, openid, page, data, usedToken);
@@ -67,13 +74,16 @@ public class SubscriptionSender {
                 result = post(template, openid, page, data, accessToken());
                 code = result.getInteger("errcode");
             }
-            if (!Integer.valueOf(0).equals(code)) log.warn("Subscription rejected, code={}", code);
+            if (Integer.valueOf(0).equals(code)) {
+                log.info("Subscription accepted by WeChat, event={}, orderId={}, code=0", event, orderId);
+            } else log.warn("Subscription rejected, event={}, orderId={}, code={}", event, orderId, code);
             return JSON.toJSONString(Map.of("errcode", code == null ? -1 : code));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            log.warn("Subscription interrupted, event={}, orderId={}", event, orderId);
             return "{\"errcode\":-1}";
         } catch (Exception e) {
-            log.warn("Subscription transport failed, type={}", e.getClass().getSimpleName());
+            log.warn("Subscription transport failed, event={}, orderId={}, type={}", event, orderId, e.getClass().getSimpleName());
             return "{\"errcode\":-1}";
         }
     }

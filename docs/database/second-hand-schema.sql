@@ -127,6 +127,8 @@ CREATE TABLE IF NOT EXISTS `tb_second_hand_bargain` (
   `seller_id` BIGINT NOT NULL COMMENT '卖家用户id，关联 tb_user.id',
   `offer_price` DECIMAL(10,2) NOT NULL COMMENT '买家本次议价报价金额',
   `message` VARCHAR(255) NULL COMMENT '买家议价留言，如取货时间、价格说明',
+  `reject_reason_code` VARCHAR(32) NULL COMMENT '卖家拒绝原因：NOT_SELLING_NOW、PRICE_NOT_SUITABLE、CUSTOM',
+  `reject_note` VARCHAR(40) CHARACTER SET utf8mb4 NULL COMMENT '自定义拒绝原因，选填，最多40字',
   `status` INT NULL DEFAULT 0 COMMENT '议价状态：0待回复，1已接受，2已拒绝，3已失效，4已撤回',
   `attempt_no` INT NULL COMMENT '同一买家对同一商品的第几次议价',
   `deleted` INT NULL DEFAULT 0 COMMENT '逻辑删除字段：0未删除，1已删除',

@@ -35,7 +35,7 @@ public class EncryptSHA256Util {
             messageDigest.update(data.getBytes(StandardCharsets.UTF_8));
             encoderStr = byte2Hex(messageDigest.digest());
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
         }
         log.info("Encryption complete");
         return encoderStr;

@@ -12,6 +12,8 @@ import java.util.List;
  */
 @Mapper
 public interface CategoryMapper {
+    List<Category> getAllPage(@org.apache.ibatis.annotations.Param("page") com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
+    List<Category> getEnabledPage(@org.apache.ibatis.annotations.Param("page") com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
 
     /**
      * 根据id查询订单类型

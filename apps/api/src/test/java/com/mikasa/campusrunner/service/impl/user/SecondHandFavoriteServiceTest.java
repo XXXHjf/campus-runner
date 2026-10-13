@@ -103,9 +103,9 @@ class SecondHandFavoriteServiceTest {
         first.setId(20L);
         SecondHandProductVO second = new SecondHandProductVO();
         second.setId(10L);
-        when(productMapper.listFavorites(100L)).thenReturn(List.of(first, second));
-        when(mediaAssetService.resolvePublicBinding(any(), anyLong(), any(), org.mockito.ArgumentMatchers.anyInt()))
-                .thenReturn(List.of());
+        when(productMapper.listFavorites(org.mockito.ArgumentMatchers.eq(100L), any())).thenReturn(List.of(first, second));
+        when(mediaAssetService.resolvePublicBindings(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(java.util.Map.of());
 
         List<SecondHandProductVO> result = service.listFavoriteProducts();
 

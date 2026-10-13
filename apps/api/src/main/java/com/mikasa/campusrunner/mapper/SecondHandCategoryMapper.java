@@ -8,6 +8,7 @@ import java.util.List;
 
 @Mapper
 public interface SecondHandCategoryMapper {
+    List<SecondHandCategory> listPage(@org.apache.ibatis.annotations.Param("page") com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
     List<SecondHandCategory> list();
 
     SecondHandCategory getByIdForUpdate(@Param("id") Long id);

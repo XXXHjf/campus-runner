@@ -9,6 +9,9 @@ import com.mikasa.campusrunner.pojo.dto.MessageTakeOrderDTO;
  */
 public interface MessageSendService {
 
+    /** 提醒实际接单人订单已完成、可确认收款，不代表资金到账。 */
+    String sendRunnerReceipt(Long orderId);
+
     /**
      * 发送订单已接单消息
      * @param messageTakeOrderDTO

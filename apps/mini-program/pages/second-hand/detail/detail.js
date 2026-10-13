@@ -1,9 +1,11 @@
+const { loadAddressPage } = require('../../../utils/addressPager');
 const feedback = require('../../../utils/feedback');
 const subscriptions = require('../../../services/subscriptionService');
 const secondHandService = require('../../../services/secondHandService');
 const deliveryAddressService = require('../../../services/deliveryAddressService');
 const userService = require('../../../services/userService');
 const tokenManager = require('../../../utils/tokenManager');
+const accountStorage = require('../../../utils/accountStorage');
 const { ensureAuthenticated } = require('../../../utils/accessGuard');
 const { friendlyError } = require('../../../utils/secondHandStatus');
 
@@ -46,6 +48,10 @@ Page({
       this._openBargainCheckout = false;
     }
     await this.loadDetail();
+    if (!this._detailDisposed && !this._detailHidden && secondHandService.getPendingOrder?.(this.data.id)) {
+      feedback.showMessage(this, '上次下单结果暂未确认', { key: 'pending-order', theme: 'warning',
+        action: '继续重试', onAction: () => this.resumePendingOrder() });
+    }
     if (this._openBargainCheckout && !this._detailHidden && this.data.product.id) {
       this._openBargainCheckout = false;
       await this.buyNow();
@@ -172,7 +178,9 @@ Page({
     const token = tokenManager.getToken();
     let acceptedBargain;
     try {
-      const bargains = await secondHandService.listProductBargains(product.id);
+      const quoteQuery = { page: 1, pageSize: 20, status: 1, withoutOrder: true };
+      if (this._requestedBargainId) quoteQuery.bargainId = this._requestedBargainId;
+      const bargains = await secondHandService.listProductBargains(product.id, quoteQuery);
       if (this._detailDisposed || this._detailHidden || token !== tokenManager.getToken()) return;
       const user = await this.getCurrentUser();
       if (this._detailDisposed || this._detailHidden || token !== tokenManager.getToken()) return;
@@ -220,10 +228,19 @@ Page({
     }
   },
 
-  async loadAddressBook(showError = true) {
+  loadMoreAddresses() { return this.loadAddressBook(true, false); },
+
+  async loadAddressBook(showError = true, reset = true) {
     const token = tokenManager.getToken();
     try {
-      const addressBook = await deliveryAddressService.getMyAddresses();
+      const addressBook = await loadAddressPage(this, "addressBook", deliveryAddressService.getMyAddresses, reset);
+      if (!addressBook) return;
+      const selectedId = this.data.selectedBuyerAddressId;
+      if (reset && selectedId && !addressBook.some(item => String(item.id) === String(selectedId))) {
+        const selectedAddress = await require('../../../services/addressService').getOptionalAddress(selectedId);
+        if (this._detailDisposed || this._detailHidden || token !== tokenManager.getToken()) return;
+        if (selectedAddress) addressBook.push(selectedAddress);
+      }
       if (this._detailDisposed || this._detailHidden || token !== tokenManager.getToken()) return;
       const addresses = (addressBook || []).map((item) => ({ ...item, addressText: this.formatAddress(item) }));
       const selected = addresses.find((item) => Number(item.id) === Number(this.data.selectedBuyerAddressId));
@@ -273,11 +290,21 @@ Page({
     });
   },
 
-  async createOrder() {
-    if (this.data.buySubmitting || !this.data.product.canBuy) return;
+  async resumePendingOrder() {
+    const session = accountStorage.captureSession();
+    if (!await ensureAuthenticated()) return;
+    const answer = await feedback.showModal(this, { title: '确认上次下单', content: '继续重试上次下单？', confirmText: '继续重试' });
+    if (answer.confirm && accountStorage.isCurrent(session)) await this.createOrder(true);
+  },
+
+  async createOrder(resuming = false) {
+    const pending = secondHandService.getPendingOrder?.(this.data.id);
+    if (this.data.buySubmitting || (!pending && !this.data.product.canBuy)) return;
+    if (pending && !resuming) return this.resumePendingOrder();
+    const session = accountStorage.captureSession();
     const product = this.data.product;
     const deliveryMode = Number(this.data.selectedDeliveryMode);
-    const payload = {
+    const payload = pending || {
       productId: product.id,
       bargainId: this.data.acceptedBargain ? this.data.acceptedBargain.id : null,
       deliveryMode,
@@ -288,6 +315,8 @@ Page({
     this.setData({ buySubmitting: true });
     try {
       const order = await secondHandService.createOrder(payload);
+      if (this._detailDisposed || this._detailHidden || !accountStorage.isCurrent(session)) return;
+      feedback.clearMessage(this, 'pending-order');
       this.invalidateDetail();
       this.setData({ product: { ...this.data.product, canBuy: false, canBargain: false }, showBuySheet: false });
       await this.loadDetail();
@@ -295,11 +324,16 @@ Page({
       this.setData({ showBuySheet: false });
       feedback.navigate(this, 'navigateTo', { url: `/pages/second-hand/order-detail/order-detail?id=${order.id}` }, '下单成功');
     } catch (error) {
+      if (this._detailDisposed || this._detailHidden || !accountStorage.isCurrent(session)) return;
+      if (secondHandService.getPendingOrder?.(this.data.id)) {
+        feedback.showMessage(this, '下单结果暂未确认', { key: 'pending-order', theme: 'warning',
+          action: '继续重试', onAction: () => this.resumePendingOrder() });
+      }
       feedback.showToast(this, { title: this.errorText(error, '下单失败'), theme: 'error' });
       this.invalidateDetail();
       await this.loadDetail();
     } finally {
-      this.setData({ buySubmitting: false });
+      if (!this._detailDisposed && accountStorage.isCurrent(session)) this.setData({ buySubmitting: false });
     }
   },
 
@@ -324,7 +358,7 @@ Page({
     this.setData({ bargainMessage: e.detail.value });
   },
 
-  submitBargain() {
+  async submitBargain() {
     if (this.data.bargainSubmitting) return;
     const price = Number(this.data.bargainPrice);
     if (!price || price <= 0) {
@@ -335,30 +369,49 @@ Page({
       feedback.showToast(this, { title: '报价需低于售价', theme: 'warning' });
       return;
     }
-    feedback.showModal(this, {
-      title: '发送议价',
-      content: `向卖家报价 ¥${price}，请确认后发送。`,
-      confirmText: '发送',
-      cancelText: '暂不发送',
-      success: async (res) => {
-        if (!res.confirm) return;
-        try {
-          this.setData({ bargainSubmitting: true });
-          await secondHandService.createBargain({
-            productId: this.data.product.id,
-            offerPrice: price,
-            message: this.data.bargainMessage,
-          });
-          await subscriptions.requestSecondHandOrder();
-          this.setData({ showBargain: false, bargainPrice: '', bargainMessage: '' });
-          feedback.showToast(this, { title: '已发送议价', icon: 'success' });
-        } catch (error) {
-          feedback.showToast(this, { title: this.errorText(error, '议价失败'), theme: 'error' });
-        } finally {
-          this.setData({ bargainSubmitting: false });
-        }
-      },
-    });
+    const session = accountStorage.captureSession();
+    const isCurrent = () => !this._detailDisposed && !this._detailHidden && accountStorage.isCurrent(session);
+    const productId = this.data.product.id;
+    const message = this.data.bargainMessage;
+    this.setData({ bargainSubmitting: true });
+    try {
+      const [accepted, pending, user] = await Promise.all([
+        secondHandService.listProductBargains(productId, { status: 1, withoutOrder: true, page: 1, pageSize: 1 }),
+        secondHandService.listProductBargains(productId, { status: 0, withoutOrder: true, page: 1, pageSize: 1 }),
+        this.getCurrentUser(),
+      ]);
+      if (!isCurrent()) return;
+      if (!user.id) {
+        feedback.showToast(this, { title: '无法确认当前账号，请重新登录', theme: 'warning' });
+        return;
+      }
+      if (accepted.some(item => Number(item.buyerId) === Number(user.id) && Number(item.status) === 1)) {
+        this.setData({ showBargain: false });
+        feedback.showToast(this, { title: '卖家已接受报价，请前往下单', theme: 'warning' });
+        await this.buyNow();
+        return;
+      }
+      const replacing = pending.some(item => Number(item.buyerId) === Number(user.id) && Number(item.status) === 0
+        && (Number(item.offerPrice) !== price || item.message !== message));
+      const res = await feedback.showModal(this, {
+        title: replacing ? '发送新报价？' : '发送议价',
+        content: replacing
+          ? `向卖家报价 ¥${price}。发送后，之前的议价将失效。`
+          : `向卖家报价 ¥${price}，请确认后发送。`,
+        confirmText: '发送',
+        cancelText: replacing ? '取消' : '暂不发送',
+      });
+      if (!res.confirm || !isCurrent()) return;
+      await secondHandService.createBargain({ productId, offerPrice: price, message });
+      if (!isCurrent()) return;
+      this.setData({ showBargain: false, bargainPrice: '', bargainMessage: '' });
+      feedback.showToast(this, { title: '已发送议价', icon: 'success' });
+      await subscriptions.requestSecondHandOrder();
+    } catch (error) {
+      if (isCurrent()) feedback.showToast(this, { title: this.errorText(error, '议价失败，请重试'), theme: 'error' });
+    } finally {
+      if (!this._detailDisposed && accountStorage.isCurrent(session)) this.setData({ bargainSubmitting: false });
+    }
   },
 
   noop() {},

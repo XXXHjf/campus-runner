@@ -4,6 +4,7 @@ import lombok.Data;
 
 @Data
 public class SecondHandOrderCreateDTO {
+    private String clientRequestId;
     private Long productId;
     private Long bargainId;
     private Integer deliveryMode;

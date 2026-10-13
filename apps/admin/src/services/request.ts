@@ -120,6 +120,12 @@ instance.interceptors.response.use(
     }
 
     // 处理 403 禁止访问
+    if (error.response?.status === 429 || error.response?.status === 503) {
+      return Promise.reject({ code: error.response.status,
+        message: error.response.status === 429 ? '操作较频繁，请稍后再试' : '服务繁忙，请稍后重试',
+      } as ApiError)
+    }
+
     if (error.response?.status === HTTP_STATUS.FORBIDDEN) {
       return Promise.reject({
         code: HTTP_STATUS.FORBIDDEN,
@@ -271,3 +277,20 @@ export async function upload<T = unknown>(
 }
 
 export default instance
+
+/** Complete configuration candidates, in bounded responses; failures never expose a partial set. */
+export async function getListPages<T>(url: string): Promise<T[]> {
+  const token = tokenManager.getToken()
+  const result: T[] = []
+  const seenPages = new Set<string>()
+  for (let page = 1; ; page++) {
+    const rows = await get<T[]>(url, { page, pageSize: 50 })
+    if (token !== tokenManager.getToken()) throw new Error('登录状态已变化，请重试')
+    if (!Array.isArray(rows)) throw new Error('加载失败，请稍后重试')
+    const signature = JSON.stringify(rows.map(row => isRecord(row) ? row.id ?? row.numberId : row))
+    if (rows.length > 50 || (rows.length && seenPages.has(signature))) throw new Error('加载失败，请稍后重试')
+    seenPages.add(signature)
+    result.push(...rows)
+    if (rows.length < 50) return result
+  }
+}

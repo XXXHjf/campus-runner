@@ -2,6 +2,7 @@ const { shareOrder, title: shareTitle, imageUrl: shareImageUrl } = require('../.
 const feedback = require('../../../../utils/feedback');
 const detailRefresh = require('../../../../utils/detailRefresh');
 const { hasRunnerReceivable } = require('../../../../utils/runnerAmount');
+const subscriptionService = require('../../../../services/subscriptionService');
 // 引入服务和工具
 const userOrderService = require('../../../../services/userOrderService');
 const takeOrderService = require('../../../../services/takeOrderService');
@@ -37,8 +38,8 @@ Page({
     progressStep: 0,
     isMyTaken: false,
     takeInfo: {},
-    pickUpAddress: [],
-    reciveAddress: [],
+    pickUpAddress: '',
+    reciveAddress: '',
     door: ['无门禁', '有门禁', '暂不清楚'],
     // 显示组件
     theme: ['primary', 'warning', 'warning', 'success', 'danger', 'success', 'danger'],
@@ -74,12 +75,27 @@ Page({
   },
 
   showDialog(e) {
-    feedback.showModal(this, { title: '确认接单？', content: this.data.orderInfo.businessType === 'PURCHASE' ? '请先与发单方确认商品、规格和预算。接单后按要求购买并提交购买凭证，再开始配送；如遇问题，请联系平台协商处理。' : '接单后不可取消订单。平台仅提供交易渠道，服务细节请与发单方确认清楚。', confirmText: '接单', cancelText: '暂不接单', success: result => { if (result.confirm) return this.statusTo1(); } });
+    feedback.showModal(this, { title: '确认接单？', content: this.data.orderInfo.businessType === 'PURCHASE' ? '请先与发单方确认商品、规格和预算。接单后按要求购买并提交购买凭证，再开始配送；如遇问题，请联系平台协商处理。' : '接单后不可取消订单。平台仅提供交易渠道，服务细节请与发单方确认清楚。', confirmText: '接单', cancelText: '暂不接单', success: result => { if (result.confirm) return this._subscribeAndTake(); } });
+  },
+
+  async _subscribeAndTake() {
+    if (this._takingOrder) return;
+    this._takingOrder = true;
+    const token = tokenManager.getToken();
+    const orderId = this.data.id;
+    try {
+      // Request from the confirmation gesture, before network checks lose the user gesture.
+      if (token && hasRunnerReceivable(this.data.orderInfo)) {
+        await subscriptionService.requestRunnerReceipt();
+      }
+      if (token !== tokenManager.getToken() || orderId !== this.data.id || this._detailDisposed) return;
+      return await this.statusTo1();
+    } finally { this._takingOrder = false; }
   },
 
   closeConfirm() {
     this.setData({ showConfirm: false });
-    this.statusTo1();
+    return this._subscribeAndTake();
   },
 
   closeDialog() {
@@ -101,25 +117,22 @@ Page({
 
     // 接单逻辑
     try {
-      // 检查是否已被接单
-      const existingTaker = await takeOrderService.getTakeOrderDetail(this.data.id);
-
-      // 修复：正确判断是否已被接单（检查对象是否有id属性，而不是仅判断对象存在）
-      if (existingTaker && existingTaker.id) {
-        feedback.navigate(this, 'switchTab', { url: '/pages/index/index' }, '订单已被接单', 'warning');
-        return;
-      }
-
       // 执行接单
       await takeOrderService.acceptOrderById(this.data.id);
-      checkCilcleToast(this, "接单成功");
-
-
-      await this._loadOrderInfo();
     } catch (error) {
-      console.error("接单失败，请重试:", error);
-      feedback.navigate(this, 'switchTab', { url: '/pages/index/index' }, '接单失败，请重试', 'error');
+      const fallback = '接单暂未成功，请刷新后重试';
+      const raw = error?.requestOutcome === 'rejected' ? error.message : '';
+      const message = /订单错误|系统数据异常|死锁|锁等待/.test(raw)
+        ? fallback : feedback.userText(raw, fallback);
+      if (message === '该订单已被接单，请选择其他订单') {
+        feedback.navigate(this, 'switchTab', { url: '/pages/index/index' }, message, 'warning');
+      } else {
+        feedback.showMessage(this, message, { theme: 'warning' });
+      }
+      return;
     }
+    checkCilcleToast(this, "接单成功");
+    await this._loadOrderInfo();
   },
 
   // 接单1->已取件2（使用封装的 service）
@@ -142,7 +155,7 @@ Page({
       await this._loadOrderInfo();
       return true;
     } catch (error) {
-      console.error('取件失败:', error);
+      console.error("取件失败:");
       showError(this, this.data.orderInfo.businessType === 'PURCHASE' ? '提交购买信息失败' : '取件失败');
       return false;
     } finally {
@@ -282,7 +295,7 @@ Page({
       await this._loadOrderInfo();
       return true;
     } catch (error) {
-      console.error('派送失败:', error);
+      console.error("派送失败:");
       showError(this, '派送失败');
       return false;
     } finally {
@@ -379,7 +392,11 @@ Page({
 
       const status = this.data.orderInfo.status;
       if (status > 0 && status != 4) {
-        await this._getMyTakeInfo(current);
+        if (typeof this.data.orderInfo.viewerIsTaker === 'boolean') {
+          this.setData({ isMyTaken: this.data.orderInfo.viewerIsTaker });
+        } else {
+          await this._getMyTakeInfo(current);
+        }
         if (!current()) return;
         if (this.data.isMyTaken) {
           await this._getTaker(current);
@@ -405,7 +422,8 @@ Page({
       const myOrder = orders.find(order => String(order.orderId) === String(this.data.id));
       this.setData({ isMyTaken: Boolean(myOrder) });
     } catch (error) {
-      console.warn('获取接单身份失败:', error);
+      if (current()) this.setData({ isMyTaken: false });
+      console.warn("获取接单身份失败:");
     }
   },
 
@@ -414,7 +432,7 @@ Page({
     try {
       const orderInfo = await userOrderService.getMyOrderDetail(this.data.id);
       if (!current()) return;
-      console.log("请求的orderInfo: ", orderInfo);
+      console.log("请求的orderInfo: ");
 
       // 检查订单数据是否有效
       if (!orderInfo || !orderInfo.id) {
@@ -424,8 +442,8 @@ Page({
       orderInfo.hasRunnerReceivable = hasRunnerReceivable(orderInfo);
 
       // 安全处理地址分割（去掉第一个空格前的内容）
-      const addressParts1 = orderInfo.pickUpAddress ? orderInfo.pickUpAddress.split(' ').slice(1) : [];
-      const addressParts2 = orderInfo.reciveAddress ? orderInfo.reciveAddress.split(" ").slice(1) : [];
+      const pickupAddressText = orderInfo.pickUpAddress || '';
+      const deliveryAddressText = orderInfo.reciveAddress || '';
       orderInfo.expectTime = _getExpectTimeDisplay(orderInfo.createTime, orderInfo.gap, orderInfo.expectedDeliveryTime);
       const title = orderInfo.businessType === 'PURCHASE'
         ? ['待接单', '待购买', '配送中', '已送达', '已完成']
@@ -435,12 +453,13 @@ Page({
 
       this.setData({
         orderInfo,
+        isMyTaken: typeof orderInfo.viewerIsTaker === 'boolean' ? orderInfo.viewerIsTaker : false,
         purchaseStatusText,
         orderStatusText: orderInfo.businessType === 'PURCHASE' ? purchaseStatusText : runnerStatusText,
         progressStep: Math.min(Math.max(Number(orderInfo.status) || 0, 0), 4),
         title,
-        pickUpAddress: addressParts1,
-        reciveAddress: addressParts2
+        pickUpAddress: pickupAddressText,
+        reciveAddress: deliveryAddressText
       });
       wx.showShareMenu({
         menus: Number(orderInfo.status) === 0
@@ -461,7 +480,7 @@ Page({
       if (!current()) return;
       this.setData({ image });
     } catch (error) {
-      console.warn('获取送达图片失败:', error);
+      console.warn("获取送达图片失败:");
     }
   },
 
@@ -476,7 +495,7 @@ Page({
         this.time();
       }
     } catch (error) {
-      console.warn('获取接单人信息失败:', error);
+      console.warn("获取接单人信息失败:");
     }
   },
 
@@ -503,7 +522,7 @@ Page({
       userInfo.token = tokenManager.getToken();
       this.setData({ userInfo });
     } catch (err) {
-      console.error('获取用户数据失败:', err);
+      console.error("获取用户数据失败:");
     }
   },
 
@@ -523,13 +542,13 @@ Page({
   async onLoad(options) {
     this._skipInitialShow = true;
     wx.showShareMenu({ menus: ['shareAppMessage'] });
-    console.log('接单详情页 - 接收到的参数:', options);
+    console.log("接单详情页 - 接收到的参数:");
     console.log('接单详情页 - 订单ID:', options.id);
     this.setData({ id: options.id });
     try {
       await this._loadOrderInfo();
     } catch (err) {
-      console.error('页面加载失败', err);
+      console.error("页面加载失败");
     }
   },
 

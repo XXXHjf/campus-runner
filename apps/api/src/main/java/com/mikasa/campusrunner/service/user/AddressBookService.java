@@ -33,12 +33,15 @@ public interface AddressBookService {
      * @return
      */
     List<AddressBookShowVO> show();
+    List<AddressBookShowVO> show(com.mikasa.campusrunner.pojo.dto.ListPageDTO page);
+    java.util.Map<String, Object> summary();
 
     /**
      * 地址筛选
      * @return
      */
     AddressBookThreeVO three();
+    AddressBookThreeVO three(com.mikasa.campusrunner.pojo.dto.AddressTreeQueryDTO query);
 
     /**
      * 条件查询

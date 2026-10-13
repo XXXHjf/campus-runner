@@ -34,8 +34,8 @@ Page({
     orderStatusText: '',
     progressStep: 0,
     takeInfo: {},
-    pickUpAddress: [],
-    reciveAddress: [],
+    pickUpAddress: '',
+    reciveAddress: '',
     door: ['无门禁', '有门禁', '暂不清楚'],
     // 显示组件
     theme: ['primary', 'warning', 'warning', 'success', 'danger', 'success', 'danger'],
@@ -55,7 +55,7 @@ Page({
     dltDialogVisable: false,
     visible: false,
     unpaidRemainTime: 0,
-    unpaidDeleteProcessing: false,
+    unpaidCancelProcessing: false,
   },
 
   _normalizeAmountFields(orderInfo) {
@@ -69,6 +69,13 @@ Page({
     normalized.pay_amount = payAmount ?? null;
     normalized.productAmount = normalized.product_amount ?? normalized.productAmount ?? 0;
     normalized.runnerReceivable = normalized.runner_receivable ?? normalized.runnerReceivable ?? normalized.price ?? 0;
+
+    const legacyAmount = Number(normalized.price ?? 0)
+      + (normalized.businessType === 'PURCHASE' ? Number(normalized.productAmount) : 0)
+      + Number(normalized.service_fee ?? 0);
+    const actualAmount = Number(payAmount ?? legacyAmount);
+    normalized.paymentDisplayAmount = Number.isFinite(actualAmount) ? actualAmount : 0;
+    normalized.hasPaymentAmount = Number.isFinite(actualAmount) && actualAmount > 0;
 
     return normalized;
   },
@@ -143,7 +150,7 @@ Page({
           await userOrderService.refundOrder(orderInfo.orderNumber, cancelReason);
         } catch (error) {
           refundError = error;
-          console.error('退款申请失败:', error);
+          console.error("退款申请失败:");
         }
       }
 
@@ -156,7 +163,7 @@ Page({
         checkCilcleToast(this, shouldRefund ? "取消成功，退款申请已提交" : "取消成功");
       }
     } catch (error) {
-      console.error('取消订单失败:', error);
+      console.error("取消订单失败:");
       showError(this, '取消失败');
     } finally {
       hideLoading();
@@ -233,7 +240,7 @@ Page({
         await this._syncPayStatus();
       } catch (syncError) {
         synced = false;
-        console.error('支付状态同步失败:', syncError);
+        console.error("支付状态同步失败:");
       }
       await this._loadOrderInfo();
       if (!synced) {
@@ -243,7 +250,7 @@ Page({
         showSuccessToast(this, '支付成功');
       }
     } catch (error) {
-      console.error('订单支付失败:', error);
+      console.error("订单支付失败:");
       if (error && error.message && error.message.includes('ORDERPAID')) {
         try {
           await this._syncPayStatus();
@@ -251,7 +258,7 @@ Page({
           showSuccessToast(this, "支付已完成，状态已同步");
           return;
         } catch (syncError) {
-          console.error('支付状态同步失败:', syncError);
+          console.error("支付状态同步失败:");
         }
       }
       if (/cancel|取消/i.test(error?.errMsg || error?.message || '')) return;
@@ -333,7 +340,7 @@ Page({
       this.setData({ dltDialogVisable: false });
       feedback.navigate(this, 'navigateBack', {}, '已隐藏');
     } catch (error) {
-      console.error('删除订单失败:', error);
+      console.error("删除订单失败:");
       showError(this, error.message || '隐藏失败，请稍后重试');
     } finally {
       hideLoading();
@@ -384,9 +391,9 @@ Page({
         throw new Error('订单不存在或已被删除');
       }
 
-      // 安全处理地址分割
-      const addressParts1 = orderInfo.pickUpAddress ? orderInfo.pickUpAddress.split(" ") : [];
-      const addressParts2 = orderInfo.reciveAddress ? orderInfo.reciveAddress.split(" ") : [];
+      // Address snapshots are complete text; spaces are part of the address.
+      const pickupAddressText = orderInfo.pickUpAddress || '';
+      const deliveryAddressText = orderInfo.reciveAddress || '';
       orderInfo.expectTime = _getExpectTimeDisplay(orderInfo.createTime, orderInfo.gap, orderInfo.expectedDeliveryTime);
       const title = orderInfo.businessType === 'PURCHASE'
         ? ['待接单', '待购买', '配送中', '已送达', '已完成']
@@ -397,8 +404,8 @@ Page({
         title,
         orderStatusText: ({ '-4': '退款异常', '-3': '退款成功', '-2': '退款中', '-1': '待支付', 0: '待接单', 1: title[1], 2: title[2], 3: '已送达', 4: '已取消', 5: '已完成', 6: '收款成功', 7: '收款失败' })[orderInfo.status] || '订单状态',
         progressStep: Math.min(Math.max(Number(orderInfo.status) || 0, 0), 4),
-        pickUpAddress: addressParts1,
-        reciveAddress: addressParts2
+        pickUpAddress: pickupAddressText,
+        reciveAddress: deliveryAddressText
       });
       this.buttonColor();
     } catch (error) {
@@ -413,7 +420,7 @@ Page({
       if (!current()) return;
       this.setData({ image });
     } catch (error) {
-      console.warn('获取送达图片失败:', error);
+      console.warn("获取送达图片失败:");
     }
   },
 
@@ -428,7 +435,7 @@ Page({
         this.time();
       }
     } catch (error) {
-      console.warn('获取接单人信息失败:', error);
+      console.warn("获取接单人信息失败:");
     }
   },
 
@@ -453,7 +460,7 @@ Page({
   async onLoad(options) {
     this._skipInitialShow = true;
     wx.showShareMenu({ menus: ['shareAppMessage'] });
-    console.log('订单详情页 - 接收到的参数:', options);
+    console.log("订单详情页 - 接收到的参数:");
     console.log('订单详情页 - 订单ID:', options.id);
     this.setData({ id: options.id });
     await this._loadOrderInfo();
@@ -510,7 +517,7 @@ Page({
       if (remain <= 0) {
         this.setData({ unpaidRemainTime: 0 });
         this._clearUnpaidTimer();
-        this._autoDeleteUnpaidOrder();
+        this._autoCancelUnpaidOrder();
         return;
       }
       this.setData({ unpaidRemainTime: remain });
@@ -520,18 +527,18 @@ Page({
     this._unpaidTimer = setInterval(tick, 1000);
   },
 
-  async _autoDeleteUnpaidOrder() {
-    if (this.data.unpaidDeleteProcessing) return;
-    this.setData({ unpaidDeleteProcessing: true });
+  async _autoCancelUnpaidOrder() {
+    if (this.data.unpaidCancelProcessing) return;
+    this.setData({ unpaidCancelProcessing: true });
 
     try {
       await userOrderService.cancelOrder(this.data.id, '支付超时', this.data.orderInfo.orderNumber);
       await this._loadOrderInfo(false);
       feedback.showMessage(this, '订单支付时间已结束，请查看最新状态');
     } catch (error) {
-      console.error('自动删除未支付订单失败:', error);
+      console.error("取消超时未支付订单失败:");
       showErrorToast(this, '订单超时，请手动刷新');
-      this.setData({ unpaidDeleteProcessing: false });
+      this.setData({ unpaidCancelProcessing: false });
     }
   },
 

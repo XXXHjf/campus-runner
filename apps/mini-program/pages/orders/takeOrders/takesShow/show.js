@@ -1,3 +1,4 @@
+const tokenManager = require('../../../../utils/tokenManager');
 const feedback = require('../../../../utils/feedback');
 const { runnerReceivable, hasRunnerReceivable } = require('../../../../utils/runnerAmount');
 const takeOrderService = require('../../../../services/takeOrderService');
@@ -35,6 +36,7 @@ Page({
     orders: [],
     filteredOrders: [],
     loading: false,
+    hasMoreOrders: true,
     actionSheetVisible: false,
     actionOrder: {},
     actionBusy: false,
@@ -144,20 +146,28 @@ Page({
   },
 
   onSearchChange(event) {
-    this.setData({ keyword: event.detail.value }, () => this.applyFilters());
+    this.setData({ keyword: event.detail.value });
+    clearTimeout(this._searchTimer);
+    this._loadVersion = (this._loadVersion || 0) + 1;
+    this._searchTimer = setTimeout(() => this.loadOrders(), 300);
   },
 
   onSearchSubmit() {
-    this.applyFilters();
+    clearTimeout(this._searchTimer);
+    this.loadOrders();
     wx.hideKeyboard();
   },
 
   clearSearch() {
-    this.setData({ keyword: '' }, () => this.applyFilters());
+    clearTimeout(this._searchTimer);
+    this.setData({ keyword: '' });
+    return this.loadOrders();
   },
 
   selectTab(event) {
-    this.setData({ tabValue: event.currentTarget.dataset.value }, () => this.applyFilters());
+    clearTimeout(this._searchTimer);
+    this.setData({ tabValue: event.currentTarget.dataset.value });
+    return this.loadOrders();
   },
 
   async onPrimaryAction(event) {
@@ -221,22 +231,47 @@ Page({
     if (phoneNumber) wx.makePhoneCall({ phoneNumber: String(phoneNumber) });
   },
 
-  async loadOrders() {
+  async loadOrders(append = false) {
+    const token = tokenManager.getToken() || '';
+    const scope = JSON.stringify([token, this.data.tabValue, normalizeSearchText(this.data.keyword)]);
+    if (append && (this.data.loading || !this.data.hasMoreOrders)) return false;
+    if (append && this._listScope !== scope) append = false;
+    const version = this._loadVersion = (this._loadVersion || 0) + 1;
+    const page = append ? (this._page || 1) + 1 : 1;
+    this._listScope = scope;
+    if (!append) this.setData({ orders: [], filteredOrders: [], hasMoreOrders: true });
     feedback.loaded(this);
     this.setData({ loading: true });
+    const current = () => version === this._loadVersion
+      && token === (tokenManager.getToken() || '')
+      && scope === JSON.stringify([token, this.data.tabValue, normalizeSearchText(this.data.keyword)]);
     try {
-      const result = await takeOrderService.getMyTakeOrders();
-      const orders = (Array.isArray(result) ? result : []).map(order => this.prepareOrder(order));
-      this.setData({ orders }, () => this.applyFilters());
+      const result = await takeOrderService.getMyTakeOrders({ page, pageSize: 20, group: this.data.tabValue, keyword: this.data.keyword });
+      if (!current()) return false;
+      const rows = (Array.isArray(result) ? result : []).map(order => this.prepareOrder(order));
+      const previous = append ? this.data.orders : [];
+      const known = new Set(previous.map(order => String(order.id)));
+      const orders = [...previous, ...rows.filter(order => !known.has(String(order.id)))];
+      this._page = page;
+      this.setData({ orders, hasMoreOrders: rows.length === 20 }, () => this.applyFilters());
       return true;
     } catch (error) {
-      console.error('获取接单失败:', error);
-      feedback.loadError(this, '加载失败，请重试', () => this.loadOrders(), !!this.data.orders.length);
+      if (current()) feedback.loadError(this, '加载失败，请重试', () => this.loadOrders(append), !!this.data.orders.length);
       return false;
     } finally {
-      this.setData({ loading: false });
+      if (current()) this.setData({ loading: false });
     }
   },
+
+  onReachBottom() { return this.loadOrders(true); },
+
+  onHide() {
+    clearTimeout(this._searchTimer);
+    this._loadVersion = (this._loadVersion || 0) + 1;
+    this.setData({ loading: false });
+  },
+
+  onUnload() { this.onHide(); },
 
   onLoad() {
     this.updateNavigationMetrics();
@@ -247,6 +282,10 @@ Page({
   },
 
   onShow() {
+    if (this._shownToken !== (tokenManager.getToken() || '')) {
+      this.setData({ actionSheetVisible: false, actionOrder: {} });
+    }
+    this._shownToken = tokenManager.getToken() || '';
     this.loadOrders();
   },
 

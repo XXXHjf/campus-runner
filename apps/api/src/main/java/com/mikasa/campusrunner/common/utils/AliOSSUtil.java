@@ -55,7 +55,7 @@ public class AliOSSUtil {
                     objectKey, e.getErrorCode(), e.getRequestId());
             throw new UploadException("图片存储失败，请稍后重试");
         } catch (ClientException e) {
-            log.error("OSS client failed to upload object, objectKey: {}", objectKey, e);
+            log.error("OSS client failed to upload object, objectKey: {}", objectKey);
             throw new UploadException("图片上传服务暂时不可用");
         } finally {
             ossClient.shutdown();
@@ -91,7 +91,7 @@ public class AliOSSUtil {
             URL url = ossClient.generatePresignedUrl(request);
             return ensureHttps(url.toString());
         } catch (OSSException | ClientException e) {
-            log.error("Failed to generate OSS URL, objectKey: {}", objectKey, e);
+            log.error("Failed to generate OSS URL, objectKey: {}", objectKey);
             throw new UploadException("图片访问地址生成失败");
         } finally {
             ossClient.shutdown();
@@ -111,7 +111,7 @@ public class AliOSSUtil {
             ossClient.deleteObject(bucketName, objectKey);
             log.info("OSS object deleted: {}", objectKey);
         } catch (OSSException | ClientException e) {
-            log.error("Failed to delete OSS object, objectKey: {}", objectKey, e);
+            log.error("Failed to delete OSS object, objectKey: {}", objectKey);
             throw new UploadException("图片清理失败");
         } finally {
             ossClient.shutdown();

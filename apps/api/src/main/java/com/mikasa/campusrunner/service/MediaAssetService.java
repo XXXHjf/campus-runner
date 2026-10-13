@@ -16,6 +16,9 @@ public interface MediaAssetService {
 
     void releaseTemporary(Long mediaId, String ownerType, Long ownerId);
 
+    List<MediaUploadVO> usableTemporaryImages(List<Long> mediaIds, String purpose,
+                                            String ownerType, Long ownerId);
+
     void bind(
             Long mediaId,
             String purpose,
@@ -45,6 +48,16 @@ public interface MediaAssetService {
 
     List<BoundMediaVO> resolvePublicBinding(
             String boundType, Long boundId, String purpose, int maxWidth);
+
+    java.util.Map<Long, List<BoundMediaVO>> resolvePublicBindings(
+            String boundType, List<Long> boundIds, String purpose, int maxWidth);
+
+    // Only pending, undeleted orders are eligible. Never returns a clear task image URL.
+    java.util.Map<Long, List<BoundMediaVO>> resolveOrderPreviewBindings(List<Long> orderIds);
+
+    // Internal callers must authorize every binding before invoking this method.
+    java.util.Map<Long, List<BoundMediaVO>> resolveAuthorizedBindings(
+            String boundType, List<Long> boundIds, String purpose, int maxWidth);
 
     List<BoundMediaVO> resolveAuthorizedBinding(
             String boundType,

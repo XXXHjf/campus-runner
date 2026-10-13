@@ -65,7 +65,7 @@ public class WechatPay2ValidatorForRequest {
                         serial, message, signature, requestId);
             }
         } catch (IllegalArgumentException e) {
-            log.warn(e.getMessage());
+            log.warn("Request signature verification failed");
             return false;
         }
 

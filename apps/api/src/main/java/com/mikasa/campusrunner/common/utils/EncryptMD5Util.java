@@ -26,7 +26,7 @@ public class EncryptMD5Util {
             hexStr = byte2Hex(digest);
         } catch (Exception e) {
 
-            e.printStackTrace();
+            log.warn("Operation failed, failureType={}", e.getClass().getSimpleName());
         }
         log.info("Encryption complete");
         return hexStr;

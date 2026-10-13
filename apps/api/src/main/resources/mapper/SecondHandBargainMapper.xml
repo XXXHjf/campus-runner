@@ -17,6 +17,24 @@
         where id = #{id} and deleted = 0 and status = 0
     </update>
 
+    <update id="rejectPending">
+        update tb_second_hand_bargain
+        set status = 2, reject_reason_code = #{reasonCode}, reject_note = #{note}, update_time = now()
+        where id = #{id} and deleted = 0 and status = 0
+    </update>
+
+    <select id="listExpirableForUpdate" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandBargain">
+        select b.* from tb_second_hand_bargain b
+        where b.product_id = #{productId} and b.deleted = 0 and b.status in (0, 1)
+          and not exists (select 1 from tb_second_hand_order linked where linked.bargain_id = b.id)
+        order by b.id for update
+    </select>
+
+    <select id="hasOrderSinceQuote" resultType="boolean">
+        select exists (select 1 from tb_second_hand_order
+                       where product_id = #{productId} and create_time >= #{createTime})
+    </select>
+
     <update id="update">
         update tb_second_hand_bargain
         <set>
@@ -51,12 +69,33 @@
           and deleted = 0
     </select>
 
+    <select id="listActiveByBuyerAndProductForUpdate" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandBargain">
+        select b.* from tb_second_hand_bargain b
+        where b.buyer_id = #{buyerId} and b.product_id = #{productId}
+          and b.deleted = 0 and b.status in (0, 1)
+          and not exists (select 1 from tb_second_hand_order linked where linked.bargain_id = b.id)
+          and not exists (select 1 from tb_second_hand_order subsequent
+                          where subsequent.product_id = b.product_id and subsequent.create_time >= b.create_time)
+        order by b.id desc for update
+    </select>
+
+    <update id="expirePendingByBuyerAndProduct">
+        update tb_second_hand_bargain
+        set status = 3, update_time = now()
+        where buyer_id = #{buyerId} and product_id = #{productId}
+          and deleted = 0 and status = 0
+          and not exists (select 1 from tb_second_hand_order linked
+                          where linked.bargain_id = tb_second_hand_bargain.id)
+    </update>
+
     <update id="expirePendingByProduct">
         update tb_second_hand_bargain
         set status = 3, update_time = now()
         where product_id = #{productId}
           and deleted = 0
           and status = 0
+          and not exists (select 1 from tb_second_hand_order linked
+                          where linked.bargain_id = tb_second_hand_bargain.id)
     </update>
 
     <update id="expireAcceptedWithoutOrder">
@@ -67,11 +106,23 @@
           and b.status = 1 and o.id is null
     </update>
 
+    <sql id="effectiveBargainStatus">
+        case when b.status in (0, 1)
+          and not exists (select 1 from tb_second_hand_order linked where linked.bargain_id = b.id)
+          and (p.id is null or p.deleted != 0 or p.status != 0
+            or exists (select 1 from tb_second_hand_order subsequent
+                       where subsequent.product_id = b.product_id and subsequent.create_time >= b.create_time))
+        then 3 else b.status end
+    </sql>
+
     <sql id="bargainVoSelect">
         b.id, b.product_id, o.id as order_id, p.title as product_title,
         b.buyer_id, buyer.username as buyer_name,
         b.seller_id, seller.username as seller_name,
-        b.offer_price, b.message, b.status, b.attempt_no,
+        b.offer_price, b.message, b.reject_reason_code, b.reject_note,
+        <include refid="effectiveBargainStatus"/> as status,
+        case when p.id is null or p.deleted != 0 then 1 else 0 end as product_deleted,
+        b.attempt_no,
         b.create_time, b.update_time
     </sql>
 
@@ -83,7 +134,7 @@
         left join tb_user buyer on b.buyer_id = buyer.id
         left join tb_user seller on b.seller_id = seller.id
         where b.product_id = #{productId} and b.deleted = 0
-        order by b.create_time desc
+        order by b.create_time desc, b.id desc, o.id desc LIMIT 20
     </select>
 
     <select id="listMine" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandBargainVO">
@@ -95,10 +146,28 @@
         left join tb_user seller on b.seller_id = seller.id
         where b.deleted = 0
           and (b.buyer_id = #{userId} or b.seller_id = #{userId})
-        order by b.create_time desc
+        order by b.create_time desc, b.id desc, o.id desc LIMIT 20
     </select>
 
-    <select id="listAdmin" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandBargainVO">
+    <sql id="bargainPageFilters">
+        <if test="query.status != null">AND (<include refid="effectiveBargainStatus"/>) = #{query.status}</if>
+        <if test="query.bargainId != null">AND b.id = #{query.bargainId}</if>
+        <if test="query.withoutOrder == true">AND o.id IS NULL</if>
+    </sql>
+    <select id="listByProductPage" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandBargainVO">
+        select <include refid="bargainVoSelect"/>
+        from tb_second_hand_bargain b
+        left join tb_second_hand_product p on b.product_id = p.id
+        left join tb_second_hand_order o on o.bargain_id = b.id and o.deleted = 0
+        left join tb_user buyer on b.buyer_id = buyer.id
+        left join tb_user seller on b.seller_id = seller.id
+        where b.product_id = #{productId} and b.deleted = 0
+        <if test="buyerId != null">AND b.buyer_id = #{buyerId}</if>
+        <include refid="bargainPageFilters"/>
+        order by b.create_time desc, b.id desc, o.id desc
+        LIMIT #{query.limit} OFFSET #{query.offset}
+    </select>
+    <select id="listMinePage" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandBargainVO">
         select <include refid="bargainVoSelect"/>
         from tb_second_hand_bargain b
         left join tb_second_hand_product p on b.product_id = p.id
@@ -106,6 +175,35 @@
         left join tb_user buyer on b.buyer_id = buyer.id
         left join tb_user seller on b.seller_id = seller.id
         where b.deleted = 0
-        order by b.create_time desc
+          and (b.buyer_id = #{userId} or b.seller_id = #{userId})
+        <if test="query.role == 'issued'">AND b.buyer_id = #{userId}</if>
+        <if test="query.role == 'received'">AND b.seller_id = #{userId}</if>
+        <include refid="bargainPageFilters"/>
+        order by b.create_time desc, b.id desc, o.id desc
+        LIMIT #{query.limit} OFFSET #{query.offset}
+    </select>
+    <sql id="adminBargainFrom">
+        from tb_second_hand_bargain b
+        left join tb_second_hand_product p on b.product_id = p.id
+        left join tb_second_hand_order o on o.bargain_id = b.id and o.deleted = 0
+        left join tb_user buyer on b.buyer_id = buyer.id
+        left join tb_user seller on b.seller_id = seller.id
+        where b.deleted = 0
+    </sql>
+    <select id="listAdmin" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandBargainVO">
+        select <include refid="bargainVoSelect"/>
+        <include refid="adminBargainFrom"/>
+        order by b.create_time desc, b.id desc, o.id desc limit 20
+    </select>
+    <select id="listAdminPage" resultType="com.mikasa.campusrunner.pojo.vo.SecondHandBargainVO">
+        select <include refid="bargainVoSelect"/>
+        <include refid="adminBargainFrom"/>
+        order by b.create_time desc, b.id desc, o.id desc
+        limit #{query.limit} offset #{query.offset}
+    </select>
+    <select id="summarizeAdmin" resultType="com.mikasa.campusrunner.pojo.vo.AdminSecondHandBargainStatsVO">
+        select count(*) as total,
+               coalesce(sum(case when (<include refid="effectiveBargainStatus"/>) = 0 then 1 else 0 end),0) as pending_bargains
+        <include refid="adminBargainFrom"/>
     </select>
 </mapper>

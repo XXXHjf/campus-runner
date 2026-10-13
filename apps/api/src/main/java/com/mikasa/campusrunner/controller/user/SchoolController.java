@@ -26,9 +26,9 @@ public class SchoolController {
 
     @GetMapping
     @Operation(summary = "查询所有学校")
-    public Result<List<School>> getAll(){
+    public Result<List<School>> getAll(com.mikasa.campusrunner.pojo.dto.ListPageDTO page){
         log.info("Query all schools");
-        List<School> list = schoolService.getAll();
+        List<School> list = schoolService.getAll(page);
         return Result.success(list);
     }
 

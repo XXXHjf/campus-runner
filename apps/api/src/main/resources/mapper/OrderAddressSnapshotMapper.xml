@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.mikasa.campusrunner.mapper.OrderAddressSnapshotMapper">
+    <select id="countMatchingSchool" resultType="int">
+        SELECT COUNT(DISTINCT role) FROM tb_order_address_snapshot
+        WHERE order_id=#{orderId} AND school_id=#{schoolId} AND role IN ('PICKUP','RECEIVE')
+    </select>
     <select id="lockUsableAddresses" resultType="java.lang.Long">
         SELECT a.id FROM tb_address_book a
         JOIN tb_school s ON s.id = a.school_id AND s.deleted = 0

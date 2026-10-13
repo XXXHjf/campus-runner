@@ -3,7 +3,7 @@
  * 封装用户相关的 API 调用
  */
 
-const { request } = require('./request');
+const { request, collectListPages, safeList, requiredObject } = require('./request');
 
 const url = getApp().globalData.API_URL;
 
@@ -17,7 +17,7 @@ function getUserInfo() {
     method: 'GET'
   }).then(res => {
     if (res.data.code !== 1) throw new Error(res.data.msg || '资料加载失败，请稍后重试');
-    return res.data.data || {};
+    return requiredObject(res);
   });
 }
 
@@ -57,12 +57,12 @@ function authenticate(authData) {
  * @returns {Promise<Array>} 学校列表
  */
 function getSchools() {
-  return request({
+  return collectListPages(query => request({
     url: `${url}/api/school`,
-    method: 'GET'
+    method: 'GET', data: query
   }).then(res => {
-    return res.data.data || [];
-  });
+    return safeList(res);
+  }));
 }
 
 module.exports = {

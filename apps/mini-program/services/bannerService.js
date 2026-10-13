@@ -2,29 +2,30 @@
  * 首页轮播图服务
  */
 
-const { request, safeList } = require('./request');
+const { request, safeList, collectListPages } = require('./request');
 
 const url = getApp().globalData.API_URL;
 
 function getBannersBySchool(schoolId) {
-  return request({
+  return collectListPages(query => request({
     url: `${url}/admin/api/banner/getList/${schoolId}`,
     method: 'GET',
+    data: query,
     skipTokenCheck: true
-  }).then(safeList);
+  }).then(safeList));
 }
 
 async function getHomepageBanners(schoolId) {
   const normalizedSchoolId = Number(schoolId) || 0;
   const commonPromise = getBannersBySchool(0).catch((error) => {
-    console.error('获取通用轮播图失败:', error);
+    console.error("获取通用轮播图失败:");
     return [];
   });
 
   const schoolPromise = normalizedSchoolId === 0
     ? Promise.resolve([])
     : getBannersBySchool(normalizedSchoolId).catch((error) => {
-      console.error('获取学校轮播图失败:', error);
+      console.error("获取学校轮播图失败:");
       return [];
     });
 

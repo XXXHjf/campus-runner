@@ -1,5 +1,6 @@
 const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
+const tokenManager = require('../../../utils/tokenManager');
 const { orderStatus, orderStatusGroup, friendlyError } = require('../../../utils/secondHandStatus');
 const { showOrderContact } = require('../../../utils/secondHandContact');
 
@@ -26,6 +27,7 @@ Page({
     orders: [],
     filteredOrders: [],
     loading: false,
+    hasMoreOrders: false,
     actionSheetVisible: false,
     actionOrder: {},
     actionBusy: false,
@@ -36,8 +38,13 @@ Page({
   },
 
   onShow() {
-    this.loadOrders();
+    this._hidden = false;
+    return this.loadOrders();
   },
+
+  onHide() { this._hidden = true; this._listVersion = (this._listVersion || 0) + 1; clearTimeout(this._searchTimer); },
+  onUnload() { this._disposed = true; this.onHide(); },
+  onReachBottom() { return this.loadOrders(true); },
 
   updateNavigationMetrics() {
     const windowInfo = typeof wx.getWindowInfo === 'function'
@@ -61,17 +68,38 @@ Page({
     else wx.switchTab({ url: '/pages/mine/mine/mine' });
   },
 
-  async loadOrders() {
+  async loadOrders(append = false) {
+    if (this._hidden || this._disposed || (append && (this.data.loading || !this.data.hasMoreOrders))) return;
+    const token = tokenManager.getToken();
+    const group = this.data.tabValue;
+    const keyword = normalizeSearchText(this.data.keyword);
+    const key = JSON.stringify([token, group, keyword]);
+    if (append && key !== this._listKey) return this.loadOrders();
+    if (token !== this._ownerToken) {
+      this.setData({ actionSheetVisible: false, actionOrder: {} }); this._ownerToken = token;
+    }
+    if (key !== this._listKey) this.setData({ orders: [], filteredOrders: [], hasMoreOrders: false });
+    this._listKey = key;
+    const version = this._listVersion = (this._listVersion || 0) + 1;
+    const page = append ? (this._page || 1) + 1 : 1;
+    const current = () => !this._hidden && !this._disposed && version === this._listVersion
+      && token === tokenManager.getToken() && group === this.data.tabValue && keyword === normalizeSearchText(this.data.keyword);
     feedback.loaded(this);
     this.setData({ loading: true });
     try {
-      const orders = (await secondHandService.listBuyerOrders()).map((order) => this.decorateOrder(order));
-      this.setData({ orders, filteredOrders: this.filterOrders(orders, this.data.tabValue, this.data.keyword) });
+      const rows = await secondHandService.listBuyerOrders({ page, pageSize: 20, group, keyword });
+      if (!current()) return;
+      const decorated = rows.map(order => this.decorateOrder(order));
+      const orders = append ? [...new Map([...this.data.orders, ...decorated].map(item => [String(item.id), item])).values()] : decorated;
+      this._page = page;
+      feedback.clearMessage(this, 'order-pagination');
+      this.setData({ orders, filteredOrders: this.filterOrders(orders, group, keyword), hasMoreOrders: rows.length === 20 });
     } catch (error) {
-      feedback.loadError(this, '订单加载失败，请重试', () => this.loadOrders(), !!this.data.orders.length);
+      if (!current()) return;
+      if (append) feedback.showMessage(this, '后续订单加载失败，请重试', { key: 'order-pagination', theme: 'error', action: '重试', onAction: () => this.loadOrders(true) });
+      else feedback.loadError(this, '订单加载失败，请重试', () => this.loadOrders(), !!this.data.orders.length);
     } finally {
-      this.setData({ loading: false });
-      wx.stopPullDownRefresh();
+      if (current()) { this.setData({ loading: false }); wx.stopPullDownRefresh(); }
     }
   },
 
@@ -103,13 +131,20 @@ Page({
   },
 
   applyFilters(tabValue = this.data.tabValue, keyword = this.data.keyword) {
+    clearTimeout(this._searchTimer);
     this.setData({ tabValue, keyword, filteredOrders: this.filterOrders(this.data.orders, tabValue, keyword) });
+    return this.loadOrders();
   },
 
-  selectTab(e) { this.applyFilters(e.currentTarget.dataset.value); },
-  onSearchChange(e) { this.applyFilters(this.data.tabValue, e.detail.value); },
-  onSearchSubmit(e) { this.applyFilters(this.data.tabValue, e.detail.value); },
-  clearSearch() { this.applyFilters(this.data.tabValue, ''); },
+  selectTab(e) { return this.applyFilters(e.currentTarget.dataset.value); },
+  onSearchChange(e) {
+    const keyword = e.detail.value;
+    this.setData({ keyword, filteredOrders: this.filterOrders(this.data.orders, this.data.tabValue, keyword) });
+    clearTimeout(this._searchTimer);
+    this._searchTimer = setTimeout(() => this.loadOrders(), 300);
+  },
+  onSearchSubmit(e) { return this.applyFilters(this.data.tabValue, e.detail.value); },
+  clearSearch() { return this.applyFilters(this.data.tabValue, ''); },
 
   gotoDetail(e) {
     const id = e.currentTarget.dataset.id;
@@ -164,5 +199,5 @@ Page({
     });
   },
 
-  onPullDownRefresh() { this.loadOrders(); },
+  onPullDownRefresh() { clearTimeout(this._searchTimer); return this.loadOrders(); },
 });

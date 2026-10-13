@@ -51,6 +51,36 @@
             address_book.user_id = #{id} and
             address_book.deleted = 0
         order by address_book.is_default desc, address_book.id desc
+        limit 20
+    </select>
+    <select id="showPage" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookShowVO">
+        SELECT
+            address_book.id,
+            school.school_name,
+            compus.compus_name,
+            build_category.name AS build_category_name,
+            building.building_name,
+            address_book.details,
+            address_book.label,
+            address_book.user_id,
+            address_book.is_default,
+            address_book.deleted
+
+        FROM
+            tb_address_book AS address_book,
+            tb_school AS school,
+            tb_compus AS compus,
+            tb_build_category AS build_category,
+            tb_building AS building
+        WHERE
+            address_book.school_id = school.id AND
+            address_book.compus_id = compus.id AND
+            address_book.build_category_id = build_category.id AND
+            address_book.building_id = building.id AND
+            address_book.user_id = #{id} and
+            address_book.deleted = 0
+        order by address_book.is_default desc, address_book.id desc
+        limit #{page.limit} offset #{page.offset}
     </select>
 
     <select id="query" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookShowVO">
@@ -87,8 +117,47 @@
             <if test="userId != null">And address_book.user_id = #{userId}</if>
             <if test="isDefault != null">And address_book.is_default = #{isDefault}</if>
         </where>
-        order by address_book.is_default desc
+        order by address_book.is_default desc, address_book.id desc
 
+        limit 20
+    </select>
+    <select id="queryPage" resultType="com.mikasa.campusrunner.pojo.vo.AddressBookShowVO">
+        SELECT
+            address_book.id,
+            school.school_name,
+            compus.compus_name,
+            build_category.name AS build_category_name,
+            building.building_name,
+            address_book.details,
+            address_book.label,
+            address_book.user_id,
+            address_book.is_default,
+            address_book.deleted
+
+        FROM
+            tb_address_book AS address_book,
+            tb_school AS school,
+            tb_compus AS compus,
+            tb_build_category AS build_category,
+            tb_building AS building
+        <where>
+            address_book.school_id = school.id AND
+            address_book.compus_id = compus.id AND
+            address_book.build_category_id = build_category.id AND
+            address_book.building_id = building.id AND
+            address_book.deleted = 0
+            <if test="filter.id != null">And address_book.id = #{filter.id}</if>
+            <if test="filter.schoolId != null">And address_book.school_id = #{filter.schoolId}</if>
+            <if test="filter.compusId != null">And address_book.compus_id = #{filter.compusId}</if>
+            <if test="filter.buildingId != null">And address_book.building_id = #{filter.buildingId}</if>
+            <if test="filter.details != null and filter.details != ''">And address_book.details like concat('%',#{filter.details},'%') </if>
+            <if test="filter.label != null and filter.label != ''">And address_book.label like concat('%',#{filter.label},'%') </if>
+            <if test="filter.userId != null">And address_book.user_id = #{filter.userId}</if>
+            <if test="filter.isDefault != null">And address_book.is_default = #{filter.isDefault}</if>
+        </where>
+        order by address_book.is_default desc, address_book.id desc
+
+        limit #{page.limit} offset #{page.offset}
     </select>
 
 

@@ -34,7 +34,7 @@ public class AdminAdressController {
     @PostMapping
     @Operation(summary = "添加预设地址信息")
     public Result addReserve(@RequestBody SchoolReserveDTO schoolReserveDTO){
-        log.info("Add preset campus address: {}", schoolReserveDTO);
+        log.info("Add preset campus address");
         schoolService.addReserve(schoolReserveDTO);
         return Result.success();
     }
@@ -42,25 +42,25 @@ public class AdminAdressController {
 
     @GetMapping("/getListBySchool/{schoolID}")
     @Operation(summary = "根据学校id获取对应地址列表")
-    public Result<List<AdminAdressBuildingVO>> getBySchoolID(@PathVariable Long schoolID) {
+    public Result<List<AdminAdressBuildingVO>> getBySchoolID(@PathVariable Long schoolID, com.mikasa.campusrunner.pojo.dto.ListPageDTO page) {
         log.info("Get address list by school ID: {}", schoolID);
-        List<AdminAdressBuildingVO> list = adminAdressService.getListBySchool(schoolID);
+        List<AdminAdressBuildingVO> list = adminAdressService.getListBySchool(schoolID, page);
         return Result.success(list);
     }
 
     @PutMapping("/update")
     @Operation(summary = "修改地址")
     public Result updateAddress(@RequestBody AdminUpdateAddressDTO adminUpdateAddressDTO) {
-        log.info("Update address, {}", adminUpdateAddressDTO);
+        log.info("Update address");
         adminAdressService.updateAddress(adminUpdateAddressDTO);
         return Result.success();
     }
 
     @GetMapping("/schools")
     @Operation(summary = "查询所有学校")
-    public Result<List<School>> getAll(){
+    public Result<List<School>> getAll(com.mikasa.campusrunner.pojo.dto.ListPageDTO page){
         log.info("Query all schools");
-        List<School> list = schoolService.getAll();
+        List<School> list = schoolService.getAll(page);
         return Result.success(list);
     }
 

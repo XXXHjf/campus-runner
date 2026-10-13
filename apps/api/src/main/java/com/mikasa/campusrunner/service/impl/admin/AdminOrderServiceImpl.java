@@ -36,7 +36,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     @Override
     public PageResult<AdminOrderListVO> listAll(int page, int pageSize, String keyword) {
         log.info("Listing all orders, page={}, pageSize={}", page, pageSize);
-        int offset = (page - 1) * pageSize;
+        int offset = com.mikasa.campusrunner.pojo.dto.ListPageDTO.checkedOffset(page, pageSize);
         keyword = normalizeKeyword(keyword);
         List<AdminOrderListVO> list = orderMapper.listAllOrders(offset, pageSize, keyword);
         long total = orderMapper.countAdminOrders(null, keyword);
@@ -46,7 +46,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     @Override
     public PageResult<AdminOrderListVO> listWaiting(int page, int pageSize, String keyword) {
         log.info("Listing waiting orders...");
-        int offset = (page - 1) * pageSize;
+        int offset = com.mikasa.campusrunner.pojo.dto.ListPageDTO.checkedOffset(page, pageSize);
         keyword = normalizeKeyword(keyword);
         List<Integer> statuses = Arrays.asList(OrderStatusConstant.WAIT_TO_TAKE_ORDER);
         List<AdminOrderListVO> list = orderMapper.listOrdersByStatus(statuses, offset, pageSize, keyword);
@@ -57,7 +57,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     @Override
     public PageResult<AdminOrderListVO> listInProgress(int page, int pageSize, String keyword) {
         log.info("Listing in-progress orders...");
-        int offset = (page - 1) * pageSize;
+        int offset = com.mikasa.campusrunner.pojo.dto.ListPageDTO.checkedOffset(page, pageSize);
         keyword = normalizeKeyword(keyword);
         List<Integer> statuses = Arrays.asList(OrderStatusConstant.ALREADY_TAKE_ORDER,
                 OrderStatusConstant.DELIVERYING, OrderStatusConstant.ORDER_FINISH);
@@ -69,7 +69,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     @Override
     public PageResult<AdminOrderListVO> listCompleted(int page, int pageSize, String keyword) {
         log.info("Listing completed orders...");
-        int offset = (page - 1) * pageSize;
+        int offset = com.mikasa.campusrunner.pojo.dto.ListPageDTO.checkedOffset(page, pageSize);
         keyword = normalizeKeyword(keyword);
         List<Integer> statuses = Arrays.asList(OrderStatusConstant.SENDER_CONFIRMS_RECEIPT,
                 OrderStatusConstant.WITHDRAWAL_SUCCEEDED, OrderStatusConstant.WITHDRAWAL_FAILED);
@@ -81,7 +81,7 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     @Override
     public PageResult<AdminOrderListVO> listCanceled(int page, int pageSize, String keyword) {
         log.info("Listing canceled/refund orders...");
-        int offset = (page - 1) * pageSize;
+        int offset = com.mikasa.campusrunner.pojo.dto.ListPageDTO.checkedOffset(page, pageSize);
         keyword = normalizeKeyword(keyword);
         List<Integer> statuses = Arrays.asList(OrderStatusConstant.CANCELED,
                 OrderStatusConstant.REFUND_PROCESSING, OrderStatusConstant.REFUND_SUCCESS,

@@ -22,6 +22,7 @@
     class="conversation-messages"
     scroll-y="{{true}}"
     scroll-into-view="{{lastMessageAnchor}}"
+    bindscrolltoupper="loadOlderMessages"
     enhanced="{{true}}"
     show-scrollbar="{{false}}"
   >

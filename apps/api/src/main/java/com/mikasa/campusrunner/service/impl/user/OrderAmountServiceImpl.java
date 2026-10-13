@@ -38,13 +38,12 @@ public class OrderAmountServiceImpl implements OrderAmountService {
         BigDecimal serviceFee = normalizedRunnerFee.multiply(rate).setScale(2, RoundingMode.HALF_UP).max(minimumFee);
         BigDecimal payAmount = normalizedProductAmount.add(normalizedRunnerFee).add(serviceFee).setScale(2, RoundingMode.HALF_UP);
         BigDecimal runnerReceivable = normalizedProductAmount.add(normalizedRunnerFee).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal transferMax = nonNegativeConfig(OrderBusinessConstant.CONFIG_RUNNER_TRANSFER_SINGLE_MAX,
-                OrderBusinessConstant.DEFAULT_AMOUNT_LIMIT, true);
+        BigDecimal transferMax = RunnerAmountPolicy.transferMax(configMapper);
         BigDecimal payMax = transferMax;
         if (purchase && payAmount.compareTo(payMax) > 0) {
             throw new ParamException("预计实付不能超过" + payMax.stripTrailingZeros().toPlainString() + "元");
         }
-        if (purchase && runnerReceivable.compareTo(transferMax) > 0) {
+        if (runnerReceivable.compareTo(transferMax) > 0) {
             throw new ParamException("商品金额与跑腿费合计不能超过" + transferMax.stripTrailingZeros().toPlainString() + "元");
         }
         return OrderAmountVO.builder()
