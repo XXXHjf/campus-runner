@@ -12,6 +12,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SecondHandBargainMapperXmlTest {
     @Test
+    void listPricesOnlyReadsCurrentBuyersValidUnorderedAcceptedQuotesForThisPage() throws IOException {
+        String query = sql("SecondHandBargainMapper", "listAcceptedByBuyerAndProducts",
+                Map.of("buyerId", 7L, "productIds", java.util.List.of(10L, 11L)));
+        assertTrue(query.contains("b.buyer_id = ? and b.deleted = 0 and b.status = 1"));
+        assertTrue(query.contains("p.deleted = 0 and p.status = 0"));
+        assertTrue(query.contains("b.seller_id = p.seller_id"));
+        assertTrue(query.contains("b.product_id in ( ? , ? )"));
+        assertTrue(query.contains("linked.bargain_id = b.id"));
+        assertTrue(query.contains("subsequent.create_time >= b.create_time"));
+        assertTrue(query.endsWith("order by b.create_time desc, b.id desc"));
+    }
+
+    @Test
     void replacementScopesToBuyerAndProductAndPreservesTerminalAndLinkedQuotes() throws IOException {
         var params = Map.<String, Object>of("buyerId", 200L, "productId", 10L);
         String update = sql("SecondHandBargainMapper", "expirePendingByBuyerAndProduct", params);

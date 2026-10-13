@@ -1,3 +1,5 @@
+@import "../../../styles/second-hand-card.wxss";
+
 page {
   background: var(--cr-color-background);
 }
@@ -45,6 +47,12 @@ page {
   margin-top: 6rpx;
   color: var(--cr-color-text-secondary);
   font-size: 22rpx;
+}
+
+.conversation-page .cr-secondhand-price-row .conversation-product-price {
+  color: var(--cr-color-price, #e7552d);
+  font-size: 26rpx;
+  font-weight: 700;
 }
 
 .conversation-contact {

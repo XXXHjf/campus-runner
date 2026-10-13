@@ -26,6 +26,9 @@ public interface SecondHandBargainMapper {
 
     int countByBuyerAndProduct(@Param("buyerId") Long buyerId, @Param("productId") Long productId);
 
+    List<SecondHandBargain> listAcceptedByBuyerAndProducts(@Param("buyerId") Long buyerId,
+            @Param("productIds") List<Long> productIds);
+
     List<SecondHandBargain> listActiveByBuyerAndProductForUpdate(@Param("buyerId") Long buyerId,
             @Param("productId") Long productId);
 

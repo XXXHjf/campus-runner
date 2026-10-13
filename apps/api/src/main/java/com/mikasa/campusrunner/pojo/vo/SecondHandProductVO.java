@@ -25,6 +25,7 @@ public class SecondHandProductVO {
     private List<Long> imageAssetIds;
     private String conditionLevel;
     private BigDecimal price;
+    private BigDecimal acceptedOfferPrice;
     private Long pickupAddressId;
     private String pickupAddressSnapshot;
     private Integer pickupOnly;

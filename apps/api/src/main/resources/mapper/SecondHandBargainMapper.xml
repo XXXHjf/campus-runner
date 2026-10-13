@@ -69,6 +69,19 @@
           and deleted = 0
     </select>
 
+    <select id="listAcceptedByBuyerAndProducts" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandBargain">
+        select b.* from tb_second_hand_bargain b
+        join tb_second_hand_product p on p.id = b.product_id and p.deleted = 0 and p.status = 0
+        where b.buyer_id = #{buyerId} and b.deleted = 0 and b.status = 1
+          and b.seller_id = p.seller_id
+          and b.product_id in
+          <foreach collection="productIds" item="productId" open="(" separator="," close=")">#{productId}</foreach>
+          and not exists (select 1 from tb_second_hand_order linked where linked.bargain_id = b.id)
+          and not exists (select 1 from tb_second_hand_order subsequent
+                          where subsequent.product_id = b.product_id and subsequent.create_time >= b.create_time)
+        order by b.create_time desc, b.id desc
+    </select>
+
     <select id="listActiveByBuyerAndProductForUpdate" resultType="com.mikasa.campusrunner.pojo.entity.SecondHandBargain">
         select b.* from tb_second_hand_bargain b
         where b.buyer_id = #{buyerId} and b.product_id = #{productId}

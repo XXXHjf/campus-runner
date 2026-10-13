@@ -329,6 +329,7 @@ public class SecondHandServiceImpl implements SecondHandService {
         query.getOffset(); // Validate pagination before any product/media query.
         List<SecondHandProductVO> products = productMapper.listPage(query, schoolId);
         resolveProductImagesBatch(products, 480);
+        resolveAcceptedOfferPrices(products);
         return products;
     }
 
@@ -365,6 +366,7 @@ public class SecondHandServiceImpl implements SecondHandService {
         if (!avatars.isEmpty()) {
             detail.setSellerAvatar(avatars.get(0).getUrl());
         }
+        resolveAcceptedOfferPrices(List.of(detail));
         return resolveProductImages(detail);
     }
 
@@ -380,6 +382,7 @@ public class SecondHandServiceImpl implements SecondHandService {
         query.getOffset();
         List<SecondHandProductVO> products = productMapper.listFavorites(BaseContext.getCurrentId(), query);
         resolveProductImagesBatch(products, 0);
+        resolveAcceptedOfferPrices(products);
         return products;
     }
 
@@ -1964,6 +1967,22 @@ public class SecondHandServiceImpl implements SecondHandService {
                 || new java.util.HashSet<>(dto.getImageAssetIds()).size() != dto.getImageAssetIds().size())) {
             throw new ParamException("请选择 1 至 6 张有效的商品图片");
         }
+    }
+
+    private void resolveAcceptedOfferPrices(List<SecondHandProductVO> products) {
+        products.forEach(product -> product.setAcceptedOfferPrice(null));
+        Long buyerId = BaseContext.getCurrentId();
+        if (buyerId == null) return;
+        var productIds = products.stream()
+                .filter(product -> isStatus(product.getStatus(), SecondHandConstant.PRODUCT_ON_SALE)
+                        && !buyerId.equals(product.getSellerId()))
+                .map(SecondHandProductVO::getId).filter(java.util.Objects::nonNull).distinct().toList();
+        if (productIds.isEmpty()) return;
+        var prices = new java.util.HashMap<Long, BigDecimal>();
+        for (var quote : bargainMapper.listAcceptedByBuyerAndProducts(buyerId, productIds)) {
+            prices.putIfAbsent(quote.getProductId(), quote.getOfferPrice());
+        }
+        products.forEach(product -> product.setAcceptedOfferPrice(prices.get(product.getId())));
     }
 
     private void resolveProductImagesBatch(List<SecondHandProductVO> products, int maxWidth) {

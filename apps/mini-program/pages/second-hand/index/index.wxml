@@ -78,7 +78,11 @@
             <t-tag wx:if="{{item.negotiable==1}}" size="small" theme="success" variant="light">可议价</t-tag>
           </view>
           <view class="product-bottom">
-            <text class="price">¥{{item.price}}</text>
+            <view wx:if="{{item.acceptedOfferPrice && item.status == 0}}" class="cr-secondhand-price-row">
+              <text class="cr-secondhand-original-price">¥{{item.price}}</text>
+              <text class="price">¥{{item.acceptedOfferPrice}}</text>
+            </view>
+            <text wx:else class="price">¥{{item.price}}</text>
             <!-- <text class="campus">{{item.compusName || '同校'}}</text> -->
           </view>
         </view>

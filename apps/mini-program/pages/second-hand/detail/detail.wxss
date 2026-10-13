@@ -11,10 +11,17 @@ page {
   background: #f3f4f5;
 }
 
-.detail-page .detail-accepted-offer {
-  margin-top: 12rpx;
-  color: var(--cr-color-primary, #0052d9);
-  font-size: 26rpx;
+.detail-page .detail-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+  min-width: 0;
+}
+
+.detail-page .detail-original-price {
+  color: var(--cr-color-text-secondary, #6b778c);
+  font-size: 28rpx;
+  text-decoration: line-through;
 }
 
 .detail-page .detail-seller-bar {

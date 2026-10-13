@@ -32,7 +32,11 @@
           </view>
           <text class="favorites-page__meta">{{product.categoryName || '闲置好物'}} · {{product.conditionLevel || '成色良好'}}</text>
           <view class="favorites-page__bottom">
-            <text class="favorites-page__price">¥{{product.price}}</text>
+            <view wx:if="{{product.acceptedOfferPrice && product.status == 0}}" class="cr-secondhand-price-row">
+              <text class="cr-secondhand-original-price">¥{{product.price}}</text>
+              <text class="favorites-page__price">¥{{product.acceptedOfferPrice}}</text>
+            </view>
+            <text wx:else class="favorites-page__price">¥{{product.price}}</text>
             <view class="favorites-page__favorite-action">
               <t-button
                 t-class="cr-secondhand-capsule cr-secondhand-capsule--outline"

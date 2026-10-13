@@ -5,7 +5,11 @@
     <t-image class="conversation-product-cover" src="{{product.coverImage}}" mode="aspectFill" />
     <view class="conversation-product-main">
       <view class="conversation-product-title">{{product.title || '商品'}}</view>
-      <view class="conversation-product-price">¥{{product.price || 0}}</view>
+      <view wx:if="{{product.acceptedOfferPrice && product.status == 0}}" class="cr-secondhand-price-row">
+        <text class="cr-secondhand-original-price">¥{{product.price}}</text>
+        <text class="conversation-product-price">¥{{product.acceptedOfferPrice}}</text>
+      </view>
+      <view wx:else class="conversation-product-price">¥{{product.price || 0}}</view>
     </view>
     <view class="conversation-product-link">查看商品</view>
   </view>
