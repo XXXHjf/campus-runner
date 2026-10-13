@@ -21,6 +21,7 @@ Page({
     showBargain: false,
     showBuySheet: false,
     acceptedBargain: null,
+    acceptedOffer: null,
     orderPrice: '',
     selectedDeliveryMode: 0,
     selectedBuyerAddressId: null,
@@ -44,7 +45,8 @@ Page({
     this._detailHidden = false;
     if (this._detailToken !== undefined && this._detailToken !== tokenManager.getToken()) {
       this.invalidateDetail();
-      this.setData({ product: {}, images: [], showBuySheet: false, showBargain: false, addressBook: [], currentUserId: null, acceptedBargain: null, orderPrice: '' });
+      this.setData({ product: {}, images: [], showBuySheet: false, showBargain: false, addressBook: [], currentUserId: null,
+        acceptedBargain: null, acceptedOffer: null, orderPrice: '', bargainSubmitting: false });
       this._openBargainCheckout = false;
     }
     await this.loadDetail();
@@ -85,7 +87,7 @@ Page({
     const isCurrent = () => !this._detailDisposed && !this._detailHidden
       && version === this._detailVersion && token === tokenManager.getToken();
     feedback.loaded(this);
-    this.setData({ loading: true });
+    this.setData({ loading: true, acceptedOffer: null });
     this._detailRequest = (async () => {
       try {
         const [product, user] = await Promise.all([
@@ -102,6 +104,20 @@ Page({
           showBuySheet: this.data.showBuySheet && decorated.canBuy,
           showBargain: this.data.showBargain && decorated.canBargain,
         });
+        if (user.id && decorated.canBuy) {
+          try {
+            const query = { page: 1, pageSize: 20, status: 1, withoutOrder: true };
+            if (this._requestedBargainId) query.bargainId = this._requestedBargainId;
+            const quotes = await secondHandService.listProductBargains(product.id, query);
+            if (!isCurrent()) return;
+            const acceptedOffer = quotes.find(item => Number(item.status) === 1 && !item.orderId
+              && Number(item.buyerId) === Number(user.id));
+            this.setData({ acceptedOffer: acceptedOffer || null });
+          } catch (_) {
+            // Price is checked again at checkout; never present an unverified quote.
+            if (isCurrent()) this.setData({ acceptedOffer: null });
+          }
+        }
       } catch (error) {
         if (!isCurrent()) return;
         feedback.loadError(this, '详情加载失败，请重试', () => this.loadDetail(), !!this.data.product.id);
@@ -201,6 +217,7 @@ Page({
     this.setData({
       showBuySheet: true,
       acceptedBargain: acceptedBargain || null,
+      acceptedOffer: acceptedBargain || null,
       orderPrice: acceptedBargain ? acceptedBargain.offerPrice : this.data.product.price,
       selectedDeliveryMode: 0,
       selectedBuyerAddressId: null,

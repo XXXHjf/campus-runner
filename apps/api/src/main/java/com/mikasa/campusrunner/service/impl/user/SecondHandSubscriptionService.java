@@ -35,7 +35,7 @@ public class SecondHandSubscriptionService {
 
     public void bargainAccepted(Long recipient, Long productId, Long bargainId, String tip, LocalDateTime time) {
         status(recipient, productId, productId.toString(),
-                "pages/second-hand/bargains/bargains?tab=issued",
+                "pages/second-hand/bargains/bargains?tab=issued&bargainId=" + bargainId,
                 "待下单", tip, time);
     }
 

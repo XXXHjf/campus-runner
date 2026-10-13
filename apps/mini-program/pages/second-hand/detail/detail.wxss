@@ -11,6 +11,12 @@ page {
   background: #f3f4f5;
 }
 
+.detail-page .detail-accepted-offer {
+  margin-top: 12rpx;
+  color: var(--cr-color-primary, #0052d9);
+  font-size: 26rpx;
+}
+
 .detail-page .detail-seller-bar {
   display: flex;
   align-items: center;

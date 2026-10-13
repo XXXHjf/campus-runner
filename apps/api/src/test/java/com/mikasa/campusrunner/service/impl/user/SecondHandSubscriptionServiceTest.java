@@ -81,7 +81,7 @@ class SecondHandSubscriptionServiceTest {
         when(products.getById(3L)).thenReturn(SecondHandProduct.builder().title("耳机").build());
         service.bargainAccepted(20L, 3L, 7L, "报价已接受，请选择交付方式下单", LocalDateTime.now());
         verify(sender).send(anyString(), eq("receiver"),
-                eq("pages/second-hand/bargains/bargains?tab=issued"),
+                eq("pages/second-hand/bargains/bargains?tab=issued&bargainId=7"),
                 argThat(data -> value(data, "phrase2").equals("待下单")));
     }
     private static String value(JSONObject data, String key) { return data.getJSONObject(key).getString("value"); }

@@ -2,6 +2,7 @@ const feedback = require('../../../utils/feedback');
 const secondHandService = require('../../../services/secondHandService');
 const userService = require('../../../services/userService');
 const tokenManager = require('../../../utils/tokenManager');
+const taskSummaryService = require('../../../services/taskSummaryService');
 const { bargainStatus, friendlyError } = require('../../../utils/secondHandStatus');
 
 Page({
@@ -13,6 +14,8 @@ Page({
     tab: 'received',
     issued: [],
     received: [],
+    receivedBadge: { count: 0 },
+    issuedBadge: { count: 0 },
     summary: {
       pending: 0,
       accepted: 0,
@@ -36,6 +39,7 @@ Page({
   onShow() { this._hidden = false; return this.loadList(); },
   onHide() {
     this._hidden = true;
+    this._taskCountVersion = (this._taskCountVersion || 0) + 1;
     this._rejectVersion = (this._rejectVersion || 0) + 1;
     this._listVersion = (this._listVersion || 0) + 1;
     this.setData({ loading: false, refreshing: false, showReject: false, rejectSubmitting: false, actionLoadingId: null });
@@ -59,7 +63,8 @@ Page({
       && token === tokenManager.getToken() && session === tokenManager.getSessionVersion?.() && tab === this.data.tab;
     if (changed) {
       this._rejectVersion = (this._rejectVersion || 0) + 1;
-      this.setData({ issued: [], received: [], hasMore: true, actionLoadingId: null, showReject: false, rejectSubmitting: false });
+      this.setData({ issued: [], received: [], receivedBadge: { count: 0 }, issuedBadge: { count: 0 },
+        hasMore: true, actionLoadingId: null, showReject: false, rejectSubmitting: false });
     }
     feedback.loaded(this);
     this.setData({ loading: true, ...(!append ? { actionsReady: false } : {}) });
@@ -95,12 +100,29 @@ Page({
         const quote = this.findBargain(this.data.rejectBargainId);
         if (!quote || Number(quote.status) !== 0) this.setData({ showReject: false });
       }
+      if (!append) await this.loadTaskCounts();
       return true;
     } catch (error) {
       if (current()) feedback.loadError(this, '议价记录加载失败，请重试', () => this.loadList(append), !!(this.data.received.length + this.data.issued.length));
       return false;
     } finally {
       if (current()) this.setData({ loading: false });
+    }
+  },
+
+  async loadTaskCounts() {
+    const token = tokenManager.getToken();
+    const session = tokenManager.getSessionVersion?.();
+    const version = this._taskCountVersion = (this._taskCountVersion || 0) + 1;
+    const current = () => !this._hidden && !this._disposed && version === this._taskCountVersion
+      && token === tokenManager.getToken() && session === tokenManager.getSessionVersion?.();
+    try {
+      const summary = await taskSummaryService.getSummary();
+      if (!current()) return;
+      this.setData({ receivedBadge: { count: summary.bargainPendingCount },
+        issuedBadge: { count: summary.bargainAcceptedCount } });
+    } catch (_) {
+      if (current()) this.setData({ receivedBadge: { count: 0 }, issuedBadge: { count: 0 } });
     }
   },
 

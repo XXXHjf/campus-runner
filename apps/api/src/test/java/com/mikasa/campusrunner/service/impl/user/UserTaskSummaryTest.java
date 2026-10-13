@@ -21,15 +21,16 @@ class UserTaskSummaryTest {
   for(String part:List.of("COUNT(*)","tk.user_id=?","p.school_id=?","r.school_id=?","tk.deleted=0 AND tk.status=2 AND o.status=5",
    "o.price IS NOT NULL AND o.price != 0","o.user_id=? AND o.deleted=0 AND o.status=-1 AND o.create_time > ?",
    "buyer_id=? AND deleted=0 AND status IN (0,2)","buyer_id=? AND deleted=0 AND status=2",
-   "status=8 AND transfer_state='WAIT_USER_CONFIRM'","seller_id=? AND deleted=0 AND status=0")) assertTrue(sql.contains(part),part);
+   "status=8 AND transfer_state='WAIT_USER_CONFIRM'","b.seller_id=? AND b.status=0","b.buyer_id=? AND b.status=1","p.deleted=0 AND p.status=0",
+   "linked.bargain_id=b.id","subsequent.create_time >= b.create_time")) assertTrue(sql.contains(part),part);
   assertFalse(sql.toLowerCase().contains("limit"));assertFalse(sql.contains("media_asset"));
  }
  @Test void aggregateCountsAreNotLimitedToTwentyAndSingleIdsAreConditional() {
   BaseContext.setCurrentId(10L);try {
    var users=mock(UserMapper.class);var tasks=mock(UserTaskMapper.class);var user=new UserVO();user.setAuthentication(1);user.setSchoolId(2L);
    when(users.getById(10L)).thenReturn(user);
-   when(tasks.summarize(eq(10L),eq(2L),any())).thenReturn(new UserTaskSummaryVO(75L,123L,1L,456L,60L,45L,50L,80L));
-   var result=new UserTaskService(users,tasks).summary();assertEquals(75,result.runnerReceivableCount());assertNull(result.runnerReceivableOrderId());assertEquals(456,result.runnerUnpaidOrderId());assertEquals(60,result.secondHandBuyerCount());
+   when(tasks.summarize(eq(10L),eq(2L),any())).thenReturn(new UserTaskSummaryVO(75L,123L,1L,456L,60L,45L,50L,80L,12L));
+   var result=new UserTaskService(users,tasks).summary();assertEquals(75,result.runnerReceivableCount());assertNull(result.runnerReceivableOrderId());assertEquals(456,result.runnerUnpaidOrderId());assertEquals(60,result.secondHandBuyerCount());assertEquals(12,result.bargainAcceptedCount());
    verify(tasks).summarize(eq(10L),eq(2L),argThat(t->t.isAfter(LocalDateTime.now().minusMinutes(31))&&t.isBefore(LocalDateTime.now().minusMinutes(29))));
   }finally{BaseContext.removeCurrentId();}
  }

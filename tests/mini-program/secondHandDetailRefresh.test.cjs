@@ -154,7 +154,11 @@ test('normal purchase uses own accepted quote while excluding historical orders 
     { id: 2, buyerId: 8, status: 1, offerPrice: 2 },
     { id: 3, buyerId: 7, status: 1, offerPrice: 16 },
   ] });
-  await page.onShow(); await page.buyNow();
+  await page.onShow();
+  assert.equal(page.data.acceptedOffer.id, 3);
+  assert.equal(page.data.acceptedOffer.offerPrice, 16);
+  assert.equal(page.data.product.price, 20);
+  await page.buyNow();
   assert.equal(page.data.acceptedBargain.id, 3);
   assert.equal(page.data.orderPrice, 16);
 });
@@ -163,7 +167,16 @@ test('direct purchase without accepted quote retains original price', async () =
   const { page } = harness();
   await page.onShow(); await page.buyNow();
   assert.equal(page.data.acceptedBargain, null);
+  assert.equal(page.data.acceptedOffer, null);
   assert.equal(page.data.orderPrice, 20);
+});
+
+test('return refresh removes an expired personal price and strangers never see it', async () => {
+  let quotes = [{ id: 3, buyerId: 7, status: 1, offerPrice: 6 }];
+  const { page } = harness({ listProductBargains: async () => quotes });
+  await page.onShow(); assert.equal(page.data.acceptedOffer.offerPrice, 6);
+  quotes = [{ id: 3, buyerId: 7, status: 3, offerPrice: 6 }, { id: 4, buyerId: 8, status: 1, offerPrice: 5 }];
+  page.onHide(); await page.onShow(); assert.equal(page.data.acceptedOffer, null);
 });
 
 test('expired or already ordered targeted quote never silently falls back to original price', async () => {

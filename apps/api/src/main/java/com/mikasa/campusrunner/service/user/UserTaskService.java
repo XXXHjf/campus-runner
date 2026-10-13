@@ -21,6 +21,6 @@ public class UserTaskService {
         return new UserTaskSummaryVO(result.runnerReceivableCount(),
                 Long.valueOf(1).equals(result.runnerReceivableCount())?result.runnerReceivableOrderId():null,
                 result.runnerUnpaidCount(),Long.valueOf(1).equals(result.runnerUnpaidCount())?result.runnerUnpaidOrderId():null,
-                result.secondHandBuyerCount(),result.secondHandBuyerNoticeCount(),result.secondHandSellerCount(),result.bargainPendingCount());
+                result.secondHandBuyerCount(),result.secondHandBuyerNoticeCount(),result.secondHandSellerCount(),result.bargainPendingCount(),result.bargainAcceptedCount());
     }
 }

@@ -11,6 +11,7 @@
       <view class="price">¥{{product.price}}</view>
       <view wx:if="{{!product.isOwner}}" class="favorite-count">{{product.favoriteCount}} 人收藏</view>
     </view>
+    <view wx:if="{{acceptedOffer && product.canBuy}}" class="detail-accepted-offer">卖家已接受你的报价 ¥{{acceptedOffer.offerPrice}}</view>
     <view class="title">{{product.title}}</view>
     <view class="tag-row">
       <t-tag size="small" variant="light">{{product.statusText}}</t-tag>
@@ -128,7 +129,7 @@
             loading="{{buySubmitting}}"
             disabled="{{buySubmitting}}"
             bind:tap="buyNow"
-          >立即下单</t-button>
+          >{{acceptedOffer ? '¥' + acceptedOffer.offerPrice + ' 下单' : '立即下单'}}</t-button>
         </view>
       </block>
     </view>

@@ -26,7 +26,8 @@ async function loadSummary(userInfo) {
   if (!isProfileComplete(currentUser) || Number(currentUser.authentication) !== 1) return { totalCount: 0 };
   const summary = await taskSummaryService.getSummary();
   return { totalCount: summary.runnerReceivableCount + summary.runnerUnpaidCount
-    + summary.secondHandBuyerNoticeCount + summary.secondHandSellerCount + summary.bargainPendingCount };
+    + summary.secondHandBuyerNoticeCount + summary.secondHandSellerCount + summary.bargainPendingCount
+    + summary.bargainAcceptedCount };
 }
 
 async function refreshMineTabRedDot(options = {}) {

@@ -2,10 +2,10 @@ const test=require('node:test'),assert=require('node:assert/strict'),vm=require(
 const feedbackStub=require('./helpers/feedbackStub.cjs');
 const source=fs.readFileSync(path.resolve(__dirname,'../../apps/mini-program/pages/second-hand/bargains/bargains.js'),'utf8');
 const defer=()=>{let resolve;const promise=new Promise(yes=>resolve=yes);return {promise,resolve};};
-function harness(){let page;const state={token:'a',queries:[],failure:false,pending:null};const app={globalData:{userInfo:{id:7,token:'a'}}};
+function harness(){let page;const state={token:'a',queries:[],failure:false,pending:null,summary:{bargainPendingCount:80,bargainAcceptedCount:12}};const app={globalData:{userInfo:{id:7,token:'a'}}};
  const records=Array.from({length:45},(_,i)=>({id:i+1,buyerId:8,sellerId:7,status:i%5,productId:i+100,offerPrice:10}));records.push({id:90,buyerId:7,sellerId:8,status:1});
  vm.runInNewContext(source,{getApp:()=>app,wx:{getStorageSync:()=>null,setStorageSync(){}},
- require:id=>id.endsWith('tokenManager')?{getToken:()=>state.token}:id.endsWith('feedback')?feedbackStub():id.endsWith('secondHandStatus')?require('../../apps/mini-program/utils/secondHandStatus'):id.endsWith('userService')?{getUserInfo:async()=>({id:state.token==='a'?7:9})}:id.endsWith('secondHandService')?{listMyBargains:async query=>{
+ require:id=>id.endsWith('taskSummaryService')?{getSummary:async()=>{if(state.summary instanceof Error)throw state.summary;return state.summary;}}:id.endsWith('tokenManager')?{getToken:()=>state.token}:id.endsWith('feedback')?feedbackStub():id.endsWith('secondHandStatus')?require('../../apps/mini-program/utils/secondHandStatus'):id.endsWith('userService')?{getUserInfo:async()=>({id:state.token==='a'?7:9})}:id.endsWith('secondHandService')?{listMyBargains:async query=>{
   state.queries.push({...query});if(state.failure)throw Error('network');if(state.pending&&query.page===2)return state.pending.promise;
   return records.filter(item=>query.role==='received'?item.sellerId===7:item.buyerId===7).slice((query.page-1)*20,query.page*20);
  }}:{},Page:config=>{page={...config,data:structuredClone(config.data),setData:update=>Object.assign(page.data,update)};}});
@@ -33,4 +33,15 @@ test('ordinary entry and invalid tab preserve the received default',async()=>{
  for(const options of [undefined,{}, {tab:'invalid'}]){const {page,state}=harness();page.onLoad(options);await page.onShow();
   assert.equal(page.data.tab,'received');assert.equal(state.queries[0].role,'received');
  }
+});
+
+test('tab badges use full task counts and opening records does not acknowledge them',async()=>{
+ const {page,state}=harness();await page.onShow();assert.equal(page.data.receivedBadge.count,80);assert.equal(page.data.issuedBadge.count,12);
+ await page.onTabsClick({detail:{value:'issued'}});assert.equal(page.data.issued.length,1);assert.equal(page.data.issuedBadge.count,12);
+ state.summary={bargainPendingCount:0,bargainAcceptedCount:0};await page.loadList();assert.equal(page.data.issuedBadge.count,0);
+});
+
+test('failed task refresh hides stale badge without hiding records',async()=>{
+ const {page,state}=harness();await page.onShow();state.summary=Error('network');await page.loadList();
+ assert.equal(page.data.issuedBadge.count,0);assert.equal(page.data.receivedBadge.count,0);assert.equal(page.data.received.length,20);
 });

@@ -93,7 +93,7 @@ Page({
     unpaidOrderList: [],
     secondHandOrderCount: 0,
     secondHandSellerOrderCount: 0,
-    bargainPendingCount: 0,
+    bargainPendingCount: 0, bargainAcceptedCount: 0,
   },
 
   async onMenuTap(e) {
@@ -144,7 +144,7 @@ Page({
   },
   label_9() {
     wx.navigateTo({
-      url: '/pages/second-hand/bargains/bargains',
+      url: `/pages/second-hand/bargains/bargains?tab=${this.data.bargainAcceptedCount > 0 && this.data.bargainPendingCount === 0 ? 'issued' : 'received'}`,
     })
   },
   label_11() {
@@ -309,7 +309,7 @@ Page({
           unpaidOrderList: [],
           secondHandOrderCount: 0,
           secondHandSellerOrderCount: 0,
-          bargainPendingCount: 0,
+          bargainPendingCount: 0, bargainAcceptedCount: 0,
         });
         mineTabBadgeService.clearMineTabRedDot();
         
@@ -471,7 +471,7 @@ Page({
     if (this._tasksScope !== scope) {
       this._tasksScope = scope;
       this.setData({ notReceiveOrderCount: 0, unpaidOrderCount: 0, notReceiveOrderList: [], unpaidOrderList: [],
-        secondHandOrderCount: 0, secondHandSellerOrderCount: 0, bargainPendingCount: 0 });
+        secondHandOrderCount: 0, secondHandSellerOrderCount: 0, bargainPendingCount: 0, bargainAcceptedCount: 0 });
       mineTabBadgeService.clearMineTabRedDot();
     }
     // 检查是否已登录（有 token）
@@ -489,7 +489,7 @@ Page({
         unpaidOrderList: [],
         secondHandOrderCount: 0,
         secondHandSellerOrderCount: 0,
-        bargainPendingCount: 0,
+        bargainPendingCount: 0, bargainAcceptedCount: 0,
       });
       mineTabBadgeService.clearMineTabRedDot();
       return;
@@ -504,7 +504,7 @@ Page({
       // 返回资料页后可继续浏览，不在生命周期中强制进入注册。
       if (Number(userInfo.authentication) !== 1) {
         this.setData({ notReceiveOrderCount: 0, unpaidOrderCount: 0, notReceiveOrderList: [], unpaidOrderList: [],
-          secondHandOrderCount: 0, secondHandSellerOrderCount: 0, bargainPendingCount: 0 });
+          secondHandOrderCount: 0, secondHandSellerOrderCount: 0, bargainPendingCount: 0, bargainAcceptedCount: 0 });
         mineTabBadgeService.clearMineTabRedDot();
         return;
       }
@@ -519,9 +519,10 @@ Page({
         secondHandOrderCount: summary.secondHandBuyerCount,
         secondHandSellerOrderCount: summary.secondHandSellerCount,
         bargainPendingCount: summary.bargainPendingCount,
+        bargainAcceptedCount: summary.bargainAcceptedCount,
       });
       mineTabBadgeService.setMineTabRedDot(summary.runnerReceivableCount + summary.runnerUnpaidCount
-        + summary.secondHandBuyerCount + summary.secondHandSellerCount + summary.bargainPendingCount);
+        + summary.secondHandBuyerCount + summary.secondHandSellerCount + summary.bargainPendingCount + summary.bargainAcceptedCount);
       
     } catch (err) {
       if (!current()) return;
@@ -540,7 +541,7 @@ Page({
         unpaidOrderList: [],
         secondHandOrderCount: 0,
         secondHandSellerOrderCount: 0,
-        bargainPendingCount: 0,
+        bargainPendingCount: 0, bargainAcceptedCount: 0,
       });
       mineTabBadgeService.clearMineTabRedDot();
     }

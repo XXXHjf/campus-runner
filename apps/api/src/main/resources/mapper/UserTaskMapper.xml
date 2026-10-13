@@ -18,6 +18,14 @@
         JOIN tb_order_address_snapshot r ON r.order_id=o.id AND r.role='RECEIVE'
         WHERE o.user_id=#{userId} AND o.deleted=0 AND o.status=-1 AND o.create_time > #{unpaidAfter}
     </sql>
+    <sql id="activeBargainFrom">
+        FROM tb_second_hand_bargain b
+        JOIN tb_second_hand_product p ON p.id=b.product_id AND p.deleted=0 AND p.status=0
+        WHERE b.deleted=0
+          AND NOT EXISTS (SELECT 1 FROM tb_second_hand_order linked WHERE linked.bargain_id=b.id)
+          AND NOT EXISTS (SELECT 1 FROM tb_second_hand_order subsequent
+                          WHERE subsequent.product_id=b.product_id AND subsequent.create_time >= b.create_time)
+    </sql>
     <select id="summarize" resultType="com.mikasa.campusrunner.pojo.vo.UserTaskSummaryVO">
         SELECT
         (SELECT COUNT(*) <include refid="receivableFrom"/>) AS runner_receivable_count,
@@ -28,6 +36,7 @@
         (SELECT COUNT(*) FROM tb_second_hand_order WHERE buyer_id=#{userId} AND deleted=0 AND status=2) AS second_hand_buyer_notice_count,
         (SELECT COUNT(*) FROM tb_second_hand_order WHERE seller_id=#{userId} AND deleted=0
             AND (status=1 OR (status=8 AND transfer_state='WAIT_USER_CONFIRM'))) AS second_hand_seller_count,
-        (SELECT COUNT(*) FROM tb_second_hand_bargain WHERE seller_id=#{userId} AND deleted=0 AND status=0) AS bargain_pending_count
+        (SELECT COUNT(*) <include refid="activeBargainFrom"/> AND b.seller_id=#{userId} AND b.status=0) AS bargain_pending_count,
+        (SELECT COUNT(*) <include refid="activeBargainFrom"/> AND b.buyer_id=#{userId} AND b.status=1) AS bargain_accepted_count
     </select>
 </mapper>

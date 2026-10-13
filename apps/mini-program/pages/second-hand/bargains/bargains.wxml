@@ -1,8 +1,8 @@
 <view class="bargains-page">
   <view class="bargains-page__tabs">
     <t-tabs theme="line" show-bottom-line="{{false}}" value="{{tab}}" bind:click="onTabsClick">
-      <t-tab-panel label="我收到的" value="received" />
-      <t-tab-panel label="我发出的" value="issued" />
+      <t-tab-panel label="我收到的" value="received" badge-props="{{receivedBadge}}" />
+      <t-tab-panel label="我发出的" value="issued" badge-props="{{issuedBadge}}" />
     </t-tabs>
   </view>
 

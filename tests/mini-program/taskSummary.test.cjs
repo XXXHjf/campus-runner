@@ -1,7 +1,7 @@
 const test=require('node:test');const assert=require('node:assert/strict');
 const fs=require('node:fs');const path=require('node:path');const vm=require('node:vm');
 const root=path.resolve(__dirname,'../../apps/mini-program');
-const summary={runnerReceivableCount:75,runnerReceivableOrderId:null,runnerUnpaidCount:1,runnerUnpaidOrderId:10,secondHandBuyerCount:60,secondHandBuyerNoticeCount:45,secondHandSellerCount:50,bargainPendingCount:80};
+const summary={runnerReceivableCount:75,runnerReceivableOrderId:null,runnerUnpaidCount:1,runnerUnpaidOrderId:10,secondHandBuyerCount:60,secondHandBuyerNoticeCount:45,secondHandSellerCount:50,bargainPendingCount:80,bargainAcceptedCount:12};
 const deferred=()=>{let resolve;const promise=new Promise(yes=>resolve=yes);return {promise,resolve};};
 function moduleHarness(file,requireFn,extra={}) {const module={exports:{}};vm.runInNewContext(fs.readFileSync(path.join(root,file),'utf8'),{module,exports:module.exports,require:requireFn,getApp:()=>({globalData:{API_URL:'https://example.test'}}),...extra});return module.exports;}
 test('summary validates complete counts instead of estimating from the first page',async()=>{
@@ -18,11 +18,11 @@ function badgeHarness(){let token='a',response=summary,calls=0;const dots=[];
  {Date,wx:{showTabBarRedDot:()=>dots.push(true),hideTabBarRedDot:()=>dots.push(false)}});
  return {api,dots,setToken:t=>token=t,setResponse:r=>response=r,calls:()=>calls};}
 test('badge uses full counts and retains the existing buyer-notice selection',async()=>{
- const h=badgeHarness();const result=await h.api.refreshMineTabRedDot();assert.equal(result.totalCount,251);await h.api.refreshMineTabRedDot();assert.equal(h.calls(),1);assert.equal(h.dots.at(-1),true);
+ const h=badgeHarness();const result=await h.api.refreshMineTabRedDot();assert.equal(result.totalCount,263);await h.api.refreshMineTabRedDot();assert.equal(h.calls(),1);assert.equal(h.dots.at(-1),true);
 });
 test('badge cache and pending reads do not cross accounts',async()=>{
  const h=badgeHarness(),old=deferred();h.setResponse(old.promise);const first=h.api.refreshMineTabRedDot();
- h.setToken('b');h.setResponse({...summary,runnerReceivableCount:0,runnerUnpaidCount:0,secondHandBuyerNoticeCount:0,secondHandSellerCount:0,bargainPendingCount:0});
+ h.setToken('b');h.setResponse({...summary,runnerReceivableCount:0,runnerUnpaidCount:0,secondHandBuyerNoticeCount:0,secondHandSellerCount:0,bargainPendingCount:0,bargainAcceptedCount:0});
  await h.api.refreshMineTabRedDot();old.resolve(summary);await first;assert.equal(h.dots.at(-1),false);assert.equal(h.calls(),2);
 });
 function mineHarness(){let token='a',response=summary,page;const routes=[],queries=[],dots=[],messages=[];
@@ -50,4 +50,12 @@ test('entering with another account clears old task counts before the new reques
  const h=mineHarness();await h.page.onShow();const pending=deferred();h.setToken('b');h.setResponse(pending.promise);
  const loading=h.page.onShow();await new Promise(resolve=>setImmediate(resolve));assert.equal(h.page.data.notReceiveOrderCount,0);assert.equal(h.page.data.unpaidOrderList.length,0);
  pending.resolve({...summary,runnerReceivableCount:1,runnerReceivableOrderId:222});await loading;h.page.tapToReceive();assert.match(h.routes.at(-1),/info\?id=222/);
+});
+
+test('accepted quote alone lights the mine dot and enters issued records',async()=>{
+ const counts={...summary,runnerReceivableCount:0,runnerUnpaidCount:0,secondHandBuyerCount:0,secondHandBuyerNoticeCount:0,secondHandSellerCount:0,bargainPendingCount:0,bargainAcceptedCount:1};
+ const badge=badgeHarness();badge.setResponse(counts);assert.equal((await badge.api.refreshMineTabRedDot()).totalCount,1);assert.equal(badge.dots.at(-1),true);
+ const mine=mineHarness();mine.setResponse(counts);await mine.page.onShow();assert.equal(mine.page.data.bargainAcceptedCount,1);
+ mine.page.label_9();assert.match(mine.routes.at(-1),/tab=issued/);
+ mine.setResponse({...counts,bargainAcceptedCount:0});await mine.page.onShow();assert.equal(mine.page.data.bargainAcceptedCount,0);assert.equal(mine.dots.at(-1),0);
 });
